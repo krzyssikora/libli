@@ -98,7 +98,7 @@ Verbatim from spec §0 (2026-09-17). „Proposal" rows are the spec author's, ac
 The spec body and the O-rows agree everywhere; no O-row needed a tie-break. The gaps below are places where the spec leaves a choice open or where a literal reading would make a named test vacuous; the plan resolves each as stated.
 
 1. **A class-only right-align rule would make T13's `thead` A/B vacuous.** §2.4 gives `results-table__num` cells `text-align:right` without a selector. Written as `.results-table .results-table__num` (0,2,0) it also out-ranks `.results-table thead th` (0,1,2) on „Wynik" and „%", so removing `.results-table thead th.results-table__num` (0,2,2) changes nothing and T13's A/B stays green. Task 7 writes the right-align as `.results-table td.results-table__num` (0,2,1) — body cells only — so the `thead` rule is the one that right-aligns the headers.
-2. **T8a's 5-point margin has no fallback.** §7 says the correct build must clear the 30% floor by ≥ 5 points "for this A/B to mean anything" but not what to do if it does not. Tasks 7 and 9: if the measured share is below 35%, run the nowrap A/B anyway; if it still goes red, continue and record the margin in the PR body; if it does not go red, **STOP and ask the owner** (the levers that widen the margin — merging or dropping a column — touch O1).
+2. **T8a's 5-point margin has no fallback.** §7 says the correct build must clear the 30% floor by ≥ 5 points "for this A/B to mean anything" but not what to do if it does not. "The margin" is the measured share minus 0.30. On the **seeded e2e fixture** (`test_rt_t8a_phone_table_fits_and_keeps_the_title_share`, Task 7 Step 4 and Step 6 item 5): if the share is below 35%, run the nowrap A/B anyway; if it goes red, continue and record the margin in the PR body; if it does not go red, **STOP and ask the owner** (the levers that widen the margin — merging or dropping a column — touch O1). On **mat-pp or throwaway pages** (Task 7 Step 5e, Task 9 Step 2d) a share below 35% gets the same nowrap re-measure, but a re-measure that stays at or above 0.30 is **recorded, not a stop**: record the margin in the PR body. If that page has no wrappable pill (no awaiting-review, in-progress, not-started or submitted pill in its status column), the re-measure is skipped and „no pill on page" is recorded instead.
 3. **T13d measures the declared border, not the painted winner.** `getComputedStyle` on a cell in a `border-collapse` table reports the cell's own declared `border-bottom` (2px, `--border-strong`), not the result of the collapse. The test pins the rule the spec names; whether the 2px border visibly wins over the next row's 1px `border-top` is judged in Task 9's screenshots.
 4. **The builder invariant has no test in §7.** §2.1 requires `rows_by_unit[node.pk]` so a quiz node without a `build_course_results` row raises instead of rendering unscored. Task 3 adds `test_rt_invariant_a_quiz_without_a_row_raises` (monkeypatched builder drops a row; *Mutant:* `if d["node"].pk not in rows_by_unit: continue` → the must-raise test goes red).
 5. **T10b's "same figures as its table row" needs the table.** Task 1 pins the header (T10b) and the Progress pill (T10d); Task 5 adds `test_rt_t10b_header_matches_the_table_row` once the table exists.
@@ -405,7 +405,7 @@ Expected: all pass. `test_build_student_breakdown_pills` still sees the exact sc
 
 1. *Mutant (spec T1b/T10b/T10d):* in `quiz_score_view`, change `shows_score = row["status"] == "submitted" and max_score > 0` to `shows_score = row["status"] == "submitted" and row["graded"] and max_score > 0`. Run `uv run pytest tests/test_analytics_rollups.py tests/test_analytics_student_quiz.py -k "test_rt_"` → red: the REVIEW-only parametrize case, `test_rt_t10b_…` (a pill is rendered) and `test_rt_t10d_…` (`pill--submitted`). Revert by hand.
 2. *Mutant (spec T10b/T10d, "keep the old condition"):* in `_quiz_pill`, change `if view["shows_score"]:` to `if row["graded"] and row["max_score"]:`. Run `uv run pytest tests/test_analytics_student_quiz.py -k "test_rt_t10 or t27"` → red on `test_rt_t10b_…`, `test_rt_t10d_…` and `test_t27_…`. Revert by hand.
-3. *Mutant (always-Decimal):* in `quiz_score_view`, change `score = row["score"] or Decimal("0")` to `score = row["score"]`. Run `uv run pytest tests/test_analytics_rollups.py -k test_rt_quiz_score_view` → red (the `not_started` case gets `None`). Revert by hand.
+3. *Mutant (always-Decimal):* in `quiz_score_view`, change `score = row["score"] or Decimal("0")` to `score = row["score"]`. Run `uv run pytest tests/test_analytics_rollups.py -k test_rt_quiz_score_view_is_the_grids_rule` → red (the `not_started` case gets `None`). Revert by hand.
 
 `git diff` shows only Steps 1, 3 and 4.
 
@@ -560,7 +560,7 @@ Expected: all selected tests pass (`test_course_results_enrolled_renders_rows_an
 
 - [ ] **Step 6: Falsify**
 
-*Mutant (spec T15):* in `course_results.html`, change `{% if row.score_view.shows_score %}` back to `{% if row.graded %}`. Run `uv run pytest tests/test_courses_views.py -k test_rt_t15` → red (`AttributeError` on the missing score). Revert by hand; `git diff` shows only Steps 3–4 and the test.
+*Mutant (spec T15):* in `course_results.html`, change `{% if row.score_view.shows_score %}` back to `{% if row.graded %}`. Run `uv run pytest tests/test_courses_views.py -k test_rt_t15_course_results_scores_a_reviewed_review_only_quiz` → red (`AttributeError` on the missing score). Revert by hand; `git diff` shows only Steps 3–4 and the test.
 
 - [ ] **Step 7: Ruff and commit**
 
@@ -1095,7 +1095,18 @@ Expected: all pass (the templates ignore the new keys until Task 5).
 
 - [ ] **Step 6: Falsify**
 
-Run each mutant with `uv run pytest tests/test_analytics_student_page.py -k "<test>"`, observe red for the stated reason, revert by hand.
+Run each mutant with `uv run pytest tests/test_analytics_student_page.py -k "<full test names>"`, observe red for the stated reason, revert by hand. Pass the FULL function names, never the short ids (a short id such as `rt_t1b` or `rt_t7` also matches Task 5's tests in the same file):
+
+| Item | `-k` |
+|---|---|
+| 1 | `test_rt_t1_results_summaries_equal_the_grid` |
+| 2 | `"test_rt_t1b_a_reviewed_review_only_quiz_is_scored_and_summed or test_rt_t1_results_summaries_equal_the_grid"` |
+| 3 | `"test_rt_t2_a_one_quiz_section_has_a_percent_but_no_summary or test_rt_t3_a_one_quiz_course_has_no_total_summary"` |
+| 4 | `test_rt_t3_a_one_quiz_course_has_no_total_summary` |
+| 5, 6 | `test_rt_t4_drafts_are_the_grids_drafts` |
+| 7 | `test_rt_t5_a_zero_max_quiz_is_in_quiz_total_not_in_counted` |
+| 8, 9 | `test_rt_t7_progress_mode_carries_no_results_keys` |
+| 10 | `test_rt_invariant_a_quiz_without_a_row_raises` |
 
 1. *Mutant (spec T1, "count awaiting-review scores"):* in `quiz_score_view`, change `row["status"] == "submitted"` to `row["status"] in ("submitted", "awaiting_review")`. → `rt_t1` red: Sekcja A1 becomes 15/20 · 75% against the grid's 12/15 · 80%. Revert.
 2. *Mutant (spec T1b):* in `quiz_score_view`, add `row["graded"] and` to the `shows_score` condition. → `rt_t1b` red (`shows_score` False) and `rt_t1` red on Sekcja A1's label (8/10 against 12/15, same 80%). Revert.
@@ -1254,10 +1265,12 @@ Expected: all pass.
 
 - [ ] **Step 6: Falsify**
 
+Run each mutant with `uv run pytest tests/test_analytics_student_page.py -k "<full test name>"`, observe red for the stated reason, revert by hand. The short ids below map to full names: `rt_t6` → `-k test_rt_t6_results_nodes_carry_the_course_band_colours`; `rt_t7` → `-k test_rt_t7_progress_mode_carries_no_results_keys` (never a bare `rt_t6` / `rt_t7`: Task 5 adds `test_rt_t6_percent_cells_carry_the_band_inline` and `test_rt_t7_progress_renders_the_tree_not_the_table` to the same file).
+
 1. *Mutant (spec T6):* in `analytics_student`, replace `course_color_bands(course)` with `default_color_bands()` (already imported). → `rt_t6` red (`#52b06a` against `#404040`). Revert.
 2. *Mutant (spec T6):* in `_paint_results.walk`, change `paint(d)` to `if not d["is_unit"]: paint(d)` (on its own line with the call indented under it). → `rt_t6` red with `KeyError: 'color'` on „A1 oceniony". Revert.
 3. *Mutant (spec T7, guarded walk in both modes):* in `_paint_results.paint`, change `d["percent"]` to `d.get("percent")`; change `paint(breakdown["total"])` to `paint(breakdown.get("total", {}))`; and in `analytics_student` remove the `if mode == "results":` line (dedent the call). → `rt_t7` red on the `color` / `text_color` keys. Revert all three.
-4. *Mutant (spec T7, unguarded walk in both modes):* only remove the `if mode == "results":` guard. → `rt_t7` red: the Progress page raises `KeyError` (a 500 under the test client). Revert.
+4. *Mutant (spec T7, unguarded walk in both modes):* only remove the `if mode == "results":` guard. → `rt_t7` errors with `KeyError: 'percent'` raised through the test client (the client re-raises view exceptions; there is no 500 response to see). Revert.
 
 `git diff` shows only Steps 1, 3 and 4.
 
@@ -1826,7 +1839,7 @@ Replace the whole content of `templates/courses/manage/analytics_student.html` w
     {% if breakdown.tree %}
       {% comment %}A Tab stop and a landmark ONLY when the table can scroll, i.e. when a
       KaTeX formula can widen it (results-table spec §2.5). position:relative on the
-      wrapper (app.css) keeps KaTeX's absolute .katex-mathml inside the scroller.{% endcomment %}
+      wrapper is kept defensively (see app.css).{% endcomment %}
       <div class="results-table-wrap"{% if has_math %} role="region" aria-labelledby="results-table-caption" tabindex="0"{% endif %}>
         <table class="results-table">
           <caption id="results-table-caption" class="sr-only">{% trans "Quiz results" %}</caption>
@@ -1916,7 +1929,24 @@ Expected: all pass.
 
 - [ ] **Step 9: Falsify**
 
-For each: apply by hand, run the named test with `uv run pytest <file> -k "<test>"`, observe red for the reason given, revert by hand.
+For each: apply by hand, run the named test with `uv run pytest <file> -k "<full test name>"`, observe red for the reason given, revert by hand. Pass the FULL function names below, never the short ids (`rt_t1c`, `rt_t6`, `rt_t7` … also match Task 3's and Task 4's tests in the same file):
+
+| Item | File | `-k` |
+|---|---|---|
+| 1 | `tests/test_analytics_student_page.py` | `test_rt_t1c_an_uncounted_summary_renders_a_count_and_no_figures` |
+| 2 | same | `test_rt_t2_one_quiz_headings_render_no_figures` |
+| 3 | same | `test_rt_t3_a_one_quiz_course_renders_no_total_row` |
+| 4, 5, 6 | same | `test_rt_t5b_polish_cells_read_exactly` |
+| 7 | same | `test_rt_t5c_rows_are_preorder_with_their_depth_class` |
+| 8 | same | `test_rt_t5e_status_cells_show_the_pill_for_their_status` |
+| 9 | same | `test_rt_t6_percent_cells_carry_the_band_inline` |
+| 10 | same | `test_rt_t7_progress_renders_the_tree_not_the_table` |
+| 11 | same | `test_rt_t7b_a_course_without_quizzes_says_so` |
+| 12 | same | `"test_rt_t8d_scroll_wrapper_is_a_region_only_with_maths and plain"` |
+| 13 | same | `"test_rt_t8d_scroll_wrapper_is_a_region_only_with_maths and not plain"` (`and maths` would match both cases: the function name contains „maths") |
+| 14 | same | `test_rt_t9_heading_and_title_name_the_view` |
+| 15 | `tests/test_analytics_student_quiz.py` | `"test_rt_t10_back_link_names_the_view and results"` |
+| 16, 17 | `tests/test_title_math_markers.py` | `test_rt_t10c_results_table_titles_are_marked` |
 
 1. *Mutant (T1c):* in `_results_table_rows.html`'s heading row, change the score cell's `{% if item.summary and item.percent is not None %}` to `{% if item.summary %}`. → `rt_t1c_an_uncounted_summary…` red („0/0"). Revert.
 2. *Mutant (spec T2):* drop `item.summary and` from BOTH the heading score and % conditions (the three `{% if … %}` on those two cells). → `rt_t2_one_quiz_headings…` red (Sekcja C1 shows „3/4", „75%" and a style). Revert.
@@ -2318,7 +2348,7 @@ Expected: all pass.
 - [ ] **Step 8: Falsify**
 
 1. *Mutant (T11, outline):* in `_outline_node.html`, in the **childless** arm only (the second `lessons:` chip in the file — the `<span class="rollup">` line inside the `<div class="outline-node__head">` arm), replace `{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}` with `{{ item.required_done }}/{{ item.required_total }}`. → `rt_t11_childless_outline_branch_chip_reads_lekcje` red („1/2"), while `rt_t11_student_outline_chip_reads_lekcje` stays green (a view only reaches the `<details>` arm) — which is why the bare render exists. Revert.
-2. *Mutant (T14):* in `locale/pl/LC_MESSAGES/django.po`, set `msgstr[1]` of `%(n)s question awaiting review (up to 1 more mark)` back to „%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)" and run `uv run python manage.py compilemessages -l pl`. Run `uv run pytest tests/test_review_wording_pl.py -k test_rt_t14_quiz_results` → red on exactly one case (the `["0.5", "0.5"]` one). Revert the `.po` by hand, re-run `compilemessages -l pl`, re-run the test → green.
+2. *Mutant (T14):* in `locale/pl/LC_MESSAGES/django.po`, set `msgstr[1]` of `%(n)s question awaiting review (up to 1 more mark)` back to „%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)" and run `uv run python manage.py compilemessages -l pl`. Run `uv run pytest tests/test_review_wording_pl.py -k test_rt_t14_quiz_results_badge_and_all_six_plural_forms` → red on exactly one case (the `["0.5", "0.5"]` one). Revert the `.po` by hand, re-run `compilemessages -l pl`, re-run the test → green.
 
 `git diff` shows only Steps 1, 2 and 4–6.
 
@@ -2781,7 +2811,7 @@ uv run pytest tests/test_css_citations_are_durable.py
 Expected: every test passes, including the pre-existing Progress-mode tests in the file. In the `-rP` output, find `[rt] title share at 390px: 0.xxx` and record the value.
 
 - **STOP (spec §2.4 / T8a floor):** if the share is below `0.300`, do not commit. Ask the owner, giving the measured share and a 390px screenshot of the fixture: the remaining levers (merging or dropping a column) touch O1.
-- If the share is below `0.350`, run the nowrap A/B of Step 6 item 5 now. If it goes red, continue and record the margin for the PR body; if it does **not** go red, **STOP and ask the owner** (Spec gaps item 2).
+- If the share is below `0.350`, run the nowrap A/B of Step 6 item 5 now. If it goes red, continue and record the margin (share − 0.30) for the PR body; if it does **not** go red, **STOP and ask the owner** (Spec gaps item 2; this is the e2e fixture, where a green A/B is a stop).
 - **STOP (spec T8b precondition):** `test_rt_t8b_a_long_formula_scrolls_the_table_not_the_page` asserts `scroll_w > client_w` as a precondition before checking `_page_fits`. `RT_MATH_TITLE` is a single `.base` run (unbreakable), so this should hold; if it still fails on this correct build, stop and report it rather than weakening the assertion, widening the viewport, or lengthening the formula further.
 
 - [ ] **Step 5: Measure the floor on mat-pp before committing it**
@@ -2917,14 +2947,27 @@ uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<url from 5c>" 39
 Expected per line: `pageFits: True`, `wrapFits: True` unless `katex > 0` (a formula may scroll the table), and `share ≥ 0.30`. A render with `katex > 0` is not a floor check (a formula sets the title column's width); judge the others. Every URL from 5c is a Results URL, so every invocation here passes `measure`; a `NO TABLE` line (possible only on a `measure` invocation) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
 
 - **STOP (spec §2.4 / T8a floor):** if any formula-free mat-pp render has `share < 0.30`, do not commit; ask the owner with the measured shares and the screenshots (`rt_page.py … 390 <scratchpad>/matpp-390.png …`).
-- A share below 0.35 → for that mat-pp or throwaway page, temporarily apply the nowrap pill change to `app.css`, re-run `rt_page.py … 390 … measure` on that same URL and expect a share below 0.30, then revert by hand; if it does not drop below 0.30, record the margin in the PR body.
+- A share below 0.35 → for that mat-pp or throwaway page, temporarily apply the nowrap pill change (Step 6 item 5) to `app.css`, re-run `rt_page.py … 390 … measure` on that same URL and expect a share below 0.30, then revert by hand. If it does not drop below 0.30, this is **recorded, not a stop** (Spec gaps item 2): record the margin — the measured share minus 0.30 — in the PR body. If that page has no wrappable pill (no awaiting-review, in-progress, not-started or submitted pill in its status column; its screenshot shows it), skip the re-measure and record „no pill on page" instead.
 - Otherwise keep `RT_TITLE_SHARE_FLOOR = 0.30` (confirmed); record the fixture's and mat-pp's shares for the PR body.
 
 5f. Stop the server the way it was started, then confirm nothing listens: `netstat -ano | grep ":<port> " | grep LISTENING` prints nothing.
 
 - [ ] **Step 6: Falsify (every spec A/B; hand edits in `app.css`)**
 
-For each: apply by hand, run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k "<test>"`, observe red for the stated reason, revert by hand.
+For each: apply by hand, run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k "<full test name>"`, observe red for the stated reason, revert by hand. Pass the FULL function names below, never the short ids (`rt_t13` also matches `rt_t13b`/`c`/`d`):
+
+| Item | `-k` |
+|---|---|
+| 1 | `"test_rt_t5d_title_indent_grows_with_depth_at_every_width and 1280"` |
+| 2, 3 | `"test_rt_t5d_title_indent_grows_with_depth_at_every_width and 600"` |
+| 4, 5, 6 | `test_rt_t8a_phone_table_fits_and_keeps_the_title_share` |
+| 7 | `test_rt_t8b_a_long_formula_scrolls_the_table_not_the_page` |
+| 8 | `test_rt_t8c_numbers_are_right_aligned` |
+| 9 | `"test_rt_t13_heading_rows_are_tinted_and_bold_and_headers_align and light"` |
+| 10–14 | `test_rt_t13_heading_rows_are_tinted_and_bold_and_headers_align` |
+| 15 | `test_rt_t13b_desktop_pills_stay_on_one_line` |
+| 16 | `test_rt_t13c_a_coloured_cell_shows_its_band_not_the_tint` |
+| 17 | `test_rt_t13d_the_total_row_has_a_heavier_rule_below` |
 
 1. *A/B (spec T5d, specificity):* change the unconditional `.results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}` selector to `.results-table__d1` (0,1,0). → `rt_t5d[1280]` red: the (0,1,1) padding shorthand wins, d1 equals d0. Revert.
 2. *A/B (spec T5d, 640 band):* delete the four depth rules inside `@media (max-width:640px)`. → `rt_t5d[600]` red (desktop values). Revert.
@@ -2933,6 +2976,7 @@ For each: apply by hand, run `uv run pytest -m e2e tests/test_e2e_analytics_stud
 5. *A/B (spec T8a, pill wrap):* inside `@media (max-width:480px)`, change the pill's `white-space:normal` to `white-space:nowrap`. → `rt_t8a` red on the title share (a one-line „oczekuje na sprawdzenie" pill takes the title column below 30%).
    - If it goes **red**: revert; the test's A/B stands.
    - If it stays **green** at a share ≥ 0.35: revert it, record the in-table pill `white-space:normal` as defensive only (no A/B claimed) in the PR body.
+   - If it stays **green** and the correct build's share (Step 4) is below 0.35: revert it and **STOP and ask the owner** (Spec gaps item 2 — on this seeded e2e fixture a green A/B is a stop, unlike the mat-pp / throwaway re-measures of Step 5e and Task 9 Step 2d, which are recorded).
 6. *A/B first (spec T8a, number-cell nowrap):* delete `white-space:nowrap` from `.results-table .results-table__num{width:1%;white-space:nowrap}` and run `rt_t8a` at 390px. Their content has no line-break opportunity (UAX #14 LB25), so this likely stays green.
    - If it goes **red** on the single-line assertion: revert; the test's A/B stands.
    - If it stays **green**: revert, and record in the PR body that the number-cell `nowrap` is **defensive only** (no A/B claimed); also replace the rule's line with the two lines `/* nowrap here is defensive: „812,5/960,5" and „100%" have no break opportunity. */` and `.results-table .results-table__num{width:1%;white-space:nowrap}` (the test keeps only its single-line assertion).
@@ -3228,7 +3272,7 @@ Expected: the help tests pass; `git status --short` is clean afterwards except t
 
 **Files:**
 - Possibly modify: `core/static/core/css/app.css`, templates of Task 5, `tests/test_e2e_analytics_student_pages.py`, help PNGs (only if the design pass changes CSS or markup)
-- Scratch (never committed): `<scratchpad>/rt_page.py` (Task 7 Step 5d; re-create it with the same content if this session's scratchpad lacks it), screenshots
+- Scratch (never committed): `<scratchpad>/rt_page.py` (Task 7 Step 5d; re-create it with the same content if this session's scratchpad lacks it), `<scratchpad>/rt_seed_ui.py` (Step 0), screenshots
 
 **Interfaces:**
 - Consumes: everything above.
@@ -3302,14 +3346,161 @@ print('course-results', reverse('courses:course_results', kwargs={'slug': course
 
 Expected: four quiz lines, two lesson lines, and the three page URLs. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765`) and record its port: `echo <port> > .env.rt-port`. Leave it running through Step 2.
 
-The throwaway student's rows must come from REAL answers (never hand-written `QuestionResponse` rows: a fraction that disagrees with the stored answer renders incoherent pages). **After Step 2a's mat-pp captures** (finishing a REVIEW quiz notifies `rtadmin`, whose unread badge would otherwise sit in those headers), log in as `rtstudent` / `RT-local-only!` in a browser and, through the UI:
-- **RT oceniany**: answer „Warszawa" and „Londyn", finish the quiz (1/2);
-- **RT esej**: type any sentence, finish (awaits review);
+The throwaway student's rows must come from REAL answers (never hand-written `QuestionResponse` rows: a fraction that disagrees with the stored answer renders incoherent pages). **After Step 2a's mat-pp captures** (finishing a REVIEW quiz notifies `rtadmin`, whose unread badge would otherwise sit in those headers), drive the real UI with a scratch Playwright script — never by hand, never against prod. It does exactly this:
+- as `rtstudent`: **RT oceniany**: answer „Warszawa" and „Londyn", finish the quiz (1/2);
+- **RT esej**: type one sentence, finish (awaits review);
 - **RT bardzo długi tytuł…**: type a sentence in both questions, finish (awaits review, two questions);
 - **RT lekcja 1**: open it and, if it is not already ✓, press **Oznacz jako ukończone** (`Mark as done`); **never open RT lekcja 2** (an empty lesson may auto-complete on opening);
-- **never open RT nierozpoczęty**.
+- **never open RT nierozpoczęty**;
+- then as `rtadmin`: open the review queue of `rt-throwaway`, review **RT esej** and award **1,5** of 2 marks. Leave the long-titled quiz awaiting review.
 
-Then log in as `rtadmin` / `RT-local-only!`, open the review queue of `rt-throwaway`, review **RT esej** and award **1,5** of 2 marks. Leave the long-titled quiz awaiting review.
+Write `<scratchpad>/rt_seed_ui.py` with the Write tool (never commit it). Same conventions as `rt_page.py`: base URL and credentials as arguments, bounded waits, non-zero exit on any failure. Its selectors are the ones the existing e2e tests use: the login form of `rt_page.py`; `form.question__form input[name='answer']` and `[data-finish-btn]` with the confirm dialog accepted, then `**/quiz/results/` (`tests/test_e2e_quiz_finish.py`); `form.unit-progress button[type='submit']` and `[data-unit-done].is-complete` (`tests/test_e2e_courses.py`, `tests/test_e2e_slideshow.py`); the queue's `li.card-list__row` → `a.btn` and the review form's `input[name='earned_marks']` (`templates/courses/manage/review_queue.html`, `review_submission.html`, `tests/test_e2e_review.py`). Each user gets its own browser context, so no logout (whose button label is translated) is needed:
+
+```python
+"""Seed the rt-throwaway student's answers and the one review through the real UI
+(results-table plan, Task 9 Step 0). LOCAL server only. Idempotent: a quiz that is
+already submitted (quiz_unit redirects to its results), a lesson already complete
+and a review already saved are skipped. Exits non-zero on any failure. (ASCII
+only here: print(__doc__) must not abort on a cp1250 console.)
+
+usage: uv run python rt_seed_ui.py BASE STUDENT PASSWORD ADMIN ADMIN_PASSWORD \
+       OCENIANY_PATH ESEJ_PATH LONG_PATH LEKCJA1_PATH
+"""
+
+import sys
+
+from playwright.sync_api import sync_playwright
+
+TIMEOUT = 10000  # ms, every wait is bounded
+
+
+def login(browser, base, username, password):
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    page.set_default_timeout(TIMEOUT)
+    page.goto(f"{base}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(password)
+    form.locator("button[type='submit']").click()
+    page.wait_for_load_state()
+    if "/accounts/login/" in page.url:
+        raise RuntimeError(f"login failed for {username}")
+    return page
+
+
+def open_ok(page, url):
+    resp = page.goto(url)
+    if resp is None or resp.status >= 400 or "/accounts/login/" in page.url:
+        raise RuntimeError(f"{url}: status={resp.status if resp else '?'} url={page.url}")
+
+
+def finish_quiz(page, base, path, answers):
+    open_ok(page, f"{base}{path}")
+    if page.url.endswith("/quiz/results/"):
+        print(f"skip (already submitted): {path}")
+        return
+    page.wait_for_selector("form.question__form")
+    forms = page.locator("form.question__form")
+    if forms.count() != len(answers):
+        raise RuntimeError(f"{path}: {forms.count()} questions, expected {len(answers)}")
+    for n, answer in enumerate(answers):
+        forms.nth(n).locator("input[name='answer']").fill(answer)
+    page.once("dialog", lambda d: d.accept())  # the Finish confirm
+    page.locator("[data-finish-btn]").click()
+    page.wait_for_url("**/quiz/results/")
+    print(f"finished: {path}")
+
+
+def main(base, student, password, admin, admin_password, oceniany, esej, long_quiz, lekcja1):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = login(browser, base, student, password)
+        finish_quiz(page, base, oceniany, ["Warszawa", "Londyn"])
+        finish_quiz(page, base, esej, ["Zbiór to kolekcja elementów."])
+        finish_quiz(page, base, long_quiz, ["Pierwsza odpowiedź.", "Druga odpowiedź."])
+        open_ok(page, f"{base}{lekcja1}")
+        page.wait_for_selector("[data-unit-done]")
+        if page.locator("[data-unit-done].is-complete").count() == 0:
+            page.locator("form.unit-progress button[type='submit']").click()
+        page.wait_for_selector("[data-unit-done].is-complete")
+        print(f"lesson done: {lekcja1}")
+        page.context.close()
+
+        page = login(browser, base, admin, admin_password)
+        open_ok(page, f"{base}/manage/courses/rt-throwaway/review-queue/")
+        # "RT esej" is not a substring of the long quiz's title, so this is one row.
+        row = page.locator("li.card-list__row").filter(has_text="RT esej")
+        if row.count() == 0:
+            print("skip (RT esej is not awaiting review)")
+        else:
+            row.locator("a.btn").click()
+            page.wait_for_url("**/review/*/")
+            marks = page.locator("input[name='earned_marks']")
+            if marks.count() != 1:
+                raise RuntimeError(f"RT esej review: {marks.count()} marks inputs, expected 1")
+            # type=number takes a dot decimal, and ReviewResponseForm's DecimalField is
+            # not localized: "1.5" is the value it parses (pages show it as „1,5").
+            marks.fill("1.5")
+            with page.expect_navigation() as nav:
+                page.locator("form:has(input[name='earned_marks']) button[type='submit']").click()
+            if nav.value is None or nav.value.status >= 400:
+                raise RuntimeError(f"review save: status={nav.value.status if nav.value else '?'}")
+            print("reviewed: RT esej 1.5/2")
+        browser.close()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 10:
+        print(__doc__)
+        sys.exit(2)
+    try:
+        main(*sys.argv[1:10])
+    except Exception as exc:  # noqa: BLE001 - scratch script: any failure is exit 1
+        print(f"FAILED: {exc!r}")
+        sys.exit(1)
+```
+
+Run it with the four paths from the snippet's output above (the `RT oceniany`, `RT esej`, long-titled quiz and `RT lekcja 1` lines; never pass `RT lekcja 2` or `RT nierozpoczęty`):
+
+```bash
+uv run python <scratchpad>/rt_seed_ui.py http://127.0.0.1:<port> rtstudent 'RT-local-only!' rtadmin 'RT-local-only!' "<RT oceniany path>" "<RT esej path>" "<long-titled quiz path>" "<RT lekcja 1 path>"
+```
+
+Expected: exit code 0 and `finished:` (or `skip`) lines for the three quizzes, `lesson done:`, and `reviewed: RT esej 1.5/2` (or its `skip`). A non-zero exit: fix the cause and re-run (the script is idempotent).
+
+Then verify the stored state, read-only (no backticks, no `$`):
+
+```bash
+uv run python manage.py shell -c "
+from decimal import Decimal
+from accounts.models import User
+from courses.models import ContentNode, QuestionResponse, QuizSubmission, UnitProgress
+student = User.objects.get(username='rtstudent')
+problems = []
+def sub(title):
+    unit = ContentNode.objects.get(course__slug='rt-throwaway', title=title)
+    return QuizSubmission.objects.filter(student=student, unit=unit).first()
+def check(label, ok):
+    print(label, 'OK' if ok else 'MISMATCH')
+    if not ok:
+        problems.append(label)
+s = sub('RT oceniany')
+check('RT oceniany submitted 1.00/2.00', s is not None and s.status == 'submitted' and (s.score, s.max_score) == (Decimal('1.00'), Decimal('2.00')))
+s = sub('RT esej')
+check('RT esej submitted 1.50/2.00', s is not None and s.status == 'submitted' and (s.score, s.max_score) == (Decimal('1.50'), Decimal('2.00')))
+check('RT esej REVIEW response reviewed', s is not None and QuestionResponse.objects.filter(submission=s, reviewed_at__isnull=False).count() == 1)
+s = sub('RT bardzo długi tytuł quizu, który czeka na sprawdzenie')
+check('long quiz submitted, 2 unreviewed REVIEW responses', s is not None and s.status == 'submitted' and QuestionResponse.objects.filter(submission=s, reviewed_at__isnull=True).count() == 2 and not QuestionResponse.objects.filter(submission=s, reviewed_at__isnull=False).exists())
+check('RT nierozpoczety has no submission', sub('RT nierozpoczęty') is None)
+done = sorted(UnitProgress.objects.filter(student=student, unit__course__slug='rt-throwaway', completed=True).values_list('unit__title', flat=True))
+check('completed units are exactly RT lekcja 1: ' + repr(done), done == ['RT lekcja 1'])
+if problems:
+    raise SystemExit(1)
+"
+```
+
+Expected: six `OK` lines and exit code 0. (The printed labels are ASCII on purpose: a cp1250 console aborts on some Unicode prints.) **If any line says `MISMATCH` or the exit code is non-zero: STOP, fix the seed (on this local throwaway course only), re-run the script and this check.** Note: the plan left the essay answers' wording open; the script fixes „Zbiór to kolekcja elementów." and „Pierwsza/Druga odpowiedź." — any text works, since REVIEW answers are not auto-marked and no screenshot or figure depends on them.
 
 The throwaway course now carries, at depth 3, a scored quiz, a REVIEW-only scored quiz (1,5/2), a quiz awaiting review with a long title and its „Sprawdź" link, and a not-started quiz; the student's outline shows „lekcje: 1/2" (O12); their `quiz_results.html` for the long-titled quiz shows „2 pytania oczekują na sprawdzenie (do 2 dodatkowych punktów)" (O14); their `course_results.html` shows „1,5 / 2" for RT esej (O15) and „Oczekuje na sprawdzenie" (O13).
 
@@ -3336,7 +3527,7 @@ done
 
 (Here `$theme` and `$width` are meant to expand: this is a plain bash loop, not a `-c` string.)
 
-2b. Do the `rtstudent` UI steps of Step 0 and the review. Then, as `rtadmin`, for the throwaway teacher page (`teacher-results` URL) in both themes, repeat ONLY the inner `for width in 1280 600 390` Results-URL invocation (with `measure`) — not the Progress or per-question invocations of 2a — using `rt-throwaway-results-…` names.
+2b. Run Step 0's `rt_seed_ui.py` (the `rtstudent` answers, the lesson and the `rtadmin` review) and then Step 0's read-only verification; continue only on its exit code 0 with six `OK` lines. Then, as `rtadmin`, for the throwaway teacher page (`teacher-results` URL) in both themes, repeat ONLY the inner `for width in 1280 600 390` Results-URL invocation (with `measure`) — not the Progress or per-question invocations of 2a — using `rt-throwaway-results-…` names.
 
 2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output):
 
@@ -3355,7 +3546,7 @@ done
 - a `NO TABLE` line (possible only from a `measure` invocation) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run before judging anything else.
 - every 390px Results line: `pageFits: True`; `wrapFits: True` unless `katex > 0`; formula-free lines `share ≥ 0.30`.
   - **STOP (T8a floor):** a formula-free render below 0.30 → do not continue; ask the owner with the shares and screenshots (the levers touch O1).
-  - A share below 0.35 → for that mat-pp or throwaway page, temporarily apply the nowrap pill change to `app.css`, re-run `rt_page.py … 390 … measure` on that same URL and expect a share below 0.30, then revert by hand; if it does not drop below 0.30, record the margin in the PR body.
+  - A share below 0.35 → for that mat-pp or throwaway page, temporarily apply the nowrap pill change (Task 7 Step 6 item 5) to `app.css`, re-run `rt_page.py … 390 … measure` on that same URL and expect a share below 0.30, then revert by hand. If it does not drop below 0.30, this is **recorded, not a stop** (Spec gaps item 2): record the margin — the measured share minus 0.30 — in the PR body. If that page has no wrappable pill (no awaiting-review, in-progress, not-started or submitted pill in its status column; its screenshot shows it), skip the re-measure and record „no pill on page" instead.
 - every 600px and 1280px Results line: `maxPillLines: 1` (pills on one line above 480px).
 - the 390px throwaway line: `maxPillLines` is expected to be 2–3 („oczekuje / na / sprawdzenie").
   - **STOP (three-line pills, spec §2.4):** open `rt-throwaway-results-light-390.png` and `…-dark-390.png` and judge whether the three-line awaiting pill with „Sprawdź" under it reads acceptably. If it does not, ask the owner with both screenshots before changing anything: the alternatives touch O1.
