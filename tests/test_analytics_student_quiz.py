@@ -440,12 +440,12 @@ def test_t27_header_pill_matches_the_breakdown_pill_except_scored(client):
             )
         )
     )
-    # (1) parity for every kind that still renders a pill; `reviewed` resolves to
-    # `submitted` (spec §2.8)
+    # (1) parity for every kind that still renders a pill. `reviewed` (REVIEW-only,
+    # fully reviewed, max_score 1) is SCORED since the results-table spec §4, which
+    # deliberately overrides the student-pages spec §2.8: it is in part (2) now.
     for quiz, kind in (
         (ungraded, "pill--submitted"),
         (awaiting, "pill--awaiting"),
-        (reviewed, "pill--submitted"),
         (live, "pill--progress"),
     ):
         header = _status(client, course, pupil, quiz).select_one(".pill")
@@ -454,15 +454,17 @@ def test_t27_header_pill_matches_the_breakdown_pill_except_scored(client):
         assert header["class"] == row["class"], quiz.title
         assert header.get_text(" ", strip=True) == row.get_text(" ", strip=True)
     # (2) scored: no header pill; the breakdown keeps its pill, same numbers
-    status = _status(client, course, pupil, scored)
-    assert status.select_one(".pill") is None
-    assert (
-        _breakdown_pill(breakdown, "Q scored").get_text(" ", strip=True)
-        == "scored 1/5 (20%)"
-    )
-    assert (
-        status.select_one(".answers__score").get_text(" ", strip=True) == "1 / 5 marks"
-    )
+    for quiz, marks, pill_text in (
+        (scored, "1 / 5 marks", "scored 1/5 (20%)"),
+        (reviewed, "1 / 1 marks", "scored 1/1 (100%)"),
+    ):
+        status = _status(client, course, pupil, quiz)
+        assert status.select_one(".pill") is None, quiz.title
+        assert (
+            _breakdown_pill(breakdown, quiz.title).get_text(" ", strip=True)
+            == pill_text
+        )
+        assert status.select_one(".answers__score").get_text(" ", strip=True) == marks
     # (3) exactly one Review link; (4) no "scored" text on the awaiting strip
     awaiting_status = _status(client, course, pupil, awaiting)
     review_url = reverse(
@@ -471,6 +473,36 @@ def test_t27_header_pill_matches_the_breakdown_pill_except_scored(client):
     )
     assert len(awaiting_status.select(f'a[href="{review_url}"]')) == 1
     assert "scored" not in awaiting_status.get_text(" ", strip=True)
+
+
+def test_rt_t10b_reviewed_review_only_header_shows_its_score(client):
+    """results-table spec T10b: a fully reviewed REVIEW-only quiz with max_score > 0
+    is scored in the per-question header (no pill), in Polish."""
+    course, pupil = _owner_view(client)
+    _polish(client)
+    *_others, reviewed, _live = _pill_quizzes(course, pupil)
+    status = _status(client, course, pupil, reviewed)
+    assert status.select_one(".pill") is None
+    assert status.select_one(".answers__score").get_text(" ", strip=True) == (
+        "1 / 1 pkt"
+    )
+    assert status.select_one(".answers__percent").get_text(strip=True) == "100%"
+
+
+def test_rt_t10d_reviewed_review_only_progress_pill_is_scored(client):
+    """results-table spec T10d: the same quiz in PROGRESS mode renders the scored
+    pill, not „przesłano"."""
+    course, pupil = _owner_view(client)
+    _polish(client)
+    *_others, reviewed, _live = _pill_quizzes(course, pupil)
+    page = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": pupil.pk},
+    )
+    soup = _soup(client.get(f"{page}?mode=progress"))
+    pill = _breakdown_pill(soup, reviewed.title)
+    assert "pill--scored" in pill["class"]
+    assert pill.get_text(" ", strip=True) == "wynik 1/1 (100%)"
 
 
 def test_t28_heading_is_name_then_title(client):

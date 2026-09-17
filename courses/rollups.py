@@ -419,7 +419,7 @@ def _course_results_row(unit, sub, has_auto, total_review, reviewed_counts):
             "submission_pk": sub.pk,
             "url_name": "courses:quiz_unit",
         }
-    graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
+    graded = has_auto.get(unit.pk, False)  # top-level AUTO question, NOT max_score > 0
     pending = not submission_is_counted(sub, total_review, reviewed_counts)
     return {
         "unit": unit,
@@ -495,22 +495,48 @@ def build_course_results(course, student, *, drafts, with_data=None):
     }
 
 
+def quiz_score_view(row):
+    """The grid's "this quiz shows a score" rule for one _course_results_row row.
+
+    build_results_matrix sums a submission iff submission_is_counted, and a cell
+    shows a figure iff its max_score sum is > 0; for ONE quiz that is `status ==
+    "submitted"` (already not pending) and `max_score > 0`. It deliberately ignores
+    `graded` (a top-level AUTO question): a fully reviewed REVIEW-only quiz with
+    max_score > 0 is in the grid's sums, so it shows a score everywhere too
+    (results-table spec §4). _quiz_pill, build_course_results' `score_view` and
+    the Results-mode stamps all read THIS; never re-derive it.
+
+    score/max_score are always Decimal (a NULL is 0, as in the grid); percent is
+    None unless shows_score.
+    """
+    score = row["score"] or Decimal("0")
+    max_score = row["max_score"] or Decimal("0")
+    shows_score = row["status"] == "submitted" and max_score > 0
+    return {
+        "shows_score": shows_score,
+        "score": score,
+        "max_score": max_score,
+        "percent": _pct(score, max_score) if shows_score else None,
+    }
+
+
 def _quiz_pill(row):
     """Map a build_course_results row to a single-sourced status pill (spec §6).
     Every kind that has a submission carries its pk: the breakdown links the
-    quiz title to the per-question page with it."""
+    quiz title to the per-question page with it. `scored` iff quiz_score_view
+    says the quiz shows a score (results-table spec §4)."""
     status = row["status"]
     if status == "submitted":
-        if row["graded"] and row["max_score"]:
-            # reuse the single-source percent rule (_pct guarantees b > 0, met here)
+        view = quiz_score_view(row)
+        if view["shows_score"]:
             return {
                 "kind": "scored",
-                "score": row["score"],
-                "max_score": row["max_score"],
-                "percent": _pct(row["score"], row["max_score"]),
+                "score": view["score"],
+                "max_score": view["max_score"],
+                "percent": view["percent"],
                 "submission_pk": row["submission_pk"],
             }
-        # submitted but ungraded (max_score == 0): no percent
+        # submitted, but no gradeable marks (max_score == 0): no percent
         return {"kind": "submitted", "submission_pk": row["submission_pk"]}
     if status == "awaiting_review":
         return {"kind": "awaiting", "submission_pk": row["submission_pk"]}
