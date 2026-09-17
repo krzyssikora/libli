@@ -449,7 +449,8 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   `<th>`; lower that rule's specificity to `.results-table__section th` and place it before the reset →
   red on the section `<th>`; remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
 - **T13b** — at 1280px every status pill in the table is a single line (its height equals one line box).
-  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red. - **T13c** — a coloured % cell's computed background equals its band colour, not the section tint.
+  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red.
+- **T13c** — a coloured % cell's computed background equals its band colour, not the section tint.
   *A/B:* remove the inline style on a coloured cell → red on the band check.
 
 Screenshots (design pass, as in B11): mat-pp Results view, light and dark, 1280 and 390. Judge whether
