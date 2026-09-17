@@ -259,7 +259,7 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - The **status column** is `width:1%; white-space:nowrap; text-align:start` by default, so at desktop
   width every pill stays on one line and the column takes its max-content width. Its cells (the „1/3"
   fractions on heading rows and the pills on quiz rows) are start-aligned, matching the „Quizy" header.
-  **Only inside the `@media (max-width:480px)` block** does the pill wrap (moved down from 640px: a
+  **Only inside the `@media (width <= 480px)` block** does the pill wrap (moved down from 640px: a
   `width:1%` column shrinks to min-content, so a wrappable pill breaks at every space at **every** width
   under the breakpoint, including ~600px where it would fit; at ≤480px that narrowest form is what the
   space needs, and the design pass checks both ~600px (pills on one line) and 390px (wrapped)). The rule is
