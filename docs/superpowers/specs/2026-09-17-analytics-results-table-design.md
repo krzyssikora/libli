@@ -81,7 +81,10 @@ returns a **course total**:
   AUTO question): the grid counts a REVIEW-only quiz that is fully reviewed with `max_score > 0`, and
   under today's pill rule its row would say „przesłano" while its marks sat in the heading's sum. §4
   moves `_quiz_pill` onto the same helper, so in the finished code the two agree. The builder stamps each quiz node with `shows_score` (bool), `score`, `max_score` and
-  `percent` from the `build_course_results` row, and the table reads those, never the pill kind. **Invariant:**
+  `percent` **from `quiz_score_view(row)`** for that node's `build_course_results` row (the raw row has no
+  `percent`, and its `score` / `max_score` may be `None`), and the table reads those for its **numbers**,
+  never the pill kind. The title link still keys on `item.pill.submission_pk`, as `_breakdown_node.html`
+  does today. **Invariant:**
   the pruned tree's quiz nodes are exactly `build_course_results`'s rows, because both apply
   `is_quiz_unit` with the same `drafts` / `with_data`; the builder indexes the row directly
   (`rows_by_unit[node.pk]`), so a missing row raises instead of silently rendering an unscored quiz. A
@@ -109,9 +112,11 @@ counting rule. `counted` (on containers) is exactly the number of quiz nodes bel
 
 **A summary section with no counted quiz.** When `summary` is true but `counted == 0` (every quiz below
 is not started, in progress or awaiting review), the heading shows the count („0/3") and leaves the
-score and % cells empty and uncoloured. It never renders „0/0". **The template renders the score and
-% cells iff `percent is not None`** (equivalently `max_sum > 0`), and the count cell whenever `summary`
-is true; it never branches on `counted` for the number cells. The course total follows the same rule.
+score and % cells empty and uncoloured. It never renders „0/0". **On a heading row the template renders the
+count cell iff `summary`, and the score and % cells iff `summary and percent is not None`** (equivalently
+`summary and max_sum > 0`); it never branches on `counted` for the number cells. A single-quiz section
+has a `percent` too (its one quiz may be scored), but `summary` is false, so its cells stay empty (O2).
+The course total follows the same condition with `total.summary`.
 
 ⚠️ **Drafts.** The page calls the builder with `drafts="keep-with-data"`, exactly as the matrix does
 (`views_analytics.py`, both call sites). The two therefore see the same quiz set, so the sums match
@@ -188,7 +193,9 @@ Each row carries its depth, so indentation shows nesting:
   (0,3,0), which beats the base (0,1,1) wherever it is written; the two media blocks repeat both the base
   and the depth rules with the same selectors and **do not overlap**: the middle band is written
   `@media (min-width:481px) and (max-width:640px)` and the narrow band `@media (max-width:480px)`, so each
-  band's values win inside that band regardless of where the blocks sit in `app.css`. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
+  band's values win inside that band. **The desktop rules are also wrapped, in
+  `@media (min-width:641px)`**, so all three bands are mutually exclusive and none of the padding or
+  depth rules applies outside its own band; source order then genuinely does not matter. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
   the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
@@ -328,7 +335,8 @@ shows fewer in the chip than it has rows.
 - ⚠️ **Exception: every pill follows §2.1's scoring rule.** Today `_quiz_pill` returns `kind == "scored"`
   only when `graded` (at least one AUTO question). Left alone, a fully reviewed REVIEW-only quiz would
   show „4/5 · 80%" in the Results table but „przesłano" in the Progress view (one click on the switch)
-  and in the per-question header (one click on the title). So the rule lives in **one helper**, and
+  and in the per-question header (one click on the title). So the rule lives in **one helper in `courses/rollups.py`, next to
+  `_quiz_pill`** (both callers live there; the view imports from `rollups`, never the reverse), and
   `_quiz_pill` uses it:
 
   ```python
@@ -418,8 +426,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   §4: the two are the same predicate.)
 - **T1c** — a summary section with no counted quiz renders „0/N" with empty, uncoloured score and %
   cells, never „0/0". The same holds for the course total.
-- **T2** — `summary` only when `quiz_total > 1`: a section with one quiz renders an empty count, score
-  and % in its heading row. *Mutant:* `>= 1` → red.
+- **T2** — `summary` only when `quiz_total > 1`: a section with one quiz — **whose quiz is scored**, so
+  the section has a non-`None` `percent` — renders an empty count, score and % in its heading row.
+  *Mutant:* `>= 1` → red. *Mutant:* drop the `summary` conjunct from the score/% condition → red.
 - **T3** — the course total row is first and matches the grid's `overall` cell for the student, compared
   the same way as T1 (raw mode, `percent` and `label`). A course with **exactly one quiz** renders
   **no** total row. *Mutant:* `total.summary` true for `>= 1` quiz → red.
