@@ -6,6 +6,7 @@ Marked e2e (excluded from the default run; use -m e2e)."""
 
 import os
 from decimal import Decimal
+from itertools import pairwise
 
 import pytest
 from django.urls import reverse
@@ -529,3 +530,322 @@ def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(
         assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)
         assert _style(badge, "color") == text_primary, outcome
         assert _style(badge, "borderTopColor") == outcome_colour, outcome
+
+
+# --- results-table spec (2026-09-17) §2.4 / §7: the Results table --------------------
+RT_LONG_TITLE = "Bardzo długi tytuł quizu na trzecim poziomie zagnieżdżenia tego kursu"
+RT_MATH_TITLE = (
+    # A SINGLE brace group around the whole formula body: no top-level relation
+    # or binary operator, so KaTeX emits exactly one `.base` run, which the
+    # vendored `.katex .base{display:inline-block; white-space:nowrap}` makes
+    # one atomic inline box (unbreakable) -- not the app.css punctuation rule.
+    # Without the wrapping braces the top-level `=`/`+` would split it into
+    # several `.base` runs, which wraps instead of widening the table (T8b).
+    r"Wzór \({\sum_{k=1}^{n} k^{2} = \frac{n(n+1)(2n+1)}{6}"
+    r" = \int_{0}^{n} x^{2}\,dx + \sqrt{a^{2}+b^{2}+c^{2}+d^{2}+e^{2}}}\)"
+)
+# Spec §7 T8a: a FLOOR, measured by plan Task 7 on this fixture and on mat-pp before
+# it was committed. A design pass may raise it, never lower it.
+RT_TITLE_SHARE_FLOOR = 0.30
+# Spec §2.3's computed padding-inline-start of d0..d3 title cells, in rem, by width.
+RT_DEPTH_REM = {
+    1280: (0.5, 1.5, 2.5, 3.5),
+    600: (0.5, 1.0, 1.5, 2.0),
+    390: (0.25, 0.75, 1.25, 1.75),
+}
+
+
+def _seed_results_table(client, username, *, theme="light", deep_title=RT_LONG_TITLE):
+    """The Results-table fixture, rendered in Polish for a PA who owns the course:
+
+    Część pierwsza (d0)               3/5   812,5/960,5  85%
+      Rozdział z sekcjami (d1)        3/5   812,5/960,5  85%
+        Sekcja pełna (d2)             2/4   804/850      95%
+          <deep_title> (d3)           800/800  100%
+          Mały quiz (d3)              4/50     8%
+          Quiz do sprawdzenia (d3)    awaiting review + its Review link
+          Quiz w toku (d3)            in progress
+        Sekcja z jednym quizem (d2)   one quiz: no figures
+          Jedyny quiz (d3)            8,5/110,5  8%
+    Część druga (d0)                  one quiz: no figures
+      Quiz nierozpoczęty (d1)         not started
+    Cały kurs (total, first)          3/6   812,5/960,5  85%
+    """
+    from courses.models import Element
+    from courses.models import ExtendedResponseQuestionElement
+    from courses.models import QuestionElement
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import UserFactory
+    from tests.factories import make_pa
+
+    pa = make_pa(client, username)
+    pa.language = "pl"
+    pa.theme = theme
+    pa.save(update_fields=["language", "theme"])
+    course = CourseFactory(owner=pa)
+    student = UserFactory(
+        first_name="Anna", last_name="Nowak", display_name="Anna Nowak"
+    )
+    EnrollmentFactory(student=student, course=course)
+
+    def node(parent, kind, title, **kw):
+        kw.setdefault("unit_type", None)
+        return ContentNodeFactory(
+            course=course, parent=parent, kind=kind, title=title, **kw
+        )
+
+    def quiz(parent, title):
+        return node(parent, "unit", title, unit_type="quiz")
+
+    def submitted(unit, score, max_score):
+        QuizSubmission.objects.create(
+            student=student,
+            unit=unit,
+            status=QuizSubmission.Status.SUBMITTED,
+            score=Decimal(score),
+            max_score=Decimal(max_score),
+        )
+
+    chapter = node(
+        node(None, "part", "Część pierwsza"), "chapter", "Rozdział z sekcjami"
+    )
+    full = node(chapter, "section", "Sekcja pełna")
+    submitted(quiz(full, deep_title), "800", "800")
+    submitted(quiz(full, "Mały quiz"), "4", "50")
+    awaiting = quiz(full, "Quiz do sprawdzenia")
+    Element.objects.create(
+        unit=awaiting,
+        content_object=ExtendedResponseQuestionElement.objects.create(
+            stem="<p>E</p>",
+            required_keywords="",
+            forbidden_keywords="",
+            marking_mode=QuestionElement.MarkingMode.REVIEW,
+            max_marks=Decimal("1"),
+        ),
+    )
+    submitted(awaiting, "0", "0")
+    QuizSubmission.objects.create(
+        student=student,
+        unit=quiz(full, "Quiz w toku"),
+        status=QuizSubmission.Status.IN_PROGRESS,
+    )
+    single = node(chapter, "section", "Sekcja z jednym quizem")
+    submitted(quiz(single, "Jedyny quiz"), "8.5", "110.5")
+    quiz(node(None, "part", "Część druga"), "Quiz nierozpoczęty")
+    return course, student
+
+
+def _open_results_table(
+    page,
+    live_server,
+    client,
+    username,
+    *,
+    width,
+    theme="light",
+    deep_title=RT_LONG_TITLE,
+):
+    course, student = _seed_results_table(
+        client, username, theme=theme, deep_title=deep_title
+    )
+    _login(page, live_server, username)
+    page.set_viewport_size({"width": width, "height": 900})
+    path = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+    page.goto(f"{live_server.url}{path}?mode=results")
+    page.wait_for_selector("table.results-table")
+    return course, student
+
+
+def _rt_row(page, title):
+    return page.locator("table.results-table tbody tr").filter(
+        has=page.locator("th", has_text=title)
+    )
+
+
+def _lines(locator):
+    """How many line boxes the element's own text occupies."""
+    return locator.evaluate(
+        """el => { const r = document.createRange(); r.selectNodeContents(el);
+             const tops = new Set();
+             for (const b of r.getClientRects()) {
+               if (b.width > 0) tops.add(Math.round(b.top));
+             }
+             return tops.size; }"""
+    )
+
+
+def _text_edges(locator):
+    """Gaps between the element's text and its content box: {left, right} in px."""
+    return locator.evaluate(
+        """el => { const r = document.createRange(); r.selectNodeContents(el);
+             const t = r.getBoundingClientRect(); const c = el.getBoundingClientRect();
+             const s = getComputedStyle(el);
+             const left = c.left + parseFloat(s.borderLeftWidth)
+               + parseFloat(s.paddingLeft);
+             const right = c.right - parseFloat(s.borderRightWidth)
+               - parseFloat(s.paddingRight);
+             return {left: t.left - left, right: right - t.right}; }"""
+    )
+
+
+def _effective_background(locator):
+    """The first non-transparent background at or above the element."""
+    return locator.evaluate(
+        """el => { for (let n = el; n; n = n.parentElement) {
+               const c = getComputedStyle(n).backgroundColor;
+               if (c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c;
+             }
+             return null; }"""
+    )
+
+
+def _page_fits(page):
+    return page.evaluate(
+        "() => document.documentElement.scrollWidth"
+        " <= document.documentElement.clientWidth"
+    )
+
+
+def _px(value):
+    return float(value.removesuffix("px"))
+
+
+@pytest.mark.parametrize("width", [1280, 600, 390])
+def test_rt_t5d_title_indent_grows_with_depth_at_every_width(
+    page, live_server, client, width
+):
+    _open_results_table(page, live_server, client, f"e2e_rt_indent{width}", width=width)
+    rem = page.evaluate(
+        "() => parseFloat(getComputedStyle(document.documentElement).fontSize)"
+    )
+    pads = []
+    for depth in range(4):
+        cell = page.locator(f"table.results-table tbody th.results-table__d{depth}")
+        pads.append(_px(_style(cell.first, "paddingInlineStart")))
+    assert all(deeper > shallower for shallower, deeper in pairwise(pads)), pads
+    for got, want in zip(pads, RT_DEPTH_REM[width], strict=True):
+        assert abs(got - want * rem) < 0.5, (width, pads)
+
+
+def test_rt_t8a_phone_table_fits_and_keeps_the_title_share(page, live_server, client):
+    _open_results_table(page, live_server, client, "e2e_rt_phone", width=390)
+    # No formula title: a KaTeX formula would set the title column's minimum width.
+    assert page.locator("table.results-table .katex").count() == 0
+    awaiting = _rt_row(page, "Quiz do sprawdzenia")
+    assert awaiting.locator("a.breakdown-unit__review").count() == 1
+    assert _page_fits(page)
+    wrap = page.locator(".results-table-wrap")
+    scroll_w, client_w = wrap.evaluate("el => [el.scrollWidth, el.clientWidth]")
+    assert scroll_w <= client_w, (scroll_w, client_w)
+    title_w = _box(page.locator("table.results-table thead th.results-table__title"))
+    share = title_w["w"] / _box(page.locator("table.results-table"))["w"]
+    print(f"[rt] title share at 390px: {share:.3f}")
+    assert share >= RT_TITLE_SHARE_FLOOR, share
+    total = page.locator("tr.results-table__total")
+    single_line = (
+        total.locator("td").nth(1),  # 812,5/960,5
+        total.locator("td").nth(2),  # 85%
+        _rt_row(page, RT_LONG_TITLE).locator("td").nth(2),  # 100%
+        _rt_row(page, "Rozdział z sekcjami").locator("td").nth(0),  # 3/5
+    )
+    for cell in single_line:
+        assert _lines(cell) == 1, cell.text_content()
+
+
+def test_rt_t8b_a_long_formula_scrolls_the_table_not_the_page(
+    page, live_server, client
+):
+    _open_results_table(
+        page, live_server, client, "e2e_rt_formula", width=390, deep_title=RT_MATH_TITLE
+    )
+    page.wait_for_selector("table.results-table .katex")
+    wrap = page.locator(".results-table-wrap")
+    scroll_w, client_w = wrap.evaluate("el => [el.scrollWidth, el.clientWidth]")
+    assert scroll_w > client_w  # precondition: the formula really widens the table
+    assert _page_fits(page)
+
+
+def test_rt_t8c_numbers_are_right_aligned(page, live_server, client):
+    _open_results_table(page, live_server, client, "e2e_rt_align", width=1280)
+    cells = _rt_row(page, "Mały quiz").locator("td")
+    # „4/50" sits under the total's „812,5/960,5", „8%" under „100%": narrower than
+    # their columns, so only the alignment decides where the text sits.
+    for cell in (cells.nth(1), cells.nth(2)):
+        edges = _text_edges(cell)
+        assert abs(edges["right"]) <= 1, edges
+        assert edges["left"] > 1, edges
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_rt_t13_heading_rows_are_tinted_and_bold_and_headers_align(
+    page, live_server, client, theme
+):
+    _open_results_table(
+        page, live_server, client, f"e2e_rt_rows_{theme}", width=1280, theme=theme
+    )
+    base = _token_colour(page, "--surface-base")
+    heading = _rt_row(page, "Sekcja pełna")
+    lone_heading = _rt_row(
+        page, "Sekcja z jednym quizem"
+    )  # no figures, still a heading
+    total = page.locator("tr.results-table__total")
+    for row in (heading, lone_heading, total):
+        assert "results-table__section" in row.get_attribute("class")
+        assert _style(row, "backgroundColor") == base
+    quiz_title = _rt_row(page, "Mały quiz").locator("th")
+    assert _effective_background(quiz_title) != base
+    for cell in (
+        heading.locator("th"),
+        heading.locator("td").nth(0),
+        heading.locator("td").nth(1),
+        total.locator("th"),
+    ):
+        assert int(_style(cell, "fontWeight")) >= 600
+    assert int(_style(quiz_title, "fontWeight")) < 600
+    assert _style(quiz_title, "textAlign") in ("start", "left")
+    headers = page.locator("table.results-table thead th.results-table__num").all()
+    assert len(headers) == 2
+    for header in headers:  # „Wynik" and „%": each narrower than its column's data
+        edges = _text_edges(header)
+        assert abs(edges["right"]) <= 1, (header.text_content(), edges)
+        assert edges["left"] > 1, (header.text_content(), edges)
+
+
+def test_rt_t13b_desktop_pills_stay_on_one_line(page, live_server, client):
+    _open_results_table(page, live_server, client, "e2e_rt_pills", width=1280)
+    pills = page.locator("table.results-table .pill").all()
+    assert len(pills) == 3  # awaiting, in progress, not started
+    for pill in pills:
+        assert _lines(pill) == 1, pill.text_content()
+
+
+def test_rt_t13c_a_coloured_cell_shows_its_band_not_the_tint(page, live_server, client):
+    from courses.color_bands import band_style
+    from courses.color_bands import default_color_bands
+
+    _open_results_table(page, live_server, client, "e2e_rt_band", width=1280)
+    hex_colour = band_style(95, default_color_bands())["bg"]  # Sekcja pełna: 95%
+    band = "rgb({}, {}, {})".format(
+        *(int(hex_colour[i : i + 2], 16) for i in (1, 3, 5))
+    )
+    cell = _rt_row(page, "Sekcja pełna").locator("td").nth(2)
+    assert _style(cell, "backgroundColor") == band
+    assert band != _token_colour(page, "--surface-base")
+
+
+def test_rt_t13d_the_total_row_has_a_heavier_rule_below(page, live_server, client):
+    _open_results_table(page, live_server, client, "e2e_rt_total", width=1280)
+    strong = _token_colour(page, "--border-strong")
+    cells = page.locator(
+        "tr.results-table__total > th, tr.results-table__total > td"
+    ).all()
+    assert len(cells) == 4
+    for cell in cells:
+        assert _style(cell, "borderBottomWidth") == "2px"
+        assert _style(cell, "borderBottomColor") == strong

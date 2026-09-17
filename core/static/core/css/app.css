@@ -1027,6 +1027,77 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 /* Scoped: .pill is global and also sits in the per-question .answers__status strip. */
 .breakdown-unit .pill{margin-left:auto}
 
+/* Student page, Results view: one table with section sums (results-table spec §2.4).
+   The student page links no page stylesheet, so every rule is here. Padding and
+   indentation come in three bands with EQUAL selectors, so source order decides:
+   the unconditional rules, then the 640px block, then the 480px block. The depth
+   rules are (0,3,0) and beat the (0,1,1) padding shorthand wherever they sit; each
+   depth ADDS to the base inline padding. Padding and indentation are the only
+   per-band changes at 640px; the 480px block also shrinks the type and lets
+   pills wrap. */
+.results-table th,.results-table td{padding:.375rem .5rem;border-top:1px solid var(--border-subtle)}
+.results-table .results-table__title.results-table__d0{padding-inline-start:.5rem}
+.results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}
+.results-table .results-table__title.results-table__d2{padding-inline-start:2.5rem}
+.results-table .results-table__title.results-table__d3{padding-inline-start:3.5rem}
+@media (max-width:640px){
+  .results-table th,.results-table td{padding:.375rem .5rem}
+  .results-table .results-table__title.results-table__d0{padding-inline-start:.5rem}
+  .results-table .results-table__title.results-table__d1{padding-inline-start:1rem}
+  .results-table .results-table__title.results-table__d2{padding-inline-start:1.5rem}
+  .results-table .results-table__title.results-table__d3{padding-inline-start:2rem}
+}
+@media (max-width:480px){
+  .results-table{font-size:.875rem}
+  .results-table th,.results-table td{padding:.25rem .25rem}
+  .results-table .results-table__title.results-table__d0{padding-inline-start:.25rem}
+  .results-table .results-table__title.results-table__d1{padding-inline-start:.75rem}
+  .results-table .results-table__title.results-table__d2{padding-inline-start:1.25rem}
+  .results-table .results-table__title.results-table__d3{padding-inline-start:1.75rem}
+  /* Only here does a pill wrap: in a width:1% column it breaks at every space, which
+     above this width would be three lines where one fits. The smaller radius keeps
+     a wrapped pill from turning into an oval that touches its text. */
+  .results-table .pill{font-size:.7rem;padding:.05rem .3rem;white-space:normal;
+    border-radius:.5rem;text-align:center}
+}
+/* position:relative is defensive, no A/B claimed: removing it leaves the T8b e2e test
+   green. It makes this scroller the containing block of KaTeX's absolutely positioned
+   .katex-mathml, which a static scroller would let escape and widen the page. */
+.results-table-wrap{overflow-x:auto;position:relative}
+.results-table{width:100%;border-collapse:collapse;background:var(--surface-raised)}
+/* overflow-wrap:anywhere breaks text titles; it cannot split a single-run
+   formula (the vendored `.katex .base{display:inline-block; white-space:
+   nowrap}` makes it one atomic inline box), whose width sets the title
+   column's min-content -- the table then scrolls in .results-table-wrap,
+   never the page. A MULTI-run formula (a top-level relation or binary
+   operator splits it into several `.base` runs) wraps internally instead,
+   as KaTeX intends. */
+.results-table .results-table__title{overflow-wrap:anywhere}
+.results-table .results-table__status{width:1%;white-space:nowrap;text-align:start}
+/* nowrap here is defensive: „812,5/960,5" and „100%" have no break opportunity. */
+.results-table .results-table__num{width:1%;white-space:nowrap}
+/* td, not a bare class: a (0,2,0) class rule would right-align the thead cells too
+   and leave the thead rule below with nothing to do. */
+.results-table td.results-table__num{text-align:right}
+/* A <th> is bold and centred by default (reset.css has no th rule): override by
+   SPECIFICITY, never by order. */
+.results-table tbody th{text-align:start;font-weight:normal}
+.results-table tbody .results-table__section th,
+.results-table tbody .results-table__section td{font-weight:600}
+.results-table thead th{font-weight:600;text-align:start}
+.results-table thead th.results-table__num{text-align:right}
+/* --surface-base differs from --surface-raised in BOTH themes; --surface-sunken is
+   lighter than the page in light mode and would not read as a tint. */
+.results-table__section{background:var(--surface-base)}
+/* On the CELLS and 2px wide: in border-collapse the wider border wins over the next
+   row's 1px border-top; a same-width row border would lose to the cell border. */
+.results-table__total > th,.results-table__total > td{border-bottom:2px solid var(--border-strong)}
+/* The base .pill--none colour (--text-tertiary) fails AA, and the phone pill is smaller. */
+.results-table .pill--none{color:var(--text-secondary)}
+/* Scoped to the table: the Progress view's inline Review link is unchanged (O5). */
+.results-table .breakdown-unit__review{display:block}
+.results-table-empty{color:var(--text-secondary)}
+
 /* --- Per-question answers page (analytics drill-down, spec PR 5) --- */
 /* The number is the visible qnum, so the list draws no marker. Muted text uses
    the secondary token: the tertiary one fails AA at body size. */
