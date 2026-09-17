@@ -189,7 +189,9 @@ Each row carries its depth, so indentation shows nesting:
   `_analytics_cell.html`.
 
 **Empty Results view.** If the pruned tree is empty (the course has no visible quiz), no table is
-rendered. Instead the page shows `<p class="helptext">{% trans "No quizzes in this course yet" %}</p>`
+rendered. Instead the page shows `<p class="results-table-empty">{% trans "No quizzes in this course yet" %}</p>`, styled
+`color: var(--text-secondary)` in `app.css` (not `.helptext` or `.muted`, whose `--text-tertiary` fails
+AA at that size)
 under the view switch. That msgid **already exists** (it is used by `course_results.html`).
 
 ### 2.4 CSS
@@ -443,8 +445,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   quiz row.
 - **T7** — Progress mode renders no `results-table` class anywhere and still renders
   `ul.breakdown__tree` with `_breakdown_node.html` rows (the lesson ✓/○ markers are present). In the
-  view's context the breakdown has **no `total` key**, and **no node** anywhere in the tree has `color`,
-  `text_color`, `percent`, `shows_score` or `summary` — checked on each node dict's **own top-level keys**,
+  view's context the breakdown has **no `total` key**, and **no node** anywhere in the tree has any of the Results-only keys
+  §2.1 lists — `quiz_total`, `counted`, `score_sum`, `max_sum`, `percent`, `summary`, `shows_score`,
+  `score`, `max_score` — nor `color` / `text_color` — checked on each node dict's **own top-level keys**,
   walked through `children` only, never inside a node's nested `pill` dict (a scored Progress pill
   legitimately carries `percent`). *Mutant:* run the colour walk in both modes with
   `.get()` guards → red on the `color` check; run it unguarded → the Progress page 500s, red.
@@ -494,25 +497,30 @@ assertions in `tests/test_analytics_student_page.py` („Wyniki ucznia — Anna 
 
 e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
 
-- **T8** — at 390px `document.documentElement.scrollWidth` equals the viewport width (no horizontal
-  **page** scroll) with a depth-3 quiz title, a depth-3 quiz title containing a long inline formula
-  (KaTeX loaded; the table may scroll inside `.results-table-wrap`, the page may not), wide numbers
-  („16,5/22", „100%") **and an awaiting-review row with its „Sprawdź" link at depth 3**. The score and %
-  columns do not wrap, and the title column's measured width is at least **30%** of the table's
-  (estimate with the fixture's own widest sum „812,5/960,5" and the ≤480px density of §2.4: ≈ 141px ≈ 39%).
-  Because the margin over the floor is modest, the **fixture's course-total row must carry a realistic wide sum** (at
-  least three integer digits plus a decimal on both sides, e.g. „812,5/960,5"), and **30% is a floor**: the design-pass
-  render on mat-pp data may confirm or raise it, never lower it. If the render falls below it despite
-  §2.4's density, the plan stops and asks the owner (the remaining levers touch O1), never relaxes the floor.
-  The threshold is checked against a real render in the design pass before the test is committed; if
-  the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
-  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red **on the title-share assertion**
-  (a nowrap „oczekuje na sprawdzenie" pill ≈ 130px at .7rem would drop the title to ≈ 86px ≈ 24%); the
-  correct build must clear 30% by at least 5 percentage points for this A/B to be meaningful, which the
-  design-pass render confirms. *A/B:* remove
-  `position:relative` from `.results-table-wrap` → the page scrolls sideways with the formula title, red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
-  edge). *A/B (390px):* neutralise the score/% columns' `white-space:nowrap` and re-measure → the
-  „16,5/22" cell wraps, red. *A/B (1280px):* neutralise `text-align:right` → red on the alignment check.
+- **T8a** — layout at 390px on a render with **no formula title** (an unbreakable KaTeX formula sets the
+  title column's minimum width, which would make any share check meaningless): a depth-3 quiz title, a
+  course-total row with a realistic wide sum („812,5/960,5": at least three integer digits plus a decimal
+  on both sides), and an awaiting-review row with its „Sprawdź" link at depth 3.
+  - No horizontal page scroll (`document.documentElement.scrollWidth` equals the viewport width).
+  - The title column's measured width is at least **30%** of the table's (estimate with §2.4's ≤480px
+    density ≈ 141px ≈ 39%). **30% is a floor**: the design-pass render on mat-pp data may confirm or raise
+    it, never lower it; if the render falls below it despite §2.4's density, the plan stops and asks the
+    owner (the remaining levers touch O1).
+  - *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red **on the title-share assertion**
+    (a nowrap „oczekuje na sprawdzenie" pill ≈ 130px at .7rem would drop the title to ≈ 86px ≈ 24%). The
+    correct build must clear 30% by at least 5 percentage points for this A/B to mean anything; the design
+    pass confirms that margin first.
+  - The score and % cells are single-line. ⚠️ Their content („812,5/960,5", „100%", and a heading's
+    „12/15") has **no line-break opportunity** under Unicode line breaking (UAX #14 LB25), so removing
+    `white-space:nowrap` likely changes nothing: the design pass runs that A/B first. If it does not go
+    red, the nowrap on number cells is recorded as **defensive only** and the test keeps just the
+    single-line assertion, without claiming an A/B.
+- **T8b** — a separate render with a depth-3 quiz title containing a **long inline formula** (KaTeX
+  loaded): the table may scroll inside `.results-table-wrap`, the **page** may not
+  (`scrollWidth` equals the viewport width). No share or wrapping checks run on this render. *A/B:*
+  remove `position:relative` from `.results-table-wrap` → the page scrolls sideways, red.
+- **T8c** — at 1280px the score and % cells are right-aligned (their text's right edge sits at the
+  cell's content edge). *A/B:* neutralise `text-align:right` → red.
 - **Every container row carries `results-table__section`**, summary or not (a single-quiz section is
   still a heading: tinted and bold, just with empty number cells). T13's fixture includes one of each.
 - **T13** — a section row's computed background equals `--surface-base` (probe token) **and differs from
