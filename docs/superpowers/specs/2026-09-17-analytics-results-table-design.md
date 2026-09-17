@@ -184,22 +184,22 @@ Each row carries its depth, so indentation shows nesting:
 
   | band | base | d0 | d1 | d2 | d3 |
   |---|---|---|---|---|---|
-  | > 640px | .5rem | .5rem | 1.5rem | 2.5rem | 3.5rem |
-  | 481–640px | .5rem | .5rem | 1rem | 1.5rem | 2rem |
-  | ≤ 480px | .25rem | .25rem | .75rem | 1.25rem | 1.75rem |
+  | wider than 640px (unconditional rules) | .5rem | .5rem | 1.5rem | 2.5rem | 3.5rem |
+  | `max-width:640px` block | .5rem | .5rem | 1rem | 1.5rem | 2rem |
+  | `max-width:480px` block | .25rem | .25rem | .75rem | 1.25rem | 1.75rem |
 
   **Selectors and specificity.** Base padding: `.results-table th, .results-table td{padding:.375rem .5rem}`
   (0,1,1). Depth: `.results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}` …
-  (0,3,0), which beats the base (0,1,1) wherever it is written; the padding and depth rules live in **three
-  mutually exclusive, gap-free bands written in media-query range syntax**, each with the full padding
-  shorthand and all four depth rules: `@media (width > 640px)` (`padding:.375rem .5rem`),
-  `@media (480px < width <= 640px)` (`padding:.375rem .5rem`, the table's middle-band indents) and
-  `@media (width <= 480px)` (`padding:.25rem .25rem`). Range syntax leaves no fractional-width gap
-  (zoom and non-integer pixel ratios give widths such as 480.5px, which `max-width:480px` /
-  `min-width:481px` would both miss, dropping all padding and indentation). Source order does not matter.
-  Everything that is **not** padding or indentation — `border-top`, `border-collapse`, the backgrounds,
-  weights and alignments — stays **outside** the media blocks. The other ≤480px rules (font size, pill
-  size and wrapping) use `@media (width <= 480px)` too. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
+  (0,3,0), which beats the base (0,1,1) wherever it is written. The bands follow `app.css`'s own
+  pattern: the desktop padding and depth rules are **unconditional**, then `@media (max-width:640px)` and
+  then `@media (max-width:480px)` repeat the padding shorthand and all four depth rules with the **same
+  selectors**. Nested `max-width` queries leave no fractional-width gap (at 480.5px the 640px block
+  applies and the 480px block does not) and need no range-syntax support (Safari < 16.4 ignores range
+  queries). Because the selectors are equal, **source order decides: the unconditional rules first, the
+  640px block after them, the 480px block last**, all three in one place in `app.css`. Everything that is
+  not padding or indentation (`border-top`, `border-collapse`, backgrounds, weights, alignments) stays
+  outside the media blocks. The other ≤480px rules (font size, pill size and wrapping) sit in the same
+  `@media (max-width:480px)` block. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
   the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
@@ -259,7 +259,7 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - The **status column** is `width:1%; white-space:nowrap; text-align:start` by default, so at desktop
   width every pill stays on one line and the column takes its max-content width. Its cells (the „1/3"
   fractions on heading rows and the pills on quiz rows) are start-aligned, matching the „Quizy" header.
-  **Only inside the `@media (width <= 480px)` block** does the pill wrap (moved down from 640px: a
+  **Only inside the `@media (max-width:480px)` block** does the pill wrap (moved down from 640px: a
   `width:1%` column shrinks to min-content, so a wrappable pill breaks at every space at **every** width
   under the breakpoint, including ~600px where it would fit; at ≤480px that narrowest form is what the
   space needs, and the design pass checks both ~600px (pills on one line) and 390px (wrapped)). The rule is
@@ -455,10 +455,11 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   `results-table__dN` class) pairs is the total first, then the pruned tree in pre-order with each
   class equal to the node's `depth`. *Mutant:* derive the class from `ContentNode.RANK` instead of
   `depth` (differs in a course without parts) → red; include a course without parts.
-- **T5d** (e2e) — the class name is not enough: at 1280px, ~600px, 390px **and 480.5px**, each d(N+1) title cell's
-  computed `padding-inline-start` is larger than the d(N) cell's, and equals §2.3's table value. *A/B:*
-  lower the depth selector to `.results-table__d1` (0,1,0) so the base rule out-ranks it → red; remove the
-  481–640px depth block → red at ~600px.
+- **T5d** (e2e) — the class name is not enough: at 1280px, ~600px and 390px (whole-pixel Playwright
+  viewports), each d(N+1) title cell's computed `padding-inline-start` is larger than the d(N) cell's, and
+  equals §2.3's table value for that band. *A/B:* lower the depth selector to `.results-table__d1` (0,1,0)
+  so the base rule out-ranks it → red; remove the `max-width:640px` depth rules → red at ~600px; move the
+  `max-width:640px` block **above** the unconditional rules → red at ~600px (order decides).
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
   *Mutant:* in the container aggregation only, count a quiz as `counted` when its row's status is
   `submitted` (ignoring `shows_score`) → red, the heading shows 1/N instead of 0/N. (Dropping the conjunct
@@ -530,7 +531,10 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   - No horizontal page scroll (`document.documentElement.scrollWidth` equals the viewport width), **and
     the table fits its wrapper** (`wrap.scrollWidth <= wrap.clientWidth`): without a formula the wrapper
     would otherwise absorb an overflowing table and hide the % column while the page check stays green.
-    *A/B:* remove the ≤480px density rules → red on the wrapper-fit check.
+    No A/B is claimed for the ≤480px density rules: the title cell's `overflow-wrap:anywhere` lets the
+    table fit either way, so their effect is judged in the design-pass screenshots, not asserted. The
+    wrapper-fit check is falsified instead by giving the title cell `white-space:nowrap` with the long
+    depth-3 title → red (the table outgrows the wrapper).
   - The title column's measured width is at least **30%** of the table's (estimate with §2.4's ≤480px
     density ≈ 141px ≈ 39%). **30% is a floor**: the design-pass render on mat-pp data may confirm or raise
     it, never lower it; if the render falls below it despite §2.4's density, the plan stops and asks the
@@ -548,6 +552,10 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   loaded): the table may scroll inside `.results-table-wrap`, the **page** may not
   (`scrollWidth` equals the viewport width). No share or wrapping checks run on this render. *A/B:*
   remove `position:relative` from `.results-table-wrap` → the page scrolls sideways, red.
+- **T8d** — the scroll wrapper's markup, as a view test on both renders: `role="region"`; its
+  `aria-labelledby` equals the `<caption>`'s `id`; `tabindex="0"` present on the T8b render (`has_math`
+  true) and absent on the T8a render. *Mutants:* drop the `has_math` guard → red on T8a; drop the caption
+  `id` → red.
 - **T8c** — at 1280px the score and % cells are right-aligned, measured on a cell whose text is
   **visibly narrower than its column** (a quiz row's „4/5" under the total's „812,5/960,5", and „8%" under
   „100%"): its text's right edge sits at the cell's content edge **and** the gap on its left is larger than
