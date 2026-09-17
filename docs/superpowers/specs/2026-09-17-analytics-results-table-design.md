@@ -78,7 +78,10 @@ returns a **course total**:
   AUTO question): the grid counts a REVIEW-only quiz that is fully reviewed with `max_score > 0`, and
   under today's pill rule its row would say „przesłano" while its marks sat in the heading's sum. §4
   moves `_quiz_pill` onto the same helper, so in the finished code the two agree. The builder stamps each quiz node with `shows_score` (bool), `score`, `max_score` and
-  `percent` from the `build_course_results` row, and the table reads those, never the pill kind. A
+  `percent` from the `build_course_results` row, and the table reads those, never the pill kind. **Invariant:**
+  the pruned tree's quiz nodes are exactly `build_course_results`'s rows, because both apply
+  `is_quiz_unit` with the same `drafts` / `with_data`; the builder indexes the row directly
+  (`rows_by_unit[node.pk]`), so a missing row raises instead of silently rendering an unscored quiz. A
   `NULL` `score` is coerced to `Decimal("0")` in the shared helper, exactly as `build_results_matrix`
   and `build_course_results` do (`sub.score or Decimal("0")`); `_pct(None, …)` would raise.
   The reverse case (`graded`, but a stored `max_score == 0`) shows no score and is not counted, again
@@ -110,7 +113,8 @@ the grid's cells. A test pins this (§7, T4).
 
 The view resolves `bands = course_color_bands(course)`, the same call the matrix makes, and paints
 every `percent` it renders with `color_bands.band_style(percent, bands)`. It walks the pruned tree
-**recursively** and sets `color` / `text_color` on **every node dict in the pruned tree** (every quiz
+**recursively** and sets `color = style["bg"]` / `text_color = style["fg"]` (from `band_style`'s
+`{"bg", "fg"}`) on **every node dict in the pruned tree** (every quiz
 node and every container node, whatever its `shows_score` / `summary`) and on `breakdown["total"]`.
 Unrendered cells simply ignore it; a `None` percent paints nothing. The matrix's
 `_decorate` walks a flat structure, so it is not reused; the new walk is a small helper in
@@ -148,12 +152,16 @@ Each row carries its depth, so indentation shows nesting:
   the numerator while their marks stay out of the sum)? This spec uses "counted in the sum", because it
   describes the numbers beside it.
   Final wording is in §5.
+- **"Section" / "heading row" in §2.3–§2.5 means any container node** (part, chapter or section) —
+  §2.1 stamps every container, and a chapter with more than one quiz gets its sums exactly like a section.
 - **Headings are row headers:** `<th scope="row">` in the first cell of every heading row (quiz rows
   use a non-bold `<th scope="row">` too, §2.5), and a
   `results-table__section` class that gives the whole row a light neutral tint and bold text (O11). Quiz rows have plain `<td>` number cells.
 - **Course total row:** marked up and styled exactly like a summary heading row: `<th scope="row">`,
-  `results-table__section`, tint and bold. A `results-table__total` class only adds a slightly stronger
-  bottom border to separate it from the first section. Its first cell reads „Cały kurs" at depth 0 and carries **neither** `lang="{{ course.language }}"` nor
+  `results-table__section`, tint and bold. A `results-table__total` class adds a separator below it that
+  **wins the collapsed-border conflict by width**: `.results-table__total > th, .results-table__total > td
+  {border-bottom:2px solid var(--border-strong)}` on the row's **cells** (in `border-collapse`, a wider
+  border beats the next row's 1px `border-top`; a same-width row border would lose to the cell border). Its first cell reads „Cały kurs" at depth 0 and carries **neither** `lang="{{ course.language }}"` nor
   `data-math-title`: it is an interface string, not course content.
 - **Indentation:** the first cell gets `padding-inline-start` from the node dict's **`depth`** (as
   `build_outline` stamps it: 0 for any root node, so in a course without parts a chapter is d0), not
@@ -275,6 +283,9 @@ shows fewer in the chip than it has rows.
 - The matrix, the export and the per-question page body.
 - The pill markup (`_quiz_pill.html`) where it is still used: the Progress view, the per-question
   header, and the Results table's status cell (§2.3).
+- ⚠️ **This deliberately overrides the previous spec's §2.8** („`reviewed` resolves to `submitted`, not
+  to `scored`"). That line recorded today's code (a code finding, not an owner decision); the plan must
+  not "restore" it.
 - ⚠️ **Exception: every pill follows §2.1's scoring rule.** Today `_quiz_pill` returns `kind == "scored"`
   only when `graded` (at least one AUTO question). Left alone, a fully reviewed REVIEW-only quiz would
   show „4/5 · 80%" in the Results table but „przesłano" in the Progress view (one click on the switch)
@@ -435,7 +446,11 @@ here, or **retired**, with the reason. None is deleted silently. At least:
 Results-mode prune tests) and `tests/test_e2e_analytics_student_pages.py` (the `.breakdown-unit` pill
 and Review-link geometry, and its `_neutralise(".breakdown-unit .pill…")` A/B), plus
 `tests/test_analytics_student_quiz.py` (it asserts „← Wyniki ucznia", and around its Results-mode
-breakdown test selects `a.breakdown-unit__link`), `tests/test_e2e_analytics.py` (a
+breakdown test selects `a.breakdown-unit__link`; **and** `test_t27_header_pill_matches_the_breakdown_pill_except_scored`
+maps its `reviewed` fixture — a REVIEW-only quiz, fully reviewed, `max_score=1` — to `pill--submitted`,
+with `test_t26_header_by_pill_kind` sharing that fixture: after §4 that quiz is **scored** on both the
+header and the breakdown row, so its tuple is **replaced** by T10b/T10d and `reviewed` moves into
+T27's "scored" part), `tests/test_e2e_analytics.py` (a
 `breakdown-unit__link` selector), `tests/capture_title_math_screenshots.py` (its breakdown row shoots
 Progress mode only; add a Results-mode row) and the heading/`<title>`
 assertions in `tests/test_analytics_student_page.py` („Wyniki ucznia — Anna Nowak", „Wyniki ucznia ·").
@@ -447,11 +462,13 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   (KaTeX loaded; the table may scroll inside `.results-table-wrap`, the page may not), wide numbers
   („16,5/22", „100%") **and an awaiting-review row with its „Sprawdź" link at depth 3**. The score and %
   columns do not wrap, and the title column's measured width is at least **30%** of the table's
-  (estimate: 358px table − a wrapped status ~95px − score ~75px for a course total like „812,5/960" −
-  % ~40px − cell padding ≈ 105px ≈ 29%, of which a depth-3 title loses 1.5rem of indent). Because the
+  (estimate with the fixture's own widest sum „812,5/960,5": 358px table − a wrapped status ~95px − score
+  ~85px − % ~40px − cell padding ≈ 95px ≈ 27%, of which a depth-3 title loses 1.5rem of indent). Because the
   estimate sits at the threshold, the **fixture's course-total row must carry a realistic wide sum** (at
-  least three integer digits plus a decimal on both sides, e.g. „812,5/960,5"), and the design-pass render
-  on mat-pp data **sets** the final threshold, recorded in the plan before the test is committed.
+  least three integer digits plus a decimal on both sides, e.g. „812,5/960,5"), and **30% is a floor**: the design-pass
+  render on mat-pp data may confirm or raise it, never lower it. The estimate is below the floor, so the
+  render will likely show the layout needs a cheaper status or score column on phones; that is a design
+  fix to make in the design pass, not a threshold to relax.
   The threshold is checked against a real render in the design pass before the test is committed; if
   the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
   *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. *A/B:* remove
@@ -469,6 +486,8 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   red on the section `<th>`; remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
 - **T13b** — at 1280px every status pill in the table is a single line (its height equals one line box).
   *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red.
+- **T13d** — the border between the total row and the next row is 2px in `--border-strong` (computed on
+  the total row's cells). *A/B:* remove the `.results-table__total` rule → red.
 - **T13c** — a coloured % cell's computed background equals its band colour, not the section tint.
   *A/B:* remove the inline style on a coloured cell → red on the band check.
 
