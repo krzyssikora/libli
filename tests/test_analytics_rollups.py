@@ -844,3 +844,52 @@ def test_gradeable_max_counts_a_grid():
     )
     Element.objects.create(unit=qz, content_object=q)
     assert quiz_gradeable_max([qz]) == {qz.pk: Decimal("3")}
+
+
+# --- results-table spec §4: the ONE "this quiz shows a score" rule ---------------
+def _score_row(status, score=None, max_score=None, graded=False):
+    """A _course_results_row-shaped dict; only the keys quiz_score_view reads matter."""
+    return {
+        "unit": None,
+        "status": status,
+        "graded": graded,
+        "score": None if score is None else Decimal(score),
+        "max_score": None if max_score is None else Decimal(max_score),
+        "pending": status == "awaiting_review",
+        "submission_pk": None,
+        "url_name": "courses:quiz_results",
+    }
+
+
+@pytest.mark.parametrize(
+    ("row", "expected"),
+    [
+        (_score_row("not_started"), (False, Decimal("0"), Decimal("0"), None)),
+        (_score_row("in_progress"), (False, Decimal("0"), Decimal("0"), None)),
+        (
+            _score_row("awaiting_review", "3", "5", graded=True),
+            (False, Decimal("3"), Decimal("5"), None),
+        ),
+        (_score_row("submitted", "0", "0"), (False, Decimal("0"), Decimal("0"), None)),
+        (
+            _score_row("submitted", "8", "10", graded=True),
+            (True, Decimal("8"), Decimal("10"), 80),
+        ),
+        # A REVIEW-only quiz, fully reviewed: graded is False, the grid counts it.
+        (
+            _score_row("submitted", "4", "5", graded=False),
+            (True, Decimal("4"), Decimal("5"), 80),
+        ),
+        # A NULL score is coerced to 0, exactly as the grid does.
+        (_score_row("submitted", None, "5"), (True, Decimal("0"), Decimal("5"), 0)),
+    ],
+)
+def test_rt_quiz_score_view_is_the_grids_rule(row, expected):
+    from courses.rollups import quiz_score_view
+
+    view = quiz_score_view(row)
+    assert set(view) == {"shows_score", "score", "max_score", "percent"}
+    got = (view["shows_score"], view["score"], view["max_score"], view["percent"])
+    assert got == expected
+    assert isinstance(view["score"], Decimal)
+    assert isinstance(view["max_score"], Decimal)

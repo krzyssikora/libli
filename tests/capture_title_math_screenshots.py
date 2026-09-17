@@ -631,6 +631,18 @@ def test_capture(browser, live_server):
             page.wait_for_selector(".breakdown-unit__title .katex")
             shoot(f"title-math-11-{theme}", page.locator(".breakdown__tree"))
 
+            # Row 11b: the same page in Results mode -- titles in table <th> cells.
+            page.goto(
+                _url(
+                    "courses:manage_analytics_student",
+                    slug=slug,
+                    student_pk=student.pk,
+                )
+                + "?mode=results"
+            )
+            page.wait_for_selector(".results-table__title .katex")
+            shoot(f"title-math-11b-{theme}", page.locator(".results-table-wrap"))
+
             # Row 13b: h1.review-topbar__title on the review-submission page.
             sub = QuizSubmission.objects.get(unit=nodes["quiz_b"], student=student)
             page.goto(

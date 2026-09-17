@@ -468,6 +468,70 @@ def test_analytics_breakdown_titles_are_marked(client):
     assert _marked(breakdown, "span.breakdown-node__title")
 
 
+def test_rt_t10c_results_table_titles_are_marked(client):
+    """results-table spec T10c. Results mode renders titles in <th> cells: the
+    section <th>, a linked quiz <th> and an unlinked quiz <th> each carry
+    data-math-title AND lang, asserted SEPARATELY (a count passes on a half-marked
+    table); the „Cały kurs" <th> is interface text and carries neither. The linked
+    quiz is SCORED, so a scored pill that lost submission_pk (and with it the
+    link) leaves the linked selector empty."""
+    pa = make_pa(client)
+    course, _unit, nodes = make_title_course(maths_on="far")
+    course.owner = pa
+    course.save(update_fields=["owner"])
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    linked = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=nodes["part2"],
+        order=1,
+        title=MATHS_TITLE,
+    )
+    QuizSubmission.objects.create(
+        student=student,
+        unit=linked,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("1"),
+        max_score=Decimal("1"),
+    )
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=nodes["part2"],
+        order=2,
+        title=MATHS_TITLE,
+    )
+    url = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+    soup = BeautifulSoup(
+        client.get(f"{url}?mode=results").content.decode(), "html.parser"
+    )
+    body = "table.results-table tbody"
+    quiz_th = f"{body} tr:not(.results-table__section) > th"
+    groups = (
+        (
+            "section",
+            f"{body} tr.results-table__section:not(.results-table__total) > th",
+        ),
+        ("linked quiz", f"{quiz_th}:has(a.breakdown-unit__link)"),
+        ("unlinked quiz", f"{quiz_th}:not(:has(a))"),
+    )
+    for name, selector in groups:
+        cells = soup.select(selector)
+        assert len(cells) == 1, name
+        assert cells[0].has_attr("data-math-title"), name
+        assert cells[0].get("lang") == course.language, name
+    total = soup.select(f"{body} tr.results-table__total > th")
+    assert len(total) == 1
+    assert not total[0].has_attr("data-math-title")
+    assert total[0].get("lang") is None
+
+
 # --- review queue + review submission: the TITLE-ALONE rule ------------------
 def _review_setup(client, unit_title):
     pa = make_pa(client)

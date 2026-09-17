@@ -419,7 +419,7 @@ def _course_results_row(unit, sub, has_auto, total_review, reviewed_counts):
             "submission_pk": sub.pk,
             "url_name": "courses:quiz_unit",
         }
-    graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
+    graded = has_auto.get(unit.pk, False)  # top-level AUTO question, NOT max_score > 0
     pending = not submission_is_counted(sub, total_review, reviewed_counts)
     return {
         "unit": unit,
@@ -473,6 +473,7 @@ def build_course_results(course, student, *, drafts, with_data=None):
     for unit in units:
         sub = submissions.get(unit.pk)
         row = _course_results_row(unit, sub, has_auto, total_review, reviewed_counts)
+        row["score_view"] = quiz_score_view(row)  # results-table spec §4, O15
         rows.append(row)
         if row["status"] in ("submitted", "awaiting_review"):
             done_count += 1  # unchanged: pending still counts as submitted
@@ -495,22 +496,48 @@ def build_course_results(course, student, *, drafts, with_data=None):
     }
 
 
+def quiz_score_view(row):
+    """The grid's "this quiz shows a score" rule for one _course_results_row row.
+
+    build_results_matrix sums a submission iff submission_is_counted, and a cell
+    shows a figure iff its max_score sum is > 0; for ONE quiz that is `status ==
+    "submitted"` (already not pending) and `max_score > 0`. It deliberately ignores
+    `graded` (a top-level AUTO question): a fully reviewed REVIEW-only quiz with
+    max_score > 0 is in the grid's sums, so it shows a score everywhere too
+    (results-table spec §4). _quiz_pill, build_course_results' `score_view` and
+    the Results-mode stamps all read THIS; never re-derive it.
+
+    score/max_score are always Decimal (a NULL is 0, as in the grid); percent is
+    None unless shows_score.
+    """
+    score = row["score"] or Decimal("0")
+    max_score = row["max_score"] or Decimal("0")
+    shows_score = row["status"] == "submitted" and max_score > 0
+    return {
+        "shows_score": shows_score,
+        "score": score,
+        "max_score": max_score,
+        "percent": _pct(score, max_score) if shows_score else None,
+    }
+
+
 def _quiz_pill(row):
     """Map a build_course_results row to a single-sourced status pill (spec §6).
     Every kind that has a submission carries its pk: the breakdown links the
-    quiz title to the per-question page with it."""
+    quiz title to the per-question page with it. `scored` iff quiz_score_view
+    says the quiz shows a score (results-table spec §4)."""
     status = row["status"]
     if status == "submitted":
-        if row["graded"] and row["max_score"]:
-            # reuse the single-source percent rule (_pct guarantees b > 0, met here)
+        view = quiz_score_view(row)
+        if view["shows_score"]:
             return {
                 "kind": "scored",
-                "score": row["score"],
-                "max_score": row["max_score"],
-                "percent": _pct(row["score"], row["max_score"]),
+                "score": view["score"],
+                "max_score": view["max_score"],
+                "percent": view["percent"],
                 "submission_pk": row["submission_pk"],
             }
-        # submitted but ungraded (max_score == 0): no percent
+        # submitted, but no gradeable marks (max_score == 0): no percent
         return {"kind": "submitted", "submission_pk": row["submission_pk"]}
     if status == "awaiting_review":
         return {"kind": "awaiting", "submission_pk": row["submission_pk"]}
@@ -532,7 +559,9 @@ def build_student_breakdown(
     pill_by_unit (from build_course_results) still carries their results.
 
     mode="results" returns the tree already pruned to quizzes (analytics student
-    pages spec §4.1). The default keeps every existing caller's tree unchanged.
+    pages spec §4.1), stamped by _stamp_results, plus the course `total`
+    (results-table spec §2.1). The default keeps every existing caller's tree
+    unchanged and stamps NOTHING (O5).
     """
     tree = build_outline(course, student, drafts=drafts, with_data=with_data)
     results = build_course_results(course, student, drafts=drafts, with_data=with_data)
@@ -548,9 +577,12 @@ def build_student_breakdown(
             attach(d["children"])
 
     attach(tree)
-    if mode == "results":
-        tree = _keep_quizzes(tree)
-    return {"student": student, "tree": tree}
+    if mode != "results":
+        return {"student": student, "tree": tree}
+    tree = _keep_quizzes(tree)
+    rows_by_unit = {r["unit"].pk: r for r in results["rows"]}
+    total = _stamp_results(tree, rows_by_unit)
+    return {"student": student, "tree": tree, "total": total}
 
 
 def _keep_quizzes(nodes):
@@ -569,6 +601,50 @@ def _keep_quizzes(nodes):
         if d["children"]:
             kept.append(d)
     return kept
+
+
+def _stamp_results(nodes, rows_by_unit):
+    """Results-mode figures (results-table spec §2.1), stamped IN PLACE on a tree
+    _keep_quizzes has pruned, so every unit left is a quiz.
+
+    A quiz node gets quiz_score_view's four keys, read from ITS
+    build_course_results row's already-computed `score_view` field rather
+    than re-deriving them -- every caller reads its result. A container gets
+    quiz_total (quizzes below), counted (those with shows_score), score_sum/
+    max_sum (Decimal, 0 when nothing counts), percent (_pct when max_sum > 0,
+    else None -- the grid's own cell rule, so a heading equals its grid cell by
+    construction) and summary (quiz_total > 1, O2). Returns the same six
+    figures for `nodes` taken together: the course total when `nodes` is the
+    whole tree.
+
+    rows_by_unit[...] and never .get(): both sides apply is_quiz_unit with the
+    same drafts/with_data, so a quiz without a row is a bug and must raise.
+    """
+    quiz_total = counted = 0
+    score_sum = max_sum = Decimal("0")
+    for d in nodes:
+        if d["is_unit"]:
+            d.update(rows_by_unit[d["node"].pk]["score_view"])
+            quiz_total += 1
+            if d["shows_score"]:
+                counted += 1
+                score_sum += d["score"]
+                max_sum += d["max_score"]
+        else:
+            figures = _stamp_results(d["children"], rows_by_unit)
+            d.update(figures)
+            quiz_total += figures["quiz_total"]
+            counted += figures["counted"]
+            score_sum += figures["score_sum"]
+            max_sum += figures["max_sum"]
+    return {
+        "quiz_total": quiz_total,
+        "counted": counted,
+        "score_sum": score_sum,
+        "max_sum": max_sum,
+        "percent": _pct(score_sum, max_sum) if max_sum > 0 else None,
+        "summary": quiz_total > 1,
+    }
 
 
 def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):

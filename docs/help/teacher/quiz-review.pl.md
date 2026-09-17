@@ -2,7 +2,7 @@
 
 Gdy quiz zawiera pytania, których nie da się ocenić automatycznie — odpowiedzi
 otwarte, rozwiązania z obliczeniami, wszystko, co wymaga twojej oceny — takie
-zgłoszenia trafiają do **kolejki sprawdzania** i czekają na ocenę. Otwiera ją
+zgłoszenia trafiają do **kolejki sprawdzania** i czekają na sprawdzenie. Otwiera ją
 przycisk **Sprawdzanie quizów** w kreatorze kursu — dostęp tą drogą wymaga
 uprawnień do zarządzania kursem.
 
@@ -12,7 +12,7 @@ uprawnień do zarządzania kursem.
 
 Strona kolejki ma dwie sekcje:
 
-- **Oczekuje na ocenę** — zgłoszenia, które uczniowie zakończyli, a
+- **Oczekuje na sprawdzenie** — zgłoszenia, które uczniowie zakończyli, a
   które wciąż wymagają oceny. Każdy wiersz pokazuje ucznia i jednostkę,
   plakietkę taką jak **2 do sprawdzenia** oraz przycisk **Sprawdź**.
 - **Otwarte (w toku)** — podejścia, które uczeń rozpoczął, ale jeszcze nie

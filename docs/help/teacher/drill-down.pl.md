@@ -8,7 +8,7 @@ kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy ma
 odnośnik **Analityka** ograniczony do tej grupy. Karta kolekcji ma go
 również, jeśli możesz przeglądać kurs tej kolekcji.
 
-![Wyniki ucznia](static:core/img/help/drill-down.pl.png)
+![Wyniki quizów w kursie](static:core/img/help/drill-down.pl.png)
 
 ## Rozwijanie kolumny
 
@@ -49,17 +49,28 @@ Twoje wybory rozwinięcia i podzbioru podróżują z tobą: przenoszą się prze
 przełącznik Postęp ↔ Wyniki oraz odnośnik eksportu, więc nigdy nie tracisz
 swojego miejsca przy zmianie tego, co mierzy macierz.
 
-## Wyniki ucznia
+## Wyniki i postęp
 
-Kliknij imię i nazwisko ucznia, aby otworzyć stronę jego wyników w bieżącym
-kursie. Otwiera się w tym samym widoku, z którego przyszedłeś w macierzy, a
-przełącznik **Postęp / Wyniki** pod nagłówkiem zmienia go bez powrotu:
+Kliknij imię i nazwisko ucznia, aby otworzyć jego stronę w bieżącym kursie.
+Otwiera się w tym samym widoku, z którego przyszedłeś w macierzy, a nagłówek
+nazywa ten widok i ucznia. Przełącznik **Postęp / Wyniki** pod nagłówkiem
+zmienia widok bez powrotu:
 
 - **Postęp** pokazuje wszystkie lekcje i quizy. Ukończona lekcja ma ✓,
   nieukończona puste ○, a lekcja nieobowiązkowa jest oznaczona jako
-  **Dodatkowa**. Nagłówki rozdziałów pokazują, ile obowiązkowych lekcji ukończono.
-- **Wyniki** pokazuje tylko quizy — z ich stanem lub wynikiem — i rozdziały,
-  które je zawierają.
+  **Dodatkowa**. Nagłówki rozdziałów liczą ukończone lekcje obowiązkowe, np.
+  **lekcje: 1/2**.
+- **Wyniki** to tabela quizów oraz części, rozdziałów i sekcji, które je
+  zawierają. Quiz z wynikiem pokazuje punkty i procent; każdy inny quiz pokazuje
+  swój stan, a quiz czekający na sprawdzenie ma odnośnik do strony sprawdzania.
+  Każdy nagłówek, pod którym jest więcej niż jeden quiz, pokazuje w swoim
+  wierszu ułamek quizów, np. **1/3**, a gdy co najmniej jeden z nich jest
+  sprawdzony — także sumę punktów i procent; **Cały kurs** na górze robi to
+  samo dla całego kursu. Ułamek to liczba quizów, których wynik
+  wliczono do sumy, spośród wszystkich quizów w sekcji, więc quiz czekający na
+  sprawdzenie nie jest jeszcze wliczony. Sumy i kolory procentów pochodzą z
+  macierzy analitycznej, więc wiersz nagłówka zgadza się z komórką tej sekcji w
+  macierzy wyników.
 
 Odnośnik **← Analityka** przywraca dokładnie ten zakres, widok, rozwinięte kolumny i
 wybór uczniów, z którego przyszedłeś.
@@ -72,8 +83,9 @@ klucz tam, gdzie odpowiedź była błędna, punkty i liczbę prób. Pytanie
 wielokrotnego wyboru pokazuje **wszystkie** opcje — co uczeń wybrał i które
 opcje są poprawne; pytanie z kilkoma częściami układa odpowiedzi ucznia i klucz
 w kolumnach. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie czekające
-na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik **← Wyniki ucznia**
-wraca z niezmienionym widokiem analityki.
+na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik **← Wyniki** lub
+**← Postęp** (nazywa widok, z którego przyszedłeś) wraca z niezmienionym widokiem
+analityki.
 
 ## Powiązane tematy
 

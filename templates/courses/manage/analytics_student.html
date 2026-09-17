@@ -1,11 +1,14 @@
 {% extends "base.html" %}
-{% load i18n %}
-{% block head_title %}{% trans "Student results" %} · {{ course.title }} · libli{% endblock %}
+{% load i18n courses_extras %}
+{% block head_title %}{% if mode == "results" %}{% trans "Results" %}{% else %}{% trans "Progress" %}{% endif %} · {{ course.title }} · libli{% endblock %}
 {% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <section class="manage breakdown">
   <header class="manage__head">
-    <h1 class="manage__title">{% trans "Student results" %} — {{ student.list_display_name }}</h1>
+    {% comment %}The heading names the VIEW, then the student: „Wyniki ucznia" is wrong
+    for a girl (results-table spec O7). The <title> names the view but never the
+    student, who would otherwise land in browser history and bookmarks.{% endcomment %}
+    <h1 class="manage__title">{% if mode == "results" %}{% trans "Results" %}{% else %}{% trans "Progress" %}{% endif %} — {{ student.list_display_name }}</h1>
     <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Analytics" %}</a>
   </header>
   {% comment %}The view switch sits BELOW .manage__head, never inside it: the header's
@@ -21,11 +24,45 @@
       {% endif %}
     </span>
   </p>
-  <ul class="breakdown__tree">
-    {% for item in breakdown.tree %}
-      {% include "courses/manage/_breakdown_node.html" with item=item course=course %}
-    {% endfor %}
-  </ul>
+  {% if mode == "results" %}
+    {% if breakdown.tree %}
+      {% comment %}A Tab stop and a landmark ONLY when the table can scroll, i.e. when a
+      KaTeX formula can widen it (results-table spec §2.5). position:relative on the
+      wrapper: see the .results-table-wrap rule in app.css.{% endcomment %}
+      <div class="results-table-wrap"{% if has_math %} role="region" aria-labelledby="results-table-caption" tabindex="0"{% endif %}>
+        <table class="results-table">
+          <caption id="results-table-caption" class="sr-only">{% trans "Quiz results" %}</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="results-table__title">{% trans "Title" %}</th>
+              <th scope="col" class="results-table__status">{% trans "Quizzes" %}</th>
+              <th scope="col" class="results-table__num">{% trans "Score" %}</th>
+              <th scope="col" class="results-table__num">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% with t=breakdown.total %}{% if t.summary %}
+            <tr class="results-table__section results-table__total">
+              <th scope="row" class="results-table__title results-table__d0">{% trans "Whole course" %}</th>
+              <td class="results-table__status">{{ t.counted }}/{{ t.quiz_total }}</td>
+              <td class="results-table__num">{% if t.percent is not None %}{{ t.score_sum|marks }}/{{ t.max_sum|marks }}{% endif %}</td>
+              <td class="results-table__num"{% if t.percent is not None %} style="background:{{ t.color }};color:{{ t.text_color }}"{% endif %}>{% if t.percent is not None %}{{ t.percent }}%{% endif %}</td>
+            </tr>
+            {% endif %}{% endwith %}
+            {% include "courses/manage/_results_table_rows.html" with nodes=breakdown.tree %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="results-table-empty">{% trans "No quizzes in this course yet" %}</p>
+    {% endif %}
+  {% else %}
+    <ul class="breakdown__tree">
+      {% for item in breakdown.tree %}
+        {% include "courses/manage/_breakdown_node.html" with item=item course=course %}
+      {% endfor %}
+    </ul>
+  {% endif %}
 </section>
 {% endblock %}
 {% block extra_js %}{% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}{% endblock %}

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-16 21:45+0200\n"
+"POT-Creation-Date: 2026-09-17 17:34+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -733,6 +733,7 @@ msgid "Which content levels this course uses."
 msgstr ""
 
 #: .\courses\forms.py:79 .\templates\courses\manage\_tree_node.html:52
+#: .\templates\courses\manage\analytics_student.html:40
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
 #: .\templates\courses\manage\editor\_unit_settings.html:12
 msgid "Title"
@@ -2493,11 +2494,11 @@ msgstr ""
 msgid "You're now enrolled in %(course)s."
 msgstr ""
 
-#: .\courses\views_analytics.py:446
+#: .\courses\views_analytics.py:472
 msgid "Colours reset to defaults."
 msgstr ""
 
-#: .\courses\views_analytics.py:452
+#: .\courses\views_analytics.py:478
 msgid "Colours saved."
 msgstr ""
 
@@ -2511,15 +2512,21 @@ msgstr ""
 
 #: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:66
-#: .\templates\courses\manage\analytics_student.html:18
-#: .\templates\courses\manage\analytics_student.html:21
+#: .\templates\courses\manage\analytics_student.html:3
+#: .\templates\courses\manage\analytics_student.html:12
+#: .\templates\courses\manage\analytics_student.html:22
+#: .\templates\courses\manage\analytics_student.html:25
+#: .\templates\courses\manage\analytics_student_quiz.html:15
 msgid "Results"
 msgstr ""
 
 #: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:64
-#: .\templates\courses\manage\analytics_student.html:17
-#: .\templates\courses\manage\analytics_student.html:20
+#: .\templates\courses\manage\analytics_student.html:3
+#: .\templates\courses\manage\analytics_student.html:12
+#: .\templates\courses\manage\analytics_student.html:21
+#: .\templates\courses\manage\analytics_student.html:24
+#: .\templates\courses\manage\analytics_student_quiz.html:15
 msgid "Progress"
 msgstr ""
 
@@ -3730,7 +3737,7 @@ msgstr ""
 msgid "%(student)s submitted %(unit)s in %(course)s and it needs review."
 msgstr ""
 
-#: .\notifications\emails.py:61
+#: .\notifications\emails.py:61 .\tests\test_review_wording_pl.py:166
 msgid "Your quiz was graded"
 msgstr ""
 
@@ -3754,6 +3761,7 @@ msgid "Quiz needs review"
 msgstr ""
 
 #: .\notifications\models.py:10 .\templates\core\user_settings.html:122
+#: .\tests\test_review_wording_pl.py:165
 msgid "Quiz graded"
 msgstr ""
 
@@ -4762,7 +4770,7 @@ msgstr ""
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:8
-#: .\templates\courses\manage\analytics_student.html:9
+#: .\templates\courses\manage\analytics_student.html:13
 #: .\templates\grouping\collection_detail.html:9
 #: .\templates\grouping\group_detail.html:9
 #: .\templates\grouping\my_groups.html:16
@@ -4972,7 +4980,8 @@ msgstr ""
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
 #: .\templates\courses\manage\_breakdown_node.html:24
-msgid "required"
+#, python-format
+msgid "lessons: %(done)s/%(total)s"
 msgstr ""
 
 #: .\templates\courses\_outline_node.html:41
@@ -5133,6 +5142,7 @@ msgid "My results"
 msgstr ""
 
 #: .\templates\courses\course_results.html:10
+#: .\templates\courses\manage\analytics_student.html:41
 msgid "Quizzes"
 msgstr ""
 
@@ -5142,6 +5152,7 @@ msgid "%(done)s / %(total)s"
 msgstr ""
 
 #: .\templates\courses\course_results.html:24
+#: .\tests\test_review_wording_pl.py:167
 msgid "submitted — not graded"
 msgstr ""
 
@@ -5176,6 +5187,7 @@ msgid "start"
 msgstr ""
 
 #: .\templates\courses\course_results.html:41
+#: .\templates\courses\manage\analytics_student.html:60
 msgid "No quizzes in this course yet"
 msgstr ""
 
@@ -5402,6 +5414,7 @@ msgid "More kinds"
 msgstr ""
 
 #: .\templates\courses\manage\_breakdown_node.html:10
+#: .\templates\courses\manage\_results_table_rows.html:13
 #: .\templates\courses\manage\analytics_student_quiz.html:29
 #: .\templates\courses\manage\analytics_student_quiz.html:67
 #: .\templates\courses\manage\review_queue.html:18
@@ -5872,7 +5885,7 @@ msgid "Students"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_matrix.html:62
-#: .\templates\courses\manage\analytics_student.html:15
+#: .\templates\courses\manage\analytics_student.html:19
 msgid "Metric"
 msgstr ""
 
@@ -5965,10 +5978,17 @@ msgstr ""
 msgid "No progress-tracked lessons in this course yet."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student.html:3
-#: .\templates\courses\manage\analytics_student.html:8
-#: .\templates\courses\manage\analytics_student_quiz.html:15
-msgid "Student results"
+#: .\templates\courses\manage\analytics_student.html:37
+msgid "Quiz results"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student.html:42
+#: .\templates\courses\quiz_results.html:15
+msgid "Score"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student.html:49
+msgid "Whole course"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_student_quiz.html:3
@@ -7781,10 +7801,6 @@ msgstr ""
 #: .\templates\courses\quiz_results.html:3
 #: .\templates\courses\quiz_results.html:12
 msgid "results"
-msgstr ""
-
-#: .\templates\courses\quiz_results.html:15
-msgid "Score"
 msgstr ""
 
 #: .\templates\courses\quiz_results.html:22

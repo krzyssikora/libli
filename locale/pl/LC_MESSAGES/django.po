@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-16 21:45+0200\n"
+"POT-Creation-Date: 2026-09-17 17:34+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -763,6 +763,7 @@ msgid "Which content levels this course uses."
 msgstr "Których poziomów treści używa ten kurs."
 
 #: .\courses\forms.py:79 .\templates\courses\manage\_tree_node.html:52
+#: .\templates\courses\manage\analytics_student.html:40
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
 #: .\templates\courses\manage\editor\_unit_settings.html:12
 msgid "Title"
@@ -2608,11 +2609,11 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_analytics.py:446
+#: .\courses\views_analytics.py:472
 msgid "Colours reset to defaults."
 msgstr "Przywrócono domyślne kolory."
 
-#: .\courses\views_analytics.py:452
+#: .\courses\views_analytics.py:478
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
@@ -2626,15 +2627,21 @@ msgstr "Dziennik quizów"
 
 #: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:66
-#: .\templates\courses\manage\analytics_student.html:18
-#: .\templates\courses\manage\analytics_student.html:21
+#: .\templates\courses\manage\analytics_student.html:3
+#: .\templates\courses\manage\analytics_student.html:12
+#: .\templates\courses\manage\analytics_student.html:22
+#: .\templates\courses\manage\analytics_student.html:25
+#: .\templates\courses\manage\analytics_student_quiz.html:15
 msgid "Results"
 msgstr "Wyniki"
 
 #: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:64
-#: .\templates\courses\manage\analytics_student.html:17
-#: .\templates\courses\manage\analytics_student.html:20
+#: .\templates\courses\manage\analytics_student.html:3
+#: .\templates\courses\manage\analytics_student.html:12
+#: .\templates\courses\manage\analytics_student.html:21
+#: .\templates\courses\manage\analytics_student.html:24
+#: .\templates\courses\manage\analytics_student_quiz.html:15
 msgid "Progress"
 msgstr "Postęp"
 
@@ -3928,7 +3935,7 @@ msgid "%(student)s submitted %(unit)s in %(course)s and it needs review."
 msgstr ""
 "%(student)s przesłał(a) %(unit)s w kursie %(course)s — wymaga sprawdzenia."
 
-#: .\notifications\emails.py:61
+#: .\notifications\emails.py:61 .\tests\test_review_wording_pl.py:166
 msgid "Your quiz was graded"
 msgstr "Twój quiz został oceniony"
 
@@ -3952,6 +3959,7 @@ msgid "Quiz needs review"
 msgstr "Quiz wymaga sprawdzenia"
 
 #: .\notifications\models.py:10 .\templates\core\user_settings.html:122
+#: .\tests\test_review_wording_pl.py:165
 msgid "Quiz graded"
 msgstr "Quiz oceniony"
 
@@ -4981,7 +4989,7 @@ msgstr "Nauczanie"
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:8
-#: .\templates\courses\manage\analytics_student.html:9
+#: .\templates\courses\manage\analytics_student.html:13
 #: .\templates\grouping\collection_detail.html:9
 #: .\templates\grouping\group_detail.html:9
 #: .\templates\grouping\my_groups.html:16
@@ -5199,8 +5207,9 @@ msgstr "Edytuj tagi"
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
 #: .\templates\courses\manage\_breakdown_node.html:24
-msgid "required"
-msgstr "wymagane"
+#, python-format
+msgid "lessons: %(done)s/%(total)s"
+msgstr "lekcje: %(done)s/%(total)s"
 
 #: .\templates\courses\_outline_node.html:41
 #: .\templates\courses\_outline_node.html:56
@@ -5362,6 +5371,7 @@ msgid "My results"
 msgstr "Moje wyniki"
 
 #: .\templates\courses\course_results.html:10
+#: .\templates\courses\manage\analytics_student.html:41
 msgid "Quizzes"
 msgstr "Quizy"
 
@@ -5371,6 +5381,7 @@ msgid "%(done)s / %(total)s"
 msgstr "%(done)s / %(total)s"
 
 #: .\templates\courses\course_results.html:24
+#: .\tests\test_review_wording_pl.py:167
 msgid "submitted — not graded"
 msgstr "przesłano — bez oceny"
 
@@ -5384,7 +5395,7 @@ msgstr "szczegóły"
 #: .\templates\courses\manage\review_queue.html:11
 #: .\templates\courses\quiz_results.html:37
 msgid "Awaiting review"
-msgstr "Oczekuje na ocenę"
+msgstr "Oczekuje na sprawdzenie"
 
 #: .\templates\courses\course_results.html:31
 #: .\templates\courses\manage\_quiz_pill.html:14
@@ -5405,6 +5416,7 @@ msgid "start"
 msgstr "rozpocznij"
 
 #: .\templates\courses\course_results.html:41
+#: .\templates\courses\manage\analytics_student.html:60
 msgid "No quizzes in this course yet"
 msgstr "Ten kurs nie ma jeszcze quizów"
 
@@ -5441,7 +5453,7 @@ msgstr "Wpisz odpowiedź"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
 msgid "Submitted for review"
-msgstr "Przesłano do oceny"
+msgstr "Przesłano do sprawdzenia"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
 #: .\templates\courses\manage\analytics_student_quiz.html:63
@@ -5632,6 +5644,7 @@ msgid "More kinds"
 msgstr "Więcej typów"
 
 #: .\templates\courses\manage\_breakdown_node.html:10
+#: .\templates\courses\manage\_results_table_rows.html:13
 #: .\templates\courses\manage\analytics_student_quiz.html:29
 #: .\templates\courses\manage\analytics_student_quiz.html:67
 #: .\templates\courses\manage\review_queue.html:18
@@ -5927,7 +5940,7 @@ msgstr "przesłano"
 
 #: .\templates\courses\manage\_quiz_pill.html:12
 msgid "awaiting review"
-msgstr "oczekuje na ocenę"
+msgstr "oczekuje na sprawdzenie"
 
 #: .\templates\courses\manage\_roster_row.html:25
 #: .\templates\courses\manage\review_queue.html:34
@@ -6124,7 +6137,7 @@ msgid "Students"
 msgstr "Uczniowie"
 
 #: .\templates\courses\manage\analytics_matrix.html:62
-#: .\templates\courses\manage\analytics_student.html:15
+#: .\templates\courses\manage\analytics_student.html:19
 msgid "Metric"
 msgstr "Metryka"
 
@@ -6224,11 +6237,18 @@ msgstr "Brak quizów w tym kursie."
 msgid "No progress-tracked lessons in this course yet."
 msgstr "Brak lekcji wliczanych do postępów w tym kursie."
 
-#: .\templates\courses\manage\analytics_student.html:3
-#: .\templates\courses\manage\analytics_student.html:8
-#: .\templates\courses\manage\analytics_student_quiz.html:15
-msgid "Student results"
-msgstr "Wyniki ucznia"
+#: .\templates\courses\manage\analytics_student.html:37
+msgid "Quiz results"
+msgstr "Wyniki quizów"
+
+#: .\templates\courses\manage\analytics_student.html:42
+#: .\templates\courses\quiz_results.html:15
+msgid "Score"
+msgstr "Wynik"
+
+#: .\templates\courses\manage\analytics_student.html:49
+msgid "Whole course"
+msgstr "Cały kurs"
 
 #: .\templates\courses\manage\analytics_student_quiz.html:3
 msgid "Answers"
@@ -8140,25 +8160,21 @@ msgstr "Wstecz"
 msgid "results"
 msgstr "wyniki"
 
-#: .\templates\courses\quiz_results.html:15
-msgid "Score"
-msgstr "Wynik"
-
 #: .\templates\courses\quiz_results.html:22
 #, python-format
 msgid "%(n)s question awaiting review (up to 1 more mark)"
 msgid_plural "%(n)s questions awaiting review (up to 1 more mark)"
-msgstr[0] "%(n)s pytanie oczekuje na ocenę (do 1 dodatkowego punktu)"
-msgstr[1] "%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)"
-msgstr[2] "%(n)s pytań oczekuje na ocenę (do 1 dodatkowego punktu)"
+msgstr[0] "%(n)s pytanie oczekuje na sprawdzenie (do 1 dodatkowego punktu)"
+msgstr[1] "%(n)s pytania oczekują na sprawdzenie (do 1 dodatkowego punktu)"
+msgstr[2] "%(n)s pytań oczekuje na sprawdzenie (do 1 dodatkowego punktu)"
 
 #: .\templates\courses\quiz_results.html:22
 #, python-format
 msgid "%(n)s question awaiting review (up to %(m)s more marks)"
 msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
-msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
-msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
-msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
+msgstr[0] "%(n)s pytanie oczekuje na sprawdzenie (do %(m)s dodatkowych punktów)"
+msgstr[1] "%(n)s pytania oczekują na sprawdzenie (do %(m)s dodatkowych punktów)"
+msgstr[2] "%(n)s pytań oczekuje na sprawdzenie (do %(m)s dodatkowych punktów)"
 
 #: .\templates\grouping\allocation_assign.html:10
 msgid "Back to allocations"

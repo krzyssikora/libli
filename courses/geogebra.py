@@ -469,7 +469,7 @@ def fetch_geogebra_dimensions(material_id):
         try:
             exc.close()
         # S110 (try-except-pass) IS enabled and DOES fire here; BLE001 is not.
-        # Precedent for S110 on a handler line: tests/capture_help_screenshots.py:460.
+        # S110 precedent: capture_help_screenshots.py::test_capture_help_screenshots.
         except Exception:  # noqa: BLE001, S110 - closing must never mask the original
             pass
         return _fail(f"HTTP {exc.code}")

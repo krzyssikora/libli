@@ -20,7 +20,7 @@
     <li class="result-row is-{{ row.status }}">
       <span class="result-row__title" data-math-title>{{ row.unit.title }}</span>
       {% if row.status == "submitted" %}
-        {% if row.graded %}<span class="result-row__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>
+        {% if row.score_view.shows_score %}<span class="result-row__score">{{ row.score_view.score|marks }} / {{ row.score_view.max_score|marks }}</span>
         {% else %}<span class="badge badge--muted">{% trans "submitted — not graded" %}</span>{% endif %}
         <span class="result-row__actions"><a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "details" %}</a></span>
       {% elif row.status == "awaiting_review" %}
