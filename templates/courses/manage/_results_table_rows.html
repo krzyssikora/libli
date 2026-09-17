@@ -1,0 +1,25 @@
+{% load i18n courses_extras %}
+{% comment %}One Results-table row per node of the pruned breakdown tree, in pre-order
+(results-table spec §2.3): a heading row, then its children, recursively. Reads
+course, student and drill_qs from the inherited context, so no include here uses
+`only`. The number cells are written on ONE line each: a newline inside a cell adds
+a whitespace box that the e2e alignment tests would measure. The indent class comes
+from the node's depth (0 for any root), never from its kind.{% endcomment %}
+{% for item in nodes %}
+  {% if item.is_unit %}
+    <tr>
+      <th scope="row" class="results-table__title results-table__d{{ item.depth }}" lang="{{ course.language }}" data-math-title>{% if item.pill.submission_pk %}<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' slug=course.slug student_pk=student.pk node_pk=item.node.pk %}?{{ drill_qs }}">{{ item.node.title }}</a>{% else %}{{ item.node.title }}{% endif %}</th>
+      <td class="results-table__status">{% if not item.shows_score %}{% with p=item.pill %}{% include "courses/manage/_quiz_pill.html" %}{% if p.kind == "awaiting" %}<a class="breakdown-unit__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=p.submission_pk %}">{% trans "Review" %}</a>{% endif %}{% endwith %}{% endif %}</td>
+      <td class="results-table__num">{% if item.shows_score %}{{ item.score|marks }}/{{ item.max_score|marks }}{% endif %}</td>
+      <td class="results-table__num"{% if item.shows_score %} style="background:{{ item.color }};color:{{ item.text_color }}"{% endif %}>{% if item.shows_score %}{{ item.percent }}%{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr class="results-table__section">
+      <th scope="row" class="results-table__title results-table__d{{ item.depth }}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</th>
+      <td class="results-table__status">{% if item.summary %}{{ item.counted }}/{{ item.quiz_total }}{% endif %}</td>
+      <td class="results-table__num">{% if item.summary and item.percent is not None %}{{ item.score_sum|marks }}/{{ item.max_sum|marks }}{% endif %}</td>
+      <td class="results-table__num"{% if item.summary and item.percent is not None %} style="background:{{ item.color }};color:{{ item.text_color }}"{% endif %}>{% if item.summary and item.percent is not None %}{{ item.percent }}%{% endif %}</td>
+    </tr>
+    {% include "courses/manage/_results_table_rows.html" with nodes=item.children %}
+  {% endif %}
+{% endfor %}

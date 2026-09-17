@@ -12,7 +12,7 @@
       <p class="answers__student">{{ student.list_display_name }}</p>
       <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span></h1>
     </div>
-    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Student results" %}</a>
+    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% if mode == "results" %}{% trans "Results" %}{% else %}{% trans "Progress" %}{% endif %}</a>
   </header>
   <p class="answers__status">
     {% with p=pill %}

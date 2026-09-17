@@ -450,6 +450,8 @@ def analytics_student_quiz(request, slug, student_pk, node_pk):
             "submission": submission,
             "pill": pill,
             "back_url": f"{student_path}?{back_qs}",
+            # The back link names the view it returns to (results-table spec §3.2).
+            "mode": mode,
             "has_math": _answers_have_math(unit, rows),
             "rows": rows,
             "answered_count": sum(1 for row in rows if row["answered"]),

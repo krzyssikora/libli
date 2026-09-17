@@ -172,17 +172,18 @@ def _head(soup, title):
 def test_t6_results_mode_shows_quizzes_only(client):
     _course, _student, _mixed, path = _page_fixture(client)
     _resp, soup = _get(client, f"{path}?mode=results")
-    assert _unit_titles(soup) == ["Chapter quiz", "Unstarted quiz"]
-    assert _head(soup, "Lessons-only chapter") is None
-    unstarted = soup.select(".breakdown-unit")[1]
-    assert unstarted.select_one(".pill.pill--none") is not None
+    titles = [row["title"] for row in _table_rows(soup)]
+    assert titles == ["Whole course", "Mixed chapter", "Chapter quiz", "Unstarted quiz"]
+    assert soup.select("ul.breakdown__tree") == []
+    unstarted = _table_row(soup, "Unstarted quiz")
+    assert unstarted["status"].select_one(".pill.pill--none") is not None
 
 
 def test_t7_results_mode_hides_the_chapter_chip_progress_shows_it(client):
     _course, _student, _mixed, path = _page_fixture(client)
     _resp, results = _get(client, f"{path}?mode=results")
     _resp, progress = _get(client, f"{path}?mode=progress")
-    assert _head(results, "Mixed chapter").select_one(".rollup") is None
+    assert results.select(".rollup") == []
     assert _head(progress, "Mixed chapter").select_one(".rollup") is not None
 
 
@@ -221,22 +222,6 @@ def test_t16_has_math_is_computed_from_the_pruned_tree(client):
     progress, _soup = _get(client, f"{path}?mode=progress")
     assert results.context["has_math"] is False  # the maths title is a lesson's
     assert progress.context["has_math"] is True
-
-
-def test_t28b_one_page_name_in_both_modes(client):
-    _course, _student, _mixed, path = _page_fixture(client)
-    _polish(client)
-    for mode, word in (("results", "Wyniki"), ("progress", "Postęp")):
-        _resp, soup = _get(client, f"{path}?mode={mode}")
-        assert (
-            soup.select_one("h1").get_text(" ", strip=True)
-            == "Wyniki ucznia — Anna Nowak"
-        )
-        assert (
-            soup.select_one("title").get_text(strip=True).startswith("Wyniki ucznia ·")
-        )
-        current = soup.select_one('.breakdown__view a[aria-current="page"]')
-        assert current.get_text(strip=True) == word
 
 
 def _row(soup, title):
@@ -666,3 +651,261 @@ def test_rt_t6_results_nodes_carry_the_course_band_colours(client):
     for title in ("Sekcja A2", "A1 w toku"):
         d = _find(tree, title)
         assert (d["color"], d["text_color"]) == (None, None), title
+
+
+# --- results-table spec: the rendered table ----------------------------------------
+def _table_rows(soup):
+    rows = []
+    for tr in soup.select("table.results-table tbody tr"):
+        status, score, pct = tr.select("td")
+        th = tr.select_one("th")
+        rows.append(
+            {
+                "tr": tr,
+                "th": th,
+                "title": th.get_text(" ", strip=True),
+                "status": status,
+                "score": score,
+                "pct": pct,
+            }
+        )
+    return rows
+
+
+def _table_row(soup, title):
+    for row in _table_rows(soup):
+        if row["title"] == title:
+            return row
+    raise AssertionError(f"no Results-table row titled {title!r}")
+
+
+def _cells(row):
+    return [row[key].get_text(" ", strip=True) for key in ("status", "score", "pct")]
+
+
+def test_rt_t1b_a_reviewed_review_only_row_shows_its_score(client):
+    _course, _student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    row = _table_row(soup, "A1 sprawdzony")
+    assert _cells(row) == ["", "4/5", "80%"]
+    assert row["status"].select(".pill") == []
+
+
+def test_rt_t1c_an_uncounted_summary_renders_a_count_and_no_figures(client):
+    _course, _student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    row = _table_row(soup, "Sekcja A2")
+    assert _cells(row) == ["0/2", "", ""]
+    assert row["pct"].get("style") is None
+
+
+def test_rt_t1c_an_uncounted_course_total_renders_a_count_and_no_figures(client):
+    _resp, soup = _get(client, f"{_uncounted_course(client)}?mode=results")
+    total = _table_rows(soup)[0]
+    assert total["title"] == "Whole course"
+    assert _cells(total) == ["0/2", "", ""]
+    assert total["pct"].get("style") is None
+
+
+def test_rt_t2_one_quiz_headings_render_no_figures(client):
+    _course, _student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    for title in ("Sekcja C1", "Rozdział C"):  # each has a percent (75), no summary
+        row = _table_row(soup, title)
+        assert "results-table__section" in row["tr"]["class"], title
+        assert _cells(row) == ["", "", ""], title
+        assert row["pct"].get("style") is None, title
+
+
+def test_rt_t3_the_total_row_comes_first(client):
+    _course, _student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    first = _table_rows(soup)[0]
+    assert first["title"] == "Whole course"
+    assert first["tr"]["class"] == ["results-table__section", "results-table__total"]
+    assert _cells(first) == ["4/10", "31.5/41", "77%"]
+    assert len(soup.select("tr.results-table__total")) == 1
+
+
+def test_rt_t3_a_one_quiz_course_renders_no_total_row(client):
+    _resp, soup = _get(client, f"{_one_quiz_course(client)}?mode=results")
+    assert soup.select("tr.results-table__total") == []
+    assert _table_rows(soup)[0]["title"] == "Rozdział"
+
+
+def test_rt_t4_another_students_draft_renders_not_started(client):
+    _course, _student, _chapter, path = _drafts_fixture(client)
+    _polish(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    status = _table_row(soup, "Szkic cudzy")["status"]
+    assert status.select_one(".pill--none").get_text(strip=True) == "nie rozpoczęto"
+
+
+def test_rt_t5_a_zero_max_quiz_counts_in_the_denominator_only(client):
+    _course, _student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    assert _cells(_table_row(soup, "Rozdział B"))[0] == "1/2"
+    assert _table_row(soup, "B bez punktów")["status"].select_one(".pill--submitted")
+
+
+def test_rt_t5b_polish_cells_read_exactly(client):
+    _course, _student, path = _results_fixture(client)
+    _polish(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    total = _table_rows(soup)[0]
+    assert total["title"] == "Cały kurs"
+    assert _cells(total) == ["4/10", "31,5/41", "77%"]
+    assert _cells(_table_row(soup, "Rozdział B")) == ["1/2", "16,5/22", "75%"]
+    assert _cells(_table_row(soup, "B połowa")) == ["", "16,5/22", "75%"]
+
+
+def _parts_course(client, with_parts):
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    if with_parts:
+        part = _node(course, None, "part", "Część 1")
+        chapter = _node(course, part, "chapter", "Rozdział 1")
+        section = _node(course, chapter, "section", "Sekcja 1")
+        _quiz(course, section, "Q1")
+        _quiz(course, section, "Q2")
+        _quiz(course, chapter, "Q3")
+        _quiz(course, _node(course, None, "part", "Część 2"), "Q4")
+        expected = [
+            ("Whole course", 0),
+            ("Część 1", 0),
+            ("Rozdział 1", 1),
+            ("Sekcja 1", 2),
+            ("Q1", 3),
+            ("Q2", 3),
+            ("Q3", 2),
+            ("Część 2", 0),
+            ("Q4", 1),
+        ]
+    else:
+        chapter = _node(course, None, "chapter", "Rozdział bez części")
+        section = _node(course, chapter, "section", "Sekcja")
+        _quiz(course, section, "Q1")
+        _quiz(course, section, "Q2")
+        _quiz(course, chapter, "Q3")
+        expected = [
+            ("Whole course", 0),
+            ("Rozdział bez części", 0),
+            ("Sekcja", 1),
+            ("Q1", 2),
+            ("Q2", 2),
+            ("Q3", 1),
+        ]
+    return _student_path(course, student), expected
+
+
+@pytest.mark.parametrize("with_parts", [True, False])
+def test_rt_t5c_rows_are_preorder_with_their_depth_class(client, with_parts):
+    path, expected = _parts_course(client, with_parts)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    got = [
+        (
+            row["title"],
+            [c for c in row["th"]["class"] if c.startswith("results-table__d")],
+        )
+        for row in _table_rows(soup)
+    ]
+    assert got == [(title, [f"results-table__d{depth}"]) for title, depth in expected]
+
+
+def test_rt_t5e_status_cells_show_the_pill_for_their_status(client):
+    course, student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    for title, kind in (
+        ("A1 nierozpoczęty", "pill--none"),
+        ("A1 w toku", "pill--progress"),
+        ("A1 do sprawdzenia", "pill--awaiting"),
+    ):
+        pills = _table_row(soup, title)["status"].select(".pill")
+        assert len(pills) == 1 and kind in pills[0]["class"], title
+    awaiting = QuizSubmission.objects.get(
+        student=student, unit__course=course, unit__title="A1 do sprawdzenia"
+    )
+    review = _table_row(soup, "A1 do sprawdzenia")["status"].select_one(
+        "a.breakdown-unit__review"
+    )
+    assert review["href"] == reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": awaiting.pk},
+    )
+    assert _table_row(soup, "A1 oceniony")["status"].select(".pill") == []
+
+
+def test_rt_t6_percent_cells_carry_the_band_inline(client):
+    course, _student, path = _results_fixture(client)
+    bands = _custom_bands(course)
+    _resp, soup = _get(client, f"{path}?mode=results")
+    for title in ("Rozdział A", "A1 oceniony"):  # a heading AND a quiz row, both 80%
+        style = band_style(80, bands)
+        expected = f"background:{style['bg']};color:{style['fg']}"
+        assert _table_row(soup, title)["pct"].get("style") == expected, title
+
+
+def test_rt_t7_progress_renders_the_tree_not_the_table(client):
+    _course, _student, path = _results_fixture(client)
+    _resp, soup = _get(client, f"{path}?mode=progress")
+    assert soup.select('[class*="results-table"]') == []
+    assert soup.select_one("ul.breakdown__tree") is not None
+    assert soup.select(
+        "ul.breakdown__tree .badge--done, ul.breakdown__tree .badge--todo"
+    )
+
+
+def test_rt_t7b_a_course_without_quizzes_says_so(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    chapter = _node(course, None, "chapter", "Rozdział")
+    _node(course, chapter, "unit", "Lekcja", unit_type="lesson", obligatory=True)
+    _polish(client)
+    _resp, soup = _get(client, f"{_student_path(course, student)}?mode=results")
+    assert soup.select("table.results-table") == []
+    empty = soup.select_one("p.results-table-empty")
+    assert empty.get_text(strip=True) == "Ten kurs nie ma jeszcze quizów"
+
+
+@pytest.mark.parametrize(
+    ("title", "has_math"),
+    [(r"Quiz \(x^2\)", True), ("Quiz bez wzorów", False)],
+    ids=["maths", "plain"],
+)
+def test_rt_t8d_scroll_wrapper_is_a_region_only_with_maths(client, title, has_math):
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    _quiz(course, _node(course, None, "chapter", "Rozdział"), title)
+    resp, soup = _get(client, f"{_student_path(course, student)}?mode=results")
+    assert resp.context["has_math"] is has_math
+    wrap = soup.select_one("div.results-table-wrap")
+    caption = soup.select_one("table.results-table > caption")
+    if has_math:
+        assert wrap.get("role") == "region"
+        assert wrap.get("tabindex") == "0"
+        assert caption.get("id")
+        assert wrap.get("aria-labelledby") == caption.get("id")
+    else:
+        for attr in ("role", "tabindex", "aria-labelledby"):
+            assert wrap.get(attr) is None, attr
+
+
+def test_rt_t9_heading_and_title_name_the_view(client):
+    _course, _student, _mixed, path = _page_fixture(client)  # student: Anna Nowak
+    _polish(client)
+    for mode, word in (("results", "Wyniki"), ("progress", "Postęp")):
+        _resp, soup = _get(client, f"{path}?mode={mode}")
+        h1 = soup.select_one("h1").get_text(" ", strip=True)
+        title = soup.select_one("title").get_text(strip=True)
+        assert h1 == f"{word} — Anna Nowak", mode
+        assert title.startswith(f"{word} · "), mode
+        assert "Nowak" not in title, mode  # the <title> never names the student
+        assert "ucznia" not in h1 and "ucznia" not in title, mode
+        current = soup.select_one('.breakdown__view a[aria-current="page"]')
+        assert current.get_text(strip=True) == word
