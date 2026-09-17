@@ -777,3 +777,24 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
     assert _has_open_attr(page, f["chap_b"].pk) is True
     expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
     nojs.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_head_buttons_share_one_vertical_level(page, live_server):
+    """The four head buttons line up. .outline__head is align-items: baseline,
+    and an inline-flex button whose first item is an <svg class="icon"> takes its
+    baseline from the svg's bottom edge, so "My results" and "My notes" rode ~2px
+    above "Expand all" and "Start fresh". Mutant: drop the align-self: center
+    rule on the head's buttons -- the tops differ and this goes red."""
+    f = _course_with_two_chapters("headalign")
+    _login(page, live_server, "headalign")
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
+    expect(page.locator("[data-outline-toggle-all]")).to_be_visible()
+
+    tops = page.eval_on_selector_all(
+        ".outline__head > .btn",
+        "els => els.map(e => [e.textContent.trim(), e.getBoundingClientRect().top])",
+    )
+    assert len(tops) == 4, tops
+    assert max(t for _, t in tops) - min(t for _, t in tops) <= 0.5, tops
