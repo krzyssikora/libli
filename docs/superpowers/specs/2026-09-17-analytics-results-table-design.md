@@ -29,6 +29,8 @@ Verbatim quotes, 2026-09-17. „Proposal" rows are mine, and the owner accepted 
 | O11 | **Sums sit on the section's own heading row**, with the course total („Cały kurs") at the top. There are no „Razem" rows underneath | "yes, this is clever" |
 | O12 | The **student's course outline** chip reads „lekcje: 1/2" too (one wording for the one shared chip) | "1 yes" |
 | O13 | Review-waiting wording uses **„sprawdzanie"**, not „ocena": `Awaiting review` → „Oczekuje na sprawdzenie", `awaiting review` → „oczekuje na sprawdzenie", `Submitted for review` → „Przesłano do sprawdzenia" | "\"Sprawdzanie\" sounds better than \"ocena\"" |
+| O14 | The two plural „awaiting review" entries on the student's `quiz_results.html` also use „sprawdzenie" (six Polish forms: „oczekuje/oczekują na sprawdzenie") | "Q4 yes" |
+| O15 | The student's own `course_results.html` uses `quiz_score_view`, so a marked REVIEW-only quiz shows its score there too (test mirroring T10b) | "Q5 yes" |
 
 **Open questions for the owner** (Q1 → O12 and Q2 → O10 were answered 2026-09-17):
 
