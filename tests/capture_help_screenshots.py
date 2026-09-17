@@ -74,10 +74,13 @@ def _u(name, **kwargs):
         return url
     if name == "manage_analytics_student":
         pk = User.objects.get(username=kwargs["username"]).pk
-        return reverse(
+        url = reverse(
             "courses:manage_analytics_student",
             kwargs={"slug": "demo-course", "student_pk": pk},
         )
+        if kwargs.get("mode") == "results":
+            url += "?mode=results"
+        return url
     if name == "manage_review_queue":
         return reverse("courses:manage_review_queue", kwargs={"slug": "demo-course"})
     if name == "manage_review_submission":
@@ -181,8 +184,8 @@ SHOTS = [
     (
         "drill-down",
         "demo_teacher",
-        ("manage_analytics_student", {"username": "demo_s1"}),
-        ".breakdown__tree",
+        ("manage_analytics_student", {"username": "demo_s1", "mode": "results"}),
+        ".results-table",
         "section.manage",
     ),
     (

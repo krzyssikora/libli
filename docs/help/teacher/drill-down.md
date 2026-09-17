@@ -46,17 +46,27 @@ Your expand and subset choices travel with you: they round-trip across the
 Progress ↔ Results toggle and the Export link, so you never lose your place
 when switching what the matrix measures.
 
-## Student results
+## Results and progress
 
-Click a student's name to open their results page for the current course. It
-opens in the same view as the matrix you came from, and a **Progress / Results**
-switch under the heading changes it without going back:
+Click a student's name to open their page for the current course. It opens in
+the same view as the matrix you came from, and the heading names that view and
+the student. A **Progress / Results** switch under the heading changes the view
+without going back:
 
 - **Progress** lists every lesson and quiz. A finished lesson carries a ✓, an
   unfinished one an empty ○, and a lesson that is not required is tagged
-  **Additional**. Chapter headings show how many required lessons are done.
-- **Results** lists only the quizzes — with their status or score — and the
-  chapters that contain them.
+  **Additional**. Chapter headings count the required lessons done, as
+  **lessons: 1/2**.
+- **Results** is a table of the quizzes and of the parts, chapters and sections
+  that contain them. A quiz with a score shows its marks and percentage; any
+  other quiz shows its status, and one awaiting review links to the review page.
+  Every heading that holds more than one quiz shows on its own row a quiz
+  fraction such as **1/3**, the summed marks and the percentage, and **Whole
+  course** at the top does the same for the whole course. The fraction counts
+  the quizzes whose score is included in the sum out of all the quizzes in that
+  section, so a quiz still awaiting review is not included yet. The sums and the
+  colours of the percentages are the analytics matrix's own, so a heading row
+  matches that section's cell in the Results matrix.
 
 The **← Analytics** link restores the exact scope, mode, expanded columns and
 subset you came from, so you can dip into one student and pop straight back to
@@ -71,8 +81,8 @@ A choice question lists **every** option, marking what the student chose and
 which options are correct; a question with several parts lines the student's
 answers and the key up in columns. A quiz still in progress shows the answers
 given so far. A question waiting for your review links straight to the review
-page. The **← Student results** link takes you back with your analytics view
-unchanged.
+page. The **← Results** or **← Progress** link (it names the view you came
+from) takes you back with your analytics view unchanged.
 
 ## Related topics
 
