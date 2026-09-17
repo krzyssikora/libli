@@ -473,6 +473,7 @@ def build_course_results(course, student, *, drafts, with_data=None):
     for unit in units:
         sub = submissions.get(unit.pk)
         row = _course_results_row(unit, sub, has_auto, total_review, reviewed_counts)
+        row["score_view"] = quiz_score_view(row)  # results-table spec §4, O15
         rows.append(row)
         if row["status"] in ("submitted", "awaiting_review"):
             done_count += 1  # unchanged: pending still counts as submitted

@@ -547,3 +547,78 @@ def test_resume_card_renders_its_path_separator_and_affordance(client):
     arrow = card.select_one("svg.resume__arrow")
     assert arrow is not None
     assert arrow.get("aria-hidden") == "true"
+
+
+# ---------------------------------------------------------------------------
+# results-table spec T15 (O15): the student's own course results page
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_rt_t15_course_results_scores_a_reviewed_review_only_quiz(client):
+    from django.utils import timezone
+
+    from core.middleware import LANGUAGE_SESSION_KEY
+    from courses.models import ExtendedResponseQuestionElement
+    from courses.models import QuestionElement
+    from courses.models import QuestionResponse
+
+    course = CourseFactory()
+    user = make_login(client, "t15stud")
+    EnrollmentFactory(student=user, course=course)
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+    reviewed = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Esej"
+    )
+    essay = ExtendedResponseQuestionElement.objects.create(
+        stem="Discuss.",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    element = Element.objects.create(unit=reviewed, content_object=essay)
+    sub = QuizSubmissionFactory(
+        student=user,
+        unit=reviewed,
+        status="submitted",
+        score=Decimal("4.00"),
+        max_score=Decimal("5.00"),
+    )
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=element,
+        earned_marks=Decimal("4.00"),
+        fraction=Decimal("0.8000"),
+        reviewed_at=timezone.now(),
+        locked=True,
+    )
+    no_marks = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Bez punktow"
+    )
+    QuizSubmissionFactory(
+        student=user,
+        unit=no_marks,
+        status="submitted",
+        score=Decimal("0.00"),
+        max_score=Decimal("0.00"),
+    )
+    soup = BeautifulSoup(
+        client.get(f"/courses/{course.slug}/results/").content.decode(),
+        "html.parser",
+    )
+    rows = {
+        row.select_one(".result-row__title").get_text(strip=True): row
+        for row in soup.select("li.result-row")
+    }
+    essay_row = rows["Esej"]
+    assert essay_row.select_one(".result-row__score").get_text(" ", strip=True) == (
+        "4 / 5"
+    )
+    assert essay_row.select_one(".badge--muted") is None
+    assert rows["Bez punktow"].select_one(".result-row__score") is None
+    assert rows["Bez punktow"].select_one(".badge--muted").get_text(strip=True) == (
+        "przesłano — bez oceny"
+    )
