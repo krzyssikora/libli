@@ -1,6 +1,7 @@
 # Student results page: a Results table with section sums — design
 
-**Status:** draft for the owner's review, 2026-09-17. **No review round has run.** The owner-decisions
+**Status:** draft for the owner's review, 2026-09-17. **Spec-review rounds 1–4 applied**; open owner
+questions are listed in §0. The owner-decisions
 table below is protected: a review catch that would change a row is **not applied**. It goes back to
 the owner as a question.
 
@@ -29,7 +30,14 @@ Verbatim quotes, 2026-09-17. „Proposal" rows are mine, and the owner accepted 
 | O12 | The **student's course outline** chip reads „lekcje: 1/2" too (one wording for the one shared chip) | "1 yes" |
 | O13 | Review-waiting wording uses **„sprawdzanie"**, not „ocena": `Awaiting review` → „Oczekuje na sprawdzenie", `awaiting review` → „oczekuje na sprawdzenie", `Submitted for review` → „Przesłano do sprawdzenia" | "\"Sprawdzanie\" sounds better than \"ocena\"" |
 
-**Open questions for the owner:** none (Q1 → O12, Q2 → O10, both answered 2026-09-17).
+**Open questions for the owner** (Q1 → O12 and Q2 → O10 were answered 2026-09-17):
+
+- **Q3 — What the heading fraction counts** (§2.3). "Quizzes whose score is in the sum / quizzes in the
+  section", or "quizzes submitted / quizzes in the section" (awaiting-review quizzes then count in the
+  numerator while their marks stay out of the sum)? **Default until answered:** counted in the sum.
+- **Q4 — The two plural „awaiting review" entries** on the student's `quiz_results.html` (§5). Should
+  their six Polish forms say „oczekuje/oczekują na sprawdzenie" too? **Default until answered:** not
+  changed.
 
 ---
 
@@ -122,7 +130,8 @@ Each row carries its depth, so indentation shows nesting:
   fires here, because a scored row leaves this cell empty. On an awaiting-review row the „Sprawdź" link
   (the `breakdown-unit__review` markup and URL, as today) follows the pill **on its own line** in the
   same cell. A REVIEW-only quiz that `shows_score` shows its score like any other row, with no pill.
-- **Header:** `<thead>` with column headers „Quiz", „Quizy", „Wynik", „%". The second column's header
+- **Header:** `<thead>` with column headers „Tytuł", „Quizy", „Wynik", „%". The first is „Tytuł"
+  (existing msgid `Title`), not „Quiz", because most rows in that column are sections or the course total. The second column's header
   counts quizzes, since that is what a heading row shows there; a quiz row puts its status in it.
 - **What „1/3" means.** The fraction is **quizzes whose score is in the sum / quizzes in the section**.
   It is **not** "quizzes done": a submitted quiz still awaiting review is not in the numerator. The help
@@ -247,7 +256,7 @@ New:
 | `Quiz results` | `Wyniki quizów` | sr-only caption |
 | `lessons: %(done)s/%(total)s` | `lekcje: %(done)s/%(total)s` | chip (O6) |
 
-Reused, never re-created (all verified present in `locale/pl` on 2026-09-17): `Quiz` („Quiz"),
+Reused, never re-created (all verified present in `locale/pl` on 2026-09-17): `Title` („Tytuł"),
 `Quizzes` („Quizy"), `Score` („Wynik") for the column headers; `Results` („Wyniki"), `Progress`
 („Postęp"); the pill status words `not started` („nie rozpoczęto"), `in progress` („w toku"),
 `awaiting review` („oczekuje na ocenę"), `submitted` („przesłano"); `Review` („Sprawdź").
@@ -300,6 +309,8 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T4** — drafts: a draft quiz with data counts on both pages, and a draft quiz without data on
   neither. *Mutant:* call the builder with `drafts="hide"` → red.
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
+  *Mutant:* drop the `max_score > 0` conjunct from `shows_score` → red (the heading shows 1/N instead of
+  0/N).
 - **T6** — colour: a summary % cell's **and a quiz row's** % cell's inline background equals `band_style(percent,
   course_color_bands(course))["bg"]` for a course with **custom** bands. With the default bands, a
   hard-coded palette would pass. *Mutant:* use `default_color_bands()` → red. *Mutant:* paint only container nodes → red on the
@@ -309,7 +320,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T7b** — an empty Results view: a course whose only units are lessons renders no table and shows the
   „No quizzes in this course yet" text.
 - **T9** — heading and `<title>` in both modes, in Polish, for a female student („Wyniki — Anna
-  Nowak"), with no „ucznia" anywhere on either page.
+  Nowak"). On the student page the `<h1>` and `<title>`, and on the per-question page the back link,
+  contain no „Wyniki ucznia". The assertion is **scoped to those three elements**: the per-question
+  page body keeps „Odpowiedź ucznia", „Wybór ucznia" and „Odpowiedź ucznia:", which O7 does not cover.
 - **T10** — the per-question back link reads „← Wyniki" / „← Postęp" to match the mode.
 - **T10b** — the per-question header of a fully reviewed REVIEW-only quiz with `max_score > 0` shows
   „score / max pkt · %", the same figures as its table row. *Mutant:* keep `p.kind == "scored"` → red.
@@ -349,10 +362,13 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   (estimate: 358px table − a wrapped status ~95px − score ~55px − % ~40px − cell padding ≈ 125px ≈ 35%).
   The threshold is checked against a real render in the design pass before the test is committed; if
   the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
-  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. At 1280px, number columns are right-aligned. A/B: neutralise
-  `white-space:nowrap` → red.
+  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
+  edge). *A/B (390px):* neutralise the score/% columns' `white-space:nowrap` and re-measure → the
+  „16,5/22" cell wraps, red. *A/B (1280px):* neutralise `text-align:right` → red on the alignment check.
 - **T13** — a section row's computed background equals `--surface-sunken` (probe token) and its first
-  cell is bold. A coloured % cell's background equals its band colour, not the tint.
+  cell is bold. A coloured % cell's background equals its band colour, not the tint. *A/B:* neutralise
+  `.results-table__section`'s background → red on the tint check; remove the inline style on a coloured
+  cell → red on the band check.
 
 Screenshots (design pass, as in B11): mat-pp Results view, light and dark, 1280 and 390. Judge whether
 the sums read clearly at full depth; that is the owner's stated worry.
@@ -371,6 +387,13 @@ the course total and the colours, and in one sentence what the quiz fraction on 
 `tests/capture_help_screenshots.py` passes `mode=results` and waits for `.results-table` (today it opens
 the page with no `mode`, i.e. Progress, and waits for `.breakdown__tree`, which Results mode no longer
 renders).
+
+**Review-queue help (O13).** `docs/help/teacher/quiz-review.pl.md` names the label: line 15
+„**Oczekuje na ocenę**" becomes „**Oczekuje na sprawdzenie**", and line 5's „czekają na ocenę" becomes
+„czekają na sprawdzenie", so the help matches the page. The plan greps `docs/help` for „na ocenę" and
+„do oceny" and lists any other hit (only these two on 2026-09-17). The `quiz-review` help screenshots
+(`review-queue.pl.png`, captured by `tests/capture_help_screenshots.py`) are re-captured, because the
+Polish one shows the old label.
 
 **Anchors.** Renaming the two help headings changes their generated anchors. The plan greps the repo
 (templates, `docs/help`, `.py`) for `#student-results` and `#wyniki-ucznia` and updates any hit; none
