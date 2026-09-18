@@ -161,9 +161,11 @@ comment). If it fires (a non-numeric `clip["unit"]` or `clip["element"]`), the m
   another unit…" list, returned by a new helper `copy_units_tree(course)` in
   `courses/views_manage.py`: it calls `_children_map(course)` (one query), runs one
   post-order fold (the same shape as `_fold_flag_counts`) marking each container that
-  has at least one unit anywhere below it, and returns `(pruned_map, pruned_top)` in
-  which every container without such a unit is dropped from its parent's list (and from
-  the roots). The template therefore only ever iterates what it renders — no look-ahead
+  has at least one unit anywhere below it, and returns a 3-tuple `(pruned_map,
+  pruned_top, available)` in which every container without such a unit is dropped from
+  its parent's list (and from the roots), and `available` is true iff the course has at
+  least two units (this is `copy_units_available`). Direct unit tests also cover the
+  flag: one unit → `False`, two units → `True`. The template therefore only ever iterates what it renders — no look-ahead
   in Django templates. Built **only when a mark is active**; the empty context carries
   empty values and does no query. Unit-tested directly: a root-level unit kept, a
   unit-less section dropped, a part whose only unit is three levels down kept.
@@ -358,11 +360,14 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
    Postgres detects the cycle and aborts **one** transaction (SQLSTATE 40P01), and it
    picks the victim:
    - **copy is the victim** → `element_paste` maps it to the ordinary 409 (§7) — when
-     the abort lands in the locks or in `place_element`, where most waits are. An abort
-     raised **inside** `build_element_export` or `graft_elements` is caught by
-     `_copy_into`'s / `_run_import`'s `except Exception` and surfaces as the generic
-     `TransferError` 422. This is accepted (rarer still — e.g. an FK share lock on a
-     `MediaAsset` row); `_run_import` is shared with archive import and is not changed;
+     the abort lands in the locks or in `place_element`, where most waits are.
+     `build_element_export` runs only plain SELECTs and cannot join a lock cycle; only
+     `graft_elements` (inserts, FK share locks — e.g. on a `MediaAsset` row) can be
+     aborted inside the copy, and that abort is caught by `_run_import`'s `except
+     Exception` and surfaces as its generic 422 message ("The import failed
+     unexpectedly. Please check the archive and try again." — archive-worded, misleading
+     for a copy). Accepted (rarer still); `_run_import` is shared with archive import
+     and is not changed;
    - **the other writer is the victim** → that endpoint (reorder, reparent, node add /
      delete, flag toggle) answers an unhandled **500**, as any deadlock abort there
      would today. This is a new, rare failure mode for existing operations, **accepted**:
@@ -381,7 +386,11 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
 4. `before`: `_resolve_before(dest_unit, el, before)` — the anchor must be in the
    destination. The "`before` is a move-only argument" refusal is **removed**: copy now
    accepts `before` in both the cross-unit and the in-unit case (the in-unit UI simply
-   never renders a copy-before button, per D4).
+   never renders a copy-before button, per D4). `_resolve_before`'s "cannot paste an
+   element before itself" `NestingError` (400) is **kept for copies too**: across units
+   the anchor can never be the original, and in-unit no UI offers copy-before, so
+   relaxing it would add an unreachable path. The replacement in-unit copy-before test
+   anchors on a **different** sibling.
 5. Otherwise `_parse_scope_ref(dest_unit, parent_ref, tab)`.
 6. `paste_allowed(dest_unit, el, dest_parent, tab_id, mode, facts=facts,
    positional=anchor is not None)`, where on the cross-unit path `facts` is computed once
@@ -620,7 +629,7 @@ All through channels the editor already renders; no new error UI.
 | Marked element or its unit deleted before the paste | 409; the mark is cleared by that **same** response's render (`_element_conflict` renders Y's fragments through `_clip_context`, §1 step 2) — the deleted-element view test asserts the session mark is gone right after the 409 |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
-| Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates. An abort inside the export/graft itself surfaces as the generic `TransferError` 422 (accepted, §4 step 2) |
+| Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates. An abort inside the graft itself surfaces as `_run_import`'s generic `TransferError` 422 (accepted, §4 step 2) |
 | Same deadlock, **other writer aborted** (reorder / reparent / node add-delete / subtree flag / cascade delete) | 500 on that endpoint — accepted, rare, data consistent (D11) |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
 | Cross-unit `mode=move` via the endpoint (only a stale tab can send it) | 409, reload, mark kept (§7) |
@@ -760,10 +769,19 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
 - The existing `tests/test_element_paste_view.py::test_a_mark_naming_another_unit_is_a_409`
   (same-course mark in another unit, default `mode="move"`, asserts 409) **stays green
   unchanged** under §7's move-reloads rule; it gains an assertion that the mark is kept.
-  Its helper `_paste` must now post `element` (the stale-form check). This applies to
-  **every** test that POSTs to `courses:manage_element_paste`, in any file — a grep for
-  `manage_element_paste` across `tests/` and `courses/tests/` finds exactly two:
-  `tests/test_element_paste_view.py` (via `_paste`) and
+  Its helpers must now post `element` (the stale-form check). This applies to
+  **every** POST site to `courses:manage_element_paste`, in any file — a grep for
+  `manage_element_paste` across `tests/` and `courses/tests/` finds two files. In
+  `tests/test_element_paste_view.py` there are **three** sites: the `_paste` helper, the
+  `_paste_before` helper, and the inline `client.post` in
+  `test_a_vanished_destination_is_a_422_not_a_400`. Every existing 409 test in that file
+  (no mark, mark in another unit, deleted row, stale token, paste-before stale token)
+  must reach **its intended** 409, not the stale-form one: each such test asserts, before
+  its request, that the `element` it will post equals the session mark (so a missing
+  `element` can never be what produces the 409). The no-mark test is the exception — it
+  has no mark to match, and §7's empty-clip check runs before the stale-form check. **Mutant:** drop `element` from
+  `_paste_before` — `test_a_paste_before_with_a_stale_token_is_a_409`'s pre-assertion
+  goes red instead of the test silently passing on the stale-form path. The other file is
   `courses/tests/test_nested_question_gates.py::test_the_paste_endpoint_shows_the_questions_own_message`,
   whose payload gains `"element": <marked pk>` while its 422 + `question_in_quiz`
   message assertions stay **unchanged** (it is the only endpoint-level guard on that
