@@ -41,10 +41,11 @@ them is **Disputed**, never applied.
   markup** (the L / Q / kind badges). A new partial renders the same tree as nested lists
   of plain `<a href="{% url 'courses:manage_editor' ... %}">` links.
 - **D9 — which buttons.** The slot "Move here" button also uses 📋, and the slot "Copy
-  here" button uses the ⧉ text glyph. All four paste buttons (slot move, slot copy, move
-  before, copy before) switch to **two** monochrome SVG symbols, one for move and one for
-  copy, so the same action always shows the same icon. `aria-label` / `title` strings are
-  unchanged apart from the new "Copy before this element".
+  here" button and the row's "Duplicate" button (`_element_row_controls.html`) use the ⧉
+  text glyph. All five (slot move, slot copy, move before, copy before, Duplicate) switch
+  to **two** monochrome SVG symbols, one for move and one for copy, so the same action
+  always shows the same icon. `aria-label` / `title` strings are unchanged apart from the
+  new "Copy before this element".
 
 ## Behaviour (what the author sees)
 
@@ -92,27 +93,26 @@ Classify the session mark against the rendered `unit`:
 | none | empty context (as today) |
 | `clip.unit == unit.pk` | **same-unit** branch — today's logic unchanged, plus the new keys below |
 | `clip.unit` is another unit of `unit.course`, marked element exists in it | **cross-unit** branch |
-| `clip.unit` is another unit of this course, element gone | clear the mark, empty context |
-| `clip.unit` no longer exists (unit deleted) | clear the mark, empty context |
-| `clip.unit` belongs to another course | empty context, mark kept (D8) |
+| marked element or its unit no longer exists (any course) | clear the mark, empty context |
+| `clip.unit` belongs to another course, element exists | empty context, mark kept (D8) |
 
 Lookups, in order (the same-unit branch keeps today's single `unit.elements` lookup):
 
-1. `marked = Element.objects.select_related("unit").prefetch_related("content_object")
-   .filter(pk=clip["element"], unit_id=clip["unit"]).first()` — the prefetch covers the
-   root's `content_object`, which the map does not supply for this instance (read by
-   `_slot_cap`, `has_interactive` and `clip_label`).
-2. Found and `marked.unit.course_id == unit.course_id` → cross-unit branch. Found in
-   another course → empty context, mark kept.
-3. Not found → **one** further query, `ContentNode.objects.filter(pk=clip["unit"]).values_list(
-   "course_id", flat=True).first()`: `None` (unit deleted) or this course's id (element
-   deleted) → clear the mark; another course's id → keep it.
+1. `marked = Element.objects.select_related("unit").filter(pk=clip["element"],
+   unit_id=clip["unit"]).first()`.
+2. Not found → the mark is **dead** in every case (its element was deleted, or its unit
+   was, in whatever course) → clear the mark, empty context. No further query is needed
+   to tell the cases apart, because none of them is worth keeping.
+3. Found in another course (`marked.unit.course_id != unit.course_id`) → empty context,
+   mark kept (D8). Cost accepted: one query per editor render while such a mark is
+   pending; no prefetch is paid for it.
+4. Found in this course → load the root's `content_object` (one GFK query — the map does
+   not supply it for this instance; read by `_slot_cap`, `has_interactive` and
+   `clip_label`), then the cross-unit branch.
 
 The `ValueError` / `TypeError` guard around these lookups is kept (see its existing
-comment). If it fires on **any** of these lookups (a non-numeric `clip["unit"]` or
-`clip["element"]`), the mark is **cleared** and the context is empty — today's outcome
-for a guarded lookup. Otherwise only a same-course miss or a vanished unit clears; a
-foreign course's mark survives, because the author may go back to that course.
+comment). If it fires (a non-numeric `clip["unit"]` or `clip["element"]`), the mark is
+**cleared** and the context is empty — today's outcome for a guarded lookup.
 
 **Cross-unit branch:**
 
@@ -256,6 +256,10 @@ the element's unit, so this is today's `(unit, placed)`. The view rebinds `unit`
 tuple and renders its fragments, so returning the source would paint unit X's editor into
 Y's page.
 
+**Mode validation stays first**, on both paths, before any lookup or lock: `mode not in
+("move", "copy")` → `NestingError` (400), exactly as today — so an unknown mode with a
+stale or foreign mark is still a 400, never a 409.
+
 Order of operations, inside the existing `@transaction.atomic`. When `dest_unit_pk is
 None` (direct callers that predate this feature), step 1 is **skipped** and the function
 runs today's path unchanged: `_locked_element` + `_check_token(unit.updated, …)`, then
@@ -383,10 +387,13 @@ practical (the repo carries line citations into this file).
   open course tree inside the flex header would wreck it. So:
   - The banner becomes `<div id="clip-banner" class="clip-banner">` — **id unchanged**
     (`tests/test_e2e_clipboard.py`, `test_e2e_paste_before.py` and
-    `test_e2e_before_after.py` locate `#clip-banner`) — rendered **directly after**
-    `.pane-head`, still inside `[data-scope="editor"]` (the existing comment explains why
-    it must stay there). `.pane-head` goes back to exactly two children; the template
-    comment about the third child is rewritten accordingly.
+    `test_e2e_before_after.py` locate `#clip-banner`) — still inside
+    `[data-scope="editor"]` (the existing comment explains why it must stay there).
+    Order of the pane's children: `.pane-head`, then `#clip-banner`, then the existing
+    `#editor-error` slot, then `.pane-body` — so a refusal message sits between the
+    banner and the list it refers to. `.pane-head` goes back to exactly two children;
+    the template comments about the third child and about the error slot's position are
+    rewritten accordingly.
   - Structure: a first-line wrapper `<div class="clip-banner__line">` holding
     `⊹ Selected: <label>`, the optional "— from <link>", and the cancel form; then the
     optional "Nothing can be pasted into this unit." paragraph; then
@@ -456,13 +463,17 @@ practical (the repo carries line citations into this file).
 - `paste_before_button` tag: pass `mode = context["clip_mode"]` through.
   `_paste_before_button.html` posts `mode={{ mode }}` and shows the move or copy SVG with
   label "Move before this element" / "Copy before this element".
-- `_paste_buttons.html`: 📋 and ⧉ replaced by the two SVG symbols (D9).
+- `_paste_buttons.html`: 📋 and ⧉ replaced by the two SVG symbols (D9); likewise the
+  Duplicate button's ⧉ in `_element_row_controls.html`.
 - Two new `<symbol>`s (move, copy) in the editor's inline sprite in `editor.html`, drawn as
   single-colour line icons with `currentColor`, matching the existing `ed-*` symbols.
 - CSS for the banner and the `<details>` list uses existing editor tokens; both light and
   dark themes.
-- i18n: the msgids listed above are added to the Polish catalogue and the `.mo` is
-  regenerated.
+- i18n: **both** catalogues (`locale/pl` and `locale/en`) are regenerated with
+  `makemessages` — never hand-edited — so the `en` catalogue gains the new msgids
+  (including the `msgctxt "clip banner"` entry) with empty msgstrs, like its existing
+  entries. Only `pl` gets translations (above), with any fuzzy pre-fills cleared; both
+  `.mo` files are recompiled.
 
 ## Data flow
 
@@ -601,8 +612,14 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
     fixture with several container slots in Y; the ceiling is set from a measured run
     plus a small margin, stated in the test with that measurement.
   - A GET of Y with a mark from X with `builder.element_depth` monkeypatched to raise.
-  - **Mutants:** drop `select_related("unit")` from the §1 lookup (ceiling goes red);
-    omit `dest_depth=` in the cross-unit `paste_allowed` loop (the raise goes red).
+  - **Mutants**, chosen so the cost grows with the slot count (a one-query regression —
+    e.g. dropping `select_related("unit")` — cannot be separated by any sane ceiling, as
+    `test_a_marked_render_does_not_walk_parents_per_slot`'s docstring already records,
+    and is **not** claimed to be caught): drop `facts=facts` from the cross-unit
+    `paste_allowed` loop, so `subtree_facts` re-walks the source unmapped once per slot
+    (ceiling goes red — the fixture has at least 10 slots and the marked element has at
+    least 2 descendants, so the excess clears the margin); omit `dest_depth=` in the loop
+    (the `element_depth` raise goes red).
 - A non-numeric session `element` on a paste → 409 (step 1's guard). A non-numeric
   `clip["unit"]` rendered on another unit → empty context, mark cleared.
 - **Mutants:** hard-code `mode=move` in `_paste_before_button.html` (copy-before view test
