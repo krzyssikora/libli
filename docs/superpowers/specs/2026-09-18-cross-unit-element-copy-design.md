@@ -220,9 +220,15 @@ Comments that become false and are rewritten:
   - `dest_parent is not None and dest_parent.unit_id != unit.pk` → `wrong_unit` (unchanged).
 - **Clause 4 (`into_own_subtree`)** needs no change: across units `dest_parent` is never in
   the source subtree, and the check stays correct in-unit.
-- **New clause 2c (`question_in_quiz`, whole subtree):** if `unit.unit_type == QUIZ` and
-  `facts.nested_question` → `question_in_quiz`. It applies in **both** branches of the
-  function (top-level destination and container destination). It is evaluated **after**
+- **New clause 2c (`question_in_quiz`, whole subtree, CROSS-UNIT ONLY):** if
+  `marked_join.unit_id != unit.pk` and `unit.unit_type == QUIZ` and
+  `facts.nested_question` → `question_in_quiz`. Cross-unit only, for the same reason as
+  2d: a quiz unit can already hold a container with a nested question (pre-existing
+  malformed or imported content — the 2b comment's "only way in"), and refusing its
+  in-unit move, even to another top-level slot, with "Questions can only be placed
+  inside a container in a lesson unit." would be a confusing regression. Cross-unit is
+  exactly the new way in this feature opens, and 2c closes it. It applies in **both**
+  branches of the function (top-level destination and container destination). It is evaluated **after**
   clause 2b in the container branch, and at the same precedence position in the top-level
   branch, so the documented reason precedence is: `wrong_unit, into_own_subtree,
   not_a_container, unknown_slot, type_not_nestable, question_in_quiz, too_deep, own_slot`
@@ -308,9 +314,9 @@ Comments that become false and are rewritten:
 
 New keyword argument `dest_unit_pk`. The view passes the posted `unit`. When it is absent
 or equals the marked element's unit, the **lock/token path** is today's
-(`_locked_element` + `_check_token(unit.updated, …)`); the two **service-level** in-unit
-behaviour changes are that copy may carry `before` and clause 2c — the full list of
-in-unit changes (six) is under Out of scope.
+(`_locked_element` + `_check_token(unit.updated, …)`); the one **service-level** in-unit
+behaviour change is that copy may carry `before` (clauses 2c and 2d are cross-unit
+only) — the full list of in-unit changes (five) is under Out of scope.
 
 **Return value:** always `(dest_unit, placed)` — on the in-unit path the destination IS
 the element's unit, so this is today's `(unit, placed)`. The view rebinds `unit` from this
@@ -407,7 +413,10 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
    A cross-unit `mode == "move"` is refused **here** by clause 0 with `wrong_unit` — only
    once steps 4–5 have accepted the slot/anchor; a malformed or vanished one answers 400 /
    422 `parent_gone` first.
-7. `_copy_into(el, source_unit, dest_unit, dest_parent, tab_id, anchor=anchor)`.
+7. Dispatch on mode, as today: `move` → `_move_into(el, dest_unit, dest_parent, tab_id,
+   anchor=anchor)` (reachable only in-unit — step 6 refuses a cross-unit move, so here
+   `dest_unit` is the element's own unit); `copy` → `_copy_into(el, source_unit,
+   dest_unit, dest_parent, tab_id, anchor=anchor)`.
 8. `dest_unit.save(update_fields=["updated"])`. The source unit's `updated` is **not**
    touched on a cross-unit copy.
 9. `return dest_unit, placed`.
@@ -728,6 +737,9 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
   (`revealgate`, `markdone`, …) instead of transfer keys (the stepper test may still pass
   — `stepper` is spelled the same both ways — but the callout-containing-a-checklist
   test goes red, and the drift guard goes red).
+- In-unit, a quiz that already holds a callout containing a question: moving that
+  callout to another top-level slot of the same quiz → allowed (2c is cross-unit only).
+  **Mutant:** drop the cross-unit condition from 2c (this test goes red).
 - **Mutants:** delete the clause-2c check (quiz tests go red); make `nested_question`
   include the root (lone-question-at-top-level test goes red); drop the course comparison
   from clause 0 (other-course test goes red).
@@ -890,9 +902,10 @@ fixture gives several units **far down** the open list maths titles, and the sou
 a maths title. The assertions differ per layout, because below 70rem an open list is in
 normal flow and legitimately grows the page:
 - **≤ 480px (not viewport-locked):** `documentElement.scrollWidth == clientWidth`, and
-  opening the list grows `documentElement.scrollHeight` by **exactly** the open list's
-  `offsetHeight` (±1px) — escaped `.katex-mathml` nodes from titles far down the list
-  would add more. (A per-node "rect inside its box" check is deliberately not used:
+  the change in `documentElement.scrollHeight` between closed and open equals the
+  change in `#clip-banner`'s `offsetHeight` (±1px) — the banner box contains all of the
+  legitimate growth (the list, its margins, the UA `ol` margins, any gap), while escaped
+  `.katex-mathml` nodes from titles far down the list would add more to the page only. (A per-node "rect inside its box" check is deliberately not used:
   bounding rects ignore overflow clipping, so a title scrolled out of the list's view
   lies outside the box on a correct build too.)
 - **1280×720 (viewport-locked):** the page's `scrollHeight` is unchanged between the
@@ -918,7 +931,6 @@ ascending-pk acquisition, documented in the code; a concurrency test would be fl
 - Moving an element to another unit (D1).
 - Copying between courses (D2).
 - Any other change to in-unit mark/paste behaviour beyond these, which are all in scope:
-  - the clause-2c quiz check (applies in-unit too; strictly stricter);
   - the accepted `before` + copy combination in the service;
   - the stale-form `element` check (§7) — a stale in-unit paste now reloads (409)
     instead of silently pasting whatever was marked since;
