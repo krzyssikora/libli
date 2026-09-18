@@ -65,6 +65,9 @@ them is **Disputed**, never applied.
 - Every slot that `paste_allowed(..., mode="copy")` admits shows **only** the copy button.
 - Every row whose slot admits a copy shows **"Copy before this element"**.
 - No move control anywhere (D7).
+- Interactive elements (the add menu's "Interactive" group — gates, fill-table, spoiler,
+  step-by-step, checklist, guess-the-number), alone or inside a container, cannot be
+  copied into a quiz unit (§2 clause 2d).
 - If no slot admits the copy (e.g. a callout holding a question, marked for a quiz), the
   banner says **"Nothing can be pasted into this unit."** instead of leaving the author
   with a banner and no controls.
@@ -104,8 +107,10 @@ Lookups, in order (the same-unit branch keeps today's single `unit.elements` loo
    deleted) → clear the mark; another course's id → keep it.
 
 The `ValueError` / `TypeError` guard around these lookups is kept (see its existing
-comment). Only a same-course miss or a vanished unit clears; a foreign course's mark
-survives, because the author may go back to that course.
+comment). If it fires on **any** of these lookups (a non-numeric `clip["unit"]` or
+`clip["element"]`), the mark is **cleared** and the context is empty — today's outcome
+for a guarded lookup. Otherwise only a same-course miss or a vanished unit clears; a
+foreign course's mark survives, because the author may go back to that course.
 
 **Cross-unit branch:**
 
@@ -171,6 +176,29 @@ Comments that become false and are rewritten:
   branch, so the documented reason precedence is: `wrong_unit, into_own_subtree,
   not_a_container, unknown_slot, type_not_nestable, question_in_quiz, too_deep, own_slot`
   — i.e. unchanged; 2c reports the same key as 2b.
+- **New clause 2d (`interactive_in_quiz`, whole subtree, CROSS-UNIT ONLY):** if
+  `marked_join.unit_id != unit.pk` and `unit.unit_type == QUIZ` and
+  `facts.has_interactive` → `interactive_in_quiz`. *Pipeline default, not an owner
+  decision — flagged to the owner in the PR body.* Rationale: quiz units hide the add
+  menu's whole "Interactive" group (`_add_menu.html`, `{% if not unit_is_quiz %}`) and
+  student state saves require a lesson (`require_lesson=True` in `courses/views.py`), so
+  offering "Copy here" for a stepper / checklist / gate in a quiz would hand the author a
+  control the add menu deliberately withholds. Cross-unit only, because in-unit such
+  elements can already legitimately sit in a quiz (a lesson flipped to quiz keeps them;
+  `rename_node` checks only nested questions), and refusing their in-unit move would be a
+  regression. Evaluated in both branches (top level and container), after 2b/2c and
+  before clause 3. Message (new `PASTE_REFUSAL_MESSAGES` key): "Interactive elements can
+  only be placed in a lesson unit." → Polish "Elementy interaktywne można umieszczać tylko
+  w lekcjach." Resulting reason precedence: `wrong_unit, into_own_subtree,
+  not_a_container, unknown_slot, type_not_nestable, question_in_quiz,
+  interactive_in_quiz, too_deep, own_slot`.
+- The interactive type set is a new module constant `QUIZ_EXCLUDED_TYPE_KEYS`
+  (frozenset of transfer type keys) in `courses/builder.py`: the nine types of the add
+  menu's Interactive group — revealgate, fillgate, switchgate, switchgrid, filltable,
+  spoiler, stepper, markdone, guessnumber (the implementer confirms each spelling against
+  `model_to_key`). A **derived** drift guard pins it to the template: render the add menu
+  for a lesson and for a quiz (same depth, not nested), take the difference of the
+  `data-add-type` sets, and assert it equals the frozenset — never a hard-coded count.
 - Clause 2b's comment that the root-only check is "sound … because clause 0 (wrong_unit)
   makes cross-unit pastes impossible" is rewritten: 2c now closes the gap it described.
 - The docstring gains one paragraph on the cross-unit case.
@@ -184,7 +212,16 @@ Comments that become false and are rewritten:
   `isinstance(join.content_object, tuple(CONCRETE_QUESTION_MODELS))`.
 - The root itself is excluded: a question at the root pasted at top level of a quiz is
   legal; a question at the root pasted into a container is already caught by 2b.
-- The walk already visits every node, so this adds no query when `children_map` is given.
+- New field `has_interactive: bool` — true iff **any** node of the subtree, root
+  included, has `model_to_key(type(content_object)) in QUIZ_EXCLUDED_TYPE_KEYS`.
+- Cost: the walk already visits every node and `_slot_cap` already reads
+  `content_object` per node, so both fields add no query when `children_map` carries the
+  GFK prefetch. Without a map the walk pays one children query plus one GFK query per node
+  — today's cost for `_slot_cap`, unchanged. To keep the endpoint on the prefetched shape
+  anyway, `paste_element` computes `facts = subtree_facts(el,
+  children_map=unit_children_map(source_unit))` once and passes it to `paste_allowed`
+  (both paths — in-unit, `source_unit` is the unit). Both fields are computed
+  unconditionally, not only for quiz destinations: one `isinstance` / key lookup per node.
 
 ### 4. `paste_element(...)` (`courses/builder.py`)
 
@@ -198,28 +235,41 @@ the element's unit, so this is today's `(unit, placed)`. The view rebinds `unit`
 tuple and renders its fragments, so returning the source would paint unit X's editor into
 Y's page.
 
-Order of operations for the cross-unit path, inside the existing `@transaction.atomic`:
+Order of operations, inside the existing `@transaction.atomic`. Step 1 **always** runs
+first when `dest_unit_pk` is given, and it is the discriminator between the two paths:
 
 1. **Resolve the source unit pk, unlocked:**
    `Element.objects.filter(pk=element_pk, unit__course=course).values_list("unit_id",
-   flat=True).first()`. No row → `ConflictError` (409). Because of the `unit__course`
-   filter, an element of **another course** also ends here as a 409 and is never loaded;
-   clause 0's course comparison (§2) is therefore defence in depth, reachable only by
-   direct callers and unit tests.
+   flat=True).first()`, wrapped in `try/except (ValueError, TypeError)` → `ConflictError`
+   (a non-numeric session element must stay a 409, as `_locked_element`'s guard makes it
+   today). No row → `ConflictError` (409). Because of the `unit__course` filter, an
+   element of **another course** also ends here as a 409 and is never loaded; clause 0's
+   course comparison (§2) is therefore defence in depth, reachable only by direct callers
+   and unit tests. `dest_unit_pk` is int-coerced under the same guard.
+   - `src_pk == dest_unit_pk`, or `dest_unit_pk` is `None` → **in-unit path**: today's
+     `_locked_element` + `_check_token(unit.updated, …)`, then steps 4–9 with
+     `source_unit = dest_unit = unit`. Steps 2–3 below are skipped.
+   - otherwise → **cross-unit path**, steps 2–9.
 2. **Lock both units in ascending pk order, taking the SOURCE through `_locked_element`.**
-   Every existing writer locks exactly one unit, and in-unit writers on an element take
-   it via `_locked_element` (element row + unit row in one joined `SELECT … FOR UPDATE`).
-   The copy reuses that exact shape for the source, so against any in-unit writer it
-   behaves like one more in-unit writer:
+   Every existing **element-level** writer locks exactly one unit, and in-unit writers on
+   an element take it via `_locked_element` (element row + unit row in one joined
+   `SELECT … FOR UPDATE`). The copy reuses that exact shape for the source, so against any
+   element-level writer it behaves like one more in-unit writer:
    - `src_pk < dest_pk`: `el, source_unit = _locked_element(course, element_pk)`, then
-     `dest_unit = _locked_node(course, dest_unit_pk)`.
-   - `dest_pk < src_pk`: `dest_unit = _locked_node(course, dest_unit_pk)` first, then
+     `dest_unit = _locked_unit(course, dest_unit_pk)`.
+   - `dest_pk < src_pk`: `dest_unit = _locked_unit(course, dest_unit_pk)` first, then
      `el, source_unit = _locked_element(course, element_pk)`.
    Two opposite-direction copies (X→Y, Y→X) both take the lower-pk unit first, so they
    cannot deadlock with each other; a copy holding Y while waiting for (e, X) cannot
-   deadlock with an in-unit writer on X, because that writer never wants Y.
+   deadlock with an element-level writer on X, because that writer never wants Y.
+   **Not covered:** a cascade delete of an ancestor node (section / chapter / part) or of
+   the course touches many units in an order Postgres chooses, and can deadlock with a
+   copy. Postgres aborts one side (40P01). This is rare and accepted; it surfaces as the
+   generic server error, like any other deadlock abort in the app today. The docstring
+   says exactly this and no more.
    - `_locked_element` raising → `ConflictError` (element or source unit gone).
-   - `_locked_node` raising, or `dest_unit.kind != UNIT` → `ConflictError`.
+   - `_locked_unit` (existing; filters `kind=UNIT`, raises `ConflictError`) covers a
+     missing or non-unit destination — no separate kind check.
    - `source_unit.pk != src_pk` (the element changed unit between steps 1 and 2 — no code
      path does this today) → `ConflictError`.
 3. **Token check against the destination only:** `_check_token(dest_unit.updated,
@@ -230,7 +280,9 @@ Order of operations for the cross-unit path, inside the existing `@transaction.a
    accepts `before` in both the cross-unit and the in-unit case (the in-unit UI simply
    never renders a copy-before button, per D4).
 5. Otherwise `_parse_scope_ref(dest_unit, parent_ref, tab)`.
-6. `paste_allowed(dest_unit, el, dest_parent, tab_id, mode, positional=anchor is not None)`.
+6. `paste_allowed(dest_unit, el, dest_parent, tab_id, mode, facts=facts,
+   positional=anchor is not None)`, with `facts` computed once from
+   `unit_children_map(source_unit)` (§3).
    A cross-unit `mode == "move"` is refused **here** by clause 0 with `wrong_unit` — only
    once steps 4–5 have accepted the slot/anchor; a malformed or vanished one answers 400 /
    422 `parent_gone` first.
@@ -251,6 +303,12 @@ anchor=None)`:
   exported unit requires the **source**.
 - `graft_elements(document, media_map, dest_unit)`. `media_map` maps to the source's
   `MediaAsset` rows, which is correct because both units are in the same course (D2).
+- Everything the export carries travels unchanged — including a question's quiz marking
+  fields (`marking_mode`, `max_attempts`, `max_marks`), which the lesson editor never
+  shows (`_marking_fields.html` is quiz-only). A question copied from a lesson into a quiz
+  therefore arrives with whatever values it had; this is accepted, and the author reviews
+  them in the quiz editor, where they are visible. A service test pins that they carry
+  over unchanged.
 - Set `parent` / `tab_id` on the new root and save them (unchanged).
 - `place_element(new_join, dest_unit, None, before=anchor)` — append when `anchor` is None,
   otherwise land directly above it.
@@ -290,6 +348,13 @@ practical (the repo carries line citations into this file).
     capped at `max-height: 50vh` with `overflow-y: auto`, so a course with hundreds of
     units (mat-pp) scrolls inside the panel rather than the page.
   - Narrow viewport (≤ 480px) wraps the banner's first line; checked in the screenshots.
+  - The tree is part of `[data-scope="editor"]`, so every editor op re-renders it while a
+    mark is pending, and an open `<details>` closes after each swap. Closing is intended
+    (the list is a navigation aid; after a paste the author is done with it). Render cost:
+    one recursive include per node. The implementer times one marked editor op on the
+    largest local course (mat-pp) before and after, and reports the delta in the PR; if
+    it adds more than ~10% to the op, the tree is rendered flat (one loop over a
+    pre-ordered list with a depth class) instead of recursively.
 - **Banner text / i18n shape.** The existing msgid `Selected: %(clip_label)s` is kept
   unchanged. The source part is a separate, contextual msgid with the link OUTSIDE it, so
   no HTML reaches translators:
@@ -343,7 +408,8 @@ All through channels the editor already renders; no new error UI.
 | Destination unit token stale | 409, destination reloads, as today |
 | Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render (§1 lookups) |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
-| Inadmissible placement (too deep, question in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
+| Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
+| Deadlock abort against a cascade delete of an ancestor node (rare) | generic server error, as for any deadlock abort today (§4 step 2) |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
 | Hand-crafted cross-unit `mode=move` (with a valid slot/anchor) | 422 `wrong_unit` |
 | Mark from another course (hand-crafted POST) | 409 — §4 step 1's course filter never loads the element |
@@ -370,6 +436,14 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
   A bare question pasted at top level of a quiz → allowed.
 - `subtree_facts(...).nested_question`: false for a lone question root, true for a
   container with a question child, true for a question two levels down.
+- Cross-unit, quiz destination: a stepper → `interactive_in_quiz`; a callout containing a
+  checklist → `interactive_in_quiz`, at top level and in a slot; the same into a lesson →
+  allowed. In-unit, a stepper already in a quiz moved to another slot of that quiz →
+  allowed (2d is cross-unit only).
+- The derived `QUIZ_EXCLUDED_TYPE_KEYS` drift guard (lesson vs quiz add-menu diff).
+- **Mutants:** delete the clause-2d check (interactive tests go red); drop the
+  cross-unit condition from 2d (in-unit quiz move test goes red); remove one key from
+  `QUIZ_EXCLUDED_TYPE_KEYS` (drift guard goes red).
 - **Mutants:** delete the clause-2c check (quiz tests go red); make `nested_question`
   include the root (lone-question-at-top-level test goes red); drop the course comparison
   from clause 0 (other-course test goes red).
@@ -413,8 +487,19 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
   and "Nothing can be pasted into this unit." is shown.
 - POST `element_paste` into Y with a mark from X: 200 fragments **of Y**, element copied,
   mark kept.
-- An editor render with **no** mark issues no `ContentNode` tree query for the copy list
-  (`CaptureQueriesContext`, assert no query over the course's nodes beyond today's).
+- The copy list is built only while a mark is active, following the precedent of
+  `tests/test_element_paste_view.py::test_an_unmarked_render_never_walks_the_unit`:
+  monkeypatch `views_manage._children_map` with a call-counting wrapper; an unmarked
+  editor render → **0** calls, a marked render → **exactly 1** call (so the test also
+  fails if the tree is never built). `_children_map` is not otherwise called on the editor
+  render path; the implementer confirms this before relying on it.
+- The existing `tests/test_element_paste_view.py::test_a_mark_naming_another_unit_is_a_409`
+  (same-course mark in another unit, default `mode="move"`, asserts 409) pins the old
+  behaviour and becomes **"a cross-unit move is a 422 `wrong_unit`, mark kept"**. A new
+  test keeps the old intent where it still holds: a mark whose element belongs to
+  **another course** → 409.
+- A non-numeric session `element` on a paste → 409 (step 1's guard). A non-numeric
+  `clip["unit"]` rendered on another unit → empty context, mark cleared.
 - **Mutants:** hard-code `mode=move` in `_paste_before_button.html` (copy-before view test
   goes red); render move slots in the cross-unit branch (no-move test goes red); clear the
   mark for another-course clips (mark-kept test goes red); render the current unit as a
