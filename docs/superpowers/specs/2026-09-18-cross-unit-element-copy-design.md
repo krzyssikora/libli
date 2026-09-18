@@ -140,6 +140,10 @@ foreign course's mark survives, because the author may go back to that course.
   for the "Copy to another unit…" tree. Built **only when a mark is active**; the empty
   context carries empty values and does no query.
 
+- Values in the fixed `empty` dict (shared by `_editor_page` and
+  `_render_editor_fragments`, so both builders get every key): `clip_mode=""`,
+  `clip_source_unit=None`, `clip_nothing_fits=False`, `copy_units_map={}`,
+  `copy_units_top=[]`.
 - `clip_nothing_fits` — `True` in the cross-unit branch when `copy_slots` is empty (e.g. a
   callout holding a question, marked for a quiz; or a subtree too deep for every slot),
   `False` otherwise. The banner then says "Nothing can be pasted into this unit." so the
@@ -219,6 +223,11 @@ Comments that become false and are rewritten:
   legal; a question at the root pasted into a container is already caught by 2b.
 - New field `has_interactive: bool` — true iff **any** node of the subtree, root
   included, has `model_to_key(type(content_object)) in QUIZ_EXCLUDED_TYPE_KEYS`.
+  `subtree_facts` imports `model_to_key` (and `CONCRETE_QUESTION_MODELS`)
+  **function-locally**, like `paste_allowed` and `unit_has_nested_question` do — a
+  module-level import risks the cycle the existing comments warn about. A dangling GFK
+  gives `type(None)`, for which `model_to_key` returns `None`, so it is never counted as
+  interactive (nor, by `isinstance`, as a question).
 - Cost: the walk already visits every node and `_slot_cap` already reads
   `content_object` per node, so both fields add no query when `children_map` carries the
   GFK prefetch. Without a map the walk pays one children query plus one GFK query per node
@@ -243,8 +252,11 @@ the element's unit, so this is today's `(unit, placed)`. The view rebinds `unit`
 tuple and renders its fragments, so returning the source would paint unit X's editor into
 Y's page.
 
-Order of operations, inside the existing `@transaction.atomic`. Step 1 **always** runs
-first when `dest_unit_pk` is given, and it is the discriminator between the two paths:
+Order of operations, inside the existing `@transaction.atomic`. When `dest_unit_pk is
+None` (direct callers that predate this feature), step 1 is **skipped** and the function
+runs today's path unchanged: `_locked_element` + `_check_token(unit.updated, …)`, then
+steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given, step 1
+**always** runs first and is the discriminator between the two paths:
 
 1. **Resolve the source unit pk, unlocked:**
    `Element.objects.filter(pk=element_pk, unit__course=course).values_list("unit_id",
@@ -254,7 +266,7 @@ first when `dest_unit_pk` is given, and it is the discriminator between the two 
    element of **another course** also ends here as a 409 and is never loaded; clause 0's
    course comparison (§2) is therefore defence in depth, reachable only by direct callers
    and unit tests. `dest_unit_pk` is int-coerced under the same guard.
-   - `src_pk == dest_unit_pk`, or `dest_unit_pk` is `None` → **in-unit path**: today's
+   - `src_pk == dest_unit_pk` → **in-unit path**: today's
      `_locked_element` + `_check_token(unit.updated, …)`, then steps 4–9 with
      `source_unit = dest_unit = unit`. Steps 2–3 below are skipped.
    - otherwise → **cross-unit path**, steps 2–9.
@@ -270,11 +282,20 @@ first when `dest_unit_pk` is given, and it is the discriminator between the two 
    Two opposite-direction copies (X→Y, Y→X) both take the lower-pk unit first, so they
    cannot deadlock with each other; a copy holding Y while waiting for (e, X) cannot
    deadlock with an element-level writer on X, because that writer never wants Y.
-   **Not covered:** a cascade delete of an ancestor node (section / chapter / part) or of
-   the course touches many units in an order Postgres chooses, and can deadlock with a
-   copy. Postgres aborts one side (40P01). This is rare and accepted; it surfaces as the
-   generic server error, like any other deadlock abort in the app today. The docstring
-   says exactly this and no more.
+   **Not covered — node-level writers that lock several unit rows.** Before this feature
+   no transaction held two unit rows, so these cycles are new:
+   - `reorder_node` locks **every sibling** of a node with `select_for_update()` in
+     `("order", "pk")` order — tree order, not pk order. When X and Y are siblings whose
+     tree order runs opposite to their pk order, a unit reorder in that section can
+     deadlock with a copy between them.
+   - `reparent_node`, and `compact_nodes` / `assign_orders_nodes` reached from node
+     add / delete, lock or update several sibling `ContentNode` rows.
+   - A cascade delete of an ancestor node (section / chapter / part) or of the course
+     touches many units in an order Postgres chooses.
+   Postgres detects the cycle and aborts one transaction (SQLSTATE 40P01). This is
+   **accepted** — both sides must be in flight at once, on the same section — and made
+   harmless on the copy side: `element_paste` maps it to the ordinary 409 (§7). The
+   docstring lists exactly these cases and the mapping, and claims nothing beyond them.
    - `_locked_element` raising → `ConflictError` (element or source unit gone).
    - `_locked_unit` (existing; filters `kind=UNIT`, raises `ConflictError`) covers a
      missing or non-unit destination — no separate kind check.
@@ -338,6 +359,14 @@ practical (the repo carries line citations into this file).
   today); otherwise call `paste_element(..., dest_unit_pk=unit.pk)` and let the service
   decide (same-course, mode, admissibility).
 - `mode == "move"` still clears the mark on success; a copy keeps it (unchanged rule).
+- **Deadlock abort → 409.** The `paste_element` call is additionally wrapped in
+  `except django.db.OperationalError as exc:` — if `getattr(exc.__cause__, "sqlstate",
+  None) == "40P01"` (psycopg's `DeadlockDetected`, which Django re-raises as
+  `OperationalError`, the same detection `tests/deadlock_retry.py` uses), answer via the
+  existing `_element_conflict(request, course)` 409 path; any other `OperationalError`
+  re-raises. The project does not set `ATOMIC_REQUESTS`, so the service's own
+  `@transaction.atomic` has already rolled back and the view is free to render. The
+  mark is kept.
 - Error mapping is unchanged (see Error handling).
 
 ### 8. Templates and tags
@@ -369,9 +398,19 @@ practical (the repo carries line citations into this file).
       overflow clipping, no `nowrap`, so the open `<details>` list is never clipped.
     - The two `.pane-head:has(.clip-banner)` rules and their comments are **deleted** —
       the banner is no longer in the head, so they would match nothing.
-  - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list is
-    capped at `max-height: 50vh` with `overflow-y: auto`, so a course with hundreds of
-    units (mat-pp) scrolls inside the panel rather than the page.
+  - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list
+    scrolls inside itself (`overflow-y: auto`), so a course with hundreds of units
+    (mat-pp) never grows the page.
+  - **Wide, viewport-locked layout (≥ 70rem).** There `body.editor-page` is fixed at
+    `100vh` with `overflow: hidden`, `.editor-pane` is a fixed-height flex column and only
+    `.pane-body` scrolls (`editor.css`, the two-pane block). The banner is a
+    non-scrolling flex item above `.pane-body`, so an open list takes height from it.
+    The list is therefore capped at `max-height: min(35vh, 18rem)` in every layout,
+    and `.clip-banner` gets `flex: none` so it is never squeezed itself; `.pane-body`
+    (already `min-height: 0` in that layout — the implementer confirms) absorbs the rest.
+    At 1280×720 this leaves `.pane-body` at least ~40% of the pane with the list open.
+  - Screenshots: narrow (≤ 480px), and a short wide viewport (1280×720, split mode) with
+    the list open.
   - Narrow viewport (≤ 480px): the first line ellipsises, the ✕ stays visible; checked in
     the screenshots.
   - The tree is part of `[data-scope="editor"]`, so every editor op re-renders it while a
@@ -436,7 +475,7 @@ All through channels the editor already renders; no new error UI.
 | Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render (§1 lookups) |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
-| Deadlock abort against a cascade delete of an ancestor node (rare) | generic server error, as for any deadlock abort today (§4 step 2) |
+| Deadlock abort (40P01) against a node-level writer — sibling reorder / reparent / add / delete, ancestor cascade delete (rare) | 409, reload, mark kept (§7); any other `OperationalError` still propagates |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
 | Hand-crafted cross-unit `mode=move` (with a valid slot/anchor) | 422 `wrong_unit` |
 | Mark from another course (hand-crafted POST) | 409 — §4 step 1's course filter never loads the element |
@@ -528,6 +567,12 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
   behaviour and becomes **"a cross-unit move is a 422 `wrong_unit`, mark kept"**. A new
   test keeps the old intent where it still holds: a mark whose element belongs to
   **another course** → 409.
+- Deadlock mapping: monkeypatch `builder_svc.paste_element` to raise an
+  `OperationalError` whose `__cause__` is a `psycopg.errors.DeadlockDetected` → 409 and
+  the mark is kept; one whose `__cause__` is some other error → propagates (the test
+  asserts the exception, with the client's `raise_request_exception`). **Mutant:** drop
+  the sqlstate check (the other-error test goes red); delete the handler (the 409 test
+  goes red).
 - A non-numeric session `element` on a paste → 409 (step 1's guard). A non-numeric
   `clip["unit"]` rendered on another unit → empty context, mark cleared.
 - **Mutants:** hard-code `mode=move` in `_paste_before_button.html` (copy-before view test
@@ -543,7 +588,10 @@ Mark an element in unit A → open "Copy to another unit…" → click unit B �
 before this element" on a middle row of B → wait for the paste **request** to complete →
 assert B's row order and that B's preview shows the copied element. Before clicking unit B,
 assert a unit link inside the open `<details>` is **visible and not clipped** (Playwright
-visibility plus its bounding box lying within `#clip-banner`'s box). Screenshots of the
+visibility plus its bounding box lying within `#clip-banner`'s box). The test runs at a
+**1280×720** viewport in split mode and seeds enough units to overflow the list; it also
+scrolls the list's **last** unit link into view and asserts its bounding box lies inside
+the viewport. Screenshots of the
 banner and the open `<details>` in light and dark themes (dark via `user.theme`, not the
 cookie), judged separately.
 
