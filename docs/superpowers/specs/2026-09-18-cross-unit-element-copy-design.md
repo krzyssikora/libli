@@ -65,6 +65,9 @@ them is **Disputed**, never applied.
 - Every slot that `paste_allowed(..., mode="copy")` admits shows **only** the copy button.
 - Every row whose slot admits a copy shows **"Copy before this element"**.
 - No move control anywhere (D7).
+- If no slot admits the copy (e.g. a callout holding a question, marked for a quiz), the
+  banner says **"Nothing can be pasted into this unit."** instead of leaving the author
+  with a banner and no controls.
 - Containers force-open while a mark is active, as they already do in the source unit.
 
 ### Lifetime of the mark
@@ -86,21 +89,33 @@ Classify the session mark against the rendered `unit`:
 | none | empty context (as today) |
 | `clip.unit == unit.pk` | **same-unit** branch — today's logic unchanged, plus the new keys below |
 | `clip.unit` is another unit of `unit.course`, marked element exists in it | **cross-unit** branch |
-| `clip.unit` is another unit, element gone | clear the mark, empty context |
-| `clip.unit` belongs to another course / does not exist | empty context, mark kept |
+| `clip.unit` is another unit of this course, element gone | clear the mark, empty context |
+| `clip.unit` no longer exists (unit deleted) | clear the mark, empty context |
+| `clip.unit` belongs to another course | empty context, mark kept (D8) |
 
-"Another course / does not exist" is one lookup: resolve the marked element with
-`Element.objects.filter(pk=clip["element"], unit_id=clip["unit"])` joined to its unit, then
-compare `unit.course_id`. A missing row where `clip.unit` names a unit **of this course**
-clears the mark; a missing unit, or a unit of another course, leaves the mark alone. The
-`ValueError` / `TypeError` guard around the lookup is kept (see its existing comment).
+Lookups, in order (the same-unit branch keeps today's single `unit.elements` lookup):
+
+1. `marked = Element.objects.select_related("unit").filter(pk=clip["element"],
+   unit_id=clip["unit"]).first()`.
+2. Found and `marked.unit.course_id == unit.course_id` → cross-unit branch. Found in
+   another course → empty context, mark kept.
+3. Not found → **one** further query, `ContentNode.objects.filter(pk=clip["unit"]).values_list(
+   "course_id", flat=True).first()`: `None` (unit deleted) or this course's id (element
+   deleted) → clear the mark; another course's id → keep it.
+
+The `ValueError` / `TypeError` guard around these lookups is kept (see its existing
+comment). Only a same-course miss or a vanished unit clears; a foreign course's mark
+survives, because the author may go back to that course.
 
 **Cross-unit branch:**
 
 - `pairs, _dest_children = enumerate_slots(unit)` — the destination's slots.
-- `facts = subtree_facts(marked, children_map=<source map>)`, where the source map is built
-  the same way `enumerate_slots` builds its map, but over the **source** unit (one query).
-  The destination map does not contain the marked subtree, so it cannot be reused.
+- `facts = subtree_facts(marked, children_map=unit_children_map(marked.unit))`. The
+  destination map does not contain the marked subtree, so it cannot be reused. The map
+  builder is **extracted** from `enumerate_slots` into a helper `unit_children_map(unit)`
+  in `courses/builder.py`, which `enumerate_slots` then calls — one copy, no drift. Cost:
+  one query plus one GFK prefetch query per distinct content type (the prefetch is
+  required: `nested_question` reads `content_object`).
 - `copy_slots` = the slot keys where `paste_allowed(unit, marked, parent, tab, "copy",
   facts=facts, dest_depth=dest_depth)` is OK.
 - `move_slots = set()`.
@@ -118,15 +133,34 @@ clears the mark; a missing unit, or a unit of another course, leaves the mark al
   for the "Copy to another unit…" tree. Built **only when a mark is active**; the empty
   context carries empty values and does no query.
 
-The docstring's "five mark-dependent context keys" count is updated.
+- `clip_nothing_fits` — `True` in the cross-unit branch when `copy_slots` is empty (e.g. a
+  callout holding a question, marked for a quiz; or a subtree too deep for every slot),
+  `False` otherwise. The banner then says "Nothing can be pasted into this unit." so the
+  author is not left with a banner and no controls. No per-reason text: the reasons can
+  differ per slot.
+
+Comments that become false and are rewritten:
+
+- `_clip_context`'s docstring: the "five mark-dependent context keys" count, and "a
+  marked element … that belongs to another unit, is treated as absent".
+- The `clip.get("unit") != unit.pk` comment inside `_clip_context` ("Rendering ANOTHER
+  unit: ignored, not cleared").
+- `element_paste`'s comment describing `clip.unit != unit.pk` as a 409 path.
+- `element_clip`'s docstring, which says the paste "re-resolves it through
+  `_locked_element(course, ...)`" — still true for the source, but the paste now also
+  locks the destination.
 
 ### 2. `paste_allowed(unit, marked_join, dest_parent, tab, mode, ...)` (`courses/builder.py`)
 
 `unit` is the **destination** unit throughout (it already is in the in-unit case).
 
-- **Clause 0 (rewritten):**
-  - `marked_join.unit.course_id != unit.course_id` → `wrong_unit`.
-  - `marked_join.unit_id != unit.pk and mode == "move"` → `wrong_unit` (D1).
+- **Clause 0 (rewritten)**, ordered so the common in-unit case never loads
+  `marked_join.unit`:
+  - `marked_join.unit_id == unit.pk` → pass (no further clause-0 check for the marked
+    element; this short-circuit is what keeps in-unit renders free of an extra query).
+  - otherwise `mode == "move"` → `wrong_unit` (D1);
+  - otherwise `marked_join.unit.course_id != unit.course_id` → `wrong_unit` (defence in
+    depth — the endpoint already 409s a foreign-course element, see §4 step 1).
   - `dest_parent is not None and dest_parent.unit_id != unit.pk` → `wrong_unit` (unchanged).
 - **Clause 4 (`into_own_subtree`)** needs no change: across units `dest_parent` is never in
   the source subtree, and the check stays correct in-unit.
@@ -155,36 +189,58 @@ The docstring's "five mark-dependent context keys" count is updated.
 ### 4. `paste_element(...)` (`courses/builder.py`)
 
 New keyword argument `dest_unit_pk`. The view passes the posted `unit`. When it is absent
-or equals the marked element's unit, behaviour is exactly today's.
+or equals the marked element's unit, the **lock/token path** is today's
+(`_locked_element` + `_check_token(unit.updated, …)`); the two deliberate in-unit
+behaviour changes (copy may carry `before`; clause 2c) are listed under Out of scope.
+
+**Return value:** always `(dest_unit, placed)` — on the in-unit path the destination IS
+the element's unit, so this is today's `(unit, placed)`. The view rebinds `unit` from this
+tuple and renders its fragments, so returning the source would paint unit X's editor into
+Y's page.
 
 Order of operations for the cross-unit path, inside the existing `@transaction.atomic`:
 
-1. **Lock both unit rows in ascending pk order** —
-   `ContentNode.objects.select_for_update().filter(pk__in={src, dest}, course=course,
-   kind=UNIT).order_by("pk")`, evaluated. Two opposite-direction copies (X→Y and Y→X)
-   therefore acquire locks in the same order and cannot deadlock. A missing destination
-   unit → `ConflictError` (409). The source unit pk is read first with an unlocked
-   `Element.objects.filter(pk=element_pk, unit__course=course).values_list("unit_id")`;
-   a missing element → `ConflictError`.
-2. **Lock the marked element** via `_locked_element_in_unit(source_unit, element_pk)`
-   (already exists) → `ConflictError` if it vanished between steps 1 and 2.
+1. **Resolve the source unit pk, unlocked:**
+   `Element.objects.filter(pk=element_pk, unit__course=course).values_list("unit_id",
+   flat=True).first()`. No row → `ConflictError` (409). Because of the `unit__course`
+   filter, an element of **another course** also ends here as a 409 and is never loaded;
+   clause 0's course comparison (§2) is therefore defence in depth, reachable only by
+   direct callers and unit tests.
+2. **Lock both units in ascending pk order, taking the SOURCE through `_locked_element`.**
+   Every existing writer locks exactly one unit, and in-unit writers on an element take
+   it via `_locked_element` (element row + unit row in one joined `SELECT … FOR UPDATE`).
+   The copy reuses that exact shape for the source, so against any in-unit writer it
+   behaves like one more in-unit writer:
+   - `src_pk < dest_pk`: `el, source_unit = _locked_element(course, element_pk)`, then
+     `dest_unit = _locked_node(course, dest_unit_pk)`.
+   - `dest_pk < src_pk`: `dest_unit = _locked_node(course, dest_unit_pk)` first, then
+     `el, source_unit = _locked_element(course, element_pk)`.
+   Two opposite-direction copies (X→Y, Y→X) both take the lower-pk unit first, so they
+   cannot deadlock with each other; a copy holding Y while waiting for (e, X) cannot
+   deadlock with an in-unit writer on X, because that writer never wants Y.
+   - `_locked_element` raising → `ConflictError` (element or source unit gone).
+   - `_locked_node` raising, or `dest_unit.kind != UNIT` → `ConflictError`.
+   - `source_unit.pk != src_pk` (the element changed unit between steps 1 and 2 — no code
+     path does this today) → `ConflictError`.
 3. **Token check against the destination only:** `_check_token(dest_unit.updated,
    unit_token)`. The source is only read; its row lock stops a concurrent edit changing it
    mid-export. A stale *source* is not an error.
-4. `mode == "move"` across units → `PlacementRefused("wrong_unit")` via `paste_allowed`
-   (no separate branch needed; clause 0 does it).
-5. `before`: `_resolve_before(dest_unit, el, before)` — the anchor must be in the
+4. `before`: `_resolve_before(dest_unit, el, before)` — the anchor must be in the
    destination. The "`before` is a move-only argument" refusal is **removed**: copy now
    accepts `before` in both the cross-unit and the in-unit case (the in-unit UI simply
    never renders a copy-before button, per D4).
-6. Otherwise `_parse_scope_ref(dest_unit, parent_ref, tab)`.
-7. `paste_allowed(dest_unit, el, dest_parent, tab_id, mode, positional=anchor is not None)`.
-8. `_copy_into(el, source_unit, dest_unit, dest_parent, tab_id, anchor=anchor)`.
-9. `dest_unit.save(update_fields=["updated"])`. The source unit's `updated` is **not**
+5. Otherwise `_parse_scope_ref(dest_unit, parent_ref, tab)`.
+6. `paste_allowed(dest_unit, el, dest_parent, tab_id, mode, positional=anchor is not None)`.
+   A cross-unit `mode == "move"` is refused **here** by clause 0 with `wrong_unit` — only
+   once steps 4–5 have accepted the slot/anchor; a malformed or vanished one answers 400 /
+   422 `parent_gone` first.
+7. `_copy_into(el, source_unit, dest_unit, dest_parent, tab_id, anchor=anchor)`.
+8. `dest_unit.save(update_fields=["updated"])`. The source unit's `updated` is **not**
    touched on a cross-unit copy.
+9. `return dest_unit, placed`.
 
-The docstring states the lock order and why, next to the code (no concurrency test — see
-Testing).
+The docstring states the lock order and the argument above, next to the code, and claims
+nothing beyond it (no concurrency test — see Testing).
 
 ### 5. `_copy_into` (`courses/builder.py`)
 
@@ -219,8 +275,30 @@ practical (the repo carries line citations into this file).
 
 ### 8. Templates and tags
 
-- `_editor_scope.html` banner: add "— from <a …>{{ clip_source_unit.title }}</a>" when
-  `clip_source_unit`; add the "Copy to another unit…" `<details>` whenever `clip_active`.
+- **Banner layout.** The banner is today a `<span id="clip-banner">` as the third child of
+  `.pane-head`, a two-child `display:flex; justify-content:space-between` row. A
+  `<details>` holding nested lists is flow content and invalid inside a `<span>`, and an
+  open course tree inside the flex header would wreck it. So:
+  - `#clip-banner` becomes a `<div class="clip-banner">` rendered **directly after**
+    `.pane-head`, still inside `[data-scope="editor"]` (the existing comment explains why
+    it must stay there). `.pane-head` goes back to exactly two children; the
+    template comment about the third child is rewritten accordingly.
+  - The banner's first line holds: `⊹ Selected: <label>`, the optional "— from <link>",
+    the cancel form. The "Nothing can be pasted into this unit." line, when present, is a
+    second line. The `<details class="clip-banner__units">` is the last child.
+  - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list is
+    capped at `max-height: 50vh` with `overflow-y: auto`, so a course with hundreds of
+    units (mat-pp) scrolls inside the panel rather than the page.
+  - Narrow viewport (≤ 480px) wraps the banner's first line; checked in the screenshots.
+- **Banner text / i18n shape.** The existing msgid `Selected: %(clip_label)s` is kept
+  unchanged. The source part is a separate, contextual msgid with the link OUTSIDE it, so
+  no HTML reaches translators:
+  `— {% translate "from unit" context "clip banner" %} <a href="{% url 'courses:manage_editor' … %}" data-math-title>{{ clip_source_unit.title }}</a>`.
+  Polish: "from unit" (context "clip banner") → **"z jednostki"**. Other new msgids and
+  their Polish: "Copy to another unit…" → "Kopiuj do innej jednostki…"; "Copy before this
+  element" → "Kopiuj przed ten element"; "Nothing can be pasted into this unit." → "Do
+  tej jednostki nie można niczego wkleić." The implementer checks the catalogue's existing
+  rendering of "unit" and aligns these if it uses a different noun.
 - New partial `templates/courses/manage/editor/_copy_units_tree.html` (+ a recursive node
   partial) rendering `copy_units_top` / `copy_units_map` as nested `<ol>` of links, badges
   reused from the link picker. Titles keep `data-math-title` like the editor crumb does.
@@ -230,10 +308,9 @@ practical (the repo carries line citations into this file).
 - `_paste_buttons.html`: 📋 and ⧉ replaced by the two SVG symbols (D9).
 - Two new `<symbol>`s (move, copy) in the editor's inline sprite in `editor.html`, drawn as
   single-colour line icons with `currentColor`, matching the existing `ed-*` symbols.
-- CSS for the `<details>` list and the banner addition follows existing editor tokens; both
-  light and dark themes.
-- i18n: new msgids ("Copy to another unit…", "from %(unit)s" or the blocktranslate
-  equivalent, "Copy before this element") added to the Polish catalogue and `.mo`
+- CSS for the banner and the `<details>` list uses existing editor tokens; both light and
+  dark themes.
+- i18n: the msgids listed above are added to the Polish catalogue and the `.mo` is
   regenerated.
 
 ## Data flow
@@ -264,12 +341,13 @@ All through channels the editor already renders; no new error UI.
 |---|---|
 | No mark in session | 409 (`_element_conflict`), as today |
 | Destination unit token stale | 409, destination reloads, as today |
-| Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render |
+| Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render (§1 lookups) |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
-| Hand-crafted cross-unit `mode=move` | 422 `wrong_unit` |
-| Mark from another course (hand-crafted POST) | 422 `wrong_unit` |
+| Hand-crafted cross-unit `mode=move` (with a valid slot/anchor) | 422 `wrong_unit` |
+| Mark from another course (hand-crafted POST) | 409 — §4 step 1's course filter never loads the element |
+| Destination unit has no admissible slot | not an error: banner shows "Nothing can be pasted into this unit." |
 | Damaged source element (dangling GFK) | 422 "This element is damaged and cannot be copied." |
 | Malformed payload (`before` not an int, bad slot ref) | 400, as today |
 
@@ -305,11 +383,18 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
 - A copied image element points at the **same** `MediaAsset` as the original.
 - A text element containing a link to unit X still links to X after being copied into Y.
 - Stale Y token → `ConflictError`. Stale X token is irrelevant (X is never token-checked).
-- Marked element deleted → `ConflictError`.
-- In-unit copy with `before` now works (the removed refusal).
+- Marked element deleted → `ConflictError`. Element of another course → `ConflictError`.
+- The returned unit is Y: `returned_unit.pk == Y.pk` (same model).
+- In-unit copy with `before` now works (the removed refusal). The existing test
+  `tests/test_builder_paste_element.py::test_a_copy_may_not_name_a_before_target` pins
+  the old refusal; it is **replaced** by this positive test (renamed accordingly), not
+  silently deleted.
 - **Mutants:** check the token against the source unit (stale-Y test goes red / stale-X
-  passing test goes red); bump the source's `updated` (unchanged-X test goes red); pass the
-  destination to `build_element_export` (the assertion fires).
+  passing test goes red); bump the source's `updated` (unchanged-X test goes red); return
+  the source unit (returned-unit test goes red); pass the destination to
+  `build_element_export` — the test asserts the **observable** result, `TransferError`
+  raised and no new `Element` in Y (the export's `AssertionError` is wrapped into
+  `TransferError` by `_copy_into`'s `except Exception`).
 
 ### Views
 
@@ -322,10 +407,20 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
   except the current unit, which is present but not a link.
 - A mark from another course: editor GET of a unit in this course shows no banner and no
   paste controls, and the mark is still in the session afterwards.
-- POST `element_paste` into Y with a mark from X: 200 fragments, element copied, mark kept.
+- A mark whose source unit was deleted: editor GET of another unit shows no banner and the
+  session mark is gone.
+- A callout holding a question, marked in a lesson, rendered in a quiz: no paste controls
+  and "Nothing can be pasted into this unit." is shown.
+- POST `element_paste` into Y with a mark from X: 200 fragments **of Y**, element copied,
+  mark kept.
+- An editor render with **no** mark issues no `ContentNode` tree query for the copy list
+  (`CaptureQueriesContext`, assert no query over the course's nodes beyond today's).
 - **Mutants:** hard-code `mode=move` in `_paste_before_button.html` (copy-before view test
   goes red); render move slots in the cross-unit branch (no-move test goes red); clear the
-  mark for another-course clips (mark-kept test goes red).
+  mark for another-course clips (mark-kept test goes red); render the current unit as a
+  link in the copy list (not-a-link test goes red); build `copy_units_map` unconditionally
+  (no-query test goes red); drop `clip_nothing_fits` from the banner (nothing-fits test
+  goes red).
 
 ### e2e (one test, real UI)
 
