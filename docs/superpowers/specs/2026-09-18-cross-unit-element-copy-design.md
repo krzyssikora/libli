@@ -56,6 +56,10 @@ them is **Disputed**, never applied.
   sections → units) with the L/Q badges. Each **unit** is a link to its editor page. The
   current unit is rendered as plain text, not a link, and marked `aria-current="page"`.
   Container nodes (part / chapter / section) are plain text headings for their sublists.
+- A course with **only one unit** does not render the "Copy to another unit…" control
+  at all (it would list nothing but the current unit). The context carries a boolean
+  `copy_units_available` (true iff the course has at least two units, derived from the
+  same `_children_map` result — no extra query; `False` in the empty dict).
 - Slots and rows: unchanged. Slots offer move + copy; rows offer "Move before" only (D4).
 
 ### Destination unit (any other unit of the same course)
@@ -164,6 +168,10 @@ Comments that become false and are rewritten:
 - `element_clip`'s docstring, which says the paste "re-resolves it through
   `_locked_element(course, ...)`" — still true for the source, but the paste now also
   locks the destination.
+- `SubtreeFacts`' docstring ("The two facts about a marked element that do NOT depend on
+  the destination") — now four fields.
+- `paste_allowed`'s docstring reason-precedence list, which gains `interactive_in_quiz`
+  (§2).
 
 ### 2. `paste_allowed(unit, marked_join, dest_parent, tab, mode, ...)` (`courses/builder.py`)
 
@@ -208,7 +216,9 @@ Comments that become false and are rewritten:
   menu's Interactive group: `reveal_gate`, `fill_gate`, `switch_gate`, `switch_grid`,
   `fill_table`, `spoiler`, `stepper`, `mark_done`, `guess_number`. A **derived** drift
   guard pins it to the template: render the add menu for a lesson and for a quiz (same
-  depth, not nested), take the difference of the `data-add-type` **card names**, map each
+  depth, not nested), take **lesson cards minus quiz cards** (`data-add-type` **card
+  names**; the guard also asserts quiz cards minus lesson cards is empty, so a future
+  quiz-only card is noticed deliberately rather than corrupting the expectation), map each
   through `_NESTABLE_FORM_KEY_ALIASES.get(name, name)` (the existing card-name → transfer
   key map, `courses/builder.py`), and assert the result equals the frozenset — never a
   hard-coded count.
@@ -276,7 +286,10 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
    and unit tests. `dest_unit_pk` is int-coerced under the same guard.
    - `src_pk == dest_unit_pk` → **in-unit path**: today's
      `_locked_element` + `_check_token(unit.updated, …)`, then steps 4–9 with
-     `source_unit = dest_unit = unit`. Steps 2–3 below are skipped.
+     `source_unit = dest_unit = unit`. Steps 2–3 below are skipped. After
+     `_locked_element`, the same guard as the cross-unit path applies: `unit.pk !=
+     dest_unit_pk` → `ConflictError` — so neither path can ever return a unit other than
+     the one the view posted.
    - otherwise → **cross-unit path**, steps 2–9.
 2. **Lock both units in ascending pk order, taking the SOURCE through `_locked_element`.**
    Every existing **element-level** writer locks exactly one unit, and in-unit writers on
@@ -436,10 +449,13 @@ practical (the repo carries line citations into this file).
   - The tree is part of `[data-scope="editor"]`, so every editor op re-renders it while a
     mark is pending, and an open `<details>` closes after each swap. Closing is intended
     (the list is a navigation aid; after a paste the author is done with it). Render cost:
-    one recursive include per node. The implementer times one marked editor op on the
-    largest local course (mat-pp) before and after, and reports the delta in the PR; if
-    it adds more than ~10% to the op, the tree is rendered flat (one loop over a
-    pre-ordered list with a depth class) instead of recursively.
+    one recursive include per node. The implementer times a **cross-unit marked
+    render** (a large source unit and a large destination unit, on mat-pp) before and
+    after, and reports two figures separately in the PR: the tree's render cost and the
+    source-map cost (`unit_children_map(marked.unit)`). Only the tree figure feeds this
+    rule: if the tree adds more than ~10% to the op, it is rendered flat (one loop over a
+    pre-ordered list with a depth class) instead of recursively. The source-map cost is
+    reported, not acted on — flattening cannot remove it.
 - **Banner text / i18n shape.** The existing msgid `Selected: %(clip_label)s` is kept
   unchanged. The source part is a separate, contextual msgid with the link OUTSIDE it, so
   no HTML reaches translators:
@@ -527,6 +543,13 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
 
 ### `paste_allowed` / `subtree_facts` (unit tests)
 
+Home: `courses/tests/test_paste_rule.py`, where the existing `paste_allowed` rule tests
+live — the new clause-0, 2c, 2d and `subtree_facts` tests, **and** the
+`QUIZ_EXCLUDED_TYPE_KEYS` drift guard (it renders `_add_menu.html` with
+`render_to_string`), go there; no parallel file under `tests/`. Service tests go in the
+existing `tests/test_builder_paste_element.py`, view tests in
+`tests/test_element_paste_view.py`.
+
 - Cross-unit copy, same course, into a top-level slot and into a container slot → allowed.
 - Cross-unit move → `wrong_unit`. Mark from another course, mode copy → `wrong_unit`.
 - Quiz destination: a callout holding a question, pasted at top level → `question_in_quiz`;
@@ -559,6 +582,15 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
 - A text element containing a link to unit X still links to X after being copied into Y.
 - Stale Y token → `ConflictError`. Stale X token is irrelevant (X is never token-checked).
 - Marked element deleted → `ConflictError`. Element of another course → `ConflictError`.
+- **Cross-unit refusals on the enforcing path** (the in-transaction `paste_allowed` is the
+  authority; the render is advisory): each asserts `PlacementRefused` with the reason
+  key, and no new `Element` in Y —
+  - a callout holding a question → a quiz's top-level slot: `question_in_quiz`;
+  - a callout holding a checklist → a quiz: `interactive_in_quiz`;
+  - a nested container (container inside a container) → a slot deep enough that the
+    subtree no longer fits: `too_deep`.
+  **Mutant:** compute the service's `facts` from `unit_children_map(dest_unit)` instead
+  of the source's map — the root's children are then missing, so all three go red.
 - The returned unit is Y: `returned_unit.pk == Y.pk` (same model).
 - In-unit copy with `before` now works (the removed refusal). The existing test
   `tests/test_builder_paste_element.py::test_a_copy_may_not_name_a_before_target` pins
@@ -580,6 +612,8 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
   "from".
 - "Copy to another unit…" lists every unit of the course as a link to its editor page,
   except the current unit, which is present but not a link.
+- In a one-unit course with a mark, the control is absent. **Mutant:** render it
+  unconditionally (test goes red).
 - A mark from another course: editor GET of a unit in this course shows no banner and no
   paste controls, and the mark is still in the session afterwards.
 - A mark whose source unit was deleted: editor GET of another unit shows no banner and the
