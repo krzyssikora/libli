@@ -622,8 +622,6 @@ def test_an_in_unit_move_of_a_stepper_inside_a_quiz_is_allowed():
     ) == (True, None)
 ```
 
-Check `_stepper` nests: `stepper` must be in `NESTABLE_TYPE_KEYS` for the last test to reach 2d. If it is not, `paste_allowed` answers `type_not_nestable` and the test is wrong — replace the stepper with a `_markdone` (confirm `mark_done` is nestable with `grep -n '"mark_done"' courses/builder.py`) and keep the test's intent (an interactive element already in a quiz, moved in-unit into a container → allowed).
-
 In `courses/tests/test_nested_question_gates.py`, in `test_every_paste_reason_has_a_message`, directly under `assert "question_in_quiz" in returned` add:
 
 ```python
@@ -753,7 +751,7 @@ Expected: all PASS. `test_another_units_element_is_refused` (foreign course, cop
 
 - [ ] **Step 5: Falsify**
 
-Each mutant from the Step 1 docstrings, by hand: delete each of the four new `return` statements in turn (top-level 2c, container 2c, top-level 2d, container 2d); drop `cross_unit and` from the top-level 2c and from the container 2d; delete the `marked_join.unit.course_id != unit.course_id` check. Each turns its named test red. Revert each by hand; `git diff`.
+Each mutant from the Step 1 docstrings, by hand: delete each of the four new **whole `if …: return …` statements** in turn (top-level 2c, container 2c, top-level 2d, container 2d) — deleting only the `return` line leaves an empty `if` body, a SyntaxError that reds every test for the wrong reason; drop `cross_unit and` from the top-level 2c and from the container 2d; delete the whole `if marked_join.unit.course_id != unit.course_id: return …` statement. Each turns its named test red. Revert each by hand; `git diff`.
 
 - [ ] **Step 6: Commit**
 
@@ -782,7 +780,7 @@ git commit -m "feat(paste): cross-unit copy rule with quiz clauses 2c/2d"
 
 - [ ] **Step 1: Write the failing tests**
 
-In `tests/test_builder_paste_element.py`: add imports `from courses.models import CalloutElement`, `from courses.models import ChoiceQuestionElement`, `from courses.models import MarkDoneElement`, `from tests.factories import make_quiz_unit`. **Delete** `test_a_copy_may_not_name_a_before_target` (it pins the removed refusal; its replacement is the first test below). Append:
+In `tests/test_builder_paste_element.py`: add imports `from courses.models import CalloutElement`, `from courses.models import ChoiceQuestionElement`, `from courses.models import MarkDoneElement`, `from tests.factories import ContentNodeFactory`. **Delete** `test_a_copy_may_not_name_a_before_target` (it pins the removed refusal; its replacement is the first test below). Append:
 
 ```python
 def _callout(unit, parent=None, tab=""):
@@ -793,7 +791,9 @@ def _callout(unit, parent=None, tab=""):
 
 
 def _other_unit(course, title="Y", unit_type="lesson"):
-    return make_quiz_unit(course=course, parent=None, title=title, unit_type=unit_type)
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type=unit_type, title=title
+    )
 
 
 def _bodies(unit, parent=None, tab=""):
@@ -888,7 +888,7 @@ def test_a_cross_unit_copy_shares_the_media_asset():
     y = _other_unit(course)
     asset = make_image_asset(course)
     subject = Element.objects.create(
-        unit=x, content_object=ImageElement.objects.create(asset=asset)
+        unit=x, content_object=ImageElement.objects.create(media=asset)
     )
     y.refresh_from_db()
 
@@ -896,7 +896,7 @@ def test_a_cross_unit_copy_shares_the_media_asset():
         course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk
     )
 
-    assert placed.content_object.asset == asset
+    assert placed.content_object.media == asset
     assert MediaAsset.objects.filter(course=course).count() == 1
 
 
@@ -955,13 +955,15 @@ def test_a_stale_destination_token_is_a_conflict():
 
 
 def test_a_stale_source_token_is_irrelevant():
-    """Mutant: check the token against source_unit instead -> RED here (Y's token
-    no longer matches X) AND on test_a_stale_destination_token_is_a_conflict."""
+    """X is never token-checked: the author posts Y's token only.
+
+    Mutant: check the token against source_unit instead -> RED here (Y's token
+    does not match X). test_a_stale_destination_token_is_a_conflict stays green
+    under that mutant -- its hard-coded 2020 token fails against X too."""
     course, x = make_course_with_unit()
     y = _other_unit(course)
     subject = _text(x)
     y.refresh_from_db()
-    _text(x)  # X changes after the author's render; X is never token-checked
 
     paste_element(course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
 
@@ -1097,7 +1099,7 @@ def test_a_two_level_container_into_a_depth_three_slot_is_too_deep():
 
 The callers' explicit `count_before` assertions are what prove nothing was created in the destination.
 
-Confirm the field names before running: `grep -n "marking_mode\|max_attempts\|max_marks" courses/models.py | head` and `grep -n "class ImageElement" -A8 courses/models.py` (the image FK may be named `asset` or `media`; use the real name in `test_a_cross_unit_copy_shares_the_media_asset`, and check `PlacementRefused`'s attribute name with `grep -n "class PlacementRefused" -A12 courses/builder.py` — use it in place of `reason_key` if it differs).
+Confirm the question's marking field names before running: `grep -n "marking_mode\|max_attempts\|max_marks" courses/models.py | head` (`ImageElement`'s FK is `media`; `PlacementRefused` exposes `.reason_key`).
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -1290,11 +1292,12 @@ Expected: all PASS.
 - [ ] **Step 7: Falsify**
 
 By hand, one at a time:
-1. `_check_token(source_unit.updated, unit_token)` in the cross-unit branch → `test_a_stale_source_token_is_irrelevant` red (and the destination-token test).
+1. `_check_token(source_unit.updated, unit_token)` in the cross-unit branch → `test_a_stale_source_token_is_irrelevant` red (the destination-token test stays green: its 2020 token fails either way).
 2. Add `source_unit.save(update_fields=["updated"])` before the return → `test_a_cross_unit_copy_leaves_the_source_untouched_and_bumps_the_destination` red.
 3. `return source_unit, placed` → `test_a_cross_unit_copy_returns_the_destination_unit` red.
 4. In `_copy_into`, `build_element_export(dest_unit, el)` → `test_the_export_reads_the_source_unit` red with `TransferError`.
 5. `facts = subtree_facts(el, children_map=unit_children_map(dest_unit))` → the three enforcing-path refusal tests red.
+6. In `courses/transfer/importer.py`, inside `graft_elements`'s `work()`, call `_rewrite_links(document, node_map, created, on_missing="keep", report=[])` after `_create_elements` (check `_rewrite_links`'s real signature first and pass what it needs) → `test_a_link_to_the_source_unit_still_points_at_the_source_after_the_copy` red (the link is repointed at Y). If it stays green, the test is vacuous — `link_nodes` does not contain X — and must be fixed before committing.
 Revert each by hand; `git diff`.
 
 - [ ] **Step 8: Commit**
@@ -2008,14 +2011,17 @@ def test_every_rendered_paste_form_carries_the_marked_element(client):
     Mutant: drop clip_element_pk from paste_before_button's dict -> RED."""
     course, x = _seed(client)
     y = _unit(course, "Y")
-    subject = _text(x)
+    # The extra X row comes FIRST: a row directly below the mark is clip_noop_pk
+    # and renders no before-button, so it must sit above the subject.
     _text(x)  # a row in X that offers move-before
+    subject = _text(x)
     _tabs(y)
     _text(y)  # a row in Y that offers copy-before
     _mark(client, course, x, subject)
 
     for u in (x, y):
         body = _editor_get(client, course, u).content.decode()
+        assert 'data-op="element-paste-before"' in body, u.title
         forms = re.findall(
             r'<form[^>]*data-op="element-paste(?:-before)?"[^>]*>.*?</form>',
             body,
@@ -2091,7 +2097,7 @@ Add `from django.db import OperationalError` to `courses/views_manage.py`'s impo
         return _element_conflict(request, course)
 ```
 
-Keep the rest of the view (the move-clears-mark rule and the final render) unchanged, but change its `request.POST.get("mode") == "move"` to `mode == "move"`. Update the view docstring's status list to mention: a stale form, a cross-unit move and a deadlock abort → 409. (Use `exc.reason_key` — or whatever attribute `PlacementRefused` really exposes; keep the existing spelling.)
+Keep the rest of the view (the move-clears-mark rule and the final render) unchanged, but change its `request.POST.get("mode") == "move"` to `mode == "move"`. Update the view docstring's status list to mention: a stale form, a cross-unit move and a deadlock abort → 409.
 
 - [ ] **Step 5: Thread `element` and `mode` through the tags and forms**
 
@@ -2322,17 +2328,41 @@ def test_nothing_fits_is_said_out_loud(client):
 
 
 def test_the_banner_is_a_div_between_the_pane_head_and_the_error_slot(client):
+    """Asserted on a 422 render, so the error slot really exists to order against."""
     course, x = _seed(client)
-    subject = _text(x)
-    _mark(client, course, x, subject)
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    dest = Element.objects.create(
+        unit=quiz, content_object=CalloutElement.objects.create(kind="example")
+    )
+    subject = Element.objects.create(
+        unit=quiz,
+        content_object=ChoiceQuestionElement.objects.create(stem="P.", multiple=False),
+    )
+    _mark(client, course, quiz, subject)
+    quiz.refresh_from_db()
 
-    body = _editor(client, course, x)
+    resp = client.post(  # a question into a quiz container: 422 question_in_quiz
+        reverse("courses:manage_element_paste", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "parent": dest.pk,
+            "tab": CalloutElement.SLOT_ID,
+            "mode": "move",
+            "element": subject.pk,
+            "unit": quiz.pk,
+            "unit_token": quiz.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 422
+    body = resp.content.decode()
 
     assert '<div id="clip-banner" class="clip-banner">' in body
     head_end = body.index("pane-head__count")
     banner = body.index('id="clip-banner"')
+    error = body.index('id="editor-error"')
     pane_body = body.index('class="pane-body"')
-    assert head_end < banner < pane_body
+    assert head_end < banner < error < pane_body
 
 
 def test_no_emoji_or_text_glyph_icons_remain_on_paste_controls(client):
@@ -2494,7 +2524,7 @@ Expected: all PASS.
    | `Nothing can be pasted into this unit.` | `Do tej jednostki nie można niczego wkleić.` |
    | `Interactive elements can only be placed in a lesson unit.` | `Elementy interaktywne można umieszczać tylko w jednostce typu lekcja.` |
 
-   Leave `locale/en` msgstrs empty (repo convention).
+   Leave `locale/en` msgstrs empty (repo convention). The noun is checked against the catalogue: `grep -n -A1 '^msgid "Unit"' locale/pl/LC_MESSAGES/django.po` shows `msgstr "Jednostka"` (verified when this plan was written) — the table's "jednostki"/"jednostce"/"jednostka" forms follow it. If the grep shows a different noun, align all five msgstrs to it before compiling.
 3. `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po` → both `0` (do not anchor with `$`: the `.po` files are CRLF).
 4. `uv run python manage.py compilemessages -l pl -l en`
 5. `uv run pytest tests/test_i18n_po_health.py` → PASS.
@@ -2704,9 +2734,12 @@ def _seed(owner):
     from tests.factories import CourseFactory
 
     course = CourseFactory(slug="crossunit", owner=owner)
+    # A LONG title with the maths at the END, so at 400px the "from" link truncates
+    # with the maths in the clipped tail -- the only case where an escaped
+    # .katex-mathml twin could widen the page (the containment mutant needs it).
     a = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=None,
-        title="Unit A \\(x^2\\)",
+        title="Unit A with a deliberately long source title for truncation \\(x^2\\)",
     )
     b = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=None, title="Unit B"
@@ -2808,6 +2841,10 @@ Continue the test body:
     link.click()
     page.wait_for_url(f"**/unit/{b.pk}/edit/")
     expect(page.locator("#clip-banner .clip-banner__from a")).to_be_visible()
+    # Split width, long label: the "from" link keeps a real share of the pill.
+    line = _box(page, "#clip-banner .clip-banner__line")
+    frm = page.locator("#clip-banner .clip-banner__from a").bounding_box()
+    assert frm["width"] > 0 and _inside(frm, line)
     expect(page.locator("form[data-op='element-paste'] button[value='move']")).to_have_count(0)
 
     # 5. Copy before the middle row, waiting on the REQUEST.
@@ -2818,13 +2855,15 @@ Continue the test body:
             "> .el-row__head .el-actions form[data-op='element-paste-before'] button"
         ).click()
 
+    # Wait on a DOM condition first: the response can land before applyFragments
+    # swaps the pane, and the order read below must see the NEW DOM.
+    expect(page.locator('[data-scope="preview"]')).to_contain_text("COPYMARKER")
     order = page.eval_on_selector_all(
         '[data-scope="editor"] .element-list > .el-row[data-element]',
         "rows => rows.map(r => r.innerText)",
     )
     idx = next(i for i, t in enumerate(order) if "COPYMARKER" in t or LONG_LABEL[:20] in t)
     assert "BROW-12" in order[idx + 1]
-    expect(page.locator('[data-scope="preview"]')).to_contain_text("COPYMARKER")
     # The mark is kept (D8) and the swapped banner's maths is typeset.
     expect(page.locator("#clip-banner")).to_be_visible()
     expect(page.locator("#clip-banner .clip-banner__from a .katex")).to_have_count(1)
@@ -2865,9 +2904,45 @@ def test_the_banner_survives_a_narrow_viewport(page, live_server):
     assert abs(grew_doc - grew_banner) <= 1  # escaped .katex-mathml would add more
 ```
 
-And the nothing-fits ✕ check (a third test): seed a callout holding a choice question in A and a quiz unit Q; mark the callout; open Q's editor; assert `p.clip-banner__nothing` is visible and the ✕'s box lies inside `.clip-banner__line`'s box.
+And the nothing-fits ✕ check, a third test:
 
-Screenshots: in the first test, after step 3 and step 5, `page.screenshot(path=...)` into the scratchpad for light; then repeat the page visits with `user.theme = "dark"; user.save()` before a fresh login for dark (never a cookie). Judge dark separately.
+```python
+@pytest.mark.django_db(transaction=True)
+def test_the_cancel_stays_on_the_pill_when_nothing_fits(page, live_server):
+    from courses.models import CalloutElement
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Element
+    from tests.factories import make_quiz_unit
+
+    page.set_viewport_size({"width": 1280, "height": 720})
+    user = _make_pa_user("pa")
+    course, a, _b, _subject, _rows = _seed(user)
+    quiz = make_quiz_unit(course=course, parent=None, title="Quiz Q")
+    box = Element.objects.create(
+        unit=a, content_object=CalloutElement.objects.create(kind="example")
+    )
+    Element.objects.create(
+        unit=a,
+        content_object=ChoiceQuestionElement.objects.create(stem="P.", multiple=False),
+        parent=box,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    _login(page, live_server, "pa")
+    page.goto(_editor(live_server, course, a))
+    # Mark through the row's own ⊹ control, as in the first test.
+    row = page.locator(f".el-row[data-element='{box.pk}']")
+    with page.expect_response(lambda r: "element/clip/" in r.url):
+        row.locator("> .el-row__head .el-actions form[data-op='element-clip'] button").click()
+    page.goto(_editor(live_server, course, quiz))
+
+    expect(page.locator("#clip-banner .clip-banner__nothing")).to_be_visible()
+    assert _inside(
+        _box(page, "#clip-banner .clip-banner__line form button"),
+        _box(page, "#clip-banner .clip-banner__line"),
+    )
+```
+
+**The committed e2e file contains no `page.screenshot` calls.** Screenshots (Task 7 Step 6 covers them manually) come from a separate, **uncommitted** `tests/capture_cross_unit_copy_screenshots.py` (the repo's `tests/capture_*_screenshots.py` convention) that reuses `_seed`, drives the same steps, and writes light shots, then sets `user.theme = "dark"; user.save()` before a fresh login for the dark ones (never a cookie). Judge dark separately. Delete the script (or leave it untracked) — it is never staged.
 
 - [ ] **Step 2: Run the e2e tests**
 
@@ -2876,7 +2951,7 @@ Expected: all PASS.
 
 - [ ] **Step 3: Falsify the KaTeX containment**
 
-By hand: remove `position: relative` from `.clip-banner__units-list` → the narrow test's growth assertion (or the 1280×720 unchanged assertion) red. Restore. Then remove it from `.clip-banner__from a` → `scrollWidth` assertion red at 400px (the source title carries maths). Restore; `git diff`.
+By hand: delete Task 7's new `editor.js` block (the `[data-math-title]` loop in `applyFragments`) → the post-swap `expect(page.locator("#clip-banner .clip-banner__from a .katex")).to_have_count(1)` red. Restore. Then remove `position: relative` from `.clip-banner__units-list` → the narrow test's growth assertion (or the 1280×720 unchanged assertion) red. Restore. Then remove it from `.clip-banner__from a` → expected: the `scrollWidth` assertion red at 400px (the long source title truncates with its maths in the clipped tail). The nearest positioned ancestor is then `.clip-banner__line`, which may keep the twin inside the viewport: **if this mutant stays green, do not weaken or fake the assertion** — record in the PR body that the "from"-link containment is not caught by the e2e and why. Restore; `git diff`.
 
 - [ ] **Step 4: Run the existing clipboard e2e tests**
 
@@ -2892,12 +2967,17 @@ On the local dev database (never prod), in `uv run python manage.py shell`, pick
 In chunks (a single full run is OOM-killed):
 
 ```bash
-uv run pytest courses/
-uv run pytest tests/ --ignore=tests/test_e2e_cross_unit_copy.py -k "not e2e"
+uv run pytest courses/tests
+uv run pytest tests/test_[a-l]*.py --ignore-glob="*test_e2e_*"
+uv run pytest tests/test_[m-r]*.py --ignore-glob="*test_e2e_*"
+uv run pytest tests/test_[s-z]*.py --ignore-glob="*test_e2e_*"
+uv run pytest integrations notifications
 uv run pytest -m e2e tests/test_e2e_clipboard.py tests/test_e2e_paste_before.py tests/test_e2e_before_after.py tests/test_e2e_cross_unit_copy.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
+
+(`tests/` alone is ~6,000 tests: one run of it is OOM-killed with 0-byte output, so it is split in three alphabetical chunks. `addopts` already deselects e2e; the e2e line is separate.)
 
 Read each summary line. Any failure in an unrelated file: A/B it on `origin/master` before blaming this branch.
 
@@ -2906,6 +2986,7 @@ Read each summary line. Any failure in an unrelated file: A/B it on `origin/mast
 ```bash
 uv run ruff format tests/test_e2e_cross_unit_copy.py
 uv run ruff check --no-cache .
+uv run ruff format --check .
 git add tests/test_e2e_cross_unit_copy.py
 git commit -m "test(e2e): a copy follows the author to another unit"
 ```
