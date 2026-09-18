@@ -98,8 +98,10 @@ Classify the session mark against the rendered `unit`:
 
 Lookups, in order (the same-unit branch keeps today's single `unit.elements` lookup):
 
-1. `marked = Element.objects.select_related("unit").filter(pk=clip["element"],
-   unit_id=clip["unit"]).first()`.
+1. `marked = Element.objects.select_related("unit").prefetch_related("content_object")
+   .filter(pk=clip["element"], unit_id=clip["unit"]).first()` — the prefetch covers the
+   root's `content_object`, which the map does not supply for this instance (read by
+   `_slot_cap`, `has_interactive` and `clip_label`).
 2. Found and `marked.unit.course_id == unit.course_id` → cross-unit branch. Found in
    another course → empty context, mark kept.
 3. Not found → **one** further query, `ContentNode.objects.filter(pk=clip["unit"]).values_list(
@@ -192,13 +194,16 @@ Comments that become false and are rewritten:
   w lekcjach." Resulting reason precedence: `wrong_unit, into_own_subtree,
   not_a_container, unknown_slot, type_not_nestable, question_in_quiz,
   interactive_in_quiz, too_deep, own_slot`.
-- The interactive type set is a new module constant `QUIZ_EXCLUDED_TYPE_KEYS`
-  (frozenset of transfer type keys) in `courses/builder.py`: the nine types of the add
-  menu's Interactive group — revealgate, fillgate, switchgate, switchgrid, filltable,
-  spoiler, stepper, markdone, guessnumber (the implementer confirms each spelling against
-  `model_to_key`). A **derived** drift guard pins it to the template: render the add menu
-  for a lesson and for a quiz (same depth, not nested), take the difference of the
-  `data-add-type` sets, and assert it equals the frozenset — never a hard-coded count.
+- The interactive type set is a new module constant `QUIZ_EXCLUDED_TYPE_KEYS` in
+  `courses/builder.py`, a frozenset of **transfer keys** (the values `model_to_key`
+  returns, `courses/transfer/export.py` `SERIALIZERS`) for the nine types of the add
+  menu's Interactive group: `reveal_gate`, `fill_gate`, `switch_gate`, `switch_grid`,
+  `fill_table`, `spoiler`, `stepper`, `mark_done`, `guess_number`. A **derived** drift
+  guard pins it to the template: render the add menu for a lesson and for a quiz (same
+  depth, not nested), take the difference of the `data-add-type` **card names**, map each
+  through `_NESTABLE_FORM_KEY_ALIASES.get(name, name)` (the existing card-name → transfer
+  key map, `courses/builder.py`), and assert the result equals the frozenset — never a
+  hard-coded count.
 - Clause 2b's comment that the root-only check is "sound … because clause 0 (wrong_unit)
   makes cross-unit pastes impossible" is rewritten: 2c now closes the gap it described.
 - The docstring gains one paragraph on the cross-unit case.
@@ -217,11 +222,14 @@ Comments that become false and are rewritten:
 - Cost: the walk already visits every node and `_slot_cap` already reads
   `content_object` per node, so both fields add no query when `children_map` carries the
   GFK prefetch. Without a map the walk pays one children query plus one GFK query per node
-  — today's cost for `_slot_cap`, unchanged. To keep the endpoint on the prefetched shape
-  anyway, `paste_element` computes `facts = subtree_facts(el,
-  children_map=unit_children_map(source_unit))` once and passes it to `paste_allowed`
-  (both paths — in-unit, `source_unit` is the unit). Both fields are computed
-  unconditionally, not only for quiz destinations: one `isinstance` / key lookup per node.
+  — today's cost for `_slot_cap`, unchanged.
+  - **Cross-unit paste:** `paste_element` computes `facts = subtree_facts(el,
+    children_map=unit_children_map(source_unit))` once and passes it to `paste_allowed`.
+  - **In-unit paste:** unchanged — `paste_allowed` computes facts itself with today's
+    per-subtree walk. Building a whole-unit map there would make every in-unit paste of a
+    leaf load the entire unit, a cost today's endpoint does not pay.
+  Both fields are computed unconditionally, not only for quiz destinations: one
+  `isinstance` / key lookup per node.
 
 ### 4. `paste_element(...)` (`courses/builder.py`)
 
@@ -281,8 +289,9 @@ first when `dest_unit_pk` is given, and it is the discriminator between the two 
    never renders a copy-before button, per D4).
 5. Otherwise `_parse_scope_ref(dest_unit, parent_ref, tab)`.
 6. `paste_allowed(dest_unit, el, dest_parent, tab_id, mode, facts=facts,
-   positional=anchor is not None)`, with `facts` computed once from
-   `unit_children_map(source_unit)` (§3).
+   positional=anchor is not None)`, where on the cross-unit path `facts` is computed once
+   from `unit_children_map(source_unit)`, and on the in-unit path `facts=None` as today
+   (§3).
    A cross-unit `mode == "move"` is refused **here** by clause 0 with `wrong_unit` — only
    once steps 4–5 have accepted the slot/anchor; a malformed or vanished one answers 400 /
    422 `parent_gone` first.
@@ -337,17 +346,34 @@ practical (the repo carries line citations into this file).
   `.pane-head`, a two-child `display:flex; justify-content:space-between` row. A
   `<details>` holding nested lists is flow content and invalid inside a `<span>`, and an
   open course tree inside the flex header would wreck it. So:
-  - `#clip-banner` becomes a `<div class="clip-banner">` rendered **directly after**
+  - The banner becomes `<div id="clip-banner" class="clip-banner">` — **id unchanged**
+    (`tests/test_e2e_clipboard.py`, `test_e2e_paste_before.py` and
+    `test_e2e_before_after.py` locate `#clip-banner`) — rendered **directly after**
     `.pane-head`, still inside `[data-scope="editor"]` (the existing comment explains why
-    it must stay there). `.pane-head` goes back to exactly two children; the
-    template comment about the third child is rewritten accordingly.
-  - The banner's first line holds: `⊹ Selected: <label>`, the optional "— from <link>",
-    the cancel form. The "Nothing can be pasted into this unit." line, when present, is a
-    second line. The `<details class="clip-banner__units">` is the last child.
+    it must stay there). `.pane-head` goes back to exactly two children; the template
+    comment about the third child is rewritten accordingly.
+  - Structure: a first-line wrapper `<div class="clip-banner__line">` holding
+    `⊹ Selected: <label>`, the optional "— from <link>", and the cancel form; then the
+    optional "Nothing can be pasted into this unit." paragraph; then
+    `<details class="clip-banner__units">`.
+  - **CSS rewrite** (`courses/static/courses/css/editor.css`, the `.clip-banner` block and
+    its comments, currently ~lines 465–506):
+    - The pill styling moves from `.clip-banner` to `.clip-banner__line`: it keeps the
+      existing measured design — one line, `nowrap` + `overflow: hidden` + ellipsis, the
+      cancel form out of flow in the reserved trailing padding lane. The first line
+      **ellipsises, it does not wrap**, at every width including narrow viewports; the
+      comment's measured rationale (floating the ✕ doubled the head height) is kept.
+      Dropped from the pill: `max-width: 60%` and `margin-inline-start: auto` (they only
+      made sense as a flex item sharing the head); the line now spans the pane width.
+    - `.clip-banner` itself becomes a plain block container with vertical spacing: no
+      overflow clipping, no `nowrap`, so the open `<details>` list is never clipped.
+    - The two `.pane-head:has(.clip-banner)` rules and their comments are **deleted** —
+      the banner is no longer in the head, so they would match nothing.
   - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list is
     capped at `max-height: 50vh` with `overflow-y: auto`, so a course with hundreds of
     units (mat-pp) scrolls inside the panel rather than the page.
-  - Narrow viewport (≤ 480px) wraps the banner's first line; checked in the screenshots.
+  - Narrow viewport (≤ 480px): the first line ellipsises, the ✕ stays visible; checked in
+    the screenshots.
   - The tree is part of `[data-scope="editor"]`, so every editor op re-renders it while a
     mark is pending, and an open `<details>` closes after each swap. Closing is intended
     (the list is a navigation aid; after a paste the author is done with it). Render cost:
@@ -393,7 +419,8 @@ destination unit Y editor (GET)
 
   copy / copy-before (POST element_paste, unit=Y, unit_token=Y.updated, mode=copy[, before])
          → paste_element(course, e, …, dest_unit_pk=Y)
-             lock X, Y (pk order) → lock e → check Y token → resolve slot/anchor in Y
+             lock (e+X via _locked_element) and Y in ascending unit-pk order
+             → check Y token → resolve slot/anchor in Y
              → paste_allowed(Y, …) → _copy_into(e, X, Y, …) → Y.updated bumped
          → editor fragments for Y, mark kept
 ```
@@ -443,7 +470,10 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
 - The derived `QUIZ_EXCLUDED_TYPE_KEYS` drift guard (lesson vs quiz add-menu diff).
 - **Mutants:** delete the clause-2d check (interactive tests go red); drop the
   cross-unit condition from 2d (in-unit quiz move test goes red); remove one key from
-  `QUIZ_EXCLUDED_TYPE_KEYS` (drift guard goes red).
+  `QUIZ_EXCLUDED_TYPE_KEYS` (drift guard goes red); spell the frozenset with card names
+  (`revealgate`, `markdone`, …) instead of transfer keys (the stepper test may still pass
+  — `stepper` is spelled the same both ways — but the callout-containing-a-checklist
+  test goes red, and the drift guard goes red).
 - **Mutants:** delete the clause-2c check (quiz tests go red); make `nested_question`
   include the root (lone-question-at-top-level test goes red); drop the course comparison
   from clause 0 (other-course test goes red).
@@ -511,7 +541,9 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
 
 Mark an element in unit A → open "Copy to another unit…" → click unit B → click "Copy
 before this element" on a middle row of B → wait for the paste **request** to complete →
-assert B's row order and that B's preview shows the copied element. Screenshots of the
+assert B's row order and that B's preview shows the copied element. Before clicking unit B,
+assert a unit link inside the open `<details>` is **visible and not clipped** (Playwright
+visibility plus its bounding box lying within `#clip-banner`'s box). Screenshots of the
 banner and the open `<details>` in light and dark themes (dark via `user.theme`, not the
 cookie), judged separately.
 
