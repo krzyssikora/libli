@@ -197,6 +197,14 @@ Comments that become false and are rewritten:
   the destination") — now four fields.
 - `paste_allowed`'s docstring reason-precedence list, which gains `interactive_in_quiz`
   (§2).
+- `paste_element`'s inline comment "move-only, deliberately: the editor offers no
+  copy-before control, so a copy carrying an anchor is a malformed payload" (removed
+  with the refusal), and its docstring's "Returns (unit, placed_join)" (now the
+  destination unit).
+- `_copy_into`'s docstring "Runs inside paste_element's transaction and lock" (now two
+  units' locks, source and destination).
+- The test docstring of `test_the_clip_context_keys_reach_both_render_paths` ("must
+  carry the five clip keys"), in step with the `_clip_context` docstring count.
 
 ### 2. `paste_allowed(unit, marked_join, dest_parent, tab, mode, ...)` (`courses/builder.py`)
 
@@ -509,8 +517,12 @@ practical (the repo carries line citations into this file).
       "Selected:" truncates together with the label) —
       with `min-width: 0; overflow: hidden; white-space: nowrap; text-overflow:
       ellipsis; flex: 1 1 auto`; the "— from <link>" part is `<span
-      class="clip-banner__from">` with `flex: 0 1 auto; max-width: 45%` and its own
-      nowrap + ellipsis on the link text. Only these two truncate; the line **never
+      class="clip-banner__from">` with `display: inline-flex; min-width: 0; flex: 0 1
+      auto; max-width: 45%`. Inside it, the "— z jednostki" text is its own `flex:
+      none` span, and the `<a>` is the shrinking item: `min-width: 0; overflow: hidden;
+      white-space: nowrap; text-overflow: ellipsis; position: relative` (an inline `<a>`
+      cannot show its own ellipsis, and ellipsis on the outer span would leave the `<a>`'s
+      box running past it). Only the label span and the `<a>` truncate; the line **never
       wraps**, at every width.
       Dropped from the pill: `max-width: 60%` and `margin-inline-start: auto` (they only
       made sense as a flex item sharing the head); the line now spans the pane's
@@ -522,8 +534,11 @@ practical (the repo carries line citations into this file).
       scroll area (measured in this repo: fill-table at 390px, `documentElement`
       390/795 → 390/390 once the scroller got `position: relative`). Every clipping box
       that can hold a typeset title therefore gets `position: relative`: the scrolling
-      list inside `.clip-banner__units`, `.clip-banner__label` and `.clip-banner__from`.
-      The CSS comment says why.
+      list inside `.clip-banner__units`, and the "from" `<a>` (see below). The CSS
+      comment says why. The banner **label** is deliberately **not** typeset — it carries
+      no `data-math-title`, exactly like the editor's row labels today (the element
+      label is the same string the row shows) — so it holds no KaTeX and needs no
+      containment.
     - The ✕'s anchoring moves with the pill: `position: relative` goes from
       `.clip-banner` to `.clip-banner__line`; `.clip-banner .tree__inline`,
       `.clip-banner .iconbtn` and `.clip-banner .iconbtn:hover` become
@@ -544,7 +559,9 @@ practical (the repo carries line citations into this file).
       (the repo carries `editor.css` line citations): the `.pastewrap` comment ("Paste
       controls (📋 Move here / ⧉ Copy here)" — the glyphs are now SVG symbols), and the
       `.pastebtn` comment's "matching .el-row--marked and .clip-banner" (the accent pill
-      is now `.clip-banner__line`).
+      is now `.clip-banner__line`), and the row action-bar comment (~line 616, "The bar
+      now holds seven controls (✎/✕ ↑ ↓ ⧉ ⊹ 🗑 …)" — its ⧉ is the Duplicate button, now an
+      SVG).
   - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list
     scrolls inside itself (`overflow-y: auto`), so a course with hundreds of units
     (mat-pp) never grows the page.
@@ -794,7 +811,18 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
   must reach **its intended** 409, not the stale-form one: each such test asserts, before
   its request, that the `element` it will post equals the session mark (so a missing
   `element` can never be what produces the 409). The no-mark test is the exception — it
-  has no mark to match, and §7's empty-clip check runs before the stale-form check. **Mutant:** drop `element` from
+  has no mark to match, and §7's empty-clip check runs before the stale-form check.
+  The helpers take an explicit `element` argument that each caller passes — they never
+  read it silently from `client.session` — so the pre-assertion compares two
+  independently sourced values.
+  The same rule covers every **new** 409 test, each of which must reach its own path:
+  - the another-course-mark test and the non-numeric-session-element test post
+    `mode="copy"` (a default `move` would be stopped earlier by the move-reload 409);
+  - the non-numeric test posts the **exact** session value as `element` (so the
+    stale-form check passes and step 1's guard is what answers);
+  - the deadlock-mapping test posts a valid in-unit or cross-unit **copy** with the
+    matching `element`, and asserts the monkeypatched `paste_element` was **called**
+    (a call counter), so the 409 provably came from the handler. **Mutant:** drop `element` from
   `_paste_before` — `test_a_paste_before_with_a_stale_token_is_a_409`'s pre-assertion
   goes red instead of the test silently passing on the stale-form path. The other file is
   `courses/tests/test_nested_question_gates.py::test_the_paste_endpoint_shows_the_questions_own_message`,
@@ -860,7 +888,7 @@ fixture gives several units **far down** the open list maths titles, and the sou
 a maths title; at ≤ 480px the test asserts `documentElement.scrollWidth ==
 clientWidth`, and at both viewports that the page's and `.pane-body`'s `scrollHeight`
 are unchanged between the list closed and open. **Mutant:** remove the `position:
-relative` from the list (or from `.clip-banner__from`) — the scroll assertions go red.
+relative` from the list (or from the "from" `<a>`) — the scroll assertions go red.
 After the paste it also asserts a maths-titled unit link **inside
 `.clip-banner__units`** contains a `.katex` node, not only the "from" link. The source unit is titled with inline
 maths (`Unit \(x^2\)`), and after the paste — a fragment swap — the banner's "from" link
