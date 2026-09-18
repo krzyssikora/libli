@@ -481,13 +481,53 @@ ever vendor-gated — a lost `LIBLI_VENDOR_INSTANCE`. That is why it is not. Add
 `demo_access list` to the routine you already use to look at the box: it shows
 `pending_purge` rows.
 
-**Before the first kit — ONE item remains:** set `LIBLI_VENDOR_INSTANCE=true` in
-`.env.production` (still unset as of 2026-09-12, so `/for-schools/` is 404 and
-`demo_access create` refuses). ⚠️ The same flag publishes `/for-schools/`, so turning it on is
-a **publishing decision, not an ops chore** — see the spec's §5. Do not flip it merely to
-rehearse a kit. Once it is on, kits can also be issued, extended and revoked from **Settings →
-Demo access** (`/manage/settings/?tab=demo`), which calls the same services as `demo_access`;
-provision and revoke the first throwaway kit there, which also measures the prod wall-clock.
+**Before the first kit:** set `LIBLI_VENDOR_INSTANCE=true` in `.env.production` (while it is
+unset, `/for-schools/` is 404 and `demo_access create` refuses). ⚠️ The same flag publishes
+`/for-schools/`, so turning it on is a **publishing decision, not an ops chore** — see the
+spec's §5. Do not flip it merely to rehearse a kit. ✅ Set on libli.pl 2026-09-17; verified with
+`curl -s -o /dev/null -w '%{http_code}' https://libli.pl/for-schools/` → 200. Once it is on,
+kits can also be issued, extended and revoked from **Settings → Demo access**
+(`/manage/settings/?tab=demo`), which calls the same services as `demo_access`.
+
+### Rehearse a throwaway kit before answering a real enquiry
+
+Do this once per box, before any school is given credentials, and again after any change to the
+`demo` app. **It spans two days by design.** `purge_expired` acts on
+`expires_at <= now AND closed_at IS NULL`, and `MIN_DAYS` is 1, so a kit created today cannot be
+purged today — waiting for the nightly cron is the only way to rehearse the path that actually
+retires kits. `revoke` closes a kit immediately, which is the same-day fallback if something
+looks wrong, but it sets `closed_at` and so skips the cron entirely.
+
+Day 1:
+
+```bash
+bash /opt/libli/manage.sh demo_access create \
+  --course mat-pp --label "Rehearsal (throwaway)" --days 1 --pupils 5
+bash /opt/libli/manage.sh demo_access list
+```
+
+Five pupils, not the default twenty: the rehearsal exercises the path, not the fixture, and it
+keeps the wall-clock short. Copy both passwords from the output — they are not stored. Note how
+long `create` took; that is the number to quote when sizing a real kit.
+
+Then, in a private window, drive both logins by hand: as the **teacher**, the kit course's
+outline, the analytics matrix, a student page and a per-question page; as the **student**, the
+course outline and a quiz results page. Confirm the kit teacher can reach neither another
+course nor `/admin/` (it is non-staff). Expect the review queue to read
+„Oczekuje na sprawdzenie **0**" — the generator creates no marking work, by design.
+
+Day 2, after 03:45 UTC:
+
+```bash
+tail -20 /var/log/libli-demo-purge.log     # purged #<id> …  /  purged 1 kit(s)
+bash /opt/libli/manage.sh demo_access list # row retained, status closed
+```
+
+Both logins must now fail. A silent purge failure is the thing this rehearsal exists to catch:
+see the three ways it can stop, above.
+
+✅ **First rehearsal on libli.pl: day 1 run 2026-09-18** (kit created, both logins driven, all
+good); day 2 verification follows on 2026-09-19.
 
 ✅ **Done 2026-09-12** (on libli.pl, so a rebuild is what needs these, not this box): the purge
 cron above is installed in the root crontab and verified with `--dry-run`; an
