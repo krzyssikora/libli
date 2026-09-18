@@ -109,8 +109,10 @@ Classify the session mark against the rendered `unit`:
 
 Lookups, in order (the same-unit branch keeps today's single `unit.elements` lookup):
 
-1. `marked = Element.objects.select_related("unit").filter(pk=clip["element"],
-   unit_id=clip["unit"]).first()`.
+1. `marked = Element.objects.select_related("unit").filter(pk=clip.get("element"),
+   unit_id=clip.get("unit")).first()` — `.get`, as today's code reads the session: a
+   hand-written session missing a key gives `None`, which matches nothing and takes the
+   dead-mark path (step 2) instead of raising an unguarded `KeyError` on every render.
 2. Not found → the mark is **dead** in every case (its element was deleted, or its unit
    was, in whatever course) → clear the mark, empty context. No further query is needed
    to tell the cases apart, because none of them is worth keeping.
@@ -606,7 +608,7 @@ All through channels the editor already renders; no new error UI.
 |---|---|
 | No mark in session | 409 (`_element_conflict`), as today |
 | Destination unit token stale | 409, destination reloads, as today |
-| Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render (§1 lookups) |
+| Marked element or its unit deleted before the paste | 409; the mark is cleared by that **same** response's render (`_element_conflict` renders Y's fragments through `_clip_context`, §1 step 2) — the deleted-element view test asserts the session mark is gone right after the 409 |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
 | Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates. An abort inside the export/graft itself surfaces as the generic `TransferError` 422 (accepted, §4 step 2) |
@@ -746,8 +748,14 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
 - The existing `tests/test_element_paste_view.py::test_a_mark_naming_another_unit_is_a_409`
   (same-course mark in another unit, default `mode="move"`, asserts 409) **stays green
   unchanged** under §7's move-reloads rule; it gains an assertion that the mark is kept.
-  Its helper `_paste` must now post `element` (the stale-form check) — every existing
-  paste view test's helper is updated to send the marked pk. New tests: a mark whose
+  Its helper `_paste` must now post `element` (the stale-form check). This applies to
+  **every** test that POSTs to `courses:manage_element_paste`, in any file — a grep for
+  `manage_element_paste` across `tests/` and `courses/tests/` finds exactly two:
+  `tests/test_element_paste_view.py` (via `_paste`) and
+  `courses/tests/test_nested_question_gates.py::test_the_paste_endpoint_shows_the_questions_own_message`,
+  whose payload gains `"element": <marked pk>` while its 422 + `question_in_quiz`
+  message assertions stay **unchanged** (it is the only endpoint-level guard on that
+  message; it must not be loosened to pass). New tests: a mark whose
   element belongs to **another course** → 409; a paste form with a mismatched `element`
   → 409, nothing copied; a paste form with no `element` → 409; a paste form with the
   **matching** `element` → 200 (this positive test is what catches a wrong-type
