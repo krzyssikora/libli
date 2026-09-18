@@ -101,7 +101,7 @@ Classify the session mark against the rendered `unit`:
 
 | Mark state | Result |
 |---|---|
-| none | empty context (as today) |
+| none — exactly `not clip` (no session key, or an empty dict) | empty context, no query (as today) |
 | `clip.unit == unit.pk` | **same-unit** branch — today's logic unchanged, plus the new keys below |
 | `clip.unit` is another unit of `unit.course`, marked element exists in it | **cross-unit** branch |
 | marked element or its unit no longer exists (any course) | clear the mark, empty context |
@@ -860,7 +860,9 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
     least 2 descendants, so the excess clears the margin); omit `dest_depth=` in the loop
     (the `element_depth` raise goes red).
 - A non-numeric session `element` on a paste → 409 (step 1's guard). A non-numeric
-  `clip["unit"]` rendered on another unit → empty context, mark cleared.
+  `clip["unit"]` rendered on another unit → empty context, mark cleared. A **partial**
+  session mark (`{"unit": X}`, no `element`) rendered on another unit → not "none"
+  (which is exactly `not clip`), so it takes lookup step 1, misses, and is cleared.
 - **Mutants:** hard-code `mode=move` in `_paste_before_button.html` (copy-before view test
   goes red); render move slots in the cross-unit branch (no-move test goes red); clear the
   mark for another-course clips (mark-kept test goes red); render the current unit as a
@@ -885,10 +887,20 @@ is visible. The ✕'s bounding box is asserted to lie inside `.clip-banner__line
 with the `<details>` **open**, and again on a render where the nothing-fits paragraph is
 present (a quiz destination for a callout holding a question). KaTeX containment: the
 fixture gives several units **far down** the open list maths titles, and the source unit
-a maths title; at ≤ 480px the test asserts `documentElement.scrollWidth ==
-clientWidth`, and at both viewports that the page's and `.pane-body`'s `scrollHeight`
-are unchanged between the list closed and open. **Mutant:** remove the `position:
-relative` from the list (or from the "from" `<a>`) — the scroll assertions go red.
+a maths title. The assertions differ per layout, because below 70rem an open list is in
+normal flow and legitimately grows the page:
+- **≤ 480px (not viewport-locked):** `documentElement.scrollWidth == clientWidth`, and
+  opening the list grows `documentElement.scrollHeight` by **exactly** the open list's
+  `offsetHeight` (±1px) — escaped `.katex-mathml` nodes from titles far down the list
+  would add more. (A per-node "rect inside its box" check is deliberately not used:
+  bounding rects ignore overflow clipping, so a title scrolled out of the list's view
+  lies outside the box on a correct build too.)
+- **1280×720 (viewport-locked):** the page's `scrollHeight` is unchanged between the
+  list closed and open, and so is `.pane-body`'s `scrollHeight`. The fixture's
+  destination unit holds enough rows to overflow `.pane-body` **even with the list
+  closed** — otherwise the shrinking box would change `scrollHeight` on a correct build.
+**Mutant:** remove the `position: relative` from the list (or from the "from" `<a>`) —
+re-confirmed red against these assertions.
 After the paste it also asserts a maths-titled unit link **inside
 `.clip-banner__units`** contains a `.katex` node, not only the "from" link. The source unit is titled with inline
 maths (`Unit \(x^2\)`), and after the paste — a fragment swap — the banner's "from" link
