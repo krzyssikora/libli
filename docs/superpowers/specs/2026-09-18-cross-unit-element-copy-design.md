@@ -129,6 +129,10 @@ foreign course's mark survives, because the author may go back to that course.
 - `before_slots = set(copy_slots)` — the only clause that distinguishes an append from a
   positional placement is clause 5, which is move-only.
 - `clip_noop_pk = ""` — a copy is never a no-op.
+- `clip_active = True`, `clip_element_pk = str(marked.pk)`, `clip_label` computed as
+  today. `clip_element_pk` is load-bearing even though the marked row is not in this
+  unit: `paste_before_button` returns `show: False` whenever it is empty, and the cancel
+  form posts it — blanking it would silently remove every "Copy before" button.
 
 **New context keys, both branches:**
 
@@ -361,8 +365,10 @@ practical (the repo carries line citations into this file).
 - `mode == "move"` still clears the mark on success; a copy keeps it (unchanged rule).
 - **Deadlock abort → 409.** The `paste_element` call is additionally wrapped in
   `except django.db.OperationalError as exc:` — if `getattr(exc.__cause__, "sqlstate",
-  None) == "40P01"` (psycopg's `DeadlockDetected`, which Django re-raises as
-  `OperationalError`, the same detection `tests/deadlock_retry.py` uses), answer via the
+  None) == "40P01"` — one `__cause__` hop, which is where Django's
+  `DatabaseErrorWrapper` (`raise … from exc_value`) puts psycopg's `DeadlockDetected`.
+  (`tests/deadlock_retry.py`'s `is_deadlock` walks the whole chain; it is test code and
+  not importable here, and one hop is sufficient for this call site.) Answer via the
   existing `_element_conflict(request, course)` 409 path; any other `OperationalError`
   re-raises. The project does not set `ATOMIC_REQUESTS`, so the service's own
   `@transaction.atomic` has already rolled back and the view is free to render. The
@@ -393,9 +399,16 @@ practical (the repo carries line citations into this file).
       **ellipsises, it does not wrap**, at every width including narrow viewports; the
       comment's measured rationale (floating the ✕ doubled the head height) is kept.
       Dropped from the pill: `max-width: 60%` and `margin-inline-start: auto` (they only
-      made sense as a flex item sharing the head); the line now spans the pane width.
-    - `.clip-banner` itself becomes a plain block container with vertical spacing: no
-      overflow clipping, no `nowrap`, so the open `<details>` list is never clipped.
+      made sense as a flex item sharing the head); the line now spans the pane's
+      **content column** (the same inline inset as the pane head and body), not the full
+      pane width.
+    - `.clip-banner` itself becomes a plain block container: no overflow clipping, no
+      `nowrap`, so the open `<details>` list is never clipped. `.pane` has no inline
+      padding of its own — `.pane-head` and `.pane-body` each supply `var(--space-4)` —
+      and `editor.css` already records the defect a bare child causes (`.op-error` was
+      measured spanning the full pane, border on the pane border). So the banner gets the
+      same inset as that fix: `.editor-pane > .clip-banner { margin: var(--space-3)
+      var(--space-4) 0; }`.
     - The two `.pane-head:has(.clip-banner)` rules and their comments are **deleted** —
       the banner is no longer in the head, so they would match nothing.
   - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list
@@ -432,6 +445,14 @@ practical (the repo carries line citations into this file).
 - New partial `templates/courses/manage/editor/_copy_units_tree.html` (+ a recursive node
   partial) rendering `copy_units_top` / `copy_units_map` as nested `<ol>` of links, badges
   reused from the link picker. Titles keep `data-math-title` like the editor crumb does.
+- **Typesetting titles after a swap.** `math.js` typesets `[data-math-title]` only in its
+  initial whole-document pass; after a swap, `editor.js` `applyFragments` typesets the
+  **preview** pane only. The editor crumb never needed more (it lives outside the swapped
+  scope), but the banner link and the tree live **inside** `[data-scope="editor"]`, so
+  without a change every editor op while a mark is pending would show raw `\(…\)`.
+  `applyFragments` therefore also runs, on the swapped editor scope,
+  `scope.querySelectorAll("[data-math-title]").forEach(renderPreviewMath)` — only those
+  nodes, never a whole-pane typeset (which would also reach row labels and forms).
 - `paste_before_button` tag: pass `mode = context["clip_mode"]` through.
   `_paste_before_button.html` posts `mode={{ mode }}` and shows the move or copy SVG with
   label "Move before this element" / "Copy before this element".
@@ -573,6 +594,15 @@ assertion compares pks across models; e2e drives the real UI and waits on the pa
   asserts the exception, with the client's `raise_request_exception`). **Mutant:** drop
   the sqlstate check (the other-error test goes red); delete the handler (the 409 test
   goes red).
+- **Cross-unit render cost**, mirroring the existing same-unit guards
+  (`test_a_marked_render_does_not_walk_parents_per_slot`,
+  `test_a_marked_render_never_falls_back_to_walking_parents`):
+  - `django_assert_max_num_queries` ceiling on a GET of Y with a mark from X, using a
+    fixture with several container slots in Y; the ceiling is set from a measured run
+    plus a small margin, stated in the test with that measurement.
+  - A GET of Y with a mark from X with `builder.element_depth` monkeypatched to raise.
+  - **Mutants:** drop `select_related("unit")` from the §1 lookup (ceiling goes red);
+    omit `dest_depth=` in the cross-unit `paste_allowed` loop (the raise goes red).
 - A non-numeric session `element` on a paste → 409 (step 1's guard). A non-numeric
   `clip["unit"]` rendered on another unit → empty context, mark cleared.
 - **Mutants:** hard-code `mode=move` in `_paste_before_button.html` (copy-before view test
@@ -591,7 +621,10 @@ assert a unit link inside the open `<details>` is **visible and not clipped** (P
 visibility plus its bounding box lying within `#clip-banner`'s box). The test runs at a
 **1280×720** viewport in split mode and seeds enough units to overflow the list; it also
 scrolls the list's **last** unit link into view and asserts its bounding box lies inside
-the viewport. Screenshots of the
+the viewport. It asserts the pill's left edge lines up with the "Editor" heading's left
+edge (±1px), which catches a full-bleed banner. The source unit is titled with inline
+maths (`Unit \(x^2\)`), and after the paste — a fragment swap — the banner's "from" link
+contains a `.katex` node, not raw `\(`. Screenshots of the
 banner and the open `<details>` in light and dark themes (dark via `user.theme`, not the
 cookie), judged separately.
 
