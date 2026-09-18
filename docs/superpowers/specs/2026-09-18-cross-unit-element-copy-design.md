@@ -395,9 +395,17 @@ practical (the repo carries line citations into this file).
 ### 7. `element_paste` view (`courses/views_manage.py`)
 
 - **Stale-form check.** Every paste form (`_paste_buttons.html`, `_paste_before_button.html`)
-  gains `<input type="hidden" name="element" value="{{ clip_element_pk }}">`. The view
-  answers 409 (`_element_conflict`, mark kept) when the posted `element` is absent or
-  differs from the session mark — so a stale tab can never copy an element its page did
+  gains `<input type="hidden" name="element" value="{{ clip_element_pk }}">`. Both
+  partials are rendered by `takes_context=True` **inclusion tags** (`paste_buttons`,
+  `paste_before_button` in `courses/templatetags/courses_manage_extras.py`), whose
+  templates see **only** the dict the tag returns — so both tags must add
+  `"clip_element_pk": context.get("clip_element_pk") or ""` to every dict they return
+  (the before-button tag already reads it; `paste_before_button` also passes `mode`).
+  The comparison is string-to-string: `request.POST.get("element")` against
+  `str(clip["element"])` (the session holds an int on purpose — see `element_clip`'s
+  comment — and a bare `!=` between the two is always true). The view answers 409
+  (`_element_conflict`, mark kept) when the posted `element` is absent or differs from
+  the session mark — so a stale tab can never copy an element its page did
   not show (without this, a stale "Copy here" in Y would silently copy whatever was
   marked since, possibly in another unit). A form cached from before the deploy lacks the
   field and gets one harmless reload.
@@ -586,8 +594,21 @@ Home: `courses/tests/test_paste_rule.py`, where the existing `paste_allowed` rul
 live — the new clause-0, 2c, 2d and `subtree_facts` tests, **and** the
 `QUIZ_EXCLUDED_TYPE_KEYS` drift guard (it renders `_add_menu.html` with
 `render_to_string`), go there; no parallel file under `tests/`. Service tests go in the
-existing `tests/test_builder_paste_element.py`, view tests in
-`tests/test_element_paste_view.py`.
+existing `tests/test_builder_paste_element.py`, POST/view-behaviour tests in
+`tests/test_element_paste_view.py`, and **render-level** assertions (no Move controls in
+Y, copy-before forms posting `mode=copy` and `element`, the "from" link, the copy-units
+list, nothing-fits) in the existing `tests/test_editor_clip_templates.py`, which already
+has the `_mark` / `_editor` / `_row_section` / `_slot_section` helpers. Its existing
+banner tests slice a fixed window after `id="clip-banner"` (e.g.
+`test_the_banner_falls_back_to_the_type_summary_when_the_title_is_empty`, 400
+characters); the new wrapper markup may push the label out of that window, so the
+implementer re-anchors those slices on `clip-banner__label` rather than letting them
+fail for an unrelated reason.
+
+`tests/test_editor_styles.py::test_editor_css_styles_action_buttons` asserts `.clip-banner`
+exists in comment-stripped `editor.css`; after the rewrite that selector is kept alive
+by the small inset rule alone, so its class tuple is extended with `.clip-banner__line`,
+`.clip-banner__label`, `.clip-banner__from` and `.clip-banner__units`.
 
 - Cross-unit copy, same course, into a top-level slot and into a container slot → allowed.
 - Cross-unit move → `wrong_unit`. Mark from another course, mode copy → `wrong_unit`.
@@ -673,9 +694,14 @@ existing `tests/test_builder_paste_element.py`, view tests in
   Its helper `_paste` must now post `element` (the stale-form check) — every existing
   paste view test's helper is updated to send the marked pk. New tests: a mark whose
   element belongs to **another course** → 409; a paste form with a mismatched `element`
-  → 409, nothing copied; a paste form with no `element` → 409. **Mutants:** drop the
-  stale-form check (mismatch test goes red); drop the move-reloads rule (the kept test
-  gets a 422 and goes red).
+  → 409, nothing copied; a paste form with no `element` → 409; a paste form with the
+  **matching** `element` → 200 (this positive test is what catches a wrong-type
+  int-vs-str comparison). Render level: every rendered paste form (slot and before, in
+  the source and the destination unit) carries an `element` input equal to the marked
+  pk. **Mutants:** drop the stale-form check (mismatch test goes red); drop the
+  move-reloads rule (the kept test gets a 422 and goes red); compare `clip["element"]`
+  to the POSTed string without `str()` (matching-pk test goes red); drop
+  `clip_element_pk` from one tag's returned dict (render-level test goes red).
 - Deadlock mapping: monkeypatch `builder_svc.paste_element` to raise an
   `OperationalError` whose `__cause__` is a `psycopg.errors.DeadlockDetected` → 409 and
   the mark is kept; one whose `__cause__` is some other error → propagates (the test
