@@ -31,6 +31,9 @@ them is **Disputed**, never applied.
 | D7 | Outside the source unit only COPY buttons render; move never appears. |
 | D8 | Mark persists after a copy (as in-unit copy does). A mark from another course is ignored (not cleared). |
 | D9 | Replace the existing 📋 emoji on the paste-before button with a monochrome SVG (project icon rule); the new copy-before button uses an SVG too. |
+| D10 | Interactive elements (gates, fill-table, spoiler, step-by-step, checklist, guess-the-number — alone or inside a container) cannot be copied into a quiz. Cross-unit only; in-unit moves inside existing quizzes are unchanged. (Approved 2026-09-19 after spec-review; §2 clause 2d.) |
+| D11 | Accepted: a rare deadlock between a copy and a concurrent multi-unit writer in the same section; if Postgres aborts the copy the author gets a 409 reload, if it aborts the other operation that endpoint answers a 500; data stays consistent. (Approved 2026-09-19; §4 step 2.) |
+| D12 | The "Copy to another unit…" list is a new plain-link partial reusing the link picker's data source and badges, not `_link_picker.html` itself (a JS widget with no links). (Approved 2026-09-19; see the D5 note below.) |
 
 **Implementation notes on two decisions** (interpretation, not reversal):
 
@@ -202,8 +205,8 @@ Comments that become false and are rewritten:
   — i.e. unchanged; 2c reports the same key as 2b.
 - **New clause 2d (`interactive_in_quiz`, whole subtree, CROSS-UNIT ONLY):** if
   `marked_join.unit_id != unit.pk` and `unit.unit_type == QUIZ` and
-  `facts.has_interactive` → `interactive_in_quiz`. *Pipeline default, not an owner
-  decision — flagged to the owner in the PR body.* Rationale: quiz units hide the add
+  `facts.has_interactive` → `interactive_in_quiz`. *Owner decision D10.* Rationale:
+  quiz units hide the add
   menu's whole "Interactive" group (`_add_menu.html`, `{% if not unit_is_quiz %}`) and
   student state saves require a lesson (`require_lesson=True` in `courses/views.py`), so
   offering "Copy here" for a stepper / checklist / gate in a quiz would hand the author a
@@ -344,8 +347,7 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
      would today. This is a new, rare failure mode for existing operations, **accepted**:
      both requests must be in flight at the same moment, touching the same section, and
      the data stays consistent (the aborted transaction rolls back; a retry succeeds).
-     Mapping 40P01 on every node endpoint is out of scope. *This trade-off is listed in
-     the PR body for the owner, like the clause-2d default.*
+     Mapping 40P01 on every node endpoint is out of scope. *Owner decision D11.*
    The docstring states the rule, both victim outcomes, and the mapping — nothing more.
    - `_locked_element` raising → `ConflictError` (element or source unit gone).
    - `_locked_unit` (existing; filters `kind=UNIT`, raises `ConflictError`) covers a
@@ -584,7 +586,7 @@ All through channels the editor already renders; no new error UI.
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
 | Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates |
-| Same deadlock, **other writer aborted** (reorder / reparent / node add-delete / subtree flag / cascade delete) | 500 on that endpoint — accepted, rare, data consistent; flagged in the PR body |
+| Same deadlock, **other writer aborted** (reorder / reparent / node add-delete / subtree flag / cascade delete) | 500 on that endpoint — accepted, rare, data consistent (D11) |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
 | Cross-unit `mode=move` via the endpoint (only a stale tab can send it) | 409, reload, mark kept (§7) |
 | Cross-unit move via a direct `paste_element` call (with a valid slot/anchor) | `PlacementRefused("wrong_unit")` |
