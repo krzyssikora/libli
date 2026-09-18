@@ -453,7 +453,10 @@ practical (the repo carries line citations into this file).
   not show (without this, a stale "Copy here" in Y would silently copy whatever was
   marked since, possibly in another unit). A form cached from before the deploy lacks the
   field and gets one harmless reload.
-- Checks in order: clip empty → 409 (as today); stale form → 409; `clip.unit != unit.pk`
+- Checks in order: clip empty — exactly `not clip.get("element")` — → 409 (as today;
+  `clip.get("unit")` is consulted only by the move-reload rule below, and a copy with
+  no session `unit` reaches the service keyed on the element alone, which is harmless);
+  stale form → 409; `clip.unit != unit.pk`
   **and** `mode == "move"` → 409 (a cross-unit move is only reachable from a stale tab
   showing an old in-unit mark's move buttons, so it reloads like any other stale page
   rather than showing `wrong_unit`'s "That element is not part of this unit.");
@@ -499,7 +502,11 @@ practical (the repo carries line citations into this file).
       reserved trailing padding lane (the comment's rationale, floating the ✕ doubled the
       head height, is kept). But the line is now a **flex row**, because truncating the
       whole line would cut off its trailing "— from <Unit>" link first — the only D6 way
-      back to the source. So: the label sits in its own `<span class="clip-banner__label">`
+      back to the source. So: the label sits in its own span, which wraps the **whole**
+      translated string so the msgid stays unchanged — `⊹ <span
+      class="clip-banner__label">{% blocktranslate %}Selected: {{ clip_label }}{%
+      endblocktranslate %}</span>` (the ⊹ stays outside the span and never truncates;
+      "Selected:" truncates together with the label) —
       with `min-width: 0; overflow: hidden; white-space: nowrap; text-overflow:
       ellipsis; flex: 1 1 auto`; the "— from <link>" part is `<span
       class="clip-banner__from">` with `flex: 0 1 auto; max-width: 45%` and its own
@@ -509,6 +516,14 @@ practical (the repo carries line citations into this file).
       made sense as a flex item sharing the head); the line now spans the pane's
       **content column** (the same inline inset as the pane head and body), not the full
       pane width.
+    - **KaTeX containment.** katex.css makes `.katex-mathml` `position: absolute`, and a
+      `position: static` overflow box is nobody's containing block, so it does not clip
+      those nodes — they keep their static positions and inflate the page's / pane's
+      scroll area (measured in this repo: fill-table at 390px, `documentElement`
+      390/795 → 390/390 once the scroller got `position: relative`). Every clipping box
+      that can hold a typeset title therefore gets `position: relative`: the scrolling
+      list inside `.clip-banner__units`, `.clip-banner__label` and `.clip-banner__from`.
+      The CSS comment says why.
     - The ✕'s anchoring moves with the pill: `position: relative` goes from
       `.clip-banner` to `.clip-banner__line`; `.clip-banner .tree__inline`,
       `.clip-banner .iconbtn` and `.clip-banner .iconbtn:hover` become
@@ -840,7 +855,14 @@ characters) at a ≤ 480px viewport and at split width, it asserts the "from" li
 bounding box lies inside `.clip-banner__line`'s box and has a non-zero width, and the ✕
 is visible. The ✕'s bounding box is asserted to lie inside `.clip-banner__line`'s box
 with the `<details>` **open**, and again on a render where the nothing-fits paragraph is
-present (a quiz destination for a callout holding a question). The source unit is titled with inline
+present (a quiz destination for a callout holding a question). KaTeX containment: the
+fixture gives several units **far down** the open list maths titles, and the source unit
+a maths title; at ≤ 480px the test asserts `documentElement.scrollWidth ==
+clientWidth`, and at both viewports that the page's and `.pane-body`'s `scrollHeight`
+are unchanged between the list closed and open. **Mutant:** remove the `position:
+relative` from the list (or from `.clip-banner__from`) — the scroll assertions go red.
+After the paste it also asserts a maths-titled unit link **inside
+`.clip-banner__units`** contains a `.katex` node, not only the "from" link. The source unit is titled with inline
 maths (`Unit \(x^2\)`), and after the paste — a fragment swap — the banner's "from" link
 contains a `.katex` node, not raw `\(`. Screenshots of the
 banner and the open `<details>` in light and dark themes (dark via `user.theme`, not the
