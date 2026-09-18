@@ -61,7 +61,8 @@ them is **Disputed**, never applied.
   Container nodes (part / chapter / section) are plain text headings for their sublists.
   Course depth varies: the recursive partial treats a unit the same at any level,
   including the root, and **omits** a container with no unit anywhere below it (an
-  empty heading would offer nothing).
+  empty heading would offer nothing). The pruning happens in Python, not the template
+  (§1 `copy_units_tree`).
 - A course with **only one unit** does not render the "Copy to another unit…" control
   at all (it would list nothing but the current unit). The context carries a boolean
   `copy_units_available` (true iff the course has at least two units, derived from the
@@ -116,7 +117,11 @@ Lookups, in order (the same-unit branch keeps today's single `unit.elements` loo
 3. Found in another course (`marked.unit.course_id != unit.course_id`) → empty context,
    mark kept (D8). Cost accepted: one query per editor render while such a mark is
    pending; no prefetch is paid for it.
-4. Found in this course → load the root's `content_object` (one GFK query — the map does
+4. Found with `marked.unit_id == unit.pk` (reachable only from a hand-written session
+   whose `unit` is a numeric string, which fails the int comparison above) → clear the
+   mark, empty context. The classification rests on the loaded row, never on the
+   session value's type, so the cross-unit branch can never run for the rendered unit.
+5. Found in this course → load the root's `content_object` (one GFK query — the map does
    not supply it for this instance; read by `_slot_cap`, `has_interactive` and
    `clip_label`), then the cross-unit branch.
 
@@ -150,12 +155,19 @@ comment). If it fires (a non-numeric `clip["unit"]` or `clip["element"]`), the m
   by `paste_before_button` to choose the mode it posts and the icon/label it shows.
 - `clip_source_unit` — the source `ContentNode` in the cross-unit branch, `None` otherwise.
   Drives the "— from <Unit>" part of the banner.
-- `copy_units_map` / `copy_units_top` — `_children_map(unit.course)` and its `None` roots,
-  for the "Copy to another unit…" tree. Built **only when a mark is active**; the empty
-  context carries empty values and does no query.
+- `copy_units_map` / `copy_units_top` — the **pruned** course tree for the "Copy to
+  another unit…" list, returned by a new helper `copy_units_tree(course)` in
+  `courses/views_manage.py`: it calls `_children_map(course)` (one query), runs one
+  post-order fold (the same shape as `_fold_flag_counts`) marking each container that
+  has at least one unit anywhere below it, and returns `(pruned_map, pruned_top)` in
+  which every container without such a unit is dropped from its parent's list (and from
+  the roots). The template therefore only ever iterates what it renders — no look-ahead
+  in Django templates. Built **only when a mark is active**; the empty context carries
+  empty values and does no query. Unit-tested directly: a root-level unit kept, a
+  unit-less section dropped, a part whose only unit is three levels down kept.
 
 - `copy_units_available` — true iff the course has at least two units, derived from the
-  same `_children_map` result (no extra query). Hides the "Copy to another unit…"
+  same `_children_map` result inside `copy_units_tree` (no extra query). Hides the "Copy to another unit…"
   control in a one-unit course.
 - Values in the fixed `empty` dict (shared by `_editor_page` and
   `_render_editor_fragments`, so both builders get every key): `clip_mode=""`,
@@ -216,7 +228,8 @@ Comments that become false and are rewritten:
   regression. Evaluated in both branches (top level and container), after 2b/2c and
   before clause 3. Message (new `PASTE_REFUSAL_MESSAGES` key): "Interactive elements can
   only be placed in a lesson unit." → Polish "Elementy interaktywne można umieszczać tylko
-  w lekcjach." Resulting reason precedence: `wrong_unit, into_own_subtree,
+  w jednostce typu lekcja." (aligned with the sibling `question_in_quiz` message, "Pytania
+  można umieszczać w kontenerze tylko w jednostce typu lekcja.") Resulting reason precedence: `wrong_unit, into_own_subtree,
   not_a_container, unknown_slot, type_not_nestable, question_in_quiz,
   interactive_in_quiz, too_deep, own_slot`.
 - Clauses 2c and 2d are written as **literal** `return False, "question_in_quiz"` /
@@ -341,7 +354,12 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
    - cascade deletes of an ancestor node or of the course.
    Postgres detects the cycle and aborts **one** transaction (SQLSTATE 40P01), and it
    picks the victim:
-   - **copy is the victim** → `element_paste` maps it to the ordinary 409 (§7);
+   - **copy is the victim** → `element_paste` maps it to the ordinary 409 (§7) — when
+     the abort lands in the locks or in `place_element`, where most waits are. An abort
+     raised **inside** `build_element_export` or `graft_elements` is caught by
+     `_copy_into`'s / `_run_import`'s `except Exception` and surfaces as the generic
+     `TransferError` 422. This is accepted (rarer still — e.g. an FK share lock on a
+     `MediaAsset` row); `_run_import` is shared with archive import and is not changed;
    - **the other writer is the victim** → that endpoint (reorder, reparent, node add /
      delete, flag toggle) answers an unhandled **500**, as any deadlock abort there
      would today. This is a new, rare failure mode for existing operations, **accepted**:
@@ -536,9 +554,15 @@ practical (the repo carries line citations into this file).
   scope), but the banner link and the tree live **inside** `[data-scope="editor"]`, so
   without a change every editor op while a mark is pending would show raw `\(…\)`.
   `applyFragments` therefore also runs, on the swapped editor scope,
-  `scope.querySelectorAll("[data-math-title]").forEach(renderPreviewMath)` — only those
-  nodes, never a whole-pane typeset (which would also reach row labels and forms).
-- `paste_before_button` tag: pass `mode = context["clip_mode"]` through.
+  `scope.querySelectorAll("[data-math-title]")`, skipping any node whose `textContent`
+  contains neither `\(` nor `\[` (the same short-circuit `math.js`'s `renderInlineText`
+  uses) and calling `renderPreviewMath(node)` on the rest — only those nodes, never a
+  whole-pane typeset (which would also reach row labels and forms). On mat-pp the tree
+  holds hundreds of titles and this runs on every op while a mark is pending, so the
+  short-circuit is required, not an optimisation.
+- `paste_before_button` tag: pass `mode = context.get("clip_mode") or "move"` through
+  (`.get`, matching the tag's existing style — a render path without the full clip
+  context must hide the button, never raise).
   `_paste_before_button.html` posts `mode={{ mode }}` and shows the move or copy SVG with
   label "Move before this element" / "Copy before this element".
 - `_paste_buttons.html`: 📋 and ⧉ replaced by the two SVG symbols (D9); likewise the
@@ -585,7 +609,7 @@ All through channels the editor already renders; no new error UI.
 | Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render (§1 lookups) |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
-| Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates |
+| Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates. An abort inside the export/graft itself surfaces as the generic `TransferError` 422 (accepted, §4 step 2) |
 | Same deadlock, **other writer aborted** (reorder / reparent / node add-delete / subtree flag / cascade delete) | 500 on that endpoint — accepted, rare, data consistent (D11) |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
 | Cross-unit `mode=move` via the endpoint (only a stale tab can send it) | 409, reload, mark kept (§7) |
@@ -636,6 +660,11 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
   A bare question pasted at top level of a quiz → allowed.
 - `subtree_facts(...).nested_question`: false for a lone question root, true for a
   container with a question child, true for a question two levels down.
+- `subtree_facts(...).has_interactive`: true for an interactive element two levels down
+  (callout > tabs > checklist, within the depth cap); false for a subtree with none;
+  false for a subtree containing a dangling-GFK node. **Mutants:** stop the walk at depth
+  1 (the two-levels-down case goes red); count `model_to_key(None)` as interactive (the
+  dangling case goes red).
 - Cross-unit, quiz destination: a stepper → `interactive_in_quiz`; a callout containing a
   checklist → `interactive_in_quiz`, at top level and in a slot; the same into a lesson →
   allowed. In-unit, a stepper already in a quiz moved to another slot of that quiz →
