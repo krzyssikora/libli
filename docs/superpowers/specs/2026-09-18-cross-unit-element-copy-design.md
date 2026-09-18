@@ -56,6 +56,9 @@ them is **Disputed**, never applied.
   sections → units) with the L/Q badges. Each **unit** is a link to its editor page. The
   current unit is rendered as plain text, not a link, and marked `aria-current="page"`.
   Container nodes (part / chapter / section) are plain text headings for their sublists.
+  Course depth varies: the recursive partial treats a unit the same at any level,
+  including the root, and **omits** a container with no unit anywhere below it (an
+  empty heading would offer nothing).
 - A course with **only one unit** does not render the "Copy to another unit…" control
   at all (it would list nothing but the current unit). The context carries a boolean
   `copy_units_available` (true iff the course has at least two units, derived from the
@@ -213,13 +216,22 @@ Comments that become false and are rewritten:
   w lekcjach." Resulting reason precedence: `wrong_unit, into_own_subtree,
   not_a_container, unknown_slot, type_not_nestable, question_in_quiz,
   interactive_in_quiz, too_deep, own_slot`.
+- Clauses 2c and 2d are written as **literal** `return False, "question_in_quiz"` /
+  `return False, "interactive_in_quiz"` statements inside `paste_allowed`, in both
+  branches — never factored into a helper. The AST guard
+  `courses/tests/test_nested_question_gates.py::test_every_paste_reason_has_a_message`
+  collects reason keys only from such literal returns inside `paste_allowed`; it also
+  gains `assert "interactive_in_quiz" in returned` next to its existing
+  `question_in_quiz` non-vacuity check, so a factored-out helper shows up as a red test.
 - The interactive type set is a new module constant `QUIZ_EXCLUDED_TYPE_KEYS` in
   `courses/builder.py`, a frozenset of **transfer keys** (the values `model_to_key`
   returns, `courses/transfer/export.py` `SERIALIZERS`) for the nine types of the add
   menu's Interactive group: `reveal_gate`, `fill_gate`, `switch_gate`, `switch_grid`,
   `fill_table`, `spoiler`, `stepper`, `mark_done`, `guess_number`. A **derived** drift
-  guard pins it to the template: render the add menu for a lesson and for a quiz (same
-  depth, not nested), take **lesson cards minus quiz cards** (`data-add-type` **card
+  guard pins it to the template: render the add menu for a lesson and for a quiz at
+  **depth 0** (the top-level menu), `nested` false, `max_nest_depth =
+  builder.MAX_NEST_DEPTH` — a deeper menu drops the depth-gated spoiler card from both
+  and would fake a drift — take **lesson cards minus quiz cards** (`data-add-type` **card
   names**; the guard also asserts quiz cards minus lesson cards is empty, so a future
   quiz-only card is noticed deliberately rather than corrupting the expectation), map each
   through `_NESTABLE_FORM_KEY_ALIASES.get(name, name)` (the existing card-name → transfer
@@ -474,6 +486,11 @@ practical (the repo carries line citations into this file).
       var(--space-4) 0; }`.
     - The two `.pane-head:has(.clip-banner)` rules and their comments are **deleted** —
       the banner is no longer in the head, so they would match nothing.
+    - Two other `editor.css` comments go stale and are rewritten **line-count neutral**
+      (the repo carries `editor.css` line citations): the `.pastewrap` comment ("Paste
+      controls (📋 Move here / ⧉ Copy here)" — the glyphs are now SVG symbols), and the
+      `.pastebtn` comment's "matching .el-row--marked and .clip-banner" (the accent pill
+      is now `.clip-banner__line`).
   - An open `<details>` **pushes the pane content down** (no overlay, no JS). Its list
     scrolls inside itself (`overflow-y: auto`), so a course with hundreds of units
     (mat-pp) never grows the page.
@@ -674,6 +691,13 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
   except the current unit, which is present but not a link.
 - In a one-unit course with a mark, the control is absent. **Mutant:** render it
   unconditionally (test goes red).
+- The copy-units tree with an irregular course: a unit at the root (under
+  `_children_map`'s `None` key) and a unit directly under a part both render as links;
+  a container with no unit anywhere below it is **omitted**.
+- Icons (D9): with a mark active, the rendered editor scope contains neither 📋 nor ⧉;
+  every slot paste button, every before-paste button and every Duplicate button contains
+  a `<use href="#…">` pointing at the move or the copy symbol, as appropriate.
+  **Mutant:** restore one emoji in `_paste_buttons.html` (test goes red).
 - A mark from another course: editor GET of a unit in this course shows no banner and no
   paste controls, and the mark is still in the session afterwards.
 - A mark whose source unit was deleted: editor GET of another unit shows no banner and the
@@ -760,6 +784,12 @@ ascending-pk acquisition, documented in the code; a concurrency test would be fl
 
 - Moving an element to another unit (D1).
 - Copying between courses (D2).
-- Any other change to in-unit mark/paste behaviour beyond: the clause-2c quiz check (which
-  applies in-unit too and is strictly stricter), the accepted `before` + copy combination
-  in the service, and the icon swap (D9).
+- Any other change to in-unit mark/paste behaviour beyond these, which are all in scope:
+  - the clause-2c quiz check (applies in-unit too; strictly stricter);
+  - the accepted `before` + copy combination in the service;
+  - the stale-form `element` check (§7) — a stale in-unit paste now reloads (409)
+    instead of silently pasting whatever was marked since;
+  - the source-unit banner's restructure (a `div` below `.pane-head`, the "Copy to
+    another unit…" control);
+  - a 40P01 deadlock on an in-unit paste now answers 409 instead of 500;
+  - the icon swap (D9).
