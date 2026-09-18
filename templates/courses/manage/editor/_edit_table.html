@@ -37,6 +37,7 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
       <select data-width>
         <option value="full" {% if d.width == "full" %}selected{% endif %}>{% trans "Full width" %}</option>
         <option value="fit" {% if d.width == "fit" %}selected{% endif %}>{% trans "Fit to content" %}</option>
+        <option value="equal" {% if d.width == "equal" %}selected{% endif %}>{% trans "Equal columns" %}</option>
       </select>
     </label>
   </div>

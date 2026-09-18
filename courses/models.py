@@ -1198,8 +1198,16 @@ class TableElement(ElementBase):
     # stylesheet rule to make two neighbouring tables agree about a shared
     # column; measured, it moved 240 of 265 tables across 136 of 148 units to fix
     # a clash visible in ~15, and was reverted in #316.
+    #
+    # `equal` stretches like `full` but gives every layout column the same share
+    # (a <colgroup> of calc(100% / N) cols). Under `full`, auto layout hands the
+    # surplus out in proportion to each column's max-content, so one chatty
+    # column can take half the table (prod unit 717). The shares are percentage
+    # widths in AUTO layout, not `table-layout: fixed`: a column whose content
+    # cannot fit still grows and the table scrolls, instead of maths spilling
+    # into its neighbour and Large/Full cell images being squeezed.
     DEFAULT_WIDTH = "full"
-    WIDTHS = {"full", "fit"}
+    WIDTHS = {"full", "fit", "equal"}
     HALIGN = {"left", "center", "right"}
     VALIGN = {"top", "middle", "bottom"}
     MAX_ROWS = 50
@@ -1419,9 +1427,17 @@ class TableElement(ElementBase):
         # The resolved cells go INSIDE the existing `data` key — the template reads
         # data.border / data.header_row / data.cells. Replacing the whole context
         # would leave data.border empty and drop the header attributes.
+        cells = self.resolved_cells
+        # layout_dims, not len(row): a colspan cell is one cell but N columns.
+        equal_cols = self.layout_dims(cells)[0] if data["width"] == "equal" else 0
         return render_to_string(
             "courses/elements/tableelement.html",
-            {"el": self, "data": {**data, "cells": self.resolved_cells}},
+            {
+                "el": self,
+                "data": {**data, "cells": cells},
+                "equal_cols": range(equal_cols),
+                "equal_n": equal_cols,
+            },
         )
 
     @property

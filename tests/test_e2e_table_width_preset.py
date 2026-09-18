@@ -2,7 +2,7 @@
 
 `full` (the default) stretches the table to the reading column, exactly as every
 table did before the preset existed. `fit` shrinks it to its content and centres
-it.
+it. `equal` stretches like `full` but gives every column the same width.
 
 Only a browser can fail these. The class name is emitted either way, so a
 source-scanning test stays green with the CSS rule deleted -- the precedent is
@@ -252,3 +252,97 @@ def test_the_editor_round_trips_the_preset(page, live_server):
 
     el.refresh_from_db()
     assert el.data["width"] == "fit", el.data
+
+
+def _col_widths(page):
+    page.wait_for_selector(".el--table table")
+    return page.evaluate(
+        """() => [...document.querySelectorAll('.el--table')].map(el => ({
+             scroll_w: el.querySelector('.el--table__scroll')
+                         .getBoundingClientRect().width,
+             table_w: el.querySelector('table').getBoundingClientRect().width,
+             cols: [...el.querySelectorAll('tr:last-child td')]
+                     .map(td => td.getBoundingClientRect().width),
+           }))"""
+    )
+
+
+# The prod unit 717 shape: a chatty top-left cell, short values elsewhere. Under
+# `full` column 1 took almost half the table.
+TRIG = [
+    ["kąt α →", "30°", "45°", "60°"],
+    ["sin α", "1/2", "√2/2", "√3/2"],
+    ["ctg α", "√3", "1", "√3/3"],
+]
+
+
+def test_equal_gives_every_column_the_same_width(page, live_server):
+    _make_pa_user(PA_USERNAME)
+    unit = _unit(PA_USERNAME, "tw-equal")
+    _add(unit, TRIG, width="full")
+    _add(unit, TRIG, width="equal")
+
+    _login(page, live_server, PA_USERNAME)
+    page.goto(_lesson_url(live_server, unit))
+    full, equal = _col_widths(page)
+
+    # The fixture must reproduce the complaint, or the next assertion is vacuous.
+    assert full["cols"][0] > full["cols"][1] + 10 * EPS, full
+    assert abs(equal["table_w"] - equal["scroll_w"]) < EPS, equal
+    assert max(equal["cols"]) - min(equal["cols"]) < EPS, (
+        f"equal columns differ: {[round(w, 1) for w in equal['cols']]}"
+    )
+
+
+def test_an_equal_column_too_narrow_for_its_content_grows_instead_of_spilling(
+    page, live_server
+):
+    """Why the shares are percentages in AUTO layout, not `table-layout: fixed`:
+    fixed would hold the column at its share and let an unbreakable token spill
+    over its neighbour. Auto layout honours min-content, so the column grows and
+    the table scrolls."""
+    _make_pa_user(PA_USERNAME)
+    unit = _unit(PA_USERNAME, "tw-equal-wide")
+    _add(unit, [["W" * 60, "a", "b", "c"]], width="equal")
+
+    _login(page, live_server, PA_USERNAME)
+    page.goto(_lesson_url(live_server, unit))
+    box = page.evaluate(
+        """() => {
+             const td = document.querySelector('.el--table td');
+             const span = document.createElement('span');
+             span.textContent = td.textContent;
+             td.textContent = '';
+             td.appendChild(span);
+             return { td: td.getBoundingClientRect().width,
+                      text: span.getBoundingClientRect().width,
+                      scroll: document.querySelector('.el--table__scroll')
+                                .getBoundingClientRect().width };
+           }"""
+    )
+    assert box["text"] > box["scroll"] / 4, "fixture fits its share; untested"
+    assert box["td"] >= box["text"] - EPS, (
+        f"text {box['text']:.1f}px spills out of a {box['td']:.1f}px cell"
+    )
+
+
+def test_the_editor_round_trips_equal(page, live_server):
+    _make_pa_user(PA_USERNAME)
+    unit = _unit(PA_USERNAME, "tw-editor-eq")
+    el = _add(unit, TRIG, width="full")
+    element = unit.elements.order_by("-order").first()
+
+    _login(page, live_server, PA_USERNAME)
+    page.goto(
+        f"{live_server.url}/manage/courses/{unit.course.slug}"
+        f"/build/unit/{unit.pk}/edit/"
+    )
+    page.wait_for_selector('[data-scope="editor"]')
+    page.locator(f'.el-act-edit[data-element-id="{element.pk}"]').click()
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]")
+    page.locator("[data-edit-slot] [data-width]").select_option("equal")
+    page.locator("[data-edit-slot] .editor-form__actions button[type='submit']").click()
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]", state="detached")
+
+    el.refresh_from_db()
+    assert el.data["width"] == "equal", el.data

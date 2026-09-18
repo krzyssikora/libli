@@ -10,7 +10,7 @@ breaks the layout the editor saved.{% endcomment %}
      {% if data.header_col %}data-header-col{% endif %}>
   <div class="scroll-x" data-scroll-x>
   <div class="el--table__scroll">
-    <table>
+    <table>{% if equal_n %}<colgroup>{% for _ in equal_cols %}<col style="width: calc(100% / {{ equal_n }})">{% endfor %}</colgroup>{% endif %}
       {% comment %}The cell body is factored into _table_cell.html so the five branches
       cannot drift and an image in a header row is handled once. That partial MUST stay
       one line with no leading whitespace and no terminating newline, and the include
