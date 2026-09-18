@@ -298,8 +298,9 @@ Comments that become false and are rewritten:
 
 New keyword argument `dest_unit_pk`. The view passes the posted `unit`. When it is absent
 or equals the marked element's unit, the **lock/token path** is today's
-(`_locked_element` + `_check_token(unit.updated, …)`); the two deliberate in-unit
-behaviour changes (copy may carry `before`; clause 2c) are listed under Out of scope.
+(`_locked_element` + `_check_token(unit.updated, …)`); the two **service-level** in-unit
+behaviour changes are that copy may carry `before` and clause 2c — the full list of
+in-unit changes (six) is under Out of scope.
 
 **Return value:** always `(dest_unit, placed)` — on the in-unit path the destination IS
 the element's unit, so this is today's `(unit, placed)`. The view rebinds `unit` from this
@@ -499,6 +500,13 @@ practical (the repo carries line citations into this file).
       made sense as a flex item sharing the head); the line now spans the pane's
       **content column** (the same inline inset as the pane head and body), not the full
       pane width.
+    - The ✕'s anchoring moves with the pill: `position: relative` goes from
+      `.clip-banner` to `.clip-banner__line`; `.clip-banner .tree__inline`,
+      `.clip-banner .iconbtn` and `.clip-banner .iconbtn:hover` become
+      `.clip-banner__line .tree__inline`, `.clip-banner__line .iconbtn` and
+      `.clip-banner__line .iconbtn:hover`. Left on `.clip-banner`, the absolute ✕ would
+      centre against the whole banner — which now also holds the nothing-fits paragraph
+      and the possibly-open `<details>` — and drop off the pill.
     - `.clip-banner` itself becomes a plain block container: no overflow clipping, no
       `nowrap`, so the open `<details>` list is never clipped. `.pane` has no inline
       padding of its own — `.pane-head` and `.pane-body` each supply `var(--space-4)` —
@@ -592,7 +600,8 @@ destination unit Y editor (GET)
            paste_allowed(Y, e, slot, "copy") per slot
          → copy buttons + copy-before buttons + banner "from X"
 
-  copy / copy-before (POST element_paste, unit=Y, unit_token=Y.updated, mode=copy[, before])
+  copy / copy-before (POST element_paste, unit=Y, unit_token=Y.updated, element=e,
+                      mode=copy[, before])
          → paste_element(course, e, …, dest_unit_pk=Y)
              lock (e+X via _locked_element) and Y in ascending unit-pk order
              → check Y token → resolve slot/anchor in Y
@@ -697,8 +706,11 @@ by the small inset rule alone, so its class tuple is extended with `.clip-banner
   key, and no new `Element` in Y —
   - a callout holding a question → a quiz's top-level slot: `question_in_quiz`;
   - a callout holding a checklist → a quiz: `interactive_in_quiz`;
-  - a nested container (container inside a container) → a slot deep enough that the
-    subtree no longer fits: `too_deep`.
+  - a two-level container subtree (callout > callout, or callout > tabs > text) → a slot
+    at destination depth **3** (a slot of a container at depth 2): `too_deep`. The depth
+    is pinned so that the root **alone** would be admitted (a container's own cap is 3)
+    while the whole subtree is not — a deeper slot would refuse the root alone too and
+    let the mutant below survive.
   **Mutant:** compute the service's `facts` from `unit_children_map(dest_unit)` instead
   of the source's map — the root's children are then missing, so all three go red.
 - The returned unit is Y: `returned_unit.pk == Y.pk` (same model).
@@ -808,7 +820,9 @@ the viewport. It asserts the pill's left edge lines up with the "Editor" heading
 edge (±1px), which catches a full-bleed banner. With a long element label (≥ 80
 characters) at a ≤ 480px viewport and at split width, it asserts the "from" link's
 bounding box lies inside `.clip-banner__line`'s box and has a non-zero width, and the ✕
-is visible. The source unit is titled with inline
+is visible. The ✕'s bounding box is asserted to lie inside `.clip-banner__line`'s box
+with the `<details>` **open**, and again on a render where the nothing-fits paragraph is
+present (a quiz destination for a callout holding a question). The source unit is titled with inline
 maths (`Unit \(x^2\)`), and after the paste — a fragment swap — the banner's "from" link
 contains a `.katex` node, not raw `\(`. Screenshots of the
 banner and the open `<details>` in light and dark themes (dark via `user.theme`, not the
