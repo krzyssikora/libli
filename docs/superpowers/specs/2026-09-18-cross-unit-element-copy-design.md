@@ -148,10 +148,13 @@ comment). If it fires (a non-numeric `clip["unit"]` or `clip["element"]`), the m
   for the "Copy to another unit…" tree. Built **only when a mark is active**; the empty
   context carries empty values and does no query.
 
+- `copy_units_available` — true iff the course has at least two units, derived from the
+  same `_children_map` result (no extra query). Hides the "Copy to another unit…"
+  control in a one-unit course.
 - Values in the fixed `empty` dict (shared by `_editor_page` and
   `_render_editor_fragments`, so both builders get every key): `clip_mode=""`,
   `clip_source_unit=None`, `clip_nothing_fits=False`, `copy_units_map={}`,
-  `copy_units_top=[]`.
+  `copy_units_top=[]`, `copy_units_available=False`.
 - `clip_nothing_fits` — `True` in the cross-unit branch when `copy_slots` is empty (e.g. a
   callout holding a question, marked for a quiz; or a subtree too deep for every slot),
   `False` otherwise. The banner then says "Nothing can be pasted into this unit." so the
@@ -253,6 +256,13 @@ Comments that become false and are rewritten:
     leaf load the entire unit, a cost today's endpoint does not pay.
   Both fields are computed unconditionally, not only for quiz destinations: one
   `isinstance` / key lookup per node.
+- Both fields inherit `subtree_facts`' walk — **every** child row, matched slot or not —
+  whereas a copy's payload comes from the export's resolved-slot walk, which drops
+  orphaned children (a `tab_id` matching no slot). So a container whose only question or
+  interactive descendant is an orphan is refused into a quiz although its copy would
+  carry neither. This is **deliberate**: the same facts govern moves, where orphans do
+  travel, and for copies the error is harmlessly strict. Do not "fix" the walk to match
+  the export.
 
 ### 4. `paste_element(...)` (`courses/builder.py`)
 
@@ -303,20 +313,28 @@ steps 4–9 with `source_unit = dest_unit = unit`. When `dest_unit_pk` is given,
    Two opposite-direction copies (X→Y, Y→X) both take the lower-pk unit first, so they
    cannot deadlock with each other; a copy holding Y while waiting for (e, X) cannot
    deadlock with an element-level writer on X, because that writer never wants Y.
-   **Not covered — node-level writers that lock several unit rows.** Before this feature
-   no transaction held two unit rows, so these cycles are new:
-   - `reorder_node` locks **every sibling** of a node with `select_for_update()` in
-     `("order", "pk")` order — tree order, not pk order. When X and Y are siblings whose
-     tree order runs opposite to their pk order, a unit reorder in that section can
-     deadlock with a copy between them.
-   - `reparent_node`, and `compact_nodes` / `assign_orders_nodes` reached from node
-     add / delete, lock or update several sibling `ContentNode` rows.
-   - A cascade delete of an ancestor node (section / chapter / part) or of the course
-     touches many units in an order Postgres chooses.
-   Postgres detects the cycle and aborts one transaction (SQLSTATE 40P01). This is
-   **accepted** — both sides must be in flight at once, on the same section — and made
-   harmless on the copy side: `element_paste` maps it to the ordinary 409 (§7). The
-   docstring lists exactly these cases and the mapping, and claims nothing beyond them.
+   **Not covered — the general rule.** Before this feature no transaction held two unit
+   rows. **Any transaction that locks or writes more than one unit row in an order other
+   than ascending pk can deadlock with a cross-unit copy.** Known instances today
+   (illustrative, not exhaustive — the docstring states the rule, not a closed list):
+   - `reorder_node` locks every sibling with `select_for_update()` in `("order", "pk")`
+     order (tree order);
+   - `reparent_node`, and `compact_nodes` / `assign_orders_nodes` reached from node add /
+     delete;
+   - `set_node_flag` with subtree scope — one bulk `.update()` over every unit of a
+     subtree (e.g. publishing a section), rows locked in an order Postgres picks;
+   - cascade deletes of an ancestor node or of the course.
+   Postgres detects the cycle and aborts **one** transaction (SQLSTATE 40P01), and it
+   picks the victim:
+   - **copy is the victim** → `element_paste` maps it to the ordinary 409 (§7);
+   - **the other writer is the victim** → that endpoint (reorder, reparent, node add /
+     delete, flag toggle) answers an unhandled **500**, as any deadlock abort there
+     would today. This is a new, rare failure mode for existing operations, **accepted**:
+     both requests must be in flight at the same moment, touching the same section, and
+     the data stays consistent (the aborted transaction rolls back; a retry succeeds).
+     Mapping 40P01 on every node endpoint is out of scope. *This trade-off is listed in
+     the PR body for the owner, like the clause-2d default.*
+   The docstring states the rule, both victim outcomes, and the mapping — nothing more.
    - `_locked_element` raising → `ConflictError` (element or source unit gone).
    - `_locked_unit` (existing; filters `kind=UNIT`, raises `ConflictError`) covers a
      missing or non-unit destination — no separate kind check.
@@ -376,9 +394,20 @@ practical (the repo carries line citations into this file).
 
 ### 7. `element_paste` view (`courses/views_manage.py`)
 
-- `clip.unit != unit.pk` no longer 409s by itself. Instead: if the clip is empty → 409 (as
-  today); otherwise call `paste_element(..., dest_unit_pk=unit.pk)` and let the service
-  decide (same-course, mode, admissibility).
+- **Stale-form check.** Every paste form (`_paste_buttons.html`, `_paste_before_button.html`)
+  gains `<input type="hidden" name="element" value="{{ clip_element_pk }}">`. The view
+  answers 409 (`_element_conflict`, mark kept) when the posted `element` is absent or
+  differs from the session mark — so a stale tab can never copy an element its page did
+  not show (without this, a stale "Copy here" in Y would silently copy whatever was
+  marked since, possibly in another unit). A form cached from before the deploy lacks the
+  field and gets one harmless reload.
+- Checks in order: clip empty → 409 (as today); stale form → 409; `clip.unit != unit.pk`
+  **and** `mode == "move"` → 409 (a cross-unit move is only reachable from a stale tab
+  showing an old in-unit mark's move buttons, so it reloads like any other stale page
+  rather than showing `wrong_unit`'s "That element is not part of this unit.");
+  otherwise call `paste_element(..., dest_unit_pk=unit.pk)` and let the service decide
+  (same-course, admissibility). The service's own clause-0 `wrong_unit` refusal for a
+  cross-unit move stays, as defence for direct callers.
 - `mode == "move"` still clears the mark on success; a copy keeps it (unchanged rule).
 - **Deadlock abort → 409.** The `paste_element` call is additionally wrapped in
   `except django.db.OperationalError as exc:` — if `getattr(exc.__cause__, "sqlstate",
@@ -413,11 +442,17 @@ practical (the repo carries line citations into this file).
     `<details class="clip-banner__units">`.
   - **CSS rewrite** (`courses/static/courses/css/editor.css`, the `.clip-banner` block and
     its comments, currently ~lines 465–506):
-    - The pill styling moves from `.clip-banner` to `.clip-banner__line`: it keeps the
-      existing measured design — one line, `nowrap` + `overflow: hidden` + ellipsis, the
-      cancel form out of flow in the reserved trailing padding lane. The first line
-      **ellipsises, it does not wrap**, at every width including narrow viewports; the
-      comment's measured rationale (floating the ✕ doubled the head height) is kept.
+    - The pill styling moves from `.clip-banner` to `.clip-banner__line`, keeping the
+      measured parts of the design — one line, the cancel form out of flow in the
+      reserved trailing padding lane (the comment's rationale, floating the ✕ doubled the
+      head height, is kept). But the line is now a **flex row**, because truncating the
+      whole line would cut off its trailing "— from <Unit>" link first — the only D6 way
+      back to the source. So: the label sits in its own `<span class="clip-banner__label">`
+      with `min-width: 0; overflow: hidden; white-space: nowrap; text-overflow:
+      ellipsis; flex: 1 1 auto`; the "— from <link>" part is `<span
+      class="clip-banner__from">` with `flex: 0 1 auto; max-width: 45%` and its own
+      nowrap + ellipsis on the link text. Only these two truncate; the line **never
+      wraps**, at every width.
       Dropped from the pill: `max-width: 60%` and `margin-inline-start: auto` (they only
       made sense as a flex item sharing the head); the line now spans the pane's
       **content column** (the same inline inset as the pane head and body), not the full
@@ -523,16 +558,20 @@ All through channels the editor already renders; no new error UI.
 | Marked element or its unit deleted before the paste | 409; the mark is cleared on the next render (§1 lookups) |
 | Destination unit not in this course / not a unit | 409 (`_no_unit_409` path via `_clip_unit`), as today |
 | Inadmissible placement (too deep, question in quiz, interactive in quiz, not nestable, unknown slot) | 422 via `_refused` with the reason message; mark kept |
-| Deadlock abort (40P01) against a node-level writer — sibling reorder / reparent / add / delete, ancestor cascade delete (rare) | 409, reload, mark kept (§7); any other `OperationalError` still propagates |
+| Deadlock (40P01) between a copy and any multi-unit-row writer (§4 step 2), **copy aborted** | 409, reload, mark kept (§7); any other `OperationalError` still propagates |
+| Same deadlock, **other writer aborted** (reorder / reparent / node add-delete / subtree flag / cascade delete) | 500 on that endpoint — accepted, rare, data consistent; flagged in the PR body |
 | Destination slot or anchor vanished | 422 `parent_gone`, as today |
-| Hand-crafted cross-unit `mode=move` (with a valid slot/anchor) | 422 `wrong_unit` |
+| Cross-unit `mode=move` via the endpoint (only a stale tab can send it) | 409, reload, mark kept (§7) |
+| Cross-unit move via a direct `paste_element` call (with a valid slot/anchor) | `PlacementRefused("wrong_unit")` |
+| Paste form whose `element` is absent or differs from the session mark (stale tab) | 409, reload, mark kept (§7) |
 | Mark from another course (hand-crafted POST) | 409 — §4 step 1's course filter never loads the element |
 | Destination unit has no admissible slot | not an error: banner shows "Nothing can be pasted into this unit." |
 | Damaged source element (dangling GFK) | 422 "This element is damaged and cannot be copied." |
 | Malformed payload (`before` not an int, bad slot ref) | 400, as today |
 
 `PASTE_REFUSAL_MESSAGES["wrong_unit"]` ("That element is not part of this unit.") is
-reachable only by hand-crafted POSTs, so its wording is left alone.
+no longer reachable through `element_paste` at all — the view reloads a cross-unit move
+before the service runs — so its wording is left alone.
 
 ## Testing
 
@@ -629,10 +668,14 @@ existing `tests/test_builder_paste_element.py`, view tests in
   fails if the tree is never built). `_children_map` is not otherwise called on the editor
   render path; the implementer confirms this before relying on it.
 - The existing `tests/test_element_paste_view.py::test_a_mark_naming_another_unit_is_a_409`
-  (same-course mark in another unit, default `mode="move"`, asserts 409) pins the old
-  behaviour and becomes **"a cross-unit move is a 422 `wrong_unit`, mark kept"**. A new
-  test keeps the old intent where it still holds: a mark whose element belongs to
-  **another course** → 409.
+  (same-course mark in another unit, default `mode="move"`, asserts 409) **stays green
+  unchanged** under §7's move-reloads rule; it gains an assertion that the mark is kept.
+  Its helper `_paste` must now post `element` (the stale-form check) — every existing
+  paste view test's helper is updated to send the marked pk. New tests: a mark whose
+  element belongs to **another course** → 409; a paste form with a mismatched `element`
+  → 409, nothing copied; a paste form with no `element` → 409. **Mutants:** drop the
+  stale-form check (mismatch test goes red); drop the move-reloads rule (the kept test
+  gets a 422 and goes red).
 - Deadlock mapping: monkeypatch `builder_svc.paste_element` to raise an
   `OperationalError` whose `__cause__` is a `psycopg.errors.DeadlockDetected` → 409 and
   the mark is kept; one whose `__cause__` is some other error → propagates (the test
@@ -673,7 +716,10 @@ visibility plus its bounding box lying within `#clip-banner`'s box). The test ru
 **1280×720** viewport in split mode and seeds enough units to overflow the list; it also
 scrolls the list's **last** unit link into view and asserts its bounding box lies inside
 the viewport. It asserts the pill's left edge lines up with the "Editor" heading's left
-edge (±1px), which catches a full-bleed banner. The source unit is titled with inline
+edge (±1px), which catches a full-bleed banner. With a long element label (≥ 80
+characters) at a ≤ 480px viewport and at split width, it asserts the "from" link's
+bounding box lies inside `.clip-banner__line`'s box and has a non-zero width, and the ✕
+is visible. The source unit is titled with inline
 maths (`Unit \(x^2\)`), and after the paste — a fragment swap — the banner's "from" link
 contains a `.katex` node, not raw `\(`. Screenshots of the
 banner and the open `<details>` in light and dark themes (dark via `user.theme`, not the
