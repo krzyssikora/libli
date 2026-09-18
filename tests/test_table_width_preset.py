@@ -1,4 +1,4 @@
-"""The per-table width preset: `full` (default) or `fit`.
+"""The per-table width preset: `full` (default), `fit` or `equal`.
 
 WHY IT EXISTS. #314 made every display table shrink to fit so that two tables on
 one page would agree about a shared column. Measured, that moved 240 of the
@@ -36,13 +36,13 @@ def _grid(rows=2, cols=2, **top):
     }
 
 
-def test_the_preset_vocabulary_is_exactly_full_and_fit():
+def test_the_preset_vocabulary_is_exactly_full_fit_and_equal():
     """Derived, not a count pin -- a third preset must be a deliberate edit here.
 
     See the ELEMENT_MODELS precedent: `len(...) == N` pins get bumped
     reflexively, so name the members instead.
     """
-    assert TableElement.WIDTHS == {"full", "fit"}
+    assert TableElement.WIDTHS == {"full", "fit", "equal"}
     assert TableElement.DEFAULT_WIDTH == "full"
     assert TableElement.DEFAULT_WIDTH in TableElement.WIDTHS
 
@@ -98,3 +98,53 @@ def test_the_width_class_does_not_collide_with_the_border_class():
     html = TableElement(data=_grid(width="fit", border="none")).render()
     assert "el--table--border-none" in html
     assert "el--table--width-fit" in html
+
+
+# --- `equal`: full width, every layout column the same share -----------------
+#
+# Why it exists: under `full`, auto table layout hands the surplus width out in
+# proportion to each column's max-content, so a table whose first column holds
+# "kat alpha ->" and whose others hold "30deg" gives column 1 almost half the
+# table (prod unit 717). `fit` removes the surplus and reads dense. `equal`
+# keeps the stretch but splits it evenly.
+
+
+def test_equal_is_preserved():
+    assert TableElement.normalize_data(_grid(width="equal"))["width"] == "equal"
+
+
+def _col_widths(html):
+    import re
+
+    return re.findall(r'<col style="width: calc\(100% / (\d+)\)">', html)
+
+
+def test_equal_emits_one_equal_col_per_column():
+    html = TableElement(data=_grid(rows=2, cols=4, width="equal")).render()
+    assert "el--table--width-equal" in html
+    assert _col_widths(html) == ["4"] * 4
+
+
+def test_equal_counts_layout_columns_not_cells_per_row():
+    """A row made of one colspan=3 cell has ONE cell but spans three columns;
+    counting cells in the first row would emit a single 100% col."""
+    data = _grid(rows=1, cols=3, width="equal")
+    data["cells"].insert(
+        0, [{"html": "span", "halign": "left", "valign": "top", "colspan": 3}]
+    )
+    assert _col_widths(TableElement(data=data).render()) == ["3"] * 3
+
+
+@pytest.mark.parametrize("width", ["full", "fit", None])
+def test_only_equal_emits_a_colgroup(width):
+    """full/fit/legacy must stay byte-identical to before `equal` existed."""
+    data = _grid() if width is None else _grid(width=width)
+    assert "<colgroup" not in TableElement(data=data).render()
+
+
+def test_transfer_accepts_equal():
+    from courses.transfer.payloads import _val_table
+
+    data = TableElement.normalize_data(_grid())
+    data["width"] = "equal"  # set AFTER normalising: exercise the validator alone
+    _val_table(data, "e1", set())  # raises TransferError on an unknown preset
