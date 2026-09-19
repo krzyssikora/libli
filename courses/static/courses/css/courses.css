@@ -67,15 +67,16 @@ blockquote {
    overlay's `height: 100dvh` (`.imgzoom[open]`).
 
    This block MUST stay after `.el { margin: 1rem 0 }` (:4): `.el` and
-   `.el--image--small` tie on specificity, so margin-inline:auto wins only on
-   source order. */
+   `.el--image--small` tie on specificity, so margin-inline:auto wins only on source
+   order. `full` sets no max-width — fit-content already clamps it to the column. */
 .el--image--small  { max-width: 25%; }
 .el--image--medium { max-width: 50%; }
 .el--image--large  { max-width: 75%; }
 
 .el--image--small,
 .el--image--medium,
-.el--image--large  { width: fit-content; margin-inline: auto; }
+.el--image--large,
+.el--image--full   { width: fit-content; margin-inline: auto; }
 
 /* Centre the image WITHIN the figure. Load-bearing whenever the figure ends up WIDER
    than the constrained image — a figcaption: fit-content sizes the figure to the WIDER
@@ -85,18 +86,17 @@ blockquote {
    fixture: figure ~111.52px vs image ~111.50px, equal within tolerance — Chromium's
    fit-content figure shrink-wraps to the image's constrained contribution, not its
    unconstrained one, so that path does not exist and is not listed.)
-   Scoped to the capped presets so `full` keeps today's flush-left geometry — 1013
-   images must render byte-identically.
+   `full` is in both groups too: it was excluded until Sep 2026 so the ~1013 pre-presets
+   images kept flush left, and that freeze was retired deliberately.
 
    `margin-inline` is the ONLY differentiator here: reset.css already sets
    `img, picture, svg { display: block; max-width: 100%; }` app-wide, so restating
-   display:block keeps this rule self-contained but changes nothing. Do not read it as
-   the thing `full` is being excluded from. (That reset also makes the `max-width: 100%`
-   half of the retained `.el--image img` rule above redundant — only its `height: auto`
-   is doing work. Both are kept as-is; this slice changes no existing rule.) */
+   display:block changes nothing. (That reset also makes the retained `.el--image img`
+   rule's `max-width: 100%` half redundant — only its `height: auto` does work.) */
 .el--image--small  img,
 .el--image--medium img,
-.el--image--large  img { display: block; margin-inline: auto; }
+.el--image--large  img,
+.el--image--full   img { display: block; margin-inline: auto; }
 
 .el--image--small  img { max-height: 30dvh; }
 .el--image--medium img { max-height: 45dvh; }
@@ -129,7 +129,7 @@ blockquote {
    deliberate paper.
 
    On the <img>, NOT the <figure>: a figure with a figcaption is `width: fit-content`
-   and sizes to the WIDER of {image, caption} (see :69), so a long caption would widen
+   and sizes to the WIDER of {image, caption} (see :81), so a long caption would widen
    the plate past the picture and drop themed caption text onto a light slab.
 
    box-sizing is border-box app-wide (reset.css), so this padding is INSIDE the

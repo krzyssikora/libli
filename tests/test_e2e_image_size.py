@@ -284,7 +284,7 @@ def geom(db, seeded):
 
     # Row 3 reuses row 1's centred-small -- no new element.
 
-    # Row 4: `full`, plain and captioned.
+    # Row 4: `full`, plain, captioned, and wider-than-the-column.
     add_element(
         geom_unit,
         ImageElement.objects.create(media=tall, alt="full-plain", size="full"),
@@ -294,6 +294,15 @@ def geom(db, seeded):
         ImageElement.objects.create(
             media=tall, alt="full-captioned", size="full", figcaption=long_caption
         ),
+    )
+    # `wide` (948px) exceeds the desktop column, so this is the only element that
+    # exercises what `width: fit-content` does to a figure with NO max-width of its
+    # own: it must clamp to the available space, not grow to the image's intrinsic
+    # width. The tall fixture cannot see that -- it is narrower than the column at
+    # every viewport, so fit-content and the old full-width block agree on it.
+    add_element(
+        geom_unit,
+        ImageElement.objects.create(media=wide, alt="full-wide", size="full"),
     )
 
     # Row 5: live preview -- its own unit inside Task 8's course, NOT `_seed_unit`
@@ -409,44 +418,52 @@ def test_figure_geometry(page, live_server, geom):
     # margin-inline comment in courses.css for the same reason: this
     # measurement disproves it as a real path to a figure wider than its image.
 
-    # --- `full` unchanged: stated as concrete post-conditions, since there is
-    # no earlier run to diff against.
+    # --- `full` centres like every other preset. It used to be excluded from the
+    # fit-content group so the pre-presets corpus kept its flush-left geometry; an
+    # image narrower than the column then sat hard against the left edge while the
+    # same image at `large` centred. PC1/PC2 below are the inverted form of the
+    # post-conditions that pinned that exclusion.
     plain_img = page.locator("img[alt='full-plain']")
     _await_decoded(page, plain_img)
     plain_fig = plain_img.locator("xpath=..")
     plain_container = plain_fig.locator("xpath=..")
     plain_fig_rect = _rect(plain_fig)
     plain_container_rect = _rect(plain_container)
-    # PC1: the figure did NOT shrink-wrap -- its width equals the containing
-    # block's content width (`full` is excluded from the fit-content group).
-    assert abs(plain_fig_rect["width"] - plain_container_rect["width"]) <= CENTRE_TOL, (
-        f"full-plain figure width {plain_fig_rect['width']:.2f} != "
-        f"container width {plain_container_rect['width']:.2f}"
+    # PC1: the figure SHRINK-WRAPS -- the tall fixture is narrower than the column,
+    # so a figure still spanning it means `full` never joined the fit-content group.
+    assert plain_fig_rect["width"] < plain_container_rect["width"] - CENTRE_TOL, (
+        f"full-plain figure width {plain_fig_rect['width']:.2f} did not shrink-wrap "
+        f"inside container width {plain_container_rect['width']:.2f}"
     )
-    # PC2: the figure carries no margin-inline:auto -- its left offset is 0.
-    plain_left_offset = plain_fig_rect["left"] - plain_container_rect["left"]
-    assert abs(plain_left_offset) <= CENTRE_TOL, (
-        f"full-plain figure left offset {plain_left_offset:.2f}"
-    )
+    # PC2: and it is centred in the column. PC1 alone would stay green on a figure
+    # that shrink-wrapped but kept margin-inline:0.
+    _assert_centred(plain_fig_rect, plain_container_rect, "full-plain")
 
-    # PC3 is measured on `full-captioned`, not `full-plain`: `full-plain`'s
-    # figure spans the whole column against a much narrower image and is never
-    # "exactly as wide as the image", so PC3 would be trivially unfalsifiable
-    # there. `full` is excluded from the `fit-content` group, so in the shipped
-    # build the figure is an ordinary block spanning the column regardless of
-    # the caption; PC3 pins the image's own offset inside it. (The `fit-content`
-    # reasoning only applies under the Task-9 falsification mutant that adds
-    # `full` to that group -- there, the ~200-char caption's max-content
-    # contribution would exceed the column, so `fit-content` would still
-    # resolve to the full column width.)
+    # PC3: a caption longer than the image widens the figure back to the column, so
+    # the img's own margin-inline:auto is what centres the picture. Measured on
+    # `full-captioned` rather than `full-plain`: at `full-plain` the figure now
+    # shrink-wraps to the image, so image-in-figure centring is true by construction
+    # there and no mutant could redden it.
     captioned_full_img = page.locator("img[alt='full-captioned']")
     _await_decoded(page, captioned_full_img)
     captioned_full_fig = captioned_full_img.locator("xpath=..")
-    cf_img_rect = _rect(captioned_full_img)
-    cf_fig_rect = _rect(captioned_full_fig)
-    assert abs(cf_img_rect["left"] - cf_fig_rect["left"]) <= CENTRE_TOL, (
-        f"full-captioned image left offset "
-        f"{cf_img_rect['left'] - cf_fig_rect['left']:.2f}"
+    _assert_centred(
+        _rect(captioned_full_img), _rect(captioned_full_fig), "full-captioned image"
+    )
+
+    # PC4: `fit-content` on a figure with no max-width of its own must still clamp
+    # to the available space. `wide` is 948px against a ~648px column, so a figure
+    # that grew to the image's intrinsic width would overflow the column and give
+    # the page a horizontal scrollbar -- the regression this change risks.
+    wide_img = page.locator("img[alt='full-wide']")
+    _await_decoded(page, wide_img)
+    wide_fig = wide_img.locator("xpath=..")
+    wide_container = wide_fig.locator("xpath=..")
+    wide_fig_rect = _rect(wide_fig)
+    wide_container_rect = _rect(wide_container)
+    assert abs(wide_fig_rect["width"] - wide_container_rect["width"]) <= CENTRE_TOL, (
+        f"full-wide figure width {wide_fig_rect['width']:.2f} != column width "
+        f"{wide_container_rect['width']:.2f}"
     )
 
 
