@@ -738,7 +738,7 @@ with
             dest_depth = 1
 ```
 
-In the container branch, replace the clause-2b comment paragraph that ends "…the only way in is pre-existing malformed content." with:
+In the container branch, replace the **whole** clause-2b comment block — both paragraphs, from `# Clause 2b: a question may be nested in a LESSON only.` through `# impossible -- the only way in is pre-existing malformed content.` (nine comment lines, directly above the 2b `if (`) — with:
 
 ```python
         # Clause 2b: a question may be nested in a LESSON only. INSIDE this branch
@@ -1565,9 +1565,9 @@ def test_a_cross_unit_marked_render_stays_within_its_query_ceiling(
 ):
     """An order-of-magnitude tripwire on the CROSS-UNIT marked render.
 
-    MEASURED BASELINE: record here the count this fixture costs, first at Task 4
-    and re-read in Task 8's branch gate once the banner templates exist (Step 1's
-    note explains how to read it); the ceiling is that count + 5. At
+    MEASURED BASELINE: <n> queries. To re-measure, set the ceiling to 1
+    temporarily and read the real count from the failure message; the ceiling is
+    that count + 5. At
     least 10 slots in Y and 2 descendants under the marked element, so a per-slot
     re-walk of the source clears the margin.
 
@@ -1806,7 +1806,7 @@ Expected: all PASS. `tests/test_element_clip_view.py` pins `_clip_context`'s gua
 
 - [ ] **Step 5b: Measure and tighten the query ceiling**
 
-In `test_a_cross_unit_marked_render_stays_within_its_query_ceiling`, temporarily set the ceiling to `1` and run `uv run pytest tests/test_element_paste_view.py -k cross_unit_marked_render_stays` — the failure message prints the real count. Set the ceiling to that count + 5, write the count into the docstring's `MEASURED BASELINE:` line, and re-run: PASS.
+In `test_a_cross_unit_marked_render_stays_within_its_query_ceiling`, temporarily set the ceiling to `1` and run `uv run pytest tests/test_element_paste_view.py -k cross_unit_marked_render_stays` — the failure message prints the real count. Set the ceiling to that count + 5, replace the docstring's `<n>` placeholder in the `MEASURED BASELINE:` line with the count, and re-run: PASS. The `<n>` placeholder must not survive into the commit.
 
 - [ ] **Step 6: Falsify**
 
@@ -1884,8 +1884,9 @@ def _paste_before(client, course, unit, anchor, mode="move", token=None, *, elem
 def _assert_posts_the_mark(client, element):
     """Pre-assertion for every 409 test: the `element` ARGUMENT the caller hands the
     helper equals the session mark. It does not inspect the POST data -- that the
-    helpers really transmit the field is pinned by the Task 5 Step 7 mutant on
-    test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark."""
+    helpers really transmit the field is pinned by
+    test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark,
+    which 409s instead of reordering if `element` is not posted."""
     assert client.session["element_clip"]["element"] == element.pk
 ```
 
@@ -3087,6 +3088,24 @@ By hand: delete Task 7's new `editor.js` block (the `[data-math-title]` loop in 
 Run: `uv run pytest -m e2e tests/test_e2e_clipboard.py tests/test_e2e_paste_before.py tests/test_e2e_before_after.py`
 Expected: all PASS (they locate `#clip-banner`, which kept its id).
 
+- [ ] **Step 4b: Commit the e2e test (before the timing step can halt)**
+
+```bash
+uv run ruff format tests/test_e2e_cross_unit_copy.py
+uv run ruff check --no-cache .
+uv run ruff format --check .
+git status --short
+git add tests/test_e2e_cross_unit_copy.py
+# ALSO stage any file Steps 2-3 changed to make an e2e assertion pass -- most
+# likely courses/static/courses/css/editor.css (alignment, share, containment)
+# and possibly courses/static/courses/js/editor.js. Never the capture script.
+git add courses/static/courses/css/editor.css courses/static/courses/js/editor.js  # only if changed
+git commit -m "test(e2e): a copy follows the author to another unit"
+git status --short
+```
+
+The final `git status --short` must show nothing (the capture script lives outside the repo) — any modified tracked file means an e2e fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e").
+
 - [ ] **Step 5: Timing on mat-pp (manual, reported in the PR)**
 
 On the local dev database (never prod), in `uv run python manage.py shell`, pin the inputs:
@@ -3119,7 +3138,7 @@ s.save()
 # filled under Django's test instrumentation).
 assert 'clip-banner__from' in client.get(editor_url(Y)).content.decode()
 ```
-then time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed, so the halt is clean.
+then time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed (Step 4b), and Step 5 changes no tracked file, so the halt is clean — confirm with `git status --short` (empty) before stopping.
 
 - [ ] **Step 6: Branch gate**
 
@@ -3143,23 +3162,21 @@ Read each summary line. Any failure in an unrelated file: A/B it on `origin/mast
 
 Re-read the cross-unit query count now that Tasks 6–7's templates render on the same GET: set `test_a_cross_unit_marked_render_stays_within_its_query_ceiling`'s ceiling to `1` temporarily, read the real count from the failure, and if it moved since Task 4 update the `MEASURED BASELINE` line and the ceiling (count + 5). Commit that with Step 7.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Commit the branch-gate follow-ups (only if anything changed)**
 
 ```bash
-uv run ruff format tests/test_e2e_cross_unit_copy.py
+git status --short
+# If nothing is listed, skip this step: Step 4b already committed the e2e test.
+uv run ruff format tests/test_element_paste_view.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
-git status --short
-git add tests/test_e2e_cross_unit_copy.py
-# ALSO stage any file this task changed to make an e2e assertion pass -- most
-# likely courses/static/courses/css/editor.css (alignment, share, containment)
-# and possibly courses/static/courses/js/editor.js. Never the capture script.
-git add courses/static/courses/css/editor.css courses/static/courses/js/editor.js  # only if changed
-git commit -m "test(e2e): a copy follows the author to another unit"
+git add tests/test_element_paste_view.py  # only if the query ceiling moved (Step 6)
+# ALSO any file a Step 6 failure fix touched -- by explicit path, never -A.
+git commit -m "test(paste): re-measured cross-unit query ceiling after the banner templates"
 git status --short
 ```
 
-The final `git status --short` must show nothing (the capture script lives outside the repo) — any modified tracked file means a Task 8 fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e"). If the query ceiling moved (Step 6), also `git add tests/test_element_paste_view.py`.
+The final `git status --short` must show nothing — any modified tracked file means a Task 8 fix was left out of the commit. If a Step 6 fix touched anything beyond the ceiling, say so in the commit message.
 
 - [ ] **Step 8: Collect what the PR body must include**
 
@@ -3178,7 +3195,13 @@ The `.mo` files are binary and cannot be merged by hand, so bring the branch up 
 git fetch origin
 git rebase origin/master
 ```
-If either `locale/*/LC_MESSAGES/django.po` changed upstream (or conflicted — resolve the `.po` text, never the `.mo`): re-run Task 6 Step 8's catalogue procedure (`makemessages -l pl -l en --no-obsolete`, re-check the five Polish msgstrs, the fuzzy count = 0, `compilemessages -l pl -l en`, `uv run pytest tests/test_i18n_po_health.py`), then commit both `.po` and both `.mo`. Re-run the per-task test files touched by the rebase before handing off.
+If upstream touched either catalogue, the rebase **stops mid-way** at the replayed Task 6 commit with a conflict on the binary `.mo` (both sides changed it). Resolve it there, mid-rebase:
+1. Resolve the `.po` conflict markers by hand (keep both sides' entries); never try to merge a `.mo`.
+2. Re-run Task 6 Step 8's catalogue procedure: `makemessages -l pl -l en --no-obsolete`, re-check the five Polish msgstrs, the fuzzy count = 0, `compilemessages -l pl -l en` (this regenerates both `.mo` from the resolved `.po`), `uv run pytest tests/test_i18n_po_health.py`.
+3. `git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo`
+4. `git rebase --continue`. Repeat 1–4 if a later commit conflicts on the catalogues too.
+
+If upstream changed a `.po` without a conflict stopping the rebase, still run step 2 after the rebase and commit all four catalogue files by explicit path. Step 6's branch gate ran **before** the rebase: re-run every Step 6 chunk that holds a file the rebase touched (`git diff --name-only ORIG_HEAD HEAD` lists them — upstream's changes as well as yours), plus `tests/test_i18n_po_health.py`, before handing off. `git status --short` must be empty afterwards.
 
 ---
 
