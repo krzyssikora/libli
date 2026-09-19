@@ -191,3 +191,126 @@ def test_move_picker_not_left_stale_after_reparent(page, live_server):
     assert not any("changed" in t.lower() or "elsewhere" in t.lower() for t in texts), (
         f"spurious 409 notice on move-back: {texts!r}"
     )
+
+
+def _open_picker(page, node_pk):
+    """Click a row's Move... control and wait for the JS-enhanced picker."""
+    page.locator(f'a[data-move="{node_pk}"]').click()
+    page.locator("[data-panel] [data-move-tree]").wait_for(
+        state="visible", timeout=5000
+    )
+    # initPicker has run once the row carries the highlight.
+    page.wait_for_selector(f'li.tree__row.moving[data-node="{node_pk}"]', timeout=5000)
+
+
+def _assert_picker_dismissed(page, node_pk):
+    """The panel is back to its neutral (course) content, the row highlight is
+    gone, and focus is on that row's own Move... control."""
+    page.wait_for_selector('[data-panel] [data-panel-for="course"]', timeout=5000)
+    assert page.locator("[data-panel] form.move-picker").count() == 0, (
+        "the Move picker is still in the panel"
+    )
+    assert page.locator("li.tree__row.moving").count() == 0, (
+        "the moving-row highlight was not cleared"
+    )
+    page.wait_for_function(
+        "pk => document.activeElement && "
+        "document.activeElement.getAttribute('data-move') === pk",
+        arg=str(node_pk),
+        timeout=5000,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_picker_cancel_restores_the_course_panel(page, live_server):
+    pa = _make_pa_user("pa9cancel")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9cancel")
+    _goto_builder(page, live_server)
+    page.wait_for_selector('[data-panel] [data-panel-for="course"]', timeout=5000)
+
+    _open_picker(page, intro.pk)
+    assert page.locator('[data-panel] [data-panel-for="course"]').count() == 0
+    # A page-lifetime marker: the no-JS navigation to the builder would ALSO
+    # show the course panel, so prove JS handled Cancel in place.
+    page.evaluate("() => { window.__samePage = 1; }")
+    page.locator("[data-panel] [data-move-cancel]").click()
+    _assert_picker_dismissed(page, intro.pk)
+    assert page.evaluate("() => window.__samePage") == 1, (
+        "Cancel navigated away instead of restoring the panel in place"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_picker_escape_restores_the_course_panel(page, live_server):
+    pa = _make_pa_user("pa9esc")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9esc")
+    _goto_builder(page, live_server)
+
+    _open_picker(page, intro.pk)
+    # Choose a destination, then a slot. A slot is a non-focusable <li>, so the
+    # click leaves focus on <body> -- OUTSIDE .builder, where a listener bound
+    # to the builder root would never hear the key.
+    page.locator(f'[data-panel] [data-move-tree] [data-dest="{sec_a.pk}"]').click()
+    page.locator('[data-panel] [data-move-slot="0"]').click()
+    assert page.evaluate("() => document.activeElement === document.body"), (
+        "precondition: the slot click should leave focus on <body>"
+    )
+    page.keyboard.press("Escape")
+    _assert_picker_dismissed(page, intro.pk)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_picker_reclick_collapses_and_move_here_needs_a_destination(
+    page, live_server
+):
+    pa = _make_pa_user("pa9coll")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9coll")
+    _goto_builder(page, live_server)
+
+    _open_picker(page, intro.pk)
+    submit = page.locator("[data-panel] .move-picker__submit")
+    assert submit.is_disabled(), "Move here must be disabled before any destination"
+
+    dest = page.locator(f'[data-panel] [data-move-tree] [data-dest="{sec_a.pk}"]')
+    slots = dest.locator("xpath=..").locator(".move-dest-children")
+    dest.click()
+    slots.wait_for(state="visible", timeout=5000)
+    assert "sel" in (dest.get_attribute("class") or "")
+    assert submit.is_enabled(), "Move here must be enabled once a destination is chosen"
+    page.locator('[data-panel] [data-move-slot="0"]').click()
+
+    dest.click()  # re-click the SELECTED destination -> collapse
+    slots.wait_for(state="hidden", timeout=5000)
+    assert "sel" not in (dest.get_attribute("class") or ""), (
+        "the re-clicked destination is still selected"
+    )
+    assert page.locator("[data-panel] [data-move-tree] .move-dest.sel").count() == 0
+    assert submit.is_disabled(), "Move here must be disabled again after collapsing"
+    assert page.locator('[data-panel] input[name="position"]').input_value() == "", (
+        "the chosen position survived the collapse"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_escape_in_a_tree_text_field_leaves_the_picker_open(page, live_server):
+    """Escape inside the inline-add title field belongs to THAT field (it cancels
+    the add). It must not also dismiss the picker and yank focus to the Move...
+    control -- the author was typing somewhere else entirely."""
+    pa = _make_pa_user("pa9escf")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9escf")
+    _goto_builder(page, live_server)
+
+    _open_picker(page, intro.pk)
+    scope = page.locator(f'[data-add-scope="{ch1.pk}"]')
+    scope.locator('button[data-add-kind="lesson"]').click()
+    field = scope.locator("input[data-add-title]")
+    field.fill("Draft")
+    field.press("Escape")
+    assert page.locator("[data-panel] form.move-picker").count() == 1, (
+        "Escape in the add-title field dismissed the Move picker"
+    )
+    assert page.locator(f'li.tree__row.moving[data-node="{intro.pk}"]').count() == 1

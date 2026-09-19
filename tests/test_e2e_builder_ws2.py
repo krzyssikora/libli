@@ -166,7 +166,11 @@ def test_move_picker_reselect_destination_keeps_correct_slots(page, live_server)
     dest = page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]')
     dest.wait_for(state="visible", timeout=5000)
     dest.click()
-    dest.click()  # re-click same destination must NOT corrupt/double the slot list
+    # A second click on the selected destination now COLLAPSES it; the third
+    # re-selects it -- which must NOT corrupt/double the slot list (the renderer
+    # re-reads the cached pristine children, not the slots it injected).
+    dest.click()
+    dest.click()
     # others=[L2,L3,L4] -> exactly 4 insert-before slots (0..3), never doubled
     page.wait_for_function(
         "() => document.querySelectorAll("
