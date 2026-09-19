@@ -1565,8 +1565,9 @@ def test_a_cross_unit_marked_render_stays_within_its_query_ceiling(
 ):
     """An order-of-magnitude tripwire on the CROSS-UNIT marked render.
 
-    MEASURED BASELINE: record here the count this fixture costs on the finished
-    branch (Step 5 explains how to read it); the ceiling is that count + 5. At
+    MEASURED BASELINE: record here the count this fixture costs, first at Task 4
+    and re-read in Task 8's branch gate once the banner templates exist (Step 1's
+    note explains how to read it); the ceiling is that count + 5. At
     least 10 slots in Y and 2 descendants under the marked element, so a per-slot
     re-walk of the source clears the margin.
 
@@ -3086,10 +3087,18 @@ Expected: all PASS (they locate `#clip-banner`, which kept its id).
 
 On the local dev database (never prod), in `uv run python manage.py shell`, pick the largest mat-pp unit as X (source) and another large unit as Y; with a `django.test.Client(HTTP_HOST="localhost")` logged in as the course owner (`client.force_login(owner)`), write the mark and **save** it — `client.session` returns a fresh store on every access, so an unsaved assignment is silently lost and the GETs would time the cheap unmarked path:
 ```python
+from django.urls import reverse
+
+def editor_url(u):
+    return reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": u.pk})
+
 s = client.session
 s["element_clip"] = {"unit": X.pk, "element": container_join.pk}
 s.save()
-assert client.get(editor_url(Y)).context["clip_mode"] == "copy"  # untimed check
+# Untimed check that the GET really takes the marked CROSS-UNIT path. A body
+# check, not response.context: context is None in a plain shell (it is only
+# filled under Django's test instrumentation).
+assert 'clip-banner__from' in client.get(editor_url(Y)).content.decode()
 ```
 then time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed, so the halt is clean.
 
@@ -3113,6 +3122,8 @@ uv run ruff format --check .
 
 Read each summary line. Any failure in an unrelated file: A/B it on `origin/master` before blaming this branch.
 
+Re-read the cross-unit query count now that Tasks 6–7's templates render on the same GET: set `test_a_cross_unit_marked_render_stays_within_its_query_ceiling`'s ceiling to `1` temporarily, read the real count from the failure, and if it moved since Task 4 update the `MEASURED BASELINE` line and the ceiling (count + 5). Commit that with Step 7.
+
 - [ ] **Step 7: Commit**
 
 ```bash
@@ -3129,7 +3140,17 @@ git commit -m "test(e2e): a copy follows the author to another unit"
 git status --short
 ```
 
-The final `git status --short` must show nothing but the untracked capture script (if kept) — any modified tracked file means a Task 8 fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e").
+The final `git status --short` must show nothing but the untracked capture script (if kept) — any modified tracked file means a Task 8 fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e"). If the query ceiling moved (Step 6), also `git add tests/test_element_paste_view.py`.
+
+- [ ] **Step 8: Collect what the PR body must include**
+
+Write these into a scratch note for whoever opens the PR:
+1. The deviations table V1–V6, each with its outcome — for V6 the measured `.pane-body` share and the cap actually used (or "not needed").
+2. V2's result: whether removing `position: relative` from the "from" link was caught by the e2e.
+3. The two timing figures from Step 5 (tree render cost; source-map cost) and whether the tree crossed ~10%.
+4. The light and dark screenshots from Task 7 Step 6 / the capture script.
+5. Any CSS/JS fix Task 8 made, and the final measured query ceiling.
+6. Owner decisions D10 (interactive elements refused into a quiz, cross-unit only) and D11 (the rare deadlock outcomes) as reminders for the reviewer.
 
 ---
 
