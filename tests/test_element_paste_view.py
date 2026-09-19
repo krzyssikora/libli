@@ -424,14 +424,14 @@ def test_a_marked_render_does_not_walk_parents_per_slot(
     MEASURED BASELINE: this exact fixture costs 27 queries on master with no
     clipboard feature at all. A correct marked render adds _clip_context's cost --
     the `marked` lookup, enumerate_slots (1 for the joins plus 1 per distinct
-    content type) and one GFK for _slot_cap(marked) -- landing around 32. The
-    ceiling is set well above that so unrelated query churn elsewhere in the
-    editor render does not red it.
+    content type), one GFK for _slot_cap(marked) and copy_units_tree (one
+    _children_map query) -- measured at 35. The ceiling is set well above that so
+    unrelated query churn elsewhere in the editor render does not red it.
 
     HONEST LIMITATION: dropping `dest_depth=` is NOT detectable here. `pairs`
     hands the same join instances to every call and Django caches a resolved FK on
     the instance, so the element_depth fallback costs about three queries in total
-    for this tree -- 32 vs 35, which no sane ceiling separates. That guarantee is
+    for this tree -- 35 vs 38, which no sane ceiling separates. That guarantee is
     pinned by the next test instead, which fails outright if the fallback is taken.
     """
     course, unit = _seed(client)
