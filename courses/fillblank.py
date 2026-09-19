@@ -9,6 +9,7 @@ splits the token-stem and safe-joins server-built <input>s — the only unescape
 insertions.
 """
 
+import html
 import re
 
 from django.utils.html import format_html
@@ -57,7 +58,10 @@ def parse(clean_stem):
     blanks = []
 
     def _swap(m):
-        pieces = [p.strip() for p in m.group(1).split("|")]
+        # The stem arrives SANITISED, so `{{<}}` reads `{{&lt;}}` here. Answers are
+        # compared as plain text with what the student types (blank_matches), so
+        # decode them; to_author_stem re-escapes on the way back to the editor.
+        pieces = [html.unescape(p).strip() for p in m.group(1).split("|")]
         pieces = [p for p in pieces if p]
         if not pieces:
             raise FillBlankError("empty marker")
@@ -82,7 +86,9 @@ def to_author_stem(token_stem, blanks):
     def _swap(m):
         n = int(m.group(1))
         pieces = blanks[n] if 0 <= n < len(blanks) else []
-        return "{{" + "|".join(pieces) + "}}"
+        # Answers are stored decoded (see parse); the stem is HTML, where a bare
+        # `<` would be eaten by the sanitiser on the next save.
+        return "{{" + "|".join(html.escape(p, quote=False) for p in pieces) + "}}"
 
     return _TOKEN_RE.sub(_swap, token_stem or "")
 

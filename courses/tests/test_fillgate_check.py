@@ -78,3 +78,23 @@ def test_access_denied(client_without_access, enrolled_unit):
     url = reverse("courses:fillgate_check", args=[join.pk])
     resp = client_without_access.post(url, {"blank": ["4"]})
     assert resp.status_code in (403, 302)  # PermissionDenied (or login redirect)
+
+
+def test_an_answer_containing_less_than_is_marked_correct(
+    enrolled_client, enrolled_unit
+):
+    # Authored through the real form, so the stem goes through the sanitiser that
+    # turned `{{<}}` into a stored `&lt;` answer no student could ever type.
+    from courses.element_forms import FillGateElementForm
+
+    form = FillGateElementForm(data={"stem": "<p>sin a {{<}} 0</p>"})
+    assert form.is_valid(), form.errors
+    el = form.save()
+    join = Element.objects.create(
+        unit=enrolled_unit,
+        content_type=ContentType.objects.get_for_model(FillGateElement),
+        object_id=el.pk,
+    )
+    url = reverse("courses:fillgate_check", args=[join.pk])
+    data = enrolled_client.post(url, {"blank": ["<"]}).json()
+    assert data == {"correct": True, "blanks": [True]}

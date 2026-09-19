@@ -80,3 +80,29 @@ def test_render_inputs_interleaves_and_escapes():
 def test_render_inputs_defensive_on_short_values():
     html = fillblank.render_inputs("￿0￿ ￿1￿", ["only"])
     assert html.count("<input") == 2  # missing index → empty value, no IndexError
+
+
+# The form sanitises the stem BEFORE parse() (element_forms.py), so an answer typed
+# as `{{<}}` reaches parse() as `{{&lt;}}`. Answers are compared as PLAIN TEXT with
+# what the student types (marking.blank_matches), so parse() must decode them --
+# otherwise `<` can never be marked correct.
+@pytest.mark.parametrize(
+    ("typed", "expected"),
+    [("<", "<"), (">", ">"), ("a & b", "a & b"), ("x<1", "x<1")],
+)
+def test_parse_decodes_the_sanitisers_entities_in_answers(typed, expected):
+    from courses.sanitize import sanitize_html
+
+    _, blanks = fillblank.parse(sanitize_html(f"sin a {{{{{typed}}}}} 0"))
+    assert blanks == [[expected]]
+
+
+def test_to_author_stem_re_escapes_decoded_answers():
+    # The editor's stem is HTML: a raw "<" handed back would be eaten by nh3 on the
+    # next save (an unclosed tag), so the inverse must re-escape what parse decoded.
+    from courses.sanitize import sanitize_html
+
+    original = sanitize_html("x {{<|a &amp; b}} y")
+    token_stem, blanks = fillblank.parse(original)
+    assert blanks == [["<", "a & b"]]
+    assert fillblank.to_author_stem(token_stem, blanks) == original
