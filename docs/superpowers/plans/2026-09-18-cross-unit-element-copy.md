@@ -1787,8 +1787,8 @@ In `test_the_clip_context_keys_reach_both_render_paths`, change "must carry the 
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `uv run pytest tests/test_element_paste_view.py tests/test_editor_clip_templates.py courses/tests/test_paste_rule.py`
-Expected: all PASS (with the measured ceiling filled in).
+Run: `uv run pytest tests/test_element_paste_view.py tests/test_element_clip_view.py tests/test_editor_clip_templates.py courses/tests/test_paste_rule.py`
+Expected: all PASS (with the measured ceiling filled in). `tests/test_element_clip_view.py` pins `_clip_context`'s guarded-lookup behaviour, which this task rewrites.
 
 - [ ] **Step 6: Falsify**
 
@@ -1990,6 +1990,26 @@ def _deadlock():
         raise OperationalError("deadlock detected") from inner
 
 
+def test_cancel_works_from_a_destination_unit(client):
+    """The destination banner's cancel posts ITS unit with ANOTHER unit's element.
+    It works because element_clip's cancel branch pops the session before any
+    element check -- pinned here so a later "validate first" change cannot break
+    cancel in every destination unit silently."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    resp = client.post(
+        reverse("courses:manage_element_clip", kwargs={"slug": course.slug}),
+        {"ctx": "editor", "element": subject.pk, "unit": y.pk, "action": "cancel"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+    assert resp.status_code == 200
+    assert "element_clip" not in client.session
+
+
 def test_a_deadlock_abort_of_the_copy_is_a_409(client, monkeypatch):
     """Mutant: delete the OperationalError handler -> RED (the error propagates)."""
     from courses import builder as builder_mod
@@ -2177,7 +2197,7 @@ In `_paste_before_button.html`, replace `<input type="hidden" name="mode" value=
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `uv run pytest tests/test_element_paste_view.py tests/test_editor_clip_templates.py courses/tests/test_nested_question_gates.py tests/test_builder_paste_element.py`
+Run: `uv run pytest tests/test_element_paste_view.py tests/test_element_clip_view.py tests/test_editor_clip_templates.py courses/tests/test_nested_question_gates.py tests/test_builder_paste_element.py`
 Expected: all PASS.
 
 - [ ] **Step 7: Falsify**
@@ -2625,7 +2645,7 @@ In `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`, replace
         )
 ```
 
-(add `import re` to the file's imports). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red.
+(`re` is already imported at the top of that file — used by `_code_only` — so add nothing). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red.
 
 Run: `uv run pytest tests/test_editor_styles.py`
 Expected: FAIL on `.clip-banner__line`.
@@ -2737,7 +2757,14 @@ Expected: all PASS.
 
 - [ ] **Step 6: Manual check (screenshots)**
 
-Start the dev server on the local mat-pp copy (`uv run python manage.py runserver`), hard-reload with the service worker bypassed (DevTools → Application → Service workers → "Bypass for network"; a stale worker serves old static). As a course owner: mark an element in one unit, open "Copy to another unit…", follow a link. Take screenshots, light and dark, of: the source banner with the list open; the destination banner (with the "from" link); a quiz destination showing "Nothing can be pasted into this unit."; a ≤ 480px viewport with a long element title (≥ 80 characters). Judge dark separately. Confirm: the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR.
+Start the dev server on the local mat-pp copy (`uv run python manage.py runserver`), hard-reload with the service worker bypassed (DevTools → Application → Service workers → "Bypass for network"; a stale worker serves old static). As a course owner: mark an element in one unit, open "Copy to another unit…", follow a link. Take screenshots, light and dark, of: the source banner with the list open; the destination banner (with the "from" link); a quiz destination showing "Nothing can be pasted into this unit."; a ≤ 480px viewport with a long element title (≥ 80 characters). Judge dark separately. **Measure the wide-layout share now, not in Task 8:** at a 1280×720 window, with a course of 40+ units and the list open, run in the console `(p => p.querySelector('.pane-body').clientHeight / p.clientHeight)(document.querySelector('[data-scope="editor"]'))`. The spec expects `.pane-body` to keep ≥ ~40% of the pane (its "~40%" is derived arithmetic, not a measurement). If the share is below 0.4, add inside the existing `@media (min-width: 70rem)` block of `editor.css`:
+```css
+  /* Viewport-locked layout: the open list takes height from .pane-body, so it is
+     capped tighter here -- MEASURED at 1280x720 the base cap left .pane-body
+     <share>% of the pane. */
+  .clip-banner__units-list { max-height: min(20vh, 12rem); }
+```
+re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR.
 
 - [ ] **Step 7: Commit**
 
@@ -2937,6 +2964,12 @@ def test_the_banner_survives_a_narrow_viewport(page, live_server):
     user = _make_pa_user("pa")
     course, a, b, subject, _rows = _seed(user)
     _login(page, live_server, "pa")
+    # BASELINE: whatever horizontal overflow the unmarked editor page already has
+    # at 400px is not the banner's doing; the banner must add none.
+    page.goto(_editor(live_server, course, b))
+    base_overflow = page.evaluate(
+        "document.documentElement.scrollWidth - document.documentElement.clientWidth"
+    )
     page.goto(_editor(live_server, course, a))
     row = page.locator(f".el-row[data-element='{subject.pk}']")
     with page.expect_response(lambda r: "element/clip/" in r.url):
@@ -2947,9 +2980,10 @@ def test_the_banner_survives_a_narrow_viewport(page, live_server):
     frm = page.locator("#clip-banner .clip-banner__from a").bounding_box()
     assert frm["width"] > 0 and _inside(frm, line)
     assert _inside(_box(page, "#clip-banner .clip-banner__line form button"), line)
-    assert page.evaluate(
-        "document.documentElement.scrollWidth === document.documentElement.clientWidth"
+    overflow = page.evaluate(
+        "document.documentElement.scrollWidth - document.documentElement.clientWidth"
     )
+    assert overflow <= base_overflow, (overflow, base_overflow)
 
     banner_h = page.evaluate("document.querySelector('#clip-banner').offsetHeight")
     doc_h = page.evaluate("document.documentElement.scrollHeight")
@@ -3006,7 +3040,7 @@ Expected: all PASS.
 
 - [ ] **Step 3: Falsify the KaTeX containment**
 
-By hand: delete Task 7's new `editor.js` block (the `[data-math-title]` loop in `applyFragments`) → the post-swap `expect(page.locator("#clip-banner .clip-banner__from a .katex")).to_have_count(1)` red. Restore. Then remove `position: relative` from `.clip-banner__units-list` → the narrow test's growth assertion (or the 1280×720 unchanged assertion) red. Restore. Then remove it from `.clip-banner__from a` → expected: the `scrollWidth` assertion red at 400px (the long source title truncates with its maths in the clipped tail). The nearest positioned ancestor is then `.clip-banner__line`, which may keep the twin inside the viewport: **if this mutant stays green, do not weaken or fake the assertion** — record in the PR body that the "from"-link containment is not caught by the e2e and why. Restore; `git diff`.
+By hand: delete Task 7's new `editor.js` block (the `[data-math-title]` loop in `applyFragments`) → the post-swap `expect(page.locator("#clip-banner .clip-banner__from a .katex")).to_have_count(1)` red. Restore. Then remove `position: relative` from `.clip-banner__units-list` → the narrow test's growth assertion (or the 1280×720 unchanged assertion) red. Restore. Then remove it from `.clip-banner__from a` → expected: the overflow-vs-baseline assertion red at 400px (the long source title truncates with its maths in the clipped tail). The nearest positioned ancestor is then `.clip-banner__line`, which may keep the twin inside the viewport: **if this mutant stays green, do not weaken or fake the assertion** — record in the PR body that the "from"-link containment is not caught by the e2e and why. Restore; `git diff`.
 
 - [ ] **Step 4: Run the existing clipboard e2e tests**
 
@@ -3015,7 +3049,7 @@ Expected: all PASS (they locate `#clip-banner`, which kept its id).
 
 - [ ] **Step 5: Timing on mat-pp (manual, reported in the PR)**
 
-On the local dev database (never prod), in `uv run python manage.py shell`, pick the largest mat-pp unit as X (source) and another large unit as Y; with a `django.test.Client(HTTP_HOST="localhost")` logged in as the course owner (`client.force_login(owner)`), set `session["element_clip"] = {"unit": X.pk, "element": <a container join in X>}` and time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR. If the tree adds more than ~10% to the op, render it flat instead (one loop over a pre-ordered list with a depth class) and re-run Tasks 6–8's tests; the source-map cost is reported, not acted on.
+On the local dev database (never prod), in `uv run python manage.py shell`, pick the largest mat-pp unit as X (source) and another large unit as Y; with a `django.test.Client(HTTP_HOST="localhost")` logged in as the course owner (`client.force_login(owner)`), set `session["element_clip"] = {"unit": X.pk, "element": <a container join in X>}` and time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed, so the halt is clean.
 
 - [ ] **Step 6: Branch gate**
 
