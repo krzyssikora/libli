@@ -151,8 +151,8 @@
     // and the "Copy to another unit..." list -- carry data-math-title. math.js
     // typesets those only on page load, so re-run here. Only these nodes, never the
     // whole pane (row labels and forms must stay raw), and skip any without a
-    // delimiter: mat-pp's list holds hundreds of titles and this runs on every op
-    // while a mark is pending.
+    // delimiter: the list can hold many titles and this runs on every op while a
+    // mark is pending.
     var editorScope = root.querySelector('[data-scope="editor"]');
     if (editorScope) typesetTitles(editorScope);
     var preview = root.querySelector('[data-scope="preview"]');

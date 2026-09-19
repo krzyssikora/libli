@@ -689,6 +689,39 @@ def test_a_cross_unit_copy_returns_the_destination_unit():
     assert placed.unit_id == y.pk
 
 
+def test_a_cross_unit_copy_locks_the_destination_first_when_its_pk_is_lower():
+    """Every other cross-unit test in this file creates the SOURCE unit first, so
+    src_pk < dest_pk always holds and paste_element's `else` lock-order branch
+    (dest locked before source) never runs. Here the source (Y) is created AFTER
+    the destination (X), so src_pk > dest_pk and that branch is the one exercised.
+
+    Mutant: in that branch, change `dest_unit = _locked_unit(course, dest_pk)` to
+    `dest_unit = _locked_unit(course, src_pk)` -> RED (record the failure line)."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    assert y.pk > x.pk  # pins the fixture's intent: source created AFTER dest
+    subject = _text(y, body="<p>subject</p>")
+    box, slots = _tabs(x)
+    _text(x, parent=box, tab=slots[0], body="<p>first</p>")
+    x.refresh_from_db()
+    y.refresh_from_db()
+    x_before, y_before = x.updated, y.updated
+    y_rows_before = _bodies(y)
+
+    returned, placed = paste_element(
+        course, subject.pk, str(box.pk), slots[0], "copy", _tok(x), dest_unit_pk=x.pk
+    )
+
+    assert _bodies(x, parent=box, tab=slots[0]) == ["<p>first</p>", "<p>subject</p>"]
+    assert _bodies(y) == y_rows_before
+    assert returned.pk == x.pk
+    assert placed.unit_id == x.pk
+    x.refresh_from_db()
+    y.refresh_from_db()
+    assert x.updated > x_before
+    assert y.updated == y_before
+
+
 def test_a_cross_unit_copy_shares_the_media_asset():
     course, x = make_course_with_unit()
     y = _other_unit(course)
@@ -772,6 +805,8 @@ def test_a_stale_source_token_is_irrelevant():
     y.refresh_from_db()
 
     paste_element(course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+    assert len(_bodies(y)) == 1
 
 
 def test_a_deleted_marked_element_is_a_conflict():

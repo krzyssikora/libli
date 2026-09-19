@@ -664,7 +664,7 @@ def paste_allowed(
         # pre-existing malformed content, which stays movable on purpose.
         if (
             model_to_key(type(marked_join.content_object)) in NESTABLE_QUESTION_KEYS
-            and unit.unit_type == ContentNode.UnitType.QUIZ
+            and is_quiz
         ):
             return False, "question_in_quiz"
 
