@@ -98,6 +98,8 @@ def test_editor_css_defines_every_class_the_link_ui_uses():
         ".link-picker__item",
         ".link-picker__row",
         ".link-picker__title",
+        ".link-picker__twisty",
+        ".link-picker__spacer",
         ".tree__badge",
         # Exact substring: data-scope is NOT editor-only (the builder puts it on every
         # tree scope), so a "simplification" to [data-scope] .el a would break the

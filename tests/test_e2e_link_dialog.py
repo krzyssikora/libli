@@ -373,3 +373,198 @@ def test_modal_is_centred_in_the_viewport(page, live_server):
     slack_y = (view["height"] - box["height"]) / 2
     assert abs(box["x"] - slack_x) <= 2, (box, view)
     assert abs(box["y"] - slack_y) <= 2, (box, view)
+
+
+# ---- the collapsible tree --------------------------------------------------------
+
+
+def _seed_two_parts(owner, *, link_to_far_unit=False):
+    """Part A > Quadratics > Lesson (the unit being edited, two levels down) and a
+    sibling Part B > Circles > Arcs that holds nothing on the edited unit's path.
+
+    With link_to_far_unit the edited unit holds a text element linking to Arcs -- a
+    target inside a branch the picker renders COLLAPSED."""
+    from courses.models import ContentNode
+    from courses.models import Course
+    from courses.models import Element
+    from courses.models import TextElement
+
+    course = Course.objects.create(title="Algebra", slug="algebra", owner=owner)
+    part_a = ContentNode.objects.create(course=course, kind="part", title="Part A")
+    chapter = ContentNode.objects.create(
+        course=course, kind="chapter", parent=part_a, title="Quadratics"
+    )
+    unit = ContentNode.objects.create(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=chapter,
+        title="Lesson",
+        published=True,
+    )
+    part_b = ContentNode.objects.create(course=course, kind="part", title="Part B")
+    circles = ContentNode.objects.create(
+        course=course, kind="chapter", parent=part_b, title="Circles"
+    )
+    arcs = ContentNode.objects.create(
+        course=course, kind="unit", unit_type="lesson", parent=circles, title="Arcs"
+    )
+    if link_to_far_unit:
+        el = TextElement(body=f'<p>see <a href="/courses/n/{arcs.pk}/">arcs</a></p>')
+        el.save()
+        Element.objects.create(unit=unit, content_object=el)
+    return course, {
+        "part_a": part_a,
+        "chapter": chapter,
+        "unit": unit,
+        "part_b": part_b,
+        "circles": circles,
+        "arcs": arcs,
+    }
+
+
+def _row(dialog, node):
+    return dialog.locator(f"[data-node='{node.pk}']")
+
+
+def _title(dialog, node):
+    return _row(dialog, node).locator("> .link-picker__row .link-picker__title")
+
+
+def _twisty(dialog, node):
+    return _row(dialog, node).locator("> .link-picker__row > .link-picker__twisty")
+
+
+def _expanded(dialog, node):
+    return _row(dialog, node).get_attribute("aria-expanded")
+
+
+def _focused_node(page):
+    return page.evaluate("() => document.activeElement.getAttribute('data-node')")
+
+
+def _open_tree_dialog(page, live_server):
+    owner = _make_pa_user("pa")
+    course, n = _seed_two_parts(owner)
+    _login(page, live_server, "pa")
+    _open_editor(page, live_server, course, n["unit"])
+    _add_text_element(page)
+    page.locator(".rte-surface").click()
+    return _open_link_dialog(page), n
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tree_opens_on_the_path_to_the_edited_unit(page, live_server):
+    dialog, n = _open_tree_dialog(page, live_server)
+    assert _expanded(dialog, n["part_a"]) == "true"
+    assert _expanded(dialog, n["chapter"]) == "true"
+    assert _row(dialog, n["unit"]).is_visible()
+    assert _expanded(dialog, n["part_b"]) == "false"
+    assert _row(dialog, n["part_b"]).is_visible()
+    assert not _row(dialog, n["circles"]).is_visible()
+    assert not _row(dialog, n["arcs"]).is_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_twisty_toggles_without_selecting_and_the_title_selects_without_toggling(
+    page, live_server
+):
+    dialog, n = _open_tree_dialog(page, live_server)
+    _title(dialog, n["unit"]).click()
+    assert _row(dialog, n["unit"]).get_attribute("aria-selected") == "true"
+
+    _twisty(dialog, n["part_b"]).click()
+    assert _expanded(dialog, n["part_b"]) == "true"
+    assert _row(dialog, n["circles"]).is_visible()
+    # The twisty toggled and did NOT select: the selection is where it was.
+    assert _row(dialog, n["part_b"]).get_attribute("aria-selected") == "false"
+    assert _row(dialog, n["unit"]).get_attribute("aria-selected") == "true"
+
+    _twisty(dialog, n["part_b"]).click()
+    assert _expanded(dialog, n["part_b"]) == "false"
+    assert not _row(dialog, n["circles"]).is_visible()
+
+    # The title selects and does NOT toggle.
+    _title(dialog, n["part_b"]).click()
+    assert _row(dialog, n["part_b"]).get_attribute("aria-selected") == "true"
+    assert _expanded(dialog, n["part_b"]) == "false"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsing_over_the_selection_keeps_it_and_moves_the_tab_stop(
+    page, live_server
+):
+    dialog, n = _open_tree_dialog(page, live_server)
+    _title(dialog, n["unit"]).click()
+    _twisty(dialog, n["part_a"]).click()
+    assert not _row(dialog, n["unit"]).is_visible()
+    # The selection survives the collapse and Insert still targets it.
+    assert _row(dialog, n["unit"]).get_attribute("aria-selected") == "true"
+    assert dialog.locator("[data-link-insert]").is_enabled()
+    # Exactly one tab stop, and never on a row the collapse hid.
+    stops = dialog.locator(".link-picker__item[tabindex='0']")
+    assert stops.count() == 1
+    assert stops.first.is_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_left_and_right_open_close_and_move_focus(page, live_server):
+    dialog, n = _open_tree_dialog(page, live_server)
+    page.keyboard.press("Tab")  # filter -> the tree's tab stop
+    page.keyboard.press("End")  # the last VISIBLE row: Part B, not Arcs
+    assert _focused_node(page) == str(n["part_b"].pk)
+
+    page.keyboard.press("ArrowRight")  # closed parent -> opens, focus stays
+    assert _expanded(dialog, n["part_b"]) == "true"
+    assert _focused_node(page) == str(n["part_b"].pk)
+    page.keyboard.press("ArrowRight")  # open parent -> its first child
+    assert _focused_node(page) == str(n["circles"].pk)
+    page.keyboard.press("ArrowLeft")  # closed parent -> its parent row
+    assert _focused_node(page) == str(n["part_b"].pk)
+    page.keyboard.press("ArrowLeft")  # open parent -> closes, focus stays
+    assert _expanded(dialog, n["part_b"]) == "false"
+    assert _focused_node(page) == str(n["part_b"].pk)
+
+    # Up/Down walk VISIBLE rows only: from Part B, Up lands on the open path's leaf.
+    page.keyboard.press("ArrowUp")
+    assert _focused_node(page) == str(n["unit"].pk)
+    page.keyboard.press("ArrowLeft")  # a leaf -> its parent row
+    assert _focused_node(page) == str(n["chapter"].pk)
+    # Arrows never select.
+    assert dialog.locator("[aria-selected='true'][data-node]").count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_filter_opens_matching_ancestors_and_clearing_restores(page, live_server):
+    dialog, n = _open_tree_dialog(page, live_server)
+    filter_el = dialog.locator("[data-link-filter]")
+    filter_el.fill("arcs")
+    assert _expanded(dialog, n["part_b"]) == "true"
+    assert _expanded(dialog, n["circles"]) == "true"
+    assert _row(dialog, n["arcs"]).is_visible()
+
+    filter_el.fill("")
+    assert _expanded(dialog, n["part_b"]) == "false"
+    assert _expanded(dialog, n["circles"]) == "false"
+    assert not _row(dialog, n["arcs"]).is_visible()
+    # The author's own open path came back as it was.
+    assert _expanded(dialog, n["part_a"]) == "true"
+    assert _row(dialog, n["unit"]).is_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_editing_a_link_into_a_collapsed_branch_opens_it(page, live_server):
+    owner = _make_pa_user("pa")
+    course, n = _seed_two_parts(owner, link_to_far_unit=True)
+    _login(page, live_server, "pa")
+    _open_editor(page, live_server, course, n["unit"])
+    page.click(".element-list [data-form-url]")
+    page.locator(".rte-surface").wait_for()
+    page.click(".rte-surface a")
+
+    dialog = _open_link_dialog(page)
+    arcs = _row(dialog, n["arcs"])
+    assert arcs.get_attribute("aria-selected") == "true"
+    assert arcs.is_visible()
+    assert _expanded(dialog, n["part_b"]) == "true"
+    assert _expanded(dialog, n["circles"]) == "true"
