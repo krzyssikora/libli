@@ -1,0 +1,15 @@
+{% load i18n %}
+{% comment %}
+"Copy to another unit..." (spec D5/D12). Server-rendered, no JS, no endpoint: each
+unit is a plain link to its editor page, so the pending mark follows the author
+there. The data is copy_units_tree()'s PRUNED map -- containers with no unit below
+them are already gone, because a template cannot look ahead. The scrolling <ol> is
+position:relative in editor.css so KaTeX's absolute .katex-mathml twins stay
+clipped inside it.
+{% endcomment %}
+<details class="clip-banner__units">
+  <summary>{% trans "Copy to another unit…" %}</summary>
+  <ol class="clip-banner__units-list">
+    {% for n in copy_units_top %}{% include "courses/manage/editor/_copy_units_node.html" with n=n %}{% endfor %}
+  </ol>
+</details>

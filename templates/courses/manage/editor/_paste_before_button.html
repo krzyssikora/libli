@@ -10,6 +10,6 @@
   <input type="hidden" name="before" value="{{ el.pk }}">
   <input type="hidden" name="unit" value="{{ unit.pk }}">
   <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
-  <button class="iconbtn pastebtn" type="submit" aria-label="{% trans 'Move before this element' %}" title="{% trans 'Move before this element' %}">📋</button>
+  {% if mode == "copy" %}<button class="iconbtn pastebtn" type="submit" aria-label="{% trans 'Copy before this element' %}" title="{% trans 'Copy before this element' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-paste-copy"/></svg></button>{% else %}<button class="iconbtn pastebtn" type="submit" aria-label="{% trans 'Move before this element' %}" title="{% trans 'Move before this element' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-paste-move"/></svg></button>{% endif %}
 </form>
 {% endif %}

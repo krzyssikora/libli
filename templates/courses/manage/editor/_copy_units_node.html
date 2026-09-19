@@ -1,0 +1,14 @@
+{% load courses_manage_extras %}
+{% comment %}
+One row of the copy-units list, recursive. Badges are the link picker's markup
+(twinned in editor.css). The CURRENT unit is text with aria-current, never a link.
+{% endcomment %}
+<li class="clip-banner__unit">
+  {% if n.kind == "unit" %}
+    {% if n.unit_type == "quiz" %}<span class="tree__badge tree__badge--unit tree__badge--quiz" title="{{ n.get_unit_type_display }}">Q</span>{% else %}<span class="tree__badge tree__badge--unit tree__badge--lesson" title="{{ n.get_unit_type_display }}">L</span>{% endif %}
+    {% if n.pk == unit.pk %}<span class="clip-banner__unit-current" aria-current="page" data-math-title>{{ n.title }}</span>{% else %}<a href="{% url 'courses:manage_editor' slug=unit.course.slug pk=n.pk %}" data-math-title>{{ n.title }}</a>{% endif %}
+  {% else %}
+    <span class="tree__badge tree__badge--{{ n.kind }}">{{ n.get_kind_display }}</span> <span class="clip-banner__unit-group" data-math-title>{{ n.title }}</span>
+    {% with children=copy_units_map|get_item:n.pk %}<ol>{% for child in children %}{% include "courses/manage/editor/_copy_units_node.html" with n=child %}{% endfor %}</ol>{% endwith %}
+  {% endif %}
+</li>
