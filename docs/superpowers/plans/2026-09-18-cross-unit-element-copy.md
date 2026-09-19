@@ -1792,7 +1792,7 @@ Expected: all PASS (with the measured ceiling filled in). `tests/test_element_cl
 
 - [ ] **Step 6: Falsify**
 
-By hand: `move_slots = set(copy_slots)` in the cross-unit return → `test_a_mark_in_another_unit_of_the_course_offers_copy_only` red; add `request.session.pop(CLIP_SESSION_KEY, None)` before `return empty  # D8` → `test_a_mark_from_another_course_is_ignored_and_kept` red; `"clip_nothing_fits": False` → `test_a_question_callout_marked_for_a_quiz_fits_nowhere` red; move `units_map, units_top, units_available = copy_units_tree(unit.course)` above `if not clip:` → `test_the_copy_list_is_built_only_while_a_mark_is_active` red; drop `facts=facts` from the cross-unit loop → ceiling red; drop `dest_depth=dest_depth` → the `element_depth` test red. Revert each; `git diff`.
+By hand: `move_slots = set(copy_slots)` in the cross-unit return → `test_a_mark_in_another_unit_of_the_course_offers_copy_only` red; add `request.session.pop(CLIP_SESSION_KEY, None)` before `return empty  # D8` → `test_a_mark_from_another_course_is_ignored_and_kept` red; `"clip_nothing_fits": False` → `test_a_question_callout_marked_for_a_quiz_fits_nowhere` red; move the **same-unit branch's** `units_map, units_top, units_available = copy_units_tree(unit.course)` line in `_clip_context` (not the one in `_cross_unit_clip_context`) above `if not clip:` → `test_the_copy_list_is_built_only_while_a_mark_is_active` red; in `copy_units_tree`, replace `elif keep(node.pk): kept.append(node)` with `else: keep(node.pk); kept.append(node)` (no pruning) → `test_copy_units_tree_keeps_units_at_any_depth_and_drops_empty_containers` red on its `empty_section` assertion; drop `facts=facts` from the cross-unit loop → ceiling red; drop `dest_depth=dest_depth` → the `element_depth` test red. Revert each; `git diff`.
 
 - [ ] **Step 7: Commit**
 
@@ -2478,7 +2478,11 @@ In `editor.html`, directly after the `<symbol id="ed-header" …>` line, add:
     <symbol id="ed-paste-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.6v-.4a.9.9 0 0 0-.9-.9H3.4a.9.9 0 0 0-.9.9v6.2a.9.9 0 0 0 .9.9h.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
 ```
 
-Extend the sprite's `{% comment %}` block by one sentence: `ed-paste-move` (an arrow into a tray) and `ed-paste-copy` (two stacked sheets) replace the 📋 / ⧉ glyphs on every paste and Duplicate control (spec D9).
+Directly above the two new `<symbol>` lines, add a one-line comment (single-line `{# … #}` is fine here):
+
+```django
+    {# ed-paste-move (arrow into a tray) / ed-paste-copy (two stacked sheets): every paste control and Duplicate (spec D9), replacing the 📋 / ⧉ glyphs. #}
+```
 
 - [ ] **Step 4: Buttons**
 
@@ -2598,7 +2602,7 @@ Expected: all PASS.
 
 - [ ] **Step 9: Falsify**
 
-By hand: hard-code `value="move"` in `_paste_before_button.html`'s mode input → `test_the_destination_offers_copy_controls_and_no_move_controls` red; hard-code `value="copy"` → `test_the_source_rows_keep_move_before_only` red; in the banner, point the "from" link at `pk=unit.pk` instead of `pk=clip_source_unit.pk` → `test_the_destination_banner_links_back_to_the_source` red; render the current unit as a link (drop the `{% if n.pk == unit.pk %}` branch) → `test_the_unit_list_links_every_other_unit_and_not_the_current_one` red; drop `{% if copy_units_available %}` → `test_a_one_unit_course_renders_no_unit_list` red; delete the nothing-fits `<p>` → `test_nothing_fits_is_said_out_loud` red; restore `📋` in the slot move button → the icon test red. Revert each; `git diff`.
+By hand: hard-code `value="move"` in `_paste_before_button.html`'s mode input → `test_the_destination_offers_copy_controls_and_no_move_controls` red; hard-code `value="copy"` → `test_the_source_rows_keep_move_before_only` red; in the banner, point the "from" link at `pk=unit.pk` instead of `pk=clip_source_unit.pk` → `test_the_destination_banner_links_back_to_the_source` red; render the current unit as a link (drop the `{% if n.pk == unit.pk %}` branch) → `test_the_unit_list_links_every_other_unit_and_not_the_current_one` red; drop `{% if copy_units_available %}` → `test_a_one_unit_course_renders_no_unit_list` red; move the whole `{% if clip_active %}<div id="clip-banner" …>…</div>{% endif %}` block below the `#editor-error` line → `test_the_banner_is_a_div_between_the_pane_head_and_the_error_slot` red on its index ordering; the pruning mutant from Task 4 (no pruning in `copy_units_tree`) also turns `test_the_unit_list_handles_an_irregular_course` red on `"EmptySectionE" not in banner`; delete the nothing-fits `<p>` → `test_nothing_fits_is_said_out_loud` red; restore `📋` in the slot move button → the icon test red. Revert each; `git diff`.
 
 - [ ] **Step 10: Commit**
 
@@ -3049,7 +3053,14 @@ Expected: all PASS (they locate `#clip-banner`, which kept its id).
 
 - [ ] **Step 5: Timing on mat-pp (manual, reported in the PR)**
 
-On the local dev database (never prod), in `uv run python manage.py shell`, pick the largest mat-pp unit as X (source) and another large unit as Y; with a `django.test.Client(HTTP_HOST="localhost")` logged in as the course owner (`client.force_login(owner)`), set `session["element_clip"] = {"unit": X.pk, "element": <a container join in X>}` and time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed, so the halt is clean.
+On the local dev database (never prod), in `uv run python manage.py shell`, pick the largest mat-pp unit as X (source) and another large unit as Y; with a `django.test.Client(HTTP_HOST="localhost")` logged in as the course owner (`client.force_login(owner)`), write the mark and **save** it — `client.session` returns a fresh store on every access, so an unsaved assignment is silently lost and the GETs would time the cheap unmarked path:
+```python
+s = client.session
+s["element_clip"] = {"unit": X.pk, "element": container_join.pk}
+s.save()
+assert client.get(editor_url(Y)).context["clip_mode"] == "copy"  # untimed check
+```
+then time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed, so the halt is clean.
 
 - [ ] **Step 6: Branch gate**
 
@@ -3062,12 +3073,12 @@ uv run pytest tests/test_[m-r]*.py --ignore-glob="*test_e2e_*"
 uv run pytest tests/test_[s-z]*.py --ignore-glob="*test_e2e_*"
 uv run pytest tests/demo tests/lal_import
 uv run pytest integrations notifications
-uv run pytest -m e2e tests/test_e2e_clipboard.py tests/test_e2e_paste_before.py tests/test_e2e_before_after.py tests/test_e2e_cross_unit_copy.py
+uv run pytest -m e2e tests/test_e2e_clipboard.py tests/test_e2e_paste_before.py tests/test_e2e_before_after.py tests/test_e2e_cross_unit_copy.py tests/test_e2e_editor_row_layout.py tests/test_e2e_editor_force_open.py tests/test_e2e_preview_nested_locate.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
 
-(`tests/` alone is ~6,000 tests: one run of it is OOM-killed with 0-byte output, so it is split in three alphabetical chunks plus its two subdirectories. Before running, `ls -d tests/*/` and confirm every subdirectory under `tests/` is covered by a chunk — add one if a new directory exists. `addopts` already deselects e2e; the e2e line is separate.)
+(The last three e2e files click the Duplicate button or measure the row action bar, whose ⧉ became an SVG in Task 6. `tests/` alone is ~6,000 tests: one run of it is OOM-killed with 0-byte output, so it is split in three alphabetical chunks plus its two subdirectories. Before running, `ls -d tests/*/` and confirm every subdirectory under `tests/` is covered by a chunk — add one if a new directory exists. `addopts` already deselects e2e; the e2e line is separate.)
 
 Read each summary line. Any failure in an unrelated file: A/B it on `origin/master` before blaming this branch.
 
