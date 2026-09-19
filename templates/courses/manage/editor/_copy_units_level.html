@@ -1,0 +1,5 @@
+{% comment %}
+One level of the copy-units tree for copy_units_level (spec D13): bare <li> rows,
+rendered by the SAME row partial as the banner, so the two can never differ.
+{% endcomment %}
+{% for n in rows %}{% include "courses/manage/editor/_copy_units_node.html" with n=n %}{% endfor %}

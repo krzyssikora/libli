@@ -536,7 +536,7 @@ def _unit(course, title, unit_type="lesson", parent=None, kind="unit"):
 
 def _banner(body):
     start = body.index('id="clip-banner"')
-    return body[start : body.index("</details>", start) + len("</details>")]
+    return body[start : body.index('class="pane-body"', start)]
 
 
 def _editor_url(course, unit):
@@ -660,11 +660,39 @@ def test_the_unit_list_handles_an_irregular_course(client):
     body = _editor(client, course, y)
     # The <details> part only: the "from" link above it also carries X's href.
     start = body.index("clip-banner__units")
-    banner = body[start : body.index("</details>", start)]
+    banner = body[start : body.index('class="pane-body"', start)]
 
     assert f'href="{_editor_url(course, other_root)}"' in banner  # root-level
-    assert f'href="{_editor_url(course, under_part)}"' in banner
     assert "EmptySectionE" not in banner  # a unit-less container is omitted
+    # D13: the part is collapsed (no `open`) and its rows load on expand.
+    assert '<details class="clip-banner__group" data-units-url=' in banner
+    assert f'href="{_editor_url(course, under_part)}"' not in banner
+    level = client.get(
+        reverse("courses:manage_copy_units", kwargs={"slug": course.slug}),
+        {"parent": part.pk},
+    ).content.decode()
+    assert f'href="{_editor_url(course, under_part)}"' in level
+
+
+def test_the_path_to_the_current_unit_is_open_and_other_containers_are_not(client):
+    """Mutant: render every container open ({% elif True %} in
+    _copy_units_node.html) -> RED on the sibling assertions."""
+    course, x = _seed(client)
+    part = _unit(course, "PathPart", kind="part", unit_type="")
+    chapter = _unit(course, "PathChapter", kind="chapter", unit_type="", parent=part)
+    here = _unit(course, "HereUnit", parent=chapter)
+    sibling = _unit(course, "SiblingPart", kind="part", unit_type="")
+    hidden = _unit(course, "HiddenUnit", parent=sibling)
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    banner = _banner(_editor(client, course, here))
+
+    assert banner.count('<details class="clip-banner__group" open') == 2
+    assert 'aria-current="page"' in banner and "HereUnit" in banner
+    assert "SiblingPart" in banner  # its row is there, collapsed
+    assert "HiddenUnit" not in banner
+    assert f'href="{_editor_url(course, hidden)}"' not in banner
 
 
 def test_nothing_fits_is_said_out_loud(client):

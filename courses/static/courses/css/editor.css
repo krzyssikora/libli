@@ -517,6 +517,10 @@ button.asset-cell:hover { border-color: var(--primary); }
 .clip-banner__unit { list-style: none; margin: .15rem 0; }
 .clip-banner__unit a { color: var(--text-primary); }
 .clip-banner__unit-current { font-weight: 600; color: var(--text-secondary); }
+/* D13: a container row is its own <details>; its rows arrive on first open (their
+   <ol> is indented by the existing `.clip-banner__units-list ol` rule). */
+.clip-banner__group > summary { cursor: pointer; }
+.clip-banner__unit--error { color: var(--text-secondary); font-style: italic; }
 /* The paste and Duplicate controls now hold an <svg class="ic">. The editor page does
    not load builder.css (home of the global `.ic` size), and an unsized <svg> renders
    at the UA default 300x150 -- so size it inside every icon button here. */

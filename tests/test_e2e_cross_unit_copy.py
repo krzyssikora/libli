@@ -70,6 +70,17 @@ def _seed(owner):
         ContentNodeFactory(
             course=course, kind="unit", unit_type="lesson", parent=None, title=title
         )
+    # D13: a root-level part, collapsed on render, whose one unit loads on expand.
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type="", parent=None, title="Deep part"
+    )
+    deep = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        title="Deep unit \\(z^2\\)",
+    )
     subject = Element.objects.create(
         unit=a,
         title=LONG_LABEL,
@@ -83,7 +94,7 @@ def _seed(owner):
         )
         for i in range(25)
     ]
-    return course, a, b, subject, rows
+    return course, a, b, subject, rows, part, deep
 
 
 def _editor(live_server, course, unit):
@@ -112,7 +123,7 @@ CLIP_BUTTON = "> .el-row__head .el-actions form[data-op='element-clip'] button"
 def test_a_copy_follows_the_author_to_another_unit(page, live_server):
     page.set_viewport_size({"width": 1280, "height": 720})
     user = _make_pa_user("pa")
-    course, a, b, subject, rows = _seed(user)
+    course, a, b, subject, rows, _part, _deep = _seed(user)
     _login(page, live_server, "pa")
     page.goto(_editor(live_server, course, a))
 
@@ -206,7 +217,7 @@ def test_a_copy_follows_the_author_to_another_unit(page, live_server):
 def test_the_banner_survives_a_narrow_viewport(page, live_server):
     page.set_viewport_size({"width": 400, "height": 800})
     user = _make_pa_user("pa")
-    course, a, b, subject, _rows = _seed(user)
+    course, a, b, subject, _rows, _part, _deep = _seed(user)
     _login(page, live_server, "pa")
     # BASELINE: whatever horizontal overflow the unmarked editor page already has
     # at 400px is not the banner's doing; the banner must add none.
@@ -248,7 +259,7 @@ def test_the_cancel_stays_on_the_pill_when_nothing_fits(page, live_server):
 
     page.set_viewport_size({"width": 1280, "height": 720})
     user = _make_pa_user("pa")
-    course, a, _b, _subject, _rows = _seed(user)
+    course, a, _b, _subject, _rows, _part, _deep = _seed(user)
     quiz = make_quiz_unit(course=course, parent=None, title="Quiz Q")
     box = Element.objects.create(
         unit=a, content_object=CalloutElement.objects.create(kind="example")
@@ -272,3 +283,66 @@ def test_the_cancel_stays_on_the_pill_when_nothing_fits(page, live_server):
         _box(page, "#clip-banner .clip-banner__line form button"),
         _box(page, "#clip-banner .clip-banner__line"),
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_collapsed_part_loads_its_units_on_open(page, live_server):
+    page.set_viewport_size({"width": 1280, "height": 720})
+    user = _make_pa_user("pa")
+    course, a, _b, subject, _rows, part, deep = _seed(user)
+    _login(page, live_server, "pa")
+    page.goto(_editor(live_server, course, a))
+    row = page.locator(f".el-row[data-element='{subject.pk}']")
+    with page.expect_response(lambda r: "element/clip/" in r.url):
+        row.locator(
+            "> .el-row__head .el-actions form[data-op='element-clip'] button"
+        ).click()
+
+    page.locator("#clip-banner .clip-banner__units > summary").click()
+    deep_link = page.locator(f"#clip-banner a[href$='/unit/{deep.pk}/edit/']")
+    expect(deep_link).to_have_count(0)  # collapsed: not in the DOM yet
+
+    group = page.locator(
+        f"#clip-banner details.clip-banner__group[data-units-url*='parent={part.pk}']"
+    )
+    with page.expect_response(lambda r: "copy-units/" in r.url and r.status == 200):
+        group.locator("> summary").click()
+
+    expect(deep_link).to_be_visible()
+    expect(deep_link.locator(".katex")).to_have_count(1)
+    deep_link.click()
+    page.wait_for_url(f"**/unit/{deep.pk}/edit/")
+    expect(page.locator("#clip-banner .clip-banner__from a")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_level_shows_an_error_and_retries_on_reopen(page, live_server):
+    """Mutant: set data-loaded in the loader's catch branch -> RED (no retry)."""
+    page.set_viewport_size({"width": 1280, "height": 720})
+    user = _make_pa_user("pa")
+    course, a, _b, subject, _rows, part, deep = _seed(user)
+    _login(page, live_server, "pa")
+    page.goto(_editor(live_server, course, a))
+    row = page.locator(f".el-row[data-element='{subject.pk}']")
+    with page.expect_response(lambda r: "element/clip/" in r.url):
+        row.locator(
+            "> .el-row__head .el-actions form[data-op='element-clip'] button"
+        ).click()
+    page.locator("#clip-banner .clip-banner__units > summary").click()
+    group = page.locator(
+        f"#clip-banner details.clip-banner__group[data-units-url*='parent={part.pk}']"
+    )
+
+    # FULFIL (never hold) the request with a 500: a held route hangs sync Playwright.
+    page.route("**/copy-units/**", lambda route: route.fulfill(status=500, body=""))
+    group.locator("> summary").click()
+    expect(group.locator(".clip-banner__unit--error")).to_be_visible()
+    page.unroute("**/copy-units/**")
+
+    group.locator("> summary").click()  # close
+    with page.expect_response(lambda r: "copy-units/" in r.url and r.status == 200):
+        group.locator("> summary").click()  # re-open: retries
+    expect(
+        page.locator(f"#clip-banner a[href$='/unit/{deep.pk}/edit/']")
+    ).to_be_visible()
+    expect(group.locator(".clip-banner__unit--error")).to_have_count(0)

@@ -12,6 +12,7 @@ from courses.models import Element
 from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.views_manage import copy_units_open_path
 from courses.views_manage import copy_units_tree
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -341,7 +342,7 @@ def test_a_move_into_a_spoiler_works_end_to_end(client):
 
 def test_the_clip_context_keys_reach_both_render_paths(client):
     """The headline guarantee this task exists to deliver: BOTH context builders
-    must carry the thirteen clip keys, or a fragment swap silently drops the
+    must carry the fourteen clip keys, or a fragment swap silently drops the
     feature the very next time the page renders -- exactly the trap
     `_clip_context`'s own docstring and the `max_nest_depth` precedent comment both
     warn about. Nothing else in this suite would catch their absence: Django
@@ -352,6 +353,12 @@ def test_the_clip_context_keys_reach_both_render_paths(client):
     _render_editor_fragments or _editor_page -> RED, independently, both ways.
     """
     course, unit = _seed(client)
+    # Under a part, so copy_units_open has a real value to carry: a builder that
+    # dropped the key would render every container collapsed after each swap
+    # (undefined template variables are falsy) and nothing else would notice.
+    part = _unit(course, "P", kind="part", unit_type="")
+    unit.parent = part
+    unit.save()
     dest, slots = _tabs(unit)
     subject = _text(unit)
     unit.refresh_from_db()
@@ -365,6 +372,7 @@ def test_the_clip_context_keys_reach_both_render_paths(client):
     assert resp.context["clip_element_pk"] == str(subject.pk)  # a STRING, not an int
     assert expected_key in resp.context["copy_slots"]
     assert resp.context["clip_mode"] == "move"
+    assert resp.context["copy_units_open"] == {part.pk}
 
     # The full-page GET path (_editor_page).
     unit.refresh_from_db()
@@ -376,6 +384,7 @@ def test_the_clip_context_keys_reach_both_render_paths(client):
     assert resp.context["clip_element_pk"] == str(subject.pk)
     assert expected_key in resp.context["copy_slots"]
     assert resp.context["clip_mode"] == "move"
+    assert resp.context["copy_units_open"] == {part.pk}
 
 
 def test_an_unmarked_render_never_walks_the_unit(client, monkeypatch):
@@ -1090,3 +1099,179 @@ def test_every_rendered_paste_form_carries_the_marked_element(client):
         assert forms, u.title
         for form in forms:
             assert f'name="element" value="{subject.pk}"' in form
+
+
+# ── D13: the unit list loads each level on expand ──────────────────────────
+
+
+def test_copy_units_open_path_is_every_container_above_the_unit():
+    course = CourseFactory()
+    part = _unit(course, "P", kind="part", unit_type="")
+    chapter = _unit(course, "C", kind="chapter", unit_type="", parent=part)
+    deep = _unit(course, "Deep", parent=chapter)
+    _unit(course, "Other")
+
+    units_map, _top, _available = copy_units_tree(course)
+
+    assert copy_units_open_path(units_map, deep) == {part.pk, chapter.pk}
+
+
+def test_copy_units_open_path_is_empty_for_a_root_level_unit():
+    course = CourseFactory()
+    root = _unit(course, "Root")
+    part = _unit(course, "P", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+
+    units_map, _top, _available = copy_units_tree(course)
+
+    assert copy_units_open_path(units_map, root) == set()
+
+
+def test_copy_units_open_path_is_empty_for_a_unit_not_in_the_map():
+    course = CourseFactory()
+    _unit(course, "A")
+    _unit(course, "B")
+    stranger = _unit(CourseFactory(), "Elsewhere")
+
+    units_map, _top, _available = copy_units_tree(course)
+
+    assert copy_units_open_path(units_map, stranger) == set()
+
+
+def _level(client, course, parent=None, current=None):
+    params = {}
+    if parent is not None:
+        params["parent"] = parent if isinstance(parent, (int, str)) else parent.pk
+    if current is not None:
+        params["current"] = current.pk
+    return client.get(
+        reverse("courses:manage_copy_units", kwargs={"slug": course.slug}), params
+    )
+
+
+def _other_course_with_a_part(course):
+    other = CourseFactory(owner=course.owner)
+    part = _unit(other, "ForeignPart", kind="part", unit_type="")
+    _unit(other, "ForeignUnit", parent=part)
+    return other, part
+
+
+def test_a_level_lists_its_units_as_links_and_its_containers_collapsed(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    leaf = _unit(course, "LeafUnit", parent=part)
+    chapter = _unit(course, "ChapterC", kind="chapter", unit_type="", parent=part)
+    _unit(course, "GrandchildUnit", parent=chapter)
+
+    resp = _level(client, course, part)
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    leaf_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": leaf.pk}
+    )
+    assert f'href="{leaf_url}"' in body
+    assert "ChapterC" in body
+    assert 'class="clip-banner__group"' in body
+    assert "data-units-url=" in body
+    assert "GrandchildUnit" not in body  # collapsed: no grandchild rows
+
+
+def test_a_level_marks_the_current_unit_and_does_not_link_it(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    here = _unit(course, "HereUnit", parent=part)
+    _unit(course, "ThereUnit", parent=part)
+
+    body = _level(client, course, part, current=here).content.decode()
+
+    here_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": here.pk}
+    )
+    assert 'aria-current="page"' in body
+    assert f'href="{here_url}"' not in body
+
+
+def test_a_level_of_a_unitless_container_is_a_404(client):
+    """Mutant: serve the UNPRUNED _children_map instead of the pruned map -> RED."""
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+    empty = _unit(course, "EmptyChapter", kind="chapter", unit_type="", parent=part)
+    # A unit-less CHILD container (a section is deeper than a chapter, so the tree is
+    # valid), so `empty` IS a key of the unpruned _children_map (which only keys
+    # parents that have children) -- without it the mutant below would 404 anyway
+    # and stay green.
+    _unit(course, "EmptySection", kind="section", unit_type="", parent=empty)
+
+    assert _level(client, course, empty).status_code == 404
+
+
+def test_a_level_of_a_unit_or_a_foreign_or_bad_node_is_a_404(client):
+    course, x = _seed(client)
+    _other, foreign_part = _other_course_with_a_part(course)
+
+    assert _level(client, course, x).status_code == 404  # a unit
+    assert _level(client, course, foreign_part).status_code == 404
+    assert _level(client, course, "abc").status_code == 404
+    assert _level(client, course).status_code == 404  # no parent at all
+
+
+def test_a_level_is_refused_to_a_user_who_cannot_manage_the_course(client):
+    """Mutant: drop the can_manage_course check -> RED."""
+    from tests.factories import make_teacher
+
+    course, _x = _seed(client, username="owner")
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+    # The construction test_a_user_who_cannot_manage_the_course_is_refused uses.
+    client.logout()
+    make_teacher(client, "teacher")
+
+    assert _level(client, course, part).status_code == 403
+
+
+def test_a_level_needs_a_login(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+    client.logout()
+
+    assert _level(client, course, part).status_code == 302
+
+
+def test_a_level_refuses_post(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+
+    resp = client.post(
+        reverse("courses:manage_copy_units", kwargs={"slug": course.slug}),
+        {"parent": part.pk},
+    )
+
+    assert resp.status_code == 405
+
+
+def test_a_levels_query_count_does_not_grow_with_its_size(client):
+    """Mutant: a per-row query in the row partial, e.g. {{ n.parent.title }} added to
+    each unit row -> RED. (NOT n.course.slug: nodes from course.nodes.all() already
+    carry .course via the reverse-FK manager's known-related-objects cache, so that
+    mutant costs no query and would stay green.)"""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    course, _x = _seed(client)
+    small = _unit(course, "Small", kind="part", unit_type="")
+    _unit(course, "S1", parent=small)
+    big = _unit(course, "Big", kind="part", unit_type="")
+    for i in range(30):
+        _unit(course, f"B{i}", parent=big)
+    _level(client, course, small)  # warm the session/auth path
+
+    with CaptureQueriesContext(connection) as small_q:
+        _level(client, course, small)
+    with CaptureQueriesContext(connection) as big_q:
+        _level(client, course, big)
+
+    assert len(big_q) == len(small_q)

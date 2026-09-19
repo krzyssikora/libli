@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
+from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
@@ -158,7 +159,9 @@ def copy_units_tree(course):
     One query (_children_map) plus one post-order fold, the same shape as
     _fold_flag_counts: every container with no unit anywhere below it is dropped
     from its parent's list and from the roots, so the template iterates only what it
-    renders -- a Django template cannot look ahead. `available` is True iff the
+    renders -- a Django template cannot look ahead. The banner renders only the top
+    level and the open path (copy_units_open_path); every other level arrives through
+    copy_units_level when the author opens it (spec D13). `available` is True iff the
     course has at least two units (with one, the list would offer nothing).
     """
     cmap = _children_map(course)
@@ -179,6 +182,23 @@ def copy_units_tree(course):
 
     keep(None)
     return pruned, pruned.get(None, []), units[0] >= 2
+
+
+def copy_units_open_path(units_map, unit):
+    """The container pks with `unit` somewhere below them, from copy_units_tree()'s
+    PRUNED map -- no query. These render open, with their rows, so the current unit is
+    visible when the list opens (spec D13); every other container renders collapsed and
+    loads its rows from copy_units_level on first open."""
+    parent_of = {}
+    for parent_pk, kids in units_map.items():
+        for kid in kids:
+            parent_of[kid.pk] = parent_pk
+    path = set()
+    node_pk = parent_of.get(unit.pk)
+    while node_pk is not None:
+        path.add(node_pk)
+        node_pk = parent_of.get(node_pk)
+    return path
 
 
 def _fold_flag_counts(cmap):
@@ -503,6 +523,44 @@ def link_picker(request, slug):
         request,
         "courses/manage/editor/_link_picker.html",
         {"course": course, "children_map": cmap, "top_nodes": cmap.get(None, [])},
+    )
+
+
+@login_required
+@require_GET
+def copy_units_level(request, slug):
+    """One level of the "Copy to another unit..." tree, as bare <li> rows (spec D13).
+
+    The banner renders the top level and the open path; a collapsed container fetches
+    its rows here the first time the author opens it (editor.js). `current` only marks
+    the author's unit as aria-current text; a missing or bad value marks nothing. 404
+    for anything that is not a container WITH a unit below it in this course -- the
+    pruned map is the authority, so a crafted parent cannot list what the banner hides.
+    """
+    course = get_object_or_404(Course, slug=slug)
+    if not can_manage_course(request.user, course):
+        raise PermissionDenied
+    units_map, _top, _available = copy_units_tree(course)
+    try:
+        parent_pk = int(request.GET.get("parent", ""))
+    except ValueError:
+        raise Http404 from None
+    if parent_pk not in units_map:
+        raise Http404
+    try:
+        current_pk = int(request.GET.get("current", ""))
+    except ValueError:
+        current_pk = None
+    return render(
+        request,
+        "courses/manage/editor/_copy_units_level.html",
+        {
+            "rows": units_map[parent_pk],
+            "copy_units_map": units_map,
+            "copy_units_open": set(),
+            "current_pk": current_pk,
+            "course_slug": course.slug,
+        },
     )
 
 
@@ -1606,10 +1664,10 @@ PASTE_REFUSAL_MESSAGES = {
 
 
 def _clip_context(request, unit):
-    """The mark-dependent context keys, for BOTH context builders -- thirteen:
+    """The mark-dependent context keys, for BOTH context builders -- fourteen:
     clip_active, clip_element_pk, clip_label, move_slots, copy_slots, before_slots,
     clip_noop_pk, clip_mode, clip_source_unit, clip_nothing_fits, copy_units_map,
-    copy_units_top, copy_units_available.
+    copy_units_top, copy_units_available, copy_units_open.
 
     When nothing is marked this returns empty values and does NO query -- the
     common render pays nothing. While a mark IS pending the cost is paid on every
@@ -1637,6 +1695,7 @@ def _clip_context(request, unit):
         "copy_units_map": {},
         "copy_units_top": [],
         "copy_units_available": False,
+        "copy_units_open": set(),
     }
     clip = request.session.get(CLIP_SESSION_KEY) or {}
     if not clip:
@@ -1703,6 +1762,7 @@ def _clip_context(request, unit):
     noop_pk = str(after[0]) if after else ""
 
     units_map, units_top, units_available = copy_units_tree(unit.course)
+    units_open = copy_units_open_path(units_map, unit)
     obj = marked.content_object
     return {
         "clip_active": True,
@@ -1730,11 +1790,13 @@ def _clip_context(request, unit):
         "copy_units_map": units_map,
         "copy_units_top": units_top,
         "copy_units_available": units_available,
+        "copy_units_open": units_open,
     }
 
 
 def _cross_unit_clip_context(request, unit, clip, empty):
-    """The mark lives in ANOTHER unit than `unit` (spec §1 lookups 1-5)."""
+    """The mark lives in ANOTHER unit than `unit` (spec §1 lookups 1-5). Returns
+    the same fourteen keys as _clip_context, copy_units_open included."""
     try:
         # .get: a hand-written session missing a key gives None, which matches
         # nothing and takes the dead-mark path instead of an unguarded KeyError.
@@ -1773,6 +1835,7 @@ def _cross_unit_clip_context(request, unit, clip, empty):
             copy_slots.add(key)
 
     units_map, units_top, units_available = copy_units_tree(unit.course)
+    units_open = copy_units_open_path(units_map, unit)
     return {
         "clip_active": True,
         # STRINGIFIED, as in the same-unit branch. Load-bearing here too:
@@ -1792,6 +1855,7 @@ def _cross_unit_clip_context(request, unit, clip, empty):
         "copy_units_map": units_map,
         "copy_units_top": units_top,
         "copy_units_available": units_available,
+        "copy_units_open": units_open,
     }
 
 

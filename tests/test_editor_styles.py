@@ -54,6 +54,7 @@ def test_editor_css_styles_action_buttons():
         ".clip-banner__label",
         ".clip-banner__from",
         ".clip-banner__units",
+        ".clip-banner__group",
         ".pastewrap",
         ".pastebtn",
         ".iconbtn .ic",  # unsized, the paste/Duplicate SVGs render at 300x150
