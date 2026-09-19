@@ -62,11 +62,29 @@
     if (tree) tree.hidden = false;
     var rawSelect = form.querySelector("select[name='new_parent']");
     var rawPos = form.querySelector("input[name='position']");
+    // The raw select is born holding "top", so an untouched "Move here" would
+    // silently move the node to the top level. Enabled only while a destination
+    // is chosen. (The no-JS form never runs this and keeps its enabled button.)
+    var submit = form.querySelector(".move-picker__submit");
+    if (submit) submit.disabled = true;
+    var cancel = form.querySelector("[data-move-cancel]");
+    if (cancel) cancel.addEventListener("click", function (e) {
+      e.preventDefault();   // the href is the no-JS way back to the builder
+      dismissPicker();
+    });
     tree.addEventListener("click", function (e) {
       var dest = e.target.closest(".move-dest");
       if (dest) {
+        var wasSelected = dest.classList.contains("sel");
         tree.querySelectorAll(".move-dest").forEach(function(d){ d.classList.remove("sel"); });
         tree.querySelectorAll(".move-dest-children").forEach(function(o){ o.hidden = true; });
+        if (wasSelected) {
+          // Re-clicking the chosen destination collapses it: nothing chosen again.
+          rawPos.value = "";
+          if (submit) submit.disabled = true;
+          return;
+        }
+        if (submit) submit.disabled = false;
         dest.classList.add("sel");
         rawSelect.value = dest.getAttribute("data-dest");            // syncs parent_token source
         var kids = dest.getAttribute("data-dest") === "top"
@@ -83,9 +101,38 @@
       }
     });
   }
-  // Escape clears the moving highlight when the picker is open.
-  root.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && panel.querySelector("form.move-picker")) clearMoving();
+  // Cancel / Escape: back to the neutral (course) panel, highlight cleared, and
+  // focus returned to the row's own Move... control so a keyboard author resumes
+  // where they started. Read movingPk BEFORE clearMoving() nulls it.
+  function dismissPicker() {
+    var pk = movingPk;
+    setPanel(neutralPanel);
+    clearMoving();
+    var mv = pk == null ? null : root.querySelector('a[data-move="' + pk + '"]');
+    // The row may be gone or hidden (its chapter collapsed, a filter): never strand
+    // focus on <body> -- the panel, now showing the course, takes it instead.
+    if (mv && mv.checkVisibility && !mv.checkVisibility()) mv = null;
+    if (!mv) {
+      if (!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex", "-1");
+      mv = panel;
+    }
+    mv.focus();
+  }
+  // On document, not root: clicking a slot (a non-focusable <li>) leaves focus on
+  // <body>, where a root listener would never hear the key. But document also hears
+  // the Escape that closes a header menu (core/js/ui.js), so only a key aimed at the
+  // picker, the builder, or nothing (<body>) dismisses. Escape inside a text field
+  // or a confirm strip belongs to that widget (inline rename reverts, the strip
+  // dismisses itself -- detaching the target, which root.contains() then rejects).
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    if (!panel.querySelector("form.move-picker")) return;
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t === document.body || panel.contains(t) || (root.contains(t)
+        && !t.closest("input, textarea, select, [contenteditable], [data-flag-strip], dialog"))) {
+      dismissPicker();
+    }
   });
   // ---- end Move-picker state ----
 

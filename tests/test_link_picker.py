@@ -90,25 +90,103 @@ def test_rows_are_treeitems_owning_their_children(client):
     assert group_start > item_start
 
 
-def test_parent_treeitems_expose_aria_expanded_true(client):
-    # A treeitem owning a group should expose expanded state; the tree is permanently
-    # expanded so aria-expanded="true" on rows that HAVE children is the whole fix.
-    # Leaf rows (no group) must not claim an expanded/collapsed state they don't have.
+def _soup(client, course, **params):
     from bs4 import BeautifulSoup
 
-    course, part, chapter, lesson, quiz = _tree(client)
-    html = client.get(
-        reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
-    ).content.decode()
-    soup = BeautifulSoup(html, "html.parser")
+    resp = client.get(
+        reverse("courses:manage_link_picker", kwargs={"slug": course.slug}), params
+    )
+    assert resp.status_code == 200
+    return BeautifulSoup(resp.content.decode(), "html.parser")
 
+
+def _group_of(soup, node):
+    row = soup.select_one(f'[data-node="{node.pk}"]')
+    return row.find("ol", recursive=False)
+
+
+def _two_branch_tree(client):
+    """_tree's Algebra > Quadratics > {Vertex, Practice} plus a sibling branch
+    Geometry > Circles > Arcs that holds nothing the edited unit sits under."""
+    course, part, chapter, lesson, quiz = _tree(client)
+    other_part = ContentNodeFactory(
+        course=course, kind="part", parent=None, title="Geometry"
+    )
+    other_chapter = ContentNodeFactory(
+        course=course, kind="chapter", parent=other_part, title="Circles"
+    )
+    other_unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=other_chapter,
+        title="Arcs",
+    )
+    return (
+        course,
+        (part, chapter, lesson, quiz),
+        (other_part, other_chapter, other_unit),
+    )
+
+
+def test_ancestors_of_the_edited_unit_render_open(client):
+    course, (part, chapter, lesson, _quiz), _other = _two_branch_tree(client)
+    soup = _soup(client, course, unit=lesson.pk)
     for node in (part, chapter):
         row = soup.select_one(f'[data-node="{node.pk}"]')
         assert row.get("aria-expanded") == "true", node.title
+        assert not _group_of(soup, node).has_attr("hidden"), node.title
 
-    for node in (lesson, quiz):
+
+def test_a_sibling_branch_renders_collapsed(client):
+    course, (_part, _chapter, lesson, _quiz), other = _two_branch_tree(client)
+    other_part, other_chapter, _other_unit = other
+    soup = _soup(client, course, unit=lesson.pk)
+    for node in (other_part, other_chapter):
+        row = soup.select_one(f'[data-node="{node.pk}"]')
+        assert row.get("aria-expanded") == "false", node.title
+        assert _group_of(soup, node).has_attr("hidden"), node.title
+
+
+def test_leaves_carry_no_expanded_state_and_containers_a_twisty(client):
+    # Leaf rows (no group) must not claim an expanded/collapsed state they don't have,
+    # and only a row that CAN toggle gets the disclosure control.
+    course, (part, chapter, lesson, quiz), other = _two_branch_tree(client)
+    soup = _soup(client, course, unit=lesson.pk)
+    for node in (lesson, quiz, other[2]):
         row = soup.select_one(f'[data-node="{node.pk}"]')
         assert row.get("aria-expanded") is None, node.title
+        assert (
+            row.select_one(":scope > .link-picker__row > .link-picker__twisty") is None
+        )
+    for node in (part, chapter, other[0], other[1]):
+        row = soup.select_one(f'[data-node="{node.pk}"]')
+        twisty = row.select_one(":scope > .link-picker__row > .link-picker__twisty")
+        assert twisty is not None, node.title
+        assert twisty.get("aria-hidden") == "true", node.title
+
+
+@pytest.mark.parametrize("value", [None, "", "abc", "999999999", "-1"])
+def test_missing_or_bad_unit_opens_nothing(client, value):
+    course, (part, chapter, *_rest), other = _two_branch_tree(client)
+    params = {} if value is None else {"unit": value}
+    soup = _soup(client, course, **params)
+    for node in (part, chapter, other[0], other[1]):
+        row = soup.select_one(f'[data-node="{node.pk}"]')
+        assert row.get("aria-expanded") == "false", (value, node.title)
+
+
+def test_a_foreign_unit_opens_nothing(client):
+    course, (part, chapter, *_rest), _other = _two_branch_tree(client)
+    foreign_course = CourseFactory(owner=course.owner)
+    fpart = ContentNodeFactory(course=foreign_course, kind="part", parent=None)
+    funit = ContentNodeFactory(
+        course=foreign_course, kind="unit", unit_type="lesson", parent=fpart
+    )
+    soup = _soup(client, course, unit=funit.pk)
+    assert 'aria-expanded="true"' not in str(soup)
+    for node in (part, chapter):
+        assert _group_of(soup, node).has_attr("hidden"), node.title
 
 
 def test_response_is_a_bare_partial(client):
@@ -140,10 +218,15 @@ def test_query_count_is_flat_in_tree_size(client, django_assert_num_queries):
     # _children_map is ONE query and must stay one -- the point is that a regression
     # to one query per row goes red. assertNumQueries(1) would simply be wrong: the
     # view also runs auth/session lookups, resolves the course and checks the perm.
-    course, *_ = _tree(client)
+    # Measured WITH ?unit=: the open path is walked out of the same map, so it must
+    # add no query of its own either.
+    course, _part, _chapter, lesson, _quiz = _tree(client)
     for i in range(10):
         ContentNodeFactory(course=course, kind="part", parent=None, title=f"P{i}")
-    url = reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
+    url = (
+        reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
+        + f"?unit={lesson.pk}"
+    )
     client.get(url)  # warm any session/auth caching
     with django_assert_num_queries(9) as captured:
         # Measured: session, user, allauth's EmailAddress read, the course lookup, the

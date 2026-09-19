@@ -19,6 +19,18 @@ def _editor(client):
     ).content.decode(), course
 
 
+def test_picker_url_names_the_unit_being_edited(client):
+    # The picker opens the path to THIS unit; without ?unit= every container renders
+    # collapsed and the author has to dig for the page they are standing on.
+    from bs4 import BeautifulSoup
+
+    html, course = _editor(client)
+    unit = course.nodes.get()
+    dialog = BeautifulSoup(html, "html.parser").select_one("dialog.link-dialog")
+    expected = reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
+    assert dialog["data-link-picker-url"] == f"{expected}?unit={unit.pk}"
+
+
 def test_dialog_is_rendered_with_the_picker_url(client):
     html, course = _editor(client)
     assert 'class="link-dialog"' in html

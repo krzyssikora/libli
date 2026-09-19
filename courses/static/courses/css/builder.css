@@ -228,7 +228,15 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .move-picker input[type="number"] { width: 4rem; }
 
 /* Move picker enhanced JS tree + slots */
-.move-picker__head { font-weight: 600; margin-bottom: var(--space-2); }
+.move-picker__head { font-weight: 600; margin-bottom: var(--space-2);
+  flex: 1 1 100%; display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+/* Cancel sits at the head's trailing edge; it must never shrink under a long title. */
+.move-picker__what { min-width: 0; overflow-wrap: anywhere; }
+.move-picker__cancel { flex: none; font-weight: 500; }
+/* Disabled until a destination is chosen (builder.js). .btn has no disabled state,
+   so without this it looks and hovers like a live button. */
+.move-picker__submit:disabled { opacity: .5; cursor: default; }
+.move-picker__submit:disabled:hover { background: var(--primary); }
 .js .move-picker__raw { display: none; }            /* hidden when JS builds the tree */
 .move-dest { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text-primary); }
 .move-dest--chapter { padding-left: 18px; }   /* indent by kind to convey hierarchy */

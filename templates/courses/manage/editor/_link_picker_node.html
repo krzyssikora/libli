@@ -7,13 +7,22 @@ would be a sibling of the item it belongs to and no item would own a subtree. Th
 not a <button>: role="treeitem" overrides button semantics anyway, and link_dialog.js
 implements Enter/Space and roving tabindex by hand. What matters is that it is focusable
 and keyboard-operable.{% endcomment %}
+{% comment %}Collapsed unless the node is on the path to the unit being edited
+(open_path, from views_manage.link_picker). The twisty is a mouse target only --
+aria-hidden, because the row itself carries aria-expanded and link_dialog.js gives
+it Left/Right. A leaf gets a same-width spacer so every title lines up.{% endcomment %}
 {% with children=children_map|get_item:n.pk %}
 <li class="link-picker__item" role="treeitem"
     aria-level="{{ level }}" aria-selected="false" tabindex="-1"
-    {% if children %}aria-expanded="true"{% endif %}
+    {% if children %}aria-expanded="{% if n.pk in open_path %}true{% else %}false{% endif %}"{% endif %}
     data-node="{{ n.pk }}" data-title="{{ n.title }}"
     data-href="{% url 'courses:node_permalink' node_pk=n.pk %}">
   <span class="link-picker__row">
+    {% if children %}
+      <span class="link-picker__twisty" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+    {% else %}
+      <span class="link-picker__spacer" aria-hidden="true"></span>
+    {% endif %}
     {% if n.kind == "unit" %}
       {% if n.unit_type == "quiz" %}
         <span class="tree__badge tree__badge--unit tree__badge--quiz" title="{{ n.get_unit_type_display }}">Q</span>
@@ -26,7 +35,7 @@ and keyboard-operable.{% endcomment %}
     <span class="link-picker__title">{{ n.title }}</span>
   </span>
   {% if children %}
-    <ol class="link-picker__scope" role="group">
+    <ol class="link-picker__scope" role="group"{% if n.pk not in open_path %} hidden{% endif %}>
       {% for child in children %}
         {% include "courses/manage/editor/_link_picker_node.html" with n=child children_map=children_map level=level|add:1 %}
       {% endfor %}

@@ -189,12 +189,19 @@ def copy_units_open_path(units_map, unit):
     PRUNED map -- no query. These render open, with their rows, so the current unit is
     visible when the list opens (spec D13); every other container renders collapsed and
     loads its rows from copy_units_level on first open."""
+    return ancestor_pks(units_map, unit.pk)
+
+
+def ancestor_pks(children_map, node_pk):
+    """The pks of every node above `node_pk` in a parent_id -> [children] map, by a
+    child -> parent walk -- no query. A pk the map does not hold (another course's,
+    or none at all) has no ancestors, so the result is simply empty."""
     parent_of = {}
-    for parent_pk, kids in units_map.items():
+    for parent_pk, kids in children_map.items():
         for kid in kids:
             parent_of[kid.pk] = parent_pk
     path = set()
-    node_pk = parent_of.get(unit.pk)
+    node_pk = parent_of.get(node_pk)
     while node_pk is not None:
         path.add(node_pk)
         node_pk = parent_of.get(node_pk)
@@ -514,15 +521,28 @@ def link_picker(request, slug):
     Rendered standalone (no base.html) because the dialog fetches it and injects the
     markup directly. Like `builder`, passes children_map PLUS top_nodes: _children_map
     keys roots under None, which a template cannot index.
+
+    `?unit=<pk>` names the unit being edited: the containers above it render open and
+    every other container collapsed. The walk runs over the FULL map (this tree is not
+    pruned), so it costs no query; a missing, malformed or foreign pk opens nothing.
     """
     course = get_object_or_404(Course, slug=slug)
     if not can_manage_course(request.user, course):
         raise PermissionDenied
     cmap = _children_map(course)
+    try:
+        open_path = ancestor_pks(cmap, int(request.GET.get("unit", "")))
+    except ValueError:
+        open_path = set()
     return render(
         request,
         "courses/manage/editor/_link_picker.html",
-        {"course": course, "children_map": cmap, "top_nodes": cmap.get(None, [])},
+        {
+            "course": course,
+            "children_map": cmap,
+            "top_nodes": cmap.get(None, []),
+            "open_path": open_path,
+        },
     )
 
 

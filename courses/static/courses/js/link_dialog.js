@@ -37,6 +37,7 @@
   var aborted = false;        // distinguishes a deliberate abort from a real failure
   var wantNode = null;        // preselection requested before the payload arrived
   var filterTimer = null;
+  var savedOpen = null;       // pk -> open, snapshotted at a query's first keystroke
 
   function msg(key, on) {
     var el = dialog.querySelector('[data-msg="' + key + '"]');
@@ -93,14 +94,42 @@
   function rows() { return mount.querySelectorAll(".link-picker__item"); }
   function selectedRow() { return mount.querySelector('[aria-selected="true"]'); }
 
+  // A row inside a COLLAPSED ancestor is not in the roving set: its group carries
+  // `hidden`, and closest() from the row itself never sees the row's OWN group (that
+  // sits inside it), only the groups it sits in.
   function rovingSet() {
     var out = [], all = rows();
     for (var i = 0; i < all.length; i++) {
-      if (!all[i].hidden && all[i].getAttribute("aria-disabled") !== "true") {
+      if (!all[i].hidden && all[i].getAttribute("aria-disabled") !== "true" &&
+          !all[i].closest(".link-picker__scope[hidden]")) {
         out.push(all[i]);
       }
     }
     return out;
+  }
+
+  // ---- disclosure ---------------------------------------------------------
+  // Only a row that owns a group carries aria-expanded (_link_picker_node.html), so a
+  // leaf is never "closed". The group's `hidden` is the one thing that hides it.
+  function groupOf(row) {
+    for (var c = row.firstElementChild; c; c = c.nextElementSibling) {
+      if (c.classList.contains("link-picker__scope")) return c;
+    }
+    return null;
+  }
+  function isParent(row) { return row.hasAttribute("aria-expanded"); }
+  function isOpen(row) { return row.getAttribute("aria-expanded") === "true"; }
+  function setOpen(row, open) {
+    var group = groupOf(row);
+    if (!group || !isParent(row)) return;
+    row.setAttribute("aria-expanded", open ? "true" : "false");
+    group.hidden = !open;
+  }
+  function parentRow(row) {
+    return row.parentElement ? row.parentElement.closest(".link-picker__item") : null;
+  }
+  function openAncestors(row) {
+    for (var p = parentRow(row); p; p = parentRow(p)) setOpen(p, true);
   }
 
   function setTabStop() {
@@ -110,7 +139,11 @@
     var set = rovingSet(), all = rows();
     for (var i = 0; i < all.length; i++) all[i].tabIndex = -1;
     var sel = selectedRow();
-    var target = (sel && set.indexOf(sel) !== -1) ? sel : set[0];
+    // A selection a collapse has hidden hands the stop to its nearest ancestor still
+    // in the set (the row the author just closed), not to the top of the tree.
+    var target = sel;
+    while (target && set.indexOf(target) === -1) target = parentRow(target);
+    if (!target) target = set[0];
     if (target) target.tabIndex = 0;
   }
 
@@ -128,7 +161,24 @@
 
   function applyFilter() {
     var q = (filterEl.value || "").trim().toLowerCase();
-    var all = rows(), shown = 0;
+    var all = rows(), shown = 0, k;
+    // The open/closed state the author had BEFORE typing is snapshotted at a query's
+    // first keystroke and put back when the query empties -- the filter opens whatever
+    // it needs, and clearing it must not leave the whole tree sprawled open.
+    if (q && savedOpen === null) {
+      savedOpen = {};
+      for (k = 0; k < all.length; k++) {
+        if (isParent(all[k])) savedOpen[all[k].getAttribute("data-node")] = isOpen(all[k]);
+      }
+    } else if (!q && savedOpen !== null) {
+      for (k = 0; k < all.length; k++) {
+        var was = savedOpen[all[k].getAttribute("data-node")];
+        if (was !== undefined) setOpen(all[k], was);
+      }
+      savedOpen = null;
+      // A row picked DURING the query must not vanish into a group the restore shut.
+      if (selectedRow()) openAncestors(selectedRow());
+    }
     for (var i = 0; i < all.length; i++) {
       var title = (all[i].getAttribute("data-title") || "").toLowerCase();
       // Title only -- the kind label is a translated word and would match half the
@@ -147,6 +197,10 @@
             !all[j].querySelector('[aria-disabled="false"]')) {
           all[j].hidden = true;
         }
+      }
+      // Every ancestor of a match opens, or the match would sit inside a closed group.
+      for (k = 0; k < all.length; k++) {
+        if (all[k].getAttribute("aria-disabled") === "false") openAncestors(all[k]);
       }
     }
     msg("nomatch", !!(q && shown === 0));
@@ -174,9 +228,17 @@
   }
   filterEl.addEventListener("input", applyFilter);
 
+  // The twisty toggles and never selects; the rest of the row selects and never
+  // toggles. A context row (aria-disabled under a filter) can still be toggled.
   mount.addEventListener("click", function (e) {
     var row = e.target.closest(".link-picker__item");
-    if (row && row.getAttribute("aria-disabled") !== "true") selectRow(row);
+    if (!row) return;
+    if (e.target.closest(".link-picker__twisty")) {
+      setOpen(row, !isOpen(row));
+      setTabStop();
+      return;
+    }
+    if (row.getAttribute("aria-disabled") !== "true") selectRow(row);
   });
 
   mount.addEventListener("keydown", function (e) {
@@ -193,6 +255,30 @@
       set[0].focus(); e.preventDefault();
     } else if (e.key === "End" && set.length) {
       set[set.length - 1].focus(); e.preventDefault();
+    } else if (e.key === "ArrowRight" && i > -1 && isParent(cur)) {
+      // WAI-ARIA tree: Right opens a closed parent, and on an open one moves to its
+      // first child still in the roving set.
+      if (!isOpen(cur)) {
+        setOpen(cur, true);
+        setTabStop();
+      } else {
+        for (var n = i + 1; n < set.length; n++) {
+          if (cur.contains(set[n])) { set[n].focus(); break; }
+        }
+      }
+      e.preventDefault();
+    } else if (e.key === "ArrowLeft" && i > -1) {
+      // Left closes an open parent; on a closed parent or a leaf it moves to the
+      // nearest ancestor row in the set (a filter's context rows are not).
+      if (isParent(cur) && isOpen(cur)) {
+        setOpen(cur, false);
+        setTabStop();
+      } else {
+        var up = parentRow(cur);
+        while (up && set.indexOf(up) === -1) up = parentRow(up);
+        if (up) up.focus();
+      }
+      e.preventDefault();
     } else if ((e.key === "Enter" || e.key === " ") && cur) {
       // Enter SELECTS a row here; it never inserts. Otherwise arrowing to a new row
       // and pressing Enter would fire Insert against the previously selected node.
@@ -236,11 +322,14 @@
     // never-innerHTML rule governs author-supplied strings crossing into an editing
     // surface, which this is not.
     mount.innerHTML = html;
+    savedOpen = null;                  // a fresh copy of the server's open/closed state
     clearMessages();
     if (!rows().length) msg("empty", true);
     if (wantNode) {
       var row = mount.querySelector('[data-node="' + wantNode + '"]');
-      if (row) selectRow(row); else msg("foreign", true);
+      // Open the path FIRST: selectRow scrolls the row into view, which a row inside
+      // a closed group cannot be.
+      if (row) { openAncestors(row); selectRow(row); } else msg("foreign", true);
       wantNode = null;
     }
     applyFilter();

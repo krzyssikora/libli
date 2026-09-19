@@ -2,9 +2,11 @@
 {% comment %}Server-rendered so makemessages can see every string. The JS only wires
 behaviour to this markup. The content lives in an inner wrapper and the <dialog>
 carries no padding, so a click whose target IS the dialog means the backdrop and
-nothing else -- see the dismissal handler in link_dialog.js.{% endcomment %}
+nothing else -- see the dismissal handler in link_dialog.js. ?unit= names the unit
+being edited, whose containers the picker renders open; the JS caches the tree for the
+page, and the page IS that unit.{% endcomment %}
 <dialog class="link-dialog" aria-labelledby="link-dialog-title"
-        data-link-picker-url="{% url 'courses:manage_link_picker' slug=course.slug %}">
+        data-link-picker-url="{% url 'courses:manage_link_picker' slug=course.slug %}{% if unit %}?unit={{ unit.pk }}{% endif %}">
   <div class="link-dialog__card">
     <h2 class="link-dialog__title" id="link-dialog-title">{% trans "Insert link" %}</h2>
 

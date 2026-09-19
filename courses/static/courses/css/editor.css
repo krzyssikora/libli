@@ -1414,6 +1414,22 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* min-width: 0 is what lets a long title actually truncate inside the 34rem dialog --
    a flex item's default min-width is auto, so without it the row overflows instead. */
 .link-picker__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The disclosure control. Collapsed groups carry `hidden`; the explicit rule keeps
+   that true if a later display declaration ever lands on .link-picker__scope. The
+   spacer holds a leaf's title in line with its siblings' titles. Direct-child chain
+   for the rotation, NOT a descendant selector: the tree is recursive, and an open
+   part would otherwise paint every closed chapter below it open too. */
+.link-picker__scope[hidden] { display: none; }
+.link-picker__twisty, .link-picker__spacer { flex: none; width: 1.25rem; height: 1.25rem; }
+/* A 24x24 hit target (WCAG 2.2 target size) that still LAYS OUT as 1.25rem, like the
+   spacer: the negative margin eats the extra .125rem a side, so badges stay aligned. */
+.link-picker__twisty { width: 1.5rem; height: 1.5rem; margin: -.125rem; }
+.link-picker__twisty { display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); color: var(--text-secondary); }
+.link-picker__twisty:hover { background: var(--border-subtle); color: var(--text-primary); }
+.link-picker__twisty > .icon { width: .8rem; height: .8rem; transition: transform 120ms ease; }
+.link-picker__item[aria-expanded="true"] > .link-picker__row > .link-picker__twisty > .icon { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .link-picker__twisty > .icon { transition: none; } }
 
 /* DUPLICATED from builder.css .tree__badge block -- twin. The editor page does not load builder.css
    (tests/test_editor_styles.py asserts it), and pulling that stylesheet in would drag

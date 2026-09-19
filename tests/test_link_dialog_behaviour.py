@@ -370,7 +370,7 @@ def test_a_second_open_starts_clean(dialog_page):
     dialog_page.locator("[data-node='2']").click()
     dialog_page.locator("[data-link-filter]").fill("quad")
     dialog_page.locator("[data-link-cancel]").click()
-    # Without this wait, open()'s `if (callback) return;` guard (link_dialog.js:300)
+    # Without this wait, open()'s `if (callback) return;` guard (link_dialog.js:421)
     # can still see the FIRST session's callback -- reset only once the close
     # handler's queued task runs -- and silently no-op this second open() entirely.
     _await_dismissed(dialog_page)
@@ -398,7 +398,7 @@ def test_existing_internal_link_preselects_its_row(dialog_page):
 def test_remove_returns_remove_true(dialog_page):
     # Task 4's test_link_apply.py proves link_apply.js correctly consumes an
     # already-formed {remove: true}; nothing proved link_dialog.js's own Remove
-    # button (link_dialog.js:265, commit({remove: true})) actually EMITS it.
+    # button (link_dialog.js:375, commit({remove: true})) actually EMITS it.
     _open(
         dialog_page,
         existing={"href": "/courses/n/2/", "text": "Quadratics"},
