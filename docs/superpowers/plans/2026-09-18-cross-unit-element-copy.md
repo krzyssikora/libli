@@ -47,7 +47,7 @@ None touches an owner decision (D1–D12); each corrects a test or verification 
 - **No assertion may compare pks of different models** (independent sequences). Compare titles, bodies, rendered text, or instances with `==`; build hrefs with `reverse`.
 - **Django templates:** `{# … #}` is single-line only; multi-line notes use `{% comment %}…{% endcomment %}`.
 - **Line citations:** comment rewrites in `editor.css` and `courses/transfer/importer.py` are **line-count neutral** where the spec says so (the repo cites line numbers in those files).
-- **Commits:** one per task, explicit paths (never `git add -A` / `git add .`), message ending with:
+- **Commits:** one per task — except Task 8, which commits at **every step that says Commit** (Step 4b, Step 7, and Step 9 if the rebase needs it); never squash Step 4b into Step 7, it exists so the timing step can halt on a clean tree. Explicit paths (never `git add -A` / `git add .`), message ending with:
   ```
   Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
   ```
@@ -2794,7 +2794,7 @@ Start the dev server on the local mat-pp copy (`uv run python manage.py runserve
      <share>% of the pane. */
   .clip-banner__units-list { max-height: min(20vh, 12rem); }
 ```
-re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the row action bar's Duplicate button and every paste button show a normal-size (1rem) icon, not a 300×150 one; the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR, **saved in the session scratchpad, never inside the worktree** — an untracked file there would break Task 8's empty-`git status` checks.
+re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the row action bar's Duplicate button and every paste button show a normal-size (1rem) icon, not a 300×150 one; the **pre-existing** `.iconbtn .ic` handles keep their size under the new rule (V5 is deliberately global) — open a table, a fill-table, a gallery and a tabs editor and check the handle icons are unchanged (table/fill-table row/col handles ~11px, gallery/tabs ~14px; compare with the same editors on `origin/master`). The table handles win only by source order (`.table-editor__rowctl .ic` is (0,2,0), the same as `.iconbtn .ic`, and sits later in the file), so **add the new `.iconbtn .ic` rule where Step 2 puts it, above those rules — never move it below them**; the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR, **saved in the session scratchpad, never inside the worktree** — an untracked file there would break Task 8's empty-`git status` checks.
 
 - [ ] **Step 7: Commit**
 
@@ -3138,7 +3138,15 @@ s.save()
 # filled under Django's test instrumentation).
 assert 'clip-banner__from' in client.get(editor_url(Y)).content.decode()
 ```
-then time `client.get(editor_url(Y))` 5 times (median). Then time it again with `views_manage.copy_units_tree` monkeypatched to `lambda c: ({}, [], False)` — the difference is the **tree's** cost. Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed (Step 4b), and Step 5 changes no tracked file, so the halt is clean — confirm with `git status --short` (empty) before stopping.
+then time `client.get(editor_url(Y))` 5 times (median). Then time it again with the tree stubbed out — the difference is the **tree's** cost:
+```python
+from courses import views_manage
+real_tree = views_manage.copy_units_tree
+views_manage.copy_units_tree = lambda c: ({}, [], False)
+# ... time client.get(editor_url(Y)) 5 times, median ...
+views_manage.copy_units_tree = real_tree  # restore before any further timing
+```
+ Separately time `builder.unit_children_map(X)` 5 times — the **source-map** cost. Report both in the PR; the source-map cost is reported, not acted on. If the tree adds more than ~10% to the op, **stop and report** instead of improvising the flat fallback: it changes `copy_units_tree`'s return shape, both partials, and the tests that index the pruned map, and needs its own spec-level decision. Everything up to this point is committed (Step 4b), and Step 5 changes no tracked file, so the halt is clean — confirm with `git status --short` (empty) before stopping.
 
 - [ ] **Step 6: Branch gate**
 
