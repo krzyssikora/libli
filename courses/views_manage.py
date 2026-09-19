@@ -151,6 +151,35 @@ def _children_map(course):
     return cmap
 
 
+def copy_units_tree(course):
+    """(pruned_map, pruned_top, available) for the "Copy to another unit…" list.
+
+    One query (_children_map) plus one post-order fold, the same shape as
+    _fold_flag_counts: every container with no unit anywhere below it is dropped
+    from its parent's list and from the roots, so the template iterates only what it
+    renders -- a Django template cannot look ahead. `available` is True iff the
+    course has at least two units (with one, the list would offer nothing).
+    """
+    cmap = _children_map(course)
+    pruned = {}
+    units = [0]
+
+    def keep(parent_pk):
+        kept = []
+        for node in cmap.get(parent_pk, []):
+            if node.kind == ContentNode.Kind.UNIT:
+                units[0] += 1
+                kept.append(node)
+            elif keep(node.pk):
+                kept.append(node)
+        if kept:
+            pruned[parent_pk] = kept
+        return bool(kept)
+
+    keep(None)
+    return pruned, pruned.get(None, []), units[0] >= 2
+
+
 def _fold_flag_counts(cmap):
     """pk -> (live_units, total_units, obligatory_lessons, total_lessons) over
     each CONTAINER's whole subtree.
@@ -1576,15 +1605,22 @@ PASTE_REFUSAL_MESSAGES = {
 
 
 def _clip_context(request, unit):
-    """The five mark-dependent context keys, for BOTH context builders.
+    """The mark-dependent context keys, for BOTH context builders -- thirteen:
+    clip_active, clip_element_pk, clip_label, move_slots, copy_slots, before_slots,
+    clip_noop_pk, clip_mode, clip_source_unit, clip_nothing_fits, copy_units_map,
+    copy_units_top, copy_units_available.
 
-    When nothing is marked this returns empty values and does NO walk -- the
+    When nothing is marked this returns empty values and does NO query -- the
     common render pays nothing. While a mark IS pending the cost is paid on every
     response, which is why enumerate_slots is one query and why its children_map is
     reused by subtree_facts rather than re-walked.
 
-    Clears a stale mark lazily: a marked element that has been deleted, or that
-    belongs to another unit, is treated as absent.
+    The mark is classified against `unit`:
+      - same unit: move + copy slots, move-before rows (today's behaviour);
+      - another unit of THIS course: copy slots and copy-before rows only -- the
+        mark "follows the author" (spec D3/D7);
+      - another course: ignored and KEPT (D8; the author may go back);
+      - its element or unit gone, or the session malformed: cleared.
     """
     empty = {
         "clip_active": False,
@@ -1594,18 +1630,25 @@ def _clip_context(request, unit):
         "copy_slots": set(),
         "before_slots": set(),
         "clip_noop_pk": "",
+        "clip_mode": "",
+        "clip_source_unit": None,
+        "clip_nothing_fits": False,
+        "copy_units_map": {},
+        "copy_units_top": [],
+        "copy_units_available": False,
     }
     clip = request.session.get(CLIP_SESSION_KEY) or {}
-    if clip.get("unit") != unit.pk:
-        # Rendering ANOTHER unit: ignored, not cleared -- you may navigate back.
+    if not clip:
         return empty
+    if clip.get("unit") != unit.pk:
+        return _cross_unit_clip_context(request, unit, clip, empty)
 
-    # Wrapped for the same reason as _clip_unit above: filter(pk=...) raises
-    # ValueError/TypeError when a non-numeric pk is evaluated. element_clip always
-    # writes an int() here, so this is unreachable through that path today -- but a
-    # session written any other way would otherwise raise on EVERY editor render for
-    # that user until the cookie is cleared, which is a sticky failure worth guarding
-    # cheaply rather than trusting the only writer forever.
+    # Same unit. Wrapped for the same reason as _clip_unit above: filter(pk=...)
+    # raises ValueError/TypeError when a non-numeric pk is evaluated. element_clip
+    # always writes an int() here, so this is unreachable through that path today --
+    # but a session written any other way would otherwise raise on EVERY editor
+    # render for that user until the cookie is cleared, which is a sticky failure
+    # worth guarding cheaply rather than trusting the only writer forever.
     try:
         marked = unit.elements.filter(pk=clip.get("element")).first()
     except (ValueError, TypeError):
@@ -1658,6 +1701,7 @@ def _clip_context(request, unit):
     after = siblings[siblings.index(marked.pk) + 1 :] if marked.pk in siblings else []
     noop_pk = str(after[0]) if after else ""
 
+    units_map, units_top, units_available = copy_units_tree(unit.course)
     obj = marked.content_object
     return {
         "clip_active": True,
@@ -1679,6 +1723,74 @@ def _clip_context(request, unit):
         # STRINGIFIED for the same reason clip_element_pk is: the tag compares it
         # against str(el.pk).
         "clip_noop_pk": noop_pk,
+        "clip_mode": "move",
+        "clip_source_unit": None,
+        "clip_nothing_fits": False,
+        "copy_units_map": units_map,
+        "copy_units_top": units_top,
+        "copy_units_available": units_available,
+    }
+
+
+def _cross_unit_clip_context(request, unit, clip, empty):
+    """The mark lives in ANOTHER unit than `unit` (spec §1 lookups 1-5)."""
+    try:
+        # .get: a hand-written session missing a key gives None, which matches
+        # nothing and takes the dead-mark path instead of an unguarded KeyError.
+        marked = (
+            Element.objects.select_related("unit")
+            .filter(pk=clip.get("element"), unit_id=clip.get("unit"))
+            .first()
+        )
+    except (ValueError, TypeError):
+        marked = None
+    if marked is None:  # element or unit gone, in whatever course -- or malformed
+        request.session.pop(CLIP_SESSION_KEY, None)
+        return empty
+    if marked.unit.course_id != unit.course_id:
+        return empty  # D8: another course's mark is ignored, NOT cleared
+    if marked.unit_id == unit.pk:
+        # Only a hand-written session whose `unit` is a numeric STRING gets here
+        # (it failed the int comparison above). Classify on the loaded row, never on
+        # the session value's type, so this branch can never run for its own unit.
+        request.session.pop(CLIP_SESSION_KEY, None)
+        return empty
+
+    obj = marked.content_object  # one GFK: _slot_cap, has_interactive, the label
+    # The SOURCE unit's map: the destination's does not hold the marked subtree.
+    facts = builder_svc.subtree_facts(
+        marked, children_map=builder_svc.unit_children_map(marked.unit)
+    )
+    pairs, _dest_map = builder_svc.enumerate_slots(unit)
+    copy_slots = set()
+    for parent, tab, dest_depth in pairs:
+        ok, _reason = builder_svc.paste_allowed(
+            unit, marked, parent, tab, "copy", facts=facts, dest_depth=dest_depth
+        )
+        if ok:
+            key = builder_svc.slot_key(parent.pk if parent is not None else None, tab)
+            copy_slots.add(key)
+
+    units_map, units_top, units_available = copy_units_tree(unit.course)
+    return {
+        "clip_active": True,
+        # STRINGIFIED, as in the same-unit branch. Load-bearing here too:
+        # paste_before_button hides itself whenever this is empty, and the cancel
+        # form posts it.
+        "clip_element_pk": str(marked.pk),
+        "clip_label": marked.title or element_summary(obj),
+        "move_slots": set(),  # D7: move never appears outside the source unit
+        "copy_slots": copy_slots,
+        # The only rule separating an append from a positional placement is clause
+        # 5, which is move-only -- so every copy slot also takes copy-before rows.
+        "before_slots": set(copy_slots),
+        "clip_noop_pk": "",  # a copy is never a no-op
+        "clip_mode": "copy",
+        "clip_source_unit": marked.unit,
+        "clip_nothing_fits": not copy_slots,
+        "copy_units_map": units_map,
+        "copy_units_top": units_top,
+        "copy_units_available": units_available,
     }
 
 
@@ -1701,8 +1813,9 @@ def element_clip(request, slug):
     -- the paste re-validates everything.
 
     The marked element is deliberately NOT validated beyond belonging to this unit:
-    the paste re-resolves it through _locked_element(course, ...), which filters on
-    unit__course, and a mark is only a session note until then.
+    the paste re-resolves the element through _locked_element(course, ...), and
+    locks the destination unit too when it differs (see builder.paste_element) --
+    a mark is only a session note until then.
     """
     course = _require_manage(request, slug)
     unit = _clip_unit(request, course)

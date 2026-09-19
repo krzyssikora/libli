@@ -2,13 +2,17 @@ import pytest
 from django.urls import reverse
 
 from courses.builder import slot_key
+from courses.models import CalloutElement
+from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.views_manage import copy_units_tree
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_pa
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -301,12 +305,12 @@ def test_a_move_into_a_spoiler_works_end_to_end(client):
 
 def test_the_clip_context_keys_reach_both_render_paths(client):
     """The headline guarantee this task exists to deliver: BOTH context builders
-    must carry the five clip keys, or a fragment swap silently drops the feature
-    the very next time the page renders -- exactly the trap `_clip_context`'s own
-    docstring and the `max_nest_depth` precedent comment both warn about. Nothing
-    else in this suite would catch their absence: Django templates ignore a
-    missing context variable, so every status/body/DB assertion elsewhere would
-    stay green with the keys gone from either builder.
+    must carry the thirteen clip keys, or a fragment swap silently drops the
+    feature the very next time the page renders -- exactly the trap
+    `_clip_context`'s own docstring and the `max_nest_depth` precedent comment both
+    warn about. Nothing else in this suite would catch their absence: Django
+    templates ignore a missing context variable, so every status/body/DB
+    assertion elsewhere would stay green with the keys gone from either builder.
 
     Mutant: delete the `**_clip_context(request, unit)` splat from EITHER
     _render_editor_fragments or _editor_page -> RED, independently, both ways.
@@ -324,6 +328,7 @@ def test_the_clip_context_keys_reach_both_render_paths(client):
     assert resp.context["clip_active"] is True
     assert resp.context["clip_element_pk"] == str(subject.pk)  # a STRING, not an int
     assert expected_key in resp.context["copy_slots"]
+    assert resp.context["clip_mode"] == "move"
 
     # The full-page GET path (_editor_page).
     unit.refresh_from_db()
@@ -334,6 +339,7 @@ def test_the_clip_context_keys_reach_both_render_paths(client):
     assert resp.context["clip_active"] is True
     assert resp.context["clip_element_pk"] == str(subject.pk)
     assert expected_key in resp.context["copy_slots"]
+    assert resp.context["clip_mode"] == "move"
 
 
 def test_an_unmarked_render_never_walks_the_unit(client, monkeypatch):
@@ -601,3 +607,240 @@ def test_a_paste_before_itself_is_a_400(client):
     resp = _paste_before(client, course, unit, subject)
 
     assert resp.status_code == 400
+
+
+def _unit(course, title, unit_type="lesson", parent=None, kind="unit"):
+    return ContentNodeFactory(
+        course=course, parent=parent, kind=kind, unit_type=unit_type, title=title
+    )
+
+
+def _editor_get(client, course, unit):
+    unit.refresh_from_db()
+    return client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+
+
+def test_copy_units_tree_keeps_units_at_any_depth_and_drops_empty_containers():
+    course = CourseFactory()
+    root_unit = _unit(course, "RootUnit")
+    part = _unit(course, "Part", kind="part", unit_type="")
+    chapter = _unit(course, "Chapter", kind="chapter", unit_type="", parent=part)
+    section = _unit(course, "Section", kind="section", unit_type="", parent=chapter)
+    deep = _unit(course, "Deep", parent=section)
+    empty_section = _unit(
+        course, "EmptySection", kind="section", unit_type="", parent=chapter
+    )
+
+    pruned, top, available = copy_units_tree(course)
+
+    assert top == [root_unit, part] or top == [part, root_unit]
+    assert pruned[chapter.pk] == [section]  # the unit-less section is dropped
+    assert empty_section not in pruned.get(chapter.pk, [])
+    assert pruned[section.pk] == [deep]
+    assert available is True
+
+
+def test_copy_units_tree_reports_a_one_unit_course_as_unavailable():
+    course = CourseFactory()
+    _unit(course, "Only")
+
+    _pruned, _top, available = copy_units_tree(course)
+
+    assert available is False
+
+
+def test_copy_units_tree_reports_two_units_as_available():
+    course = CourseFactory()
+    _unit(course, "One")
+    _unit(course, "Two")
+
+    assert copy_units_tree(course)[2] is True
+
+
+def test_a_mark_in_another_unit_of_the_course_offers_copy_only(client):
+    """The cross-unit branch. Mutant: fill move_slots in the cross-unit branch
+    (e.g. `move_slots = set(copy_slots)`) -> RED."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x)
+    box, slots = _tabs(y)
+    _mark(client, course, x, subject)
+
+    resp = _editor_get(client, course, y)
+
+    ctx = resp.context
+    assert ctx["clip_active"] is True
+    assert ctx["clip_mode"] == "copy"
+    assert ctx["clip_source_unit"] == x
+    assert ctx["clip_element_pk"] == str(subject.pk)
+    assert ctx["move_slots"] == set()
+    assert slot_key(box.pk, slots[0]) in ctx["copy_slots"]
+    assert ctx["before_slots"] == ctx["copy_slots"]
+    assert ctx["clip_noop_pk"] == ""
+    assert ctx["clip_nothing_fits"] is False
+    assert ctx["copy_units_available"] is True
+
+
+def test_the_source_unit_keeps_move_mode_and_no_source_link(client):
+    course, x = _seed(client)
+    _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    ctx = _editor_get(client, course, x).context
+
+    assert ctx["clip_mode"] == "move"
+    assert ctx["clip_source_unit"] is None
+
+
+def test_a_mark_from_another_course_is_ignored_and_kept(client):
+    """D8. Mutant: pop the session mark on the foreign-course path -> RED."""
+    course, unit = _seed(client)
+    other_course = CourseFactory(owner=course.owner)
+    foreign_unit = _unit(other_course, "F")
+    foreign = _text(foreign_unit)
+    _mark(client, other_course, foreign_unit, foreign)
+    assert client.session["element_clip"]["element"] == foreign.pk
+
+    ctx = _editor_get(client, course, unit).context
+
+    assert ctx["clip_active"] is False
+    assert client.session["element_clip"]["element"] == foreign.pk
+
+
+def test_a_mark_whose_source_unit_was_deleted_is_cleared(client):
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+    x.delete()
+
+    ctx = _editor_get(client, course, y).context
+
+    assert ctx["clip_active"] is False
+    assert "element_clip" not in client.session
+
+
+def test_a_non_numeric_session_unit_is_cleared(client):
+    course, unit = _seed(client)
+    session = client.session
+    session["element_clip"] = {"unit": "abc", "element": 1}
+    session.save()
+
+    ctx = _editor_get(client, course, unit).context
+
+    assert ctx["clip_active"] is False
+    assert "element_clip" not in client.session
+
+
+def test_a_partial_session_mark_is_cleared_as_dead(client):
+    """`none` is exactly `not clip`; {"unit": X} takes lookup step 1 and misses."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    session = client.session
+    session["element_clip"] = {"unit": x.pk}
+    session.save()
+
+    ctx = _editor_get(client, course, y).context
+
+    assert ctx["clip_active"] is False
+    assert "element_clip" not in client.session
+
+
+def test_a_question_callout_marked_for_a_quiz_fits_nowhere(client):
+    """Mutant: never set clip_nothing_fits (always False) -> RED."""
+    course, x = _seed(client)
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    box = Element.objects.create(
+        unit=x, content_object=CalloutElement.objects.create(kind="example")
+    )
+    Element.objects.create(
+        unit=x,
+        content_object=ChoiceQuestionElement.objects.create(stem="P.", multiple=False),
+        parent=box,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    _mark(client, course, x, box)
+
+    ctx = _editor_get(client, course, quiz).context
+
+    assert ctx["copy_slots"] == set()
+    assert ctx["clip_nothing_fits"] is True
+
+
+def test_the_copy_list_is_built_only_while_a_mark_is_active(client, monkeypatch):
+    """0 calls unmarked, EXACTLY 1 marked (so a never-built tree also goes red).
+
+    Mutant: build copy_units_tree unconditionally in _clip_context -> RED (1 call
+    on the unmarked render)."""
+    from courses import views_manage
+
+    course, unit = _seed(client)
+    _unit(course, "Y")
+    subject = _text(unit)
+    calls = []
+    real = views_manage._children_map
+
+    def _counting(c):
+        calls.append(c)
+        return real(c)
+
+    monkeypatch.setattr(views_manage, "_children_map", _counting)
+
+    _editor_get(client, course, unit)
+    assert calls == []
+
+    _mark(client, course, unit, subject)
+    calls.clear()
+    _editor_get(client, course, unit)
+    assert len(calls) == 1
+
+
+def test_a_cross_unit_marked_render_stays_within_its_query_ceiling(
+    client, django_assert_max_num_queries
+):
+    """An order-of-magnitude tripwire on the CROSS-UNIT marked render.
+
+    MEASURED BASELINE: 44 queries. To re-measure, set the ceiling to 1
+    temporarily and read the real count from the failure message; the ceiling is
+    that count + 5. At
+    least 10 slots in Y and 2 descendants under the marked element, so a per-slot
+    re-walk of the source clears the margin.
+
+    Mutant: drop `facts=facts` from the cross-unit paste_allowed loop -> RED.
+    NOT caught (stated, not claimed): dropping select_related("unit") -- a single
+    query, which no sane ceiling separates (see the same-unit sibling test)."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    for _ in range(5):
+        _tabs(y)  # 2 slots each -> 10 container slots
+    root, rslots = _tabs(x)
+    _text(x, parent=root, tab=rslots[0])
+    _text(x, parent=root, tab=rslots[1])
+    assert _mark(client, course, x, root).status_code == 200
+
+    with django_assert_max_num_queries(49):  # tightened to measured + 5 in Step 5b
+        _editor_get(client, course, y)
+
+
+def test_a_cross_unit_marked_render_never_falls_back_to_walking_parents(
+    client, monkeypatch
+):
+    """Mutant: drop `dest_depth=dest_depth` from the cross-unit loop -> RED."""
+    from courses import builder as builder_mod
+
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    outer, oslots = _tabs(y)
+    _tabs(y, parent=outer, tab=oslots[0])
+    subject = _text(x)
+    assert _mark(client, course, x, subject).status_code == 200
+
+    def _boom(_join):
+        raise RuntimeError("paste_allowed must receive dest_depth from the render")
+
+    monkeypatch.setattr(builder_mod, "element_depth", _boom)
+
+    assert _editor_get(client, course, y).status_code == 200
