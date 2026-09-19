@@ -31,42 +31,42 @@
 }
 
 /* ── Tab bar (the underline idiom of .manage__tabs in people.css) ─────────────
-   ONE row that scrolls sideways when it does not fit; no label ever wraps. The
-   NAV is the scroller and the .scroll-x wrapper around it paints the edge shade
-   (app.css, core/js/scroll_affordance.js). An overflow-x: auto box also clips the
-   y-axis, so people.css's "tab border-bottom pulled over the parent's rule with
-   margin-bottom: -1px" would be clipped here. Instead the rule is an inset shadow
-   on the nav, and the active underline an inset shadow INSIDE the tab box, which
-   paints over the rule exactly where the old overlap did. */
+   The row WRAPS, in the same 48rem measure as the forms below it, so every tab
+   is always on screen. It used to be one row that scrolled sideways with a hidden
+   scrollbar; in Polish the last tab then sat past the edge, reachable only by
+   Shift+wheel, which a laptop touchpad could not do. No label ever wraps inside
+   itself (nowrap); a whole tab moves to the next row instead.
 
+   The rule under the row is an inset shadow on the wrapper, and the active
+   underline an inset shadow INSIDE the tab box: a wrapping row has no single
+   bottom edge for people.css's "border-bottom pulled over the parent's rule" to
+   meet. */
+
+/* The wrapper also CLIPS: see .settings__tabs-vendor::before below. */
 .settings__tabs-wrap {
+  max-width: 48rem;
+  overflow: hidden;
   margin-bottom: var(--space-6);
-}
-
-/* Spacing is tight on purpose: all ten English tabs fit the 1280px column in one
-   row (~903px of 920). The tabs' own padding is the only space between them, and
-   the vertical padding keeps a 40px tap target. Polish and phones still scroll. */
-.settings__tabs {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
   box-shadow: inset 0 -1px 0 var(--border-subtle);
-  /* Scrolled fully right, the last tab ends a gap short of the edge instead of
-     flush against it (and sub-pixel past it: scrollLeft stops at a whole pixel). */
-  padding-right: var(--space-2);
 }
 
-.settings__tabs::-webkit-scrollbar {
-  display: none;
+/* Every tab carries its gap as a LEFT margin, and the row is pulled left by one
+   gap, so the first tab of every row lines up with the forms. The same trick is
+   what hides the rule before Pricing when that group opens a row. */
+.settings__tabs {
+  --settings-tab-gap: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-left: calc(-1 * var(--settings-tab-gap));
 }
 
 .settings__tab {
   flex: none;
   white-space: nowrap;
-  padding: var(--space-2);
+  margin-left: var(--settings-tab-gap);
+  /* The vertical padding keeps a 40px tap target. */
+  padding: var(--space-2) var(--space-1);
   color: var(--text-secondary);
   text-decoration: none;
 }
@@ -81,17 +81,31 @@
   font-weight: 600;
 }
 
-/* The scroller clips anything outside the tab row, a focus ring included. */
+/* The wrapper clips anything outside the tab rows, a focus ring included. */
 .settings__tab:focus-visible {
   outline-offset: -2px;
 }
 
-/* Vendor-only tabs (Pricing, Demo access) sit after this quiet rule. */
-.settings__tabs-divider {
+/* Vendor-only tabs (Pricing, Demo access) wrap as ONE unit, after a quiet rule
+   centred in the Pricing tab's leading gap. Mid-row that gap sits between two
+   labels; when the unit opens a row, the gap lies in the strip the row is pulled
+   left by, and the wrapper's overflow clips the rule with it. So the rule never
+   dangles at the start of a row, and no JS has to find out where the row broke. */
+.settings__tabs-vendor {
+  display: flex;
   flex: none;
+  align-items: center;
+  position: relative;
+}
+
+.settings__tabs-vendor::before {
+  content: "";
+  position: absolute;
+  left: calc((var(--settings-tab-gap) - 1px) / 2);
+  top: 50%;
   width: 1px;
   height: 1.25em;
-  margin: 0 var(--space-2);
+  transform: translateY(-50%);
   background: var(--border-default);
 }
 

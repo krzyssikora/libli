@@ -61,7 +61,7 @@ def _login(page, live_server, username, password):
     page.wait_for_url(lambda url: "/accounts/login/" not in url)
 
 
-def _vendor_admin(page, live_server, settings, *, kits):
+def _vendor_admin(page, live_server, settings, *, kits, language="en"):
     from django.contrib.auth.models import Group
 
     from demo.services import revoke_kit
@@ -78,6 +78,9 @@ def _vendor_admin(page, live_server, settings, *, kits):
         username="layout_pa", email="layout_pa@t.example.com", password=TEST_PASSWORD
     )
     admin.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    # Before the login: the login signal is what puts User.language in the session.
+    admin.language = language
+    admin.save(update_fields=["language"])
     if kits:
         course = small_course()
         for label in OPEN_LABELS:
@@ -141,40 +144,83 @@ def test_page_never_scrolls_sideways_and_tabs_stay_on_one_line(
                 _assert_one_line(tabs.nth(i), f"{where}: tab")
 
 
+# Every tab's box, the clipping wrapper's box, and the divider's, in one read.
+_TAB_ROW_JS = """wrap => ({
+  wrap: wrap.getBoundingClientRect().toJSON(),
+  clips: getComputedStyle(wrap).overflowX,
+  tabs: [...wrap.querySelectorAll(".settings__tab")].map(t => ({
+    text: t.textContent.trim(),
+    box: t.getBoundingClientRect().toJSON(),
+  })),
+  divider: (() => {
+    const group = wrap.querySelector(".settings__tabs-vendor");
+    if (!group) return null;
+    const cs = getComputedStyle(group, "::before");
+    const g = group.getBoundingClientRect();
+    return {content: cs.content, left: g.left + parseFloat(cs.left),
+            width: parseFloat(cs.width)};
+  })(),
+})"""
+
+
 @pytest.mark.django_db(transaction=True)
-def test_active_tab_is_scrolled_into_view_on_a_phone(page, live_server, settings):
-    _vendor_admin(page, live_server, settings, kits=False)
-    _open(page, live_server, "?tab=demo", 420, 900)
-
-    nav = page.locator(".settings__tabs")
-    # The premise: at this width the row really overflows. Otherwise the last tab
-    # is visible anyway and the assertion below proves nothing.
-    assert nav.evaluate("n => n.scrollWidth > n.clientWidth")
-    nav_box = nav.evaluate("n => n.getBoundingClientRect().toJSON()")
-    tab_box = page.locator(".settings__tab.is-on").evaluate(
-        "t => t.getBoundingClientRect().toJSON()"
-    )
-    assert tab_box["left"] >= nav_box["left"], (tab_box, nav_box)
-    assert tab_box["right"] <= nav_box["right"], (tab_box, nav_box)
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_every_tab_is_fully_visible_without_scrolling(
+    page, live_server, settings, language
+):
+    """The row wraps instead of scrolling: a scrolled row hid its last tab behind
+    Shift+wheel, which a laptop touchpad user could not reach (Polish, 1280px)."""
+    _vendor_admin(page, live_server, settings, kits=False, language=language)
+    for width, height in VIEWPORTS:
+        _open(page, live_server, "?tab=branding", width, height)
+        where = f"{language} at {width}px"
+        row = page.locator(".settings__tabs-wrap").evaluate(_TAB_ROW_JS)
+        assert len(row["tabs"]) == ALL_TABS, where
+        wrap = row["wrap"]
+        for tab in row["tabs"]:
+            box = tab["box"]
+            assert box["left"] >= wrap["left"] - 0.5, (where, tab, wrap)
+            assert box["right"] <= wrap["right"] + 0.5, (where, tab, wrap)
+            assert box["bottom"] <= wrap["bottom"] + 0.5, (where, tab, wrap)
 
 
 @pytest.mark.django_db(transaction=True)
-def test_english_tabs_fit_one_row_on_a_desktop(page, live_server, settings):
-    _vendor_admin(page, live_server, settings, kits=False)
-    _open(page, live_server, "?tab=demo&all=1", 1280, 900)
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_tab_row_is_as_wide_as_the_form_below(page, live_server, settings, language):
+    _vendor_admin(page, live_server, settings, kits=False, language=language)
+    _open(page, live_server, "?tab=branding", 1280, 900)
+    wrap = page.locator(".settings__tabs-wrap").evaluate(_BOX_JS)
+    form = page.locator("[data-tab='branding'] > .settings__form").first
+    form_box = form.evaluate(_BOX_JS)
+    assert abs(wrap["left"] - form_box["left"]) <= 1, (wrap, form_box)
+    assert abs(wrap["width"] - form_box["width"]) <= 1, (wrap, form_box)
 
-    nav = page.locator(".settings__tabs")
-    scroll_width, client_width = nav.evaluate("n => [n.scrollWidth, n.clientWidth]")
-    assert scroll_width <= client_width, (
-        f"at 1280px the tab row is {scroll_width}px in a {client_width}px nav"
-    )
-    # With Demo access active, a row that still scrolled would hide Branding.
-    nav_box = nav.evaluate(_BOX_JS)
-    first = page.locator(".settings__tab").first
-    assert first.inner_text() == "Branding"
-    tab_box = first.evaluate(_BOX_JS)
-    assert tab_box["left"] >= nav_box["left"], (tab_box, nav_box)
-    assert tab_box["right"] <= nav_box["right"], (tab_box, nav_box)
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_vendor_divider_never_starts_a_row(page, live_server, settings, language):
+    """Pricing and Demo access wrap as one unit, and the rule before them shows
+    only between two tabs on the same row, never dangling at a row's start."""
+    _vendor_admin(page, live_server, settings, kits=False, language=language)
+    for width, height in VIEWPORTS:
+        _open(page, live_server, "?tab=branding", width, height)
+        where = f"{language} at {width}px"
+        row = page.locator(".settings__tabs-wrap").evaluate(_TAB_ROW_JS)
+        tabs, wrap, divider = row["tabs"], row["wrap"], row["divider"]
+        pricing, demo = tabs[8]["box"], tabs[9]["box"]
+        assert abs(pricing["top"] - demo["top"]) <= 1, (where, pricing, demo)
+        assert divider and divider["content"] != "none", (where, divider)
+        if pricing["left"] - wrap["left"] < 1:
+            # Pricing opens a row: the rule must lie outside the box, AND the box
+            # must clip it; outside an unclipped box it still paints.
+            assert divider["left"] + divider["width"] <= wrap["left"], (where, row)
+            assert row["clips"] in ("hidden", "clip"), (where, row)
+        else:
+            # Mid-row: the rule sits in the gap after the tab before it.
+            before = tabs[7]["box"]
+            assert abs(before["top"] - pricing["top"]) <= 1, (where, row)
+            assert before["right"] <= divider["left"], (where, row)
+            assert divider["left"] + divider["width"] <= pricing["left"], (where, row)
 
 
 @pytest.mark.django_db(transaction=True)
