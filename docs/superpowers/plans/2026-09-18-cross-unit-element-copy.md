@@ -1792,7 +1792,7 @@ Expected: all PASS (with the measured ceiling filled in). `tests/test_element_cl
 
 - [ ] **Step 6: Falsify**
 
-By hand: `move_slots = set(copy_slots)` in the cross-unit return → `test_a_mark_in_another_unit_of_the_course_offers_copy_only` red; add `request.session.pop(CLIP_SESSION_KEY, None)` before `return empty  # D8` → `test_a_mark_from_another_course_is_ignored_and_kept` red; `"clip_nothing_fits": False` → `test_a_question_callout_marked_for_a_quiz_fits_nowhere` red; move the **same-unit branch's** `units_map, units_top, units_available = copy_units_tree(unit.course)` line in `_clip_context` (not the one in `_cross_unit_clip_context`) above `if not clip:` → `test_the_copy_list_is_built_only_while_a_mark_is_active` red; in `copy_units_tree`, replace `elif keep(node.pk): kept.append(node)` with `else: keep(node.pk); kept.append(node)` (no pruning) → `test_copy_units_tree_keeps_units_at_any_depth_and_drops_empty_containers` red on its `empty_section` assertion; drop `facts=facts` from the cross-unit loop → ceiling red; drop `dest_depth=dest_depth` → the `element_depth` test red. Revert each; `git diff`.
+By hand: `move_slots = set(copy_slots)` in the cross-unit return → `test_a_mark_in_another_unit_of_the_course_offers_copy_only` red; add `request.session.pop(CLIP_SESSION_KEY, None)` before `return empty  # D8` → `test_a_mark_from_another_course_is_ignored_and_kept` red; `"clip_nothing_fits": False` → `test_a_question_callout_marked_for_a_quiz_fits_nowhere` red; move the **same-unit branch's** `units_map, units_top, units_available = copy_units_tree(unit.course)` line in `_clip_context` (not the one in `_cross_unit_clip_context`) above `if not clip:` → `test_the_copy_list_is_built_only_while_a_mark_is_active` red; in `copy_units_tree`, replace `elif keep(node.pk): kept.append(node)` with `else: keep(node.pk); kept.append(node)` (no pruning) → `test_copy_units_tree_keeps_units_at_any_depth_and_drops_empty_containers` red on `assert pruned[chapter.pk] == [section]` (it becomes `[section, empty_section]`; that line fails before the membership check is reached); drop `facts=facts` from the cross-unit loop → ceiling red; drop `dest_depth=dest_depth` → the `element_depth` test red. Revert each; `git diff`.
 
 - [ ] **Step 7: Commit**
 
@@ -2643,13 +2643,14 @@ In `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`, replace
         ".clip-banner__units",
         ".pastewrap",
         ".pastebtn",
+        ".iconbtn .ic",  # unsized, the paste/Duplicate SVGs render at 300x150
     ):
         assert re.search(re.escape(cls) + r"(?![\w-])", css), (
             f"editor.css must style {cls}"
         )
 ```
 
-(`re` is already imported at the top of that file — used by `_code_only` — so add nothing). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red.
+(`re` is already imported at the top of that file — used by `_code_only` — so add nothing). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red; delete the `.iconbtn .ic` rule → red.
 
 Run: `uv run pytest tests/test_editor_styles.py`
 Expected: FAIL on `.clip-banner__line`.
@@ -2721,6 +2722,10 @@ Replace the whole block in `editor.css` from the comment `/* Clipboard mark bann
 .clip-banner__unit { list-style: none; margin: .15rem 0; }
 .clip-banner__unit a { color: var(--text-primary); }
 .clip-banner__unit-current { font-weight: 600; color: var(--text-secondary); }
+/* The paste and Duplicate controls now hold an <svg class="ic">. The editor page does
+   not load builder.css (home of the global `.ic` size), and an unsized <svg> renders
+   at the UA default 300x150 -- so size it inside every icon button here. */
+.iconbtn .ic { width: 1rem; height: 1rem; display: block; }
 ```
 
 Check every token used exists in the project (`grep -n "\-\-radius-full\|--radius-sm\|--accent-subtle\|--border-strong\|--border-subtle" core/static/core/css/*.css | head`); replace `var(--radius-sm, 6px)` with the real small-radius token if one exists. Keep `.pane-body { padding: var(--space-4); }` and everything after it untouched.
@@ -2768,7 +2773,7 @@ Start the dev server on the local mat-pp copy (`uv run python manage.py runserve
      <share>% of the pane. */
   .clip-banner__units-list { max-height: min(20vh, 12rem); }
 ```
-re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR.
+re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the row action bar's Duplicate button and every paste button show a normal-size (1rem) icon, not a 300×150 one; the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR.
 
 - [ ] **Step 7: Commit**
 
@@ -2900,16 +2905,8 @@ If the two edges genuinely differ by a fixed amount (e.g. the `h2` carries its o
 Continue the test body:
 
 ```python
-    # 3. Open the list at 1280x720: the page's scroll height is unchanged (the
-    #    viewport is locked), and .pane-body keeps at least ~40% of the pane.
-    doc_h = page.evaluate("document.documentElement.scrollHeight")
+    # 3. Open the list in A and check the link to B is really visible.
     page.locator("#clip-banner .clip-banner__units > summary").click()
-    assert page.evaluate("document.documentElement.scrollHeight") == doc_h
-    share = page.evaluate(
-        "(() => { const p = document.querySelector('[data-scope=\"editor\"]');"
-        " return p.querySelector('.pane-body').clientHeight / p.clientHeight; })()"
-    )
-    assert share >= 0.4, share
     link = page.locator(f"#clip-banner a[href$='/unit/{b.pk}/edit/']")
     expect(link).to_be_visible()
     assert _inside(link.bounding_box(), _box(page, "#clip-banner"))
@@ -2931,6 +2928,25 @@ Continue the test body:
     line = _box(page, "#clip-banner .clip-banner__line")
     frm = page.locator("#clip-banner .clip-banner__from a").bounding_box()
     assert frm["width"] > 0 and _inside(frm, line)
+
+    # KaTeX containment at 1280x720, measured in B -- whose 25 rows overflow
+    # .pane-body even with the list CLOSED, so its scrollHeight is content-bound and
+    # must not change: the page is viewport-locked and the list scrolls inside
+    # itself. .pane-body keeps at least ~40% of the pane.
+    pane_body_h = (
+        "document.querySelector('[data-scope=\"editor\"] .pane-body').scrollHeight"
+    )
+    doc_h = page.evaluate("document.documentElement.scrollHeight")
+    body_h = page.evaluate(pane_body_h)
+    page.locator("#clip-banner .clip-banner__units > summary").click()
+    assert page.evaluate("document.documentElement.scrollHeight") == doc_h
+    assert page.evaluate(pane_body_h) == body_h
+    share = page.evaluate(
+        "(() => { const p = document.querySelector('[data-scope=\"editor\"]');"
+        " return p.querySelector('.pane-body').clientHeight / p.clientHeight; })()"
+    )
+    assert share >= 0.4, share
+    page.locator("#clip-banner .clip-banner__units > summary").click()  # close it
     expect(page.locator("form[data-op='element-paste'] button[value='move']")).to_have_count(0)
 
     # 5. Copy before the middle row, waiting on the REQUEST.
@@ -3044,7 +3060,7 @@ Expected: all PASS.
 
 - [ ] **Step 3: Falsify the KaTeX containment**
 
-By hand: delete Task 7's new `editor.js` block (the `[data-math-title]` loop in `applyFragments`) → the post-swap `expect(page.locator("#clip-banner .clip-banner__from a .katex")).to_have_count(1)` red. Restore. Then remove `position: relative` from `.clip-banner__units-list` → the narrow test's growth assertion (or the 1280×720 unchanged assertion) red. Restore. Then remove it from `.clip-banner__from a` → expected: the overflow-vs-baseline assertion red at 400px (the long source title truncates with its maths in the clipped tail). The nearest positioned ancestor is then `.clip-banner__line`, which may keep the twin inside the viewport: **if this mutant stays green, do not weaken or fake the assertion** — record in the PR body that the "from"-link containment is not caught by the e2e and why. Restore; `git diff`.
+By hand: delete Task 7's new `editor.js` block (the `[data-math-title]` loop in `applyFragments`) → the post-swap `expect(page.locator("#clip-banner .clip-banner__from a .katex")).to_have_count(1)` red. Restore. Then remove `position: relative` from `.clip-banner__units-list` → the narrow test's growth assertion, or the first test's 1280×720 in-B assertion that the page's and `.pane-body`'s `scrollHeight` are unchanged, red. Restore. Then remove it from `.clip-banner__from a` → expected: the overflow-vs-baseline assertion red at 400px (the long source title truncates with its maths in the clipped tail). The nearest positioned ancestor is then `.clip-banner__line`, which may keep the twin inside the viewport: **if this mutant stays green, do not weaken or fake the assertion** — record in the PR body that the "from"-link containment is not caught by the e2e and why. Restore; `git diff`.
 
 - [ ] **Step 4: Run the existing clipboard e2e tests**
 
