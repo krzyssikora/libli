@@ -425,8 +425,8 @@ Update the `enumerate_slots` docstring's first cost paragraph to say the map com
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `uv run pytest courses/tests/test_paste_rule.py tests/test_element_paste_view.py tests/test_editor_clip_templates.py`
-Expected: all PASS (the last two files prove `enumerate_slots` still works for the existing in-unit feature).
+Run: `uv run pytest courses/tests/test_paste_rule.py tests/test_enumerate_slots.py tests/test_element_paste_view.py tests/test_editor_clip_templates.py`
+Expected: all PASS (`tests/test_enumerate_slots.py` holds the refactored function's own tests, including its exact query count; the last two files prove the existing in-unit feature still works).
 
 - [ ] **Step 6: Falsify**
 
@@ -564,6 +564,35 @@ def test_an_in_unit_move_of_a_question_callout_inside_a_quiz_is_allowed():
     _choice(quiz, parent=box, tab=CalloutElement.SLOT_ID)
 
     assert builder.paste_allowed(quiz, box, None, "", "move") == (True, None)
+
+
+def test_an_in_unit_move_of_a_question_callout_into_a_quiz_slot_is_allowed():
+    """The container-branch 2c is cross-unit only too.
+
+    Mutant: drop `cross_unit and` from the container-branch 2c check -> RED."""
+    course, _src = make_course_with_unit()
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    dest_box, dslots = _tabs(quiz)
+    box = _callout(quiz)
+    _choice(quiz, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, box, dest_box, dslots[0], "move") == (
+        True,
+        None,
+    )
+
+
+def test_an_in_unit_move_of_a_stepper_to_a_quizs_top_level_is_allowed():
+    """The top-level 2d is cross-unit only too. The stepper starts nested so the
+    move is a genuine relocation.
+
+    Mutant: drop `cross_unit and` from the top-level 2d check -> RED."""
+    course, _src = make_course_with_unit()
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    box = _callout(quiz)
+    s = _stepper(quiz, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, s, None, "", "move") == (True, None)
 
 
 def test_a_stepper_is_refused_into_a_quiz():
@@ -751,7 +780,7 @@ Expected: all PASS. `test_another_units_element_is_refused` (foreign course, cop
 
 - [ ] **Step 5: Falsify**
 
-Each mutant from the Step 1 docstrings, by hand: delete each of the four new **whole `if …: return …` statements** in turn (top-level 2c, container 2c, top-level 2d, container 2d) — deleting only the `return` line leaves an empty `if` body, a SyntaxError that reds every test for the wrong reason; drop `cross_unit and` from the top-level 2c and from the container 2d; delete the whole `if marked_join.unit.course_id != unit.course_id: return …` statement. Each turns its named test red. Revert each by hand; `git diff`.
+Each mutant from the Step 1 docstrings, by hand: delete each of the four new **whole `if …: return …` statements** in turn (top-level 2c, container 2c, top-level 2d, container 2d) — deleting only the `return` line leaves an empty `if` body, a SyntaxError that reds every test for the wrong reason; drop `cross_unit and` from each of the four 2c/2d checks in turn (top-level 2c, container 2c, top-level 2d, container 2d — each has its own in-unit-quiz-move test); delete the whole `if marked_join.unit.course_id != unit.course_id: return …` statement. Each turns its named test red. Revert each by hand; `git diff`.
 
 - [ ] **Step 6: Commit**
 
@@ -1297,7 +1326,7 @@ By hand, one at a time:
 3. `return source_unit, placed` → `test_a_cross_unit_copy_returns_the_destination_unit` red.
 4. In `_copy_into`, `build_element_export(dest_unit, el)` → `test_the_export_reads_the_source_unit` red with `TransferError`.
 5. `facts = subtree_facts(el, children_map=unit_children_map(dest_unit))` → the three enforcing-path refusal tests red.
-6. In `courses/transfer/importer.py`, inside `graft_elements`'s `work()`, call `_rewrite_links(document, node_map, created, on_missing="keep", report=[])` after `_create_elements` (check `_rewrite_links`'s real signature first and pass what it needs) → `test_a_link_to_the_source_unit_still_points_at_the_source_after_the_copy` red (the link is repointed at Y). If it stays green, the test is vacuous — `link_nodes` does not contain X — and must be fixed before committing.
+6. In `courses/transfer/importer.py`, inside `graft_elements`'s `work()`, call `_rewrite_links(document, node_map, created, on_missing="keep", report=None)` after `_create_elements` (`report=None`, never a list: `_rewrite_links` calls `report.get(...)` when a report is given, and a list would raise AttributeError → TransferError, a red for the wrong reason) → `test_a_link_to_the_source_unit_still_points_at_the_source_after_the_copy` red, and the red must be the test's `href=".../n/{x.pk}/"` assertion failing **on a successful copy** (the link repointed at Y), not a `TransferError`. If it stays green, the test is vacuous — `link_nodes` does not contain X — and must be fixed before committing.
 Revert each by hand; `git diff`.
 
 - [ ] **Step 8: Commit**
@@ -1670,20 +1699,21 @@ def _clip_context(request, unit):
     facts = builder_svc.subtree_facts(marked, children_map=children_map)
 ```
 
-…keep the existing same-unit body from `move_slots, copy_slots = set(), set()` through the computation of `noop_pk` and `obj = marked.content_object` **unchanged**, and change its final `return {...}` to add the new keys:
+…keep the existing same-unit body from `move_slots, copy_slots = set(), set()` through the existing `obj = marked.content_object` line **unchanged**. Insert exactly one new line directly **before** that existing `obj = …` line:
 
 ```python
     units_map, units_top, units_available = copy_units_tree(unit.course)
-    obj = marked.content_object
-    return {
-        # ... the seven existing keys, unchanged, with their comments ...
+```
+
+and extend the existing final `return {...}` dict (its seven keys and their comments stay as they are) with these six entries:
+
+```python
         "clip_mode": "move",
         "clip_source_unit": None,
         "clip_nothing_fits": False,
         "copy_units_map": units_map,
         "copy_units_top": units_top,
         "copy_units_available": units_available,
-    }
 ```
 
 Then add, directly below `_clip_context`:
@@ -2221,8 +2251,11 @@ def test_the_destination_offers_copy_controls_and_no_move_controls(client):
 
 
 def test_the_source_rows_keep_move_before_only(client):
-    """D4. Mutant: hard-code mode=copy in _paste_before_button.html -> RED here;
-    hard-code mode=move -> RED on the destination test above."""
+    """D4. The POSTED mode is asserted, not just the label: the label comes from
+    `{% if mode == "copy" %}`, so a hard-coded hidden input would keep it.
+
+    Mutant: hard-code `value="copy"` in _paste_before_button.html's mode input ->
+    RED here; hard-code `value="move"` -> RED on the destination test above."""
     course, x = _seed(client)
     _unit(course, "Y")
     _text(x)
@@ -2233,6 +2266,12 @@ def test_the_source_rows_keep_move_before_only(client):
 
     assert "Move before this element" in body
     assert "Copy before this element" not in body
+    forms = re.findall(
+        r'<form[^>]*data-op="element-paste-before"[^>]*>.*?</form>', body, flags=re.S
+    )
+    assert forms  # the loop below cannot pass on zero forms
+    for form in forms:
+        assert 'name="mode" value="move"' in form
 
 
 def test_the_destination_banner_links_back_to_the_source(client):
@@ -2244,10 +2283,14 @@ def test_the_destination_banner_links_back_to_the_source(client):
     _mark(client, course, x, subject)
 
     banner = _banner(_editor(client, course, y))
+    # ONLY the "from" part: the unit list below it also links X with X's title,
+    # so a whole-banner assertion would pass whatever the from-link points at.
+    start = banner.index("clip-banner__from")
+    from_part = banner[start : banner.index("<details", start)]
 
-    assert "clip-banner__from" in banner
-    assert f'href="{_editor_url(course, x)}"' in banner
-    assert "SourceUnitTitle" in banner
+    assert f'href="{_editor_url(course, x)}"' in from_part
+    assert "SourceUnitTitle" in from_part
+    assert f'href="{_editor_url(course, y)}"' not in from_part
 
 
 def test_the_source_banner_has_no_from_link(client):
@@ -2291,17 +2334,21 @@ def test_a_one_unit_course_renders_no_unit_list(client):
 
 
 def test_the_unit_list_handles_an_irregular_course(client):
-    course, x = _seed(client)  # x is a root-level unit
+    course, x = _seed(client)
     part = _unit(course, "PartP", kind="part", unit_type="")
     under_part = _unit(course, "UnderPart", parent=part)
     _unit(course, "EmptySectionE", kind="section", unit_type="", parent=part)
+    other_root = _unit(course, "OtherRoot")  # neither source nor current
     subject = _text(x)
     _mark(client, course, x, subject)
     y = _unit(course, "RootY")
 
-    banner = _banner(_editor(client, course, y))
+    body = _editor(client, course, y)
+    # The <details> part only: the "from" link above it also carries X's href.
+    start = body.index("clip-banner__units")
+    banner = body[start : body.index("</details>", start)]
 
-    assert f'href="{_editor_url(course, x)}"' in banner  # a root-level unit
+    assert f'href="{_editor_url(course, other_root)}"' in banner  # root-level
     assert f'href="{_editor_url(course, under_part)}"' in banner
     assert "EmptySectionE" not in banner  # a unit-less container is omitted
 
@@ -2531,7 +2578,7 @@ Expected: all PASS.
 
 - [ ] **Step 9: Falsify**
 
-By hand: hard-code `value="move"` in `_paste_before_button.html` → `test_the_destination_offers_copy_controls_and_no_move_controls` red; hard-code `value="copy"` → `test_the_source_rows_keep_move_before_only` red; render the current unit as a link (drop the `{% if n.pk == unit.pk %}` branch) → `test_the_unit_list_links_every_other_unit_and_not_the_current_one` red; drop `{% if copy_units_available %}` → `test_a_one_unit_course_renders_no_unit_list` red; delete the nothing-fits `<p>` → `test_nothing_fits_is_said_out_loud` red; restore `📋` in the slot move button → the icon test red. Revert each; `git diff`.
+By hand: hard-code `value="move"` in `_paste_before_button.html`'s mode input → `test_the_destination_offers_copy_controls_and_no_move_controls` red; hard-code `value="copy"` → `test_the_source_rows_keep_move_before_only` red; in the banner, point the "from" link at `pk=unit.pk` instead of `pk=clip_source_unit.pk` → `test_the_destination_banner_links_back_to_the_source` red; render the current unit as a link (drop the `{% if n.pk == unit.pk %}` branch) → `test_the_unit_list_links_every_other_unit_and_not_the_current_one` red; drop `{% if copy_units_available %}` → `test_a_one_unit_course_renders_no_unit_list` red; delete the nothing-fits `<p>` → `test_nothing_fits_is_said_out_loud` red; restore `📋` in the slot move button → the icon test red. Revert each; `git diff`.
 
 - [ ] **Step 10: Commit**
 
@@ -2557,9 +2604,12 @@ git commit -m "feat(paste): cross-unit banner, unit list, copy-before, SVG paste
 
 - [ ] **Step 1: Extend the standing CSS guard (failing)**
 
-In `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`, change the clipboard tuple to:
+In `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`, replace the clipboard loop with a selector-boundary match (a bare substring test is satisfied by neighbours: `.clip-banner__from` by `.clip-banner__from-prefix`, `.clip-banner__units` by `.clip-banner__units-list`, `.clip-banner` by any of them):
 
 ```python
+    # Selector BOUNDARY, not substring: `.clip-banner__from` must be styled itself,
+    # not merely prefix `.clip-banner__from-prefix`. The class must be followed by
+    # whitespace/combinator/`{`/`,`/`:`/`>` -- anything but another name character.
     for cls in (
         ".el-row--marked",
         ".clip-banner",
@@ -2570,7 +2620,12 @@ In `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`, change 
         ".pastewrap",
         ".pastebtn",
     ):
+        assert re.search(re.escape(cls) + r"(?![\w-])", css), (
+            f"editor.css must style {cls}"
+        )
 ```
+
+(add `import re` to the file's imports). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red.
 
 Run: `uv run pytest tests/test_editor_styles.py`
 Expected: FAIL on `.clip-banner__line`.
@@ -2687,6 +2742,9 @@ Start the dev server on the local mat-pp copy (`uv run python manage.py runserve
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff format tests/test_editor_styles.py
+uv run ruff check --no-cache .
+uv run ruff format --check .
 git add courses/static/courses/css/editor.css courses/static/courses/js/editor.js tests/test_editor_styles.py
 git commit -m "feat(paste): banner below the pane head, unit list styling, swap-time title maths"
 ```
@@ -2811,19 +2869,16 @@ If the two edges genuinely differ by a fixed amount (e.g. the `h2` carries its o
 Continue the test body:
 
 ```python
-    # 3. Open the list at 1280x720: page and .pane-body scroll heights unchanged.
+    # 3. Open the list at 1280x720: the page's scroll height is unchanged (the
+    #    viewport is locked), and .pane-body keeps at least ~40% of the pane.
     doc_h = page.evaluate("document.documentElement.scrollHeight")
-    body_h = page.evaluate(
-        "document.querySelector('[data-scope=\"editor\"] .pane-body').scrollHeight"
-    )
     page.locator("#clip-banner .clip-banner__units > summary").click()
     assert page.evaluate("document.documentElement.scrollHeight") == doc_h
-    assert (
-        page.evaluate(
-            "document.querySelector('[data-scope=\"editor\"] .pane-body').scrollHeight"
-        )
-        == body_h
+    share = page.evaluate(
+        "(() => { const p = document.querySelector('[data-scope=\"editor\"]');"
+        " return p.querySelector('.pane-body').clientHeight / p.clientHeight; })()"
     )
+    assert share >= 0.4, share
     link = page.locator(f"#clip-banner a[href$='/unit/{b.pk}/edit/']")
     expect(link).to_be_visible()
     assert _inside(link.bounding_box(), _box(page, "#clip-banner"))
@@ -2971,13 +3026,14 @@ uv run pytest courses/tests
 uv run pytest tests/test_[a-l]*.py --ignore-glob="*test_e2e_*"
 uv run pytest tests/test_[m-r]*.py --ignore-glob="*test_e2e_*"
 uv run pytest tests/test_[s-z]*.py --ignore-glob="*test_e2e_*"
+uv run pytest tests/demo tests/lal_import
 uv run pytest integrations notifications
 uv run pytest -m e2e tests/test_e2e_clipboard.py tests/test_e2e_paste_before.py tests/test_e2e_before_after.py tests/test_e2e_cross_unit_copy.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
 
-(`tests/` alone is ~6,000 tests: one run of it is OOM-killed with 0-byte output, so it is split in three alphabetical chunks. `addopts` already deselects e2e; the e2e line is separate.)
+(`tests/` alone is ~6,000 tests: one run of it is OOM-killed with 0-byte output, so it is split in three alphabetical chunks plus its two subdirectories. Before running, `ls -d tests/*/` and confirm every subdirectory under `tests/` is covered by a chunk — add one if a new directory exists. `addopts` already deselects e2e; the e2e line is separate.)
 
 Read each summary line. Any failure in an unrelated file: A/B it on `origin/master` before blaming this branch.
 
