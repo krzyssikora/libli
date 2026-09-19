@@ -139,6 +139,20 @@
     });
     refreshUnitTokens();  // after the swap: the pane now carries the fresh token
     applyStoredSlots(root);
+    // Node titles inside the swapped EDITOR scope -- the clip banner's "from" link
+    // and the "Copy to another unit..." list -- carry data-math-title. math.js
+    // typesets those only on page load, so re-run here. Only these nodes, never the
+    // whole pane (row labels and forms must stay raw), and skip any without a
+    // delimiter: mat-pp's list holds hundreds of titles and this runs on every op
+    // while a mark is pending.
+    var editorScope = root.querySelector('[data-scope="editor"]');
+    if (editorScope) {
+      editorScope.querySelectorAll("[data-math-title]").forEach(function (node) {
+        var text = node.textContent;
+        if (text.indexOf("\\(") === -1 && text.indexOf("\\[") === -1) return;
+        renderPreviewMath(node);
+      });
+    }
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices

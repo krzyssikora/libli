@@ -38,12 +38,29 @@ def test_editor_css_styles_action_buttons():
     # buttons fall back to invisible UA defaults in dark mode.
     for cls in (".tree__act", ".tree__act--danger", ".tree__inline"):
         assert cls in css, f"editor.css must style {cls}"
-    # Same argument for the clipboard's four classes: _element_row.html,
-    # _editor_scope.html and _paste_buttons.html reference them and nothing else
-    # styles them, so an unstyled .el-row--marked is indistinguishable from a
-    # broken mark. A screenshot pass is a one-off; this is the standing guard.
-    for cls in (".el-row--marked", ".clip-banner", ".pastewrap", ".pastebtn"):
-        assert cls in css, f"editor.css must style {cls}"
+    # Same argument for the clipboard's classes (banner, unit list, paste controls,
+    # icon sizing): _element_row.html, _editor_scope.html, _paste_buttons.html,
+    # _paste_before_button.html, _element_row_controls.html, _copy_units_tree.html
+    # and _copy_units_node.html reference them and nothing else styles them, so an
+    # unstyled .el-row--marked is indistinguishable from a broken mark. A screenshot
+    # pass is a one-off; this is the standing guard.
+    # Selector BOUNDARY, not substring: `.clip-banner__from` must be styled itself,
+    # not merely prefix `.clip-banner__from-prefix`. The class must be followed by
+    # whitespace/combinator/`{`/`,`/`:`/`>` -- anything but another name character.
+    for cls in (
+        ".el-row--marked",
+        ".clip-banner",
+        ".clip-banner__line",
+        ".clip-banner__label",
+        ".clip-banner__from",
+        ".clip-banner__units",
+        ".pastewrap",
+        ".pastebtn",
+        ".iconbtn .ic",  # unsized, the paste/Duplicate SVGs render at 300x150
+    ):
+        assert re.search(re.escape(cls) + r"(?![\w-])", css), (
+            f"editor.css must style {cls}"
+        )
 
 
 BUILDER_CSS = (
