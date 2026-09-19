@@ -1,4 +1,8 @@
+import re
+
+import psycopg
 import pytest
+from django.db import OperationalError
 from django.urls import reverse
 
 from courses.builder import slot_key
@@ -51,34 +55,52 @@ def _mark(client, course, unit, element):
     )
 
 
-def _paste(client, course, unit, parent, tab, mode="move", token=None):
+def _paste(client, course, unit, parent, tab, mode="move", token=None, *, element):
+    """`element` is REQUIRED and passed by the caller -- never read from the
+    session -- so a test's pre-assertion compares two independently sourced
+    values. Pass element=None to post no `element` field at all."""
+    data = {
+        "ctx": "editor",
+        "parent": "" if parent is None else parent.pk,
+        "tab": tab,
+        "mode": mode,
+        "unit": unit.pk,
+        "unit_token": token if token is not None else unit.updated.isoformat(),
+    }
+    if element is not None:
+        data["element"] = element if isinstance(element, (int, str)) else element.pk
     return client.post(
         reverse("courses:manage_element_paste", kwargs={"slug": course.slug}),
-        {
-            "ctx": "editor",
-            "parent": "" if parent is None else parent.pk,
-            "tab": tab,
-            "mode": mode,
-            "unit": unit.pk,
-            "unit_token": token if token is not None else unit.updated.isoformat(),
-        },
+        data,
         HTTP_X_REQUESTED_WITH="fetch",
     )
 
 
-def _paste_before(client, course, unit, anchor, mode="move", token=None):
+def _paste_before(client, course, unit, anchor, mode="move", token=None, *, element):
     """The before-path posts NO parent/tab: the slot is derived from the anchor."""
+    data = {
+        "ctx": "editor",
+        "mode": mode,
+        "before": anchor if isinstance(anchor, int) else anchor.pk,
+        "unit": unit.pk,
+        "unit_token": token if token is not None else unit.updated.isoformat(),
+    }
+    if element is not None:
+        data["element"] = element if isinstance(element, (int, str)) else element.pk
     return client.post(
         reverse("courses:manage_element_paste", kwargs={"slug": course.slug}),
-        {
-            "ctx": "editor",
-            "mode": mode,
-            "before": anchor if isinstance(anchor, int) else anchor.pk,
-            "unit": unit.pk,
-            "unit_token": token if token is not None else unit.updated.isoformat(),
-        },
+        data,
         HTTP_X_REQUESTED_WITH="fetch",
     )
+
+
+def _assert_posts_the_mark(client, element):
+    """Pre-assertion for every 409 test: the `element` ARGUMENT the caller hands the
+    helper equals the session mark. It does not inspect the POST data -- that the
+    helpers really transmit the field is pinned by
+    test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark,
+    which 409s instead of reordering if `element` is not posted."""
+    assert client.session["element_clip"]["element"] == element.pk
 
 
 def test_a_move_returns_both_fragments_and_relocates_the_element(client):
@@ -89,7 +111,7 @@ def test_a_move_returns_both_fragments_and_relocates_the_element(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, dest, slots[0])
+    resp = _paste(client, course, unit, dest, slots[0], element=subject)
 
     assert resp.status_code == 200
     body = resp.content.decode()
@@ -107,11 +129,11 @@ def test_a_move_clears_the_mark_and_a_copy_keeps_it(client):
 
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
-    _paste(client, course, unit, dest, slots[0], mode="copy")
+    _paste(client, course, unit, dest, slots[0], mode="copy", element=subject)
     assert "element_clip" in client.session  # one original can seed several slots
 
     unit.refresh_from_db()
-    _paste(client, course, unit, dest, slots[1], mode="move")
+    _paste(client, course, unit, dest, slots[1], mode="move", element=subject)
     assert "element_clip" not in client.session  # it is now where you put it
 
 
@@ -122,7 +144,7 @@ def test_a_paste_with_no_mark_is_a_409(client):
     course, unit = _seed(client)
     dest, slots = _tabs(unit)
 
-    resp = _paste(client, course, unit, dest, slots[0])
+    resp = _paste(client, course, unit, dest, slots[0], element=None)
 
     assert resp.status_code == 409
 
@@ -137,10 +159,12 @@ def test_a_mark_naming_another_unit_is_a_409(client):
     other_unit.refresh_from_db()
     _mark(client, course, other_unit, subject)
     unit.refresh_from_db()
+    _assert_posts_the_mark(client, subject)
 
-    resp = _paste(client, course, unit, dest, slots[0])
+    resp = _paste(client, course, unit, dest, slots[0], element=subject)
 
     assert resp.status_code == 409
+    assert client.session["element_clip"]["element"] == subject.pk  # kept
 
 
 def test_a_mark_pointing_at_a_deleted_row_is_a_409(client):
@@ -151,10 +175,12 @@ def test_a_mark_pointing_at_a_deleted_row_is_a_409(client):
     _mark(client, course, unit, subject)
     Element.objects.filter(pk=subject.pk).delete()
     unit.refresh_from_db()
+    _assert_posts_the_mark(client, subject)
 
-    resp = _paste(client, course, unit, dest, slots[0])
+    resp = _paste(client, course, unit, dest, slots[0], element=subject)
 
     assert resp.status_code == 409
+    assert "element_clip" not in client.session
 
 
 def test_a_stale_token_is_a_409(client):
@@ -163,9 +189,16 @@ def test_a_stale_token_is_a_409(client):
     subject = _text(unit)
     unit.refresh_from_db()
     _mark(client, course, unit, subject)
+    _assert_posts_the_mark(client, subject)
 
     resp = _paste(
-        client, course, unit, dest, slots[0], token="2020-01-01T00:00:00+00:00"
+        client,
+        course,
+        unit,
+        dest,
+        slots[0],
+        token="2020-01-01T00:00:00+00:00",
+        element=subject,
     )
 
     assert resp.status_code == 409
@@ -178,7 +211,7 @@ def test_a_half_supplied_scope_is_a_400(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, None, "t1")
+    resp = _paste(client, course, unit, None, "t1", element=subject)
 
     assert resp.status_code == 400
 
@@ -191,7 +224,9 @@ def test_an_unknown_mode_is_a_400(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, dest, slots[0], mode="teleport")
+    resp = _paste(
+        client, course, unit, dest, slots[0], mode="teleport", element=subject
+    )
 
     assert resp.status_code == 400
 
@@ -207,7 +242,7 @@ def test_a_refused_placement_is_a_422_with_a_VISIBLE_reason(client):
     _mark(client, course, unit, root)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, inner, islots[0])
+    resp = _paste(client, course, unit, inner, islots[0], element=root)
 
     assert resp.status_code == 422
     body = resp.content.decode()
@@ -242,6 +277,7 @@ def test_a_vanished_destination_is_a_422_not_a_400(client):
             "mode": "move",
             "unit": unit.pk,
             "unit_token": unit.updated.isoformat(),
+            "element": subject.pk,
         },
         HTTP_X_REQUESTED_WITH="fetch",
     )
@@ -260,7 +296,7 @@ def test_a_copy_of_a_damaged_subtree_is_a_422(client):
     _mark(client, course, unit, root)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, dest, slots[0], mode="copy")
+    resp = _paste(client, course, unit, dest, slots[0], mode="copy", element=root)
 
     assert resp.status_code == 422
     assert 'id="editor-error"' in resp.content.decode()
@@ -277,7 +313,7 @@ def test_the_pasted_elements_ancestors_render_open(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, dest, slots[1], mode="move")
+    resp = _paste(client, course, unit, dest, slots[1], mode="move", element=subject)
 
     body = resp.content.decode()
     marker = f'data-tab-id="{slots[1]}"'
@@ -296,7 +332,7 @@ def test_a_move_into_a_spoiler_works_end_to_end(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, sp, SpoilerElement.SLOT_ID)
+    resp = _paste(client, course, unit, sp, SpoilerElement.SLOT_ID, element=subject)
 
     assert resp.status_code == 200
     subject.refresh_from_db()
@@ -462,7 +498,7 @@ def test_a_paste_into_a_column_works_end_to_end(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, cols, third)
+    resp = _paste(client, course, unit, cols, third, element=subject)
 
     assert resp.status_code == 200
     subject.refresh_from_db()
@@ -484,7 +520,9 @@ def test_a_paste_into_a_callout_works_end_to_end(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste(client, course, unit, callout, CalloutElement.SLOT_ID)
+    resp = _paste(
+        client, course, unit, callout, CalloutElement.SLOT_ID, element=subject
+    )
 
     assert resp.status_code == 200
     subject.refresh_from_db()
@@ -503,7 +541,7 @@ def test_a_user_who_cannot_manage_the_course_is_refused(client):
     client.logout()
     make_teacher(client, "teacher")
 
-    resp = _paste(client, course, unit, dest, slots[0])
+    resp = _paste(client, course, unit, dest, slots[0], element=subject)
 
     assert resp.status_code in (403, 404)
     subject.refresh_from_db()
@@ -532,7 +570,7 @@ def test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark(c
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste_before(client, course, unit, first)
+    resp = _paste_before(client, course, unit, first, element=subject)
 
     assert resp.status_code == 200
     assert _order(unit) == [subject.pk, first.pk, second.pk]
@@ -550,7 +588,7 @@ def test_a_paste_before_derives_the_slot_from_the_anchor(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste_before(client, course, unit, anchor)
+    resp = _paste_before(client, course, unit, anchor, element=subject)
 
     assert resp.status_code == 200
     subject.refresh_from_db()
@@ -571,7 +609,7 @@ def test_a_paste_before_a_vanished_anchor_is_a_422_with_a_visible_reason(client)
     Element.objects.filter(pk=doomed_pk).delete()
     unit.refresh_from_db()
 
-    resp = _paste_before(client, course, unit, doomed_pk)
+    resp = _paste_before(client, course, unit, doomed_pk, element=subject)
 
     assert resp.status_code == 422
     body = resp.content.decode()
@@ -585,9 +623,15 @@ def test_a_paste_before_with_a_stale_token_is_a_409(client):
     subject = _text(unit)
     unit.refresh_from_db()
     _mark(client, course, unit, subject)
+    _assert_posts_the_mark(client, subject)
 
     resp = _paste_before(
-        client, course, unit, anchor, token="2020-01-01T00:00:00+00:00"
+        client,
+        course,
+        unit,
+        anchor,
+        token="2020-01-01T00:00:00+00:00",
+        element=subject,
     )
 
     assert resp.status_code == 409
@@ -604,7 +648,7 @@ def test_a_paste_before_itself_is_a_400(client):
     _mark(client, course, unit, subject)
     unit.refresh_from_db()
 
-    resp = _paste_before(client, course, unit, subject)
+    resp = _paste_before(client, course, unit, subject, element=subject)
 
     assert resp.status_code == 400
 
@@ -844,3 +888,205 @@ def test_a_cross_unit_marked_render_never_falls_back_to_walking_parents(
     monkeypatch.setattr(builder_mod, "element_depth", _boom)
 
     assert _editor_get(client, course, y).status_code == 200
+
+
+def test_a_cross_unit_copy_returns_the_destinations_fragments_and_keeps_the_mark(
+    client,
+):
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x, body="<p>COPYMARK</p>")
+    _mark(client, course, x, subject)
+    y.refresh_from_db()
+
+    resp = _paste(client, course, y, None, "", mode="copy", element=subject)
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f'data-unit="{y.pk}"' in body  # Y's pane, not X's
+    assert Element.objects.filter(unit=y).count() == 1
+    assert client.session["element_clip"]["element"] == subject.pk
+
+
+def test_a_paste_form_with_a_mismatched_element_is_a_409(client):
+    """Mutant: delete the stale-form check -> RED (the copy is made, 200)."""
+    course, unit = _seed(client)
+    subject = _text(unit)
+    other = _text(unit)
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste(client, course, unit, None, "", mode="copy", element=other)
+
+    assert resp.status_code == 409
+    assert Element.objects.filter(unit=unit).count() == 2  # nothing copied
+
+
+def test_a_paste_form_with_no_element_is_a_409(client):
+    course, unit = _seed(client)
+    subject = _text(unit)
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste(client, course, unit, None, "", mode="copy", element=None)
+
+    assert resp.status_code == 409
+
+
+def test_a_paste_form_with_the_matching_element_succeeds(client):
+    """Mutant: compare clip["element"] to the POSTed string without str() -> RED
+    (an int never equals a str, so every paste would 409)."""
+    course, unit = _seed(client)
+    subject = _text(unit)
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste(client, course, unit, None, "", mode="copy", element=subject)
+
+    assert resp.status_code == 200
+
+
+def test_a_mark_from_another_course_is_a_409_on_paste(client):
+    """mode=copy on purpose: a default move would be stopped earlier by the
+    move-reload rule and never reach the service's course filter."""
+    course, unit = _seed(client)
+    other_course = CourseFactory(owner=course.owner)
+    foreign_unit = _unit(other_course, "F")
+    foreign = _text(foreign_unit)
+    _mark(client, other_course, foreign_unit, foreign)
+    _assert_posts_the_mark(client, foreign)
+    unit.refresh_from_db()
+
+    resp = _paste(client, course, unit, None, "", mode="copy", element=foreign)
+
+    assert resp.status_code == 409
+
+
+def test_a_non_numeric_session_element_is_a_409_on_paste(client):
+    """Posts the EXACT session value, so the stale-form check passes and the
+    service's step-1 guard is what answers."""
+    course, unit = _seed(client)
+    y = _unit(course, "Y")
+    session = client.session
+    session["element_clip"] = {"unit": unit.pk, "element": "abc"}
+    session.save()
+    y.refresh_from_db()
+
+    resp = _paste(client, course, y, None, "", mode="copy", element="abc")
+
+    assert resp.status_code == 409
+
+
+def test_a_cross_unit_move_reloads_instead_of_refusing(client):
+    """Only a stale tab can post it. Mutant: drop the move-reload rule -> RED
+    (the service answers 422 wrong_unit instead)."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+    _assert_posts_the_mark(client, subject)
+    y.refresh_from_db()
+
+    resp = _paste(client, course, y, None, "", mode="move", element=subject)
+
+    assert resp.status_code == 409
+    assert client.session["element_clip"]["element"] == subject.pk
+
+
+def _deadlock():
+    try:
+        raise psycopg.errors.DeadlockDetected("deadlock detected")
+    except psycopg.errors.DeadlockDetected as inner:
+        raise OperationalError("deadlock detected") from inner
+
+
+def test_cancel_works_from_a_destination_unit(client):
+    """The destination banner's cancel posts ITS unit with ANOTHER unit's element.
+    It works because element_clip's cancel branch pops the session before any
+    element check -- pinned here so a later "validate first" change cannot break
+    cancel in every destination unit silently."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    resp = client.post(
+        reverse("courses:manage_element_clip", kwargs={"slug": course.slug}),
+        {"ctx": "editor", "element": subject.pk, "unit": y.pk, "action": "cancel"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+    assert resp.status_code == 200
+    assert "element_clip" not in client.session
+
+
+def test_a_deadlock_abort_of_the_copy_is_a_409(client, monkeypatch):
+    """Mutant: delete the OperationalError handler -> RED (the error propagates)."""
+    from courses import builder as builder_mod
+
+    course, unit = _seed(client)
+    subject = _text(unit)
+    _mark(client, course, unit, subject)
+    _assert_posts_the_mark(client, subject)
+    unit.refresh_from_db()
+    calls = []
+
+    def _boom(*args, **kwargs):
+        calls.append(1)
+        _deadlock()
+
+    monkeypatch.setattr(builder_mod, "paste_element", _boom)
+
+    resp = _paste(client, course, unit, None, "", mode="copy", element=subject)
+
+    assert calls == [1]  # the 409 provably came from the handler
+    assert resp.status_code == 409
+    assert client.session["element_clip"]["element"] == subject.pk
+
+
+def test_any_other_operational_error_propagates(client, monkeypatch):
+    """Mutant: drop the sqlstate check (map every OperationalError) -> RED."""
+    from courses import builder as builder_mod
+
+    course, unit = _seed(client)
+    subject = _text(unit)
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    def _boom(*args, **kwargs):
+        try:
+            raise psycopg.errors.SerializationFailure("could not serialize")
+        except psycopg.errors.SerializationFailure as inner:
+            raise OperationalError("could not serialize") from inner
+
+    monkeypatch.setattr(builder_mod, "paste_element", _boom)
+
+    with pytest.raises(OperationalError):
+        _paste(client, course, unit, None, "", mode="copy", element=subject)
+
+
+def test_every_rendered_paste_form_carries_the_marked_element(client):
+    """Both inclusion tags see ONLY the dict they return.
+
+    Mutant: drop clip_element_pk from paste_before_button's dict -> RED."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    # The extra X row comes FIRST: a row directly below the mark is clip_noop_pk
+    # and renders no before-button, so it must sit above the subject.
+    _text(x)  # a row in X that offers move-before
+    subject = _text(x)
+    _tabs(y)
+    _text(y)  # a row in Y that offers copy-before
+    _mark(client, course, x, subject)
+
+    for u in (x, y):
+        body = _editor_get(client, course, u).content.decode()
+        assert 'data-op="element-paste-before"' in body, u.title
+        forms = re.findall(
+            r'<form[^>]*data-op="element-paste(?:-before)?"[^>]*>.*?</form>',
+            body,
+            flags=re.S,
+        )
+        assert forms, u.title
+        for form in forms:
+            assert f'name="element" value="{subject.pk}"' in form

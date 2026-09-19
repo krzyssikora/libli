@@ -5,7 +5,8 @@
 <form class="tree__inline" method="post" action="{% url 'courses:manage_element_paste' slug=unit.course.slug %}" data-op="element-paste-before">
   {% csrf_token %}
   <input type="hidden" name="ctx" value="editor">
-  <input type="hidden" name="mode" value="move">
+  <input type="hidden" name="mode" value="{{ mode }}">
+  <input type="hidden" name="element" value="{{ clip_element_pk }}">
   <input type="hidden" name="before" value="{{ el.pk }}">
   <input type="hidden" name="unit" value="{{ unit.pk }}">
   <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">

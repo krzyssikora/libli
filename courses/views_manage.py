@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
+from django.db import OperationalError
 from django.db.models import Count
 from django.http import Http404
 from django.http import HttpResponse
@@ -1855,11 +1856,12 @@ def element_clip(request, slug):
 def element_paste(request, slug):
     """Editor-only: move or copy the marked element into a chosen slot.
 
-    Status mapping, each channel already named by its exception: no mark / stale
-    token / vanished element -> 409; a malformed payload no UI can produce -> 400;
-    an inadmissible placement the render had offered, a vanished destination, or a
-    failed copy -> 422 through the FRAGMENT renderer so the author actually sees
-    the reason. _op_error is never used here: it has no [data-scope] wrapper, so
+    Status mapping, each channel already named by its exception: no mark, a stale
+    form, a cross-unit move, a stale token, a vanished element or a deadlock abort
+    -> 409; a malformed payload no UI can produce -> 400; an inadmissible
+    placement the render had offered, a vanished destination, or a failed copy ->
+    422 through the FRAGMENT renderer so the author actually sees the reason.
+    _op_error is never used here: it has no [data-scope] wrapper, so
     applyFragments swaps nothing and the message is invisible.
     """
     course = _require_manage(request, slug)
@@ -1868,9 +1870,20 @@ def element_paste(request, slug):
         return _no_unit_409(request, course)
 
     clip = request.session.get(CLIP_SESSION_KEY) or {}
-    if clip.get("unit") != unit.pk or not clip.get("element"):
+    if not clip.get("element"):
         # Reachable in ordinary use: a move clears the mark, so a back-button
         # resubmit or a second tab's stale render posts against an empty clipboard.
+        return _element_conflict(request, course)
+    if request.POST.get("element") != str(clip["element"]):
+        # Stale form: the page showed a DIFFERENT mark than the session now holds
+        # (or predates this field). String-to-string on purpose -- the session holds
+        # an int (see element_clip) and the POST a str.
+        return _element_conflict(request, course)
+    mode = request.POST.get("mode")
+    if clip.get("unit") != unit.pk and mode == "move":
+        # Only a stale tab showing an old in-unit mark's move buttons can send this:
+        # the destination renders no move control (D7). Reload rather than show
+        # wrong_unit's "That element is not part of this unit."
         return _element_conflict(request, course)
 
     try:
@@ -1879,12 +1892,13 @@ def element_paste(request, slug):
             clip["element"],
             request.POST.get("parent"),
             request.POST.get("tab"),
-            request.POST.get("mode"),
+            mode,
             request.POST.get("unit_token"),
             # Absent on the slot buttons, present on a row's "paste before" one.
             # The service ignores parent/tab whenever it is set, so the two forms
             # never have to agree about a destination.
             before=request.POST.get("before"),
+            dest_unit_pk=unit.pk,
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
@@ -1898,12 +1912,20 @@ def element_paste(request, slug):
         return HttpResponseBadRequest("bad nesting")
     except TransferError as exc:
         return _render_editor_fragments(request, unit, status=422, error=str(exc))
+    except OperationalError as exc:
+        # A deadlock abort of THIS transaction (spec D11): one __cause__ hop is where
+        # Django's DatabaseErrorWrapper puts psycopg's DeadlockDetected. The
+        # service's @transaction.atomic has already rolled back and ATOMIC_REQUESTS
+        # is off, so rendering here is safe. Anything else is not ours to hide.
+        if getattr(exc.__cause__, "sqlstate", None) != "40P01":
+            raise
+        return _element_conflict(request, course)
 
     # The session write happens only AFTER the service returns: it is not covered
     # by the service's @transaction.atomic, so a mark cleared before a rollback
     # would stay cleared while the database change did not. A copy KEEPS the mark
     # so one original can seed several slots; a move clears it.
-    if request.POST.get("mode") == "move":
+    if mode == "move":
         request.session.pop(CLIP_SESSION_KEY, None)
 
     return _render_editor_fragments(

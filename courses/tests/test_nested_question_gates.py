@@ -280,6 +280,7 @@ def test_the_paste_endpoint_shows_the_questions_own_message(client):
             "mode": "move",
             "unit": quiz.pk,
             "unit_token": quiz.updated.isoformat(),
+            "element": marked.pk,
         },
         HTTP_X_REQUESTED_WITH="fetch",
     )
