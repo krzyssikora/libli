@@ -675,7 +675,7 @@ In `courses/tests/test_nested_question_gates.py`, in `test_every_paste_reason_ha
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest courses/tests/test_paste_rule.py courses/tests/test_nested_question_gates.py -k "cross_unit or cross_course or quiz or stepper or checklist or bare_question or paste_reason"`
-Expected: FAIL — the same-course cross-unit copies answer `wrong_unit`; the quiz cases answer `(True, None)`; the AST test fails on `interactive_in_quiz`.
+Expected: FAIL — every same-course cross-unit case (the allowed copies AND the cross-unit quiz refusals built with `_same_course_units("quiz")`) answers `(False, "wrong_unit")` from the old clause 0, so the quiz-refusal tests fail on the reason, not on `(True, None)`; the AST test fails on `interactive_in_quiz`. The four `test_an_in_unit_move_of_…` tests and the two cross-course/cross-unit-move refusals **already pass** — they are regression guards, proven only by Step 5's `cross_unit and` / course-comparison mutants.
 
 - [ ] **Step 3: Implement the clauses**
 
@@ -2601,7 +2601,7 @@ Copy the cancel form's hidden inputs **verbatim from the block you removed** (th
 - [ ] **Step 7: Run the template tests**
 
 Run: `uv run pytest tests/test_editor_clip_templates.py tests/test_element_paste_view.py`
-Expected: all PASS.
+Expected: all PASS. If `test_a_cross_unit_marked_render_stays_within_its_query_ceiling` (or the same-unit `test_a_marked_render_does_not_walk_parents_per_slot`) goes red, the banner templates added queries: first check it is not a per-node query in `_copy_units_node.html` (e.g. a `unit.course` lookup per row — `copy_units_tree(unit.course)` should already have cached it); if it is, fix the template. Otherwise re-measure the cross-unit ceiling as Task 4 Step 5b does (ceiling to `1`, read the count, set count + 5, update `MEASURED BASELINE`) and stage `tests/test_element_paste_view.py` in Step 10's commit. The same-unit ceiling is never raised here — a red there is investigated, not absorbed.
 
 - [ ] **Step 8: Catalogue**
 
@@ -2632,6 +2632,7 @@ uv run ruff format tests/test_editor_clip_templates.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
 git add templates/courses/manage/editor/_editor_scope.html templates/courses/manage/editor/_copy_units_tree.html templates/courses/manage/editor/_copy_units_node.html templates/courses/manage/editor/_paste_before_button.html templates/courses/manage/editor/_paste_buttons.html templates/courses/manage/editor/_element_row_controls.html templates/courses/manage/editor/editor.html locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo tests/test_editor_clip_templates.py
+git add tests/test_element_paste_view.py  # only if Step 7 re-measured the ceiling
 git commit -m "feat(paste): cross-unit banner, unit list, copy-before, SVG paste icons"
 ```
 
