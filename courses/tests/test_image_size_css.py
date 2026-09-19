@@ -118,24 +118,26 @@ def test_height_declarations():
         assert rx.search(css), f"missing max-height declaration for {name}"
 
 
-def test_figure_group_is_fit_content_and_excludes_full():
+def test_figure_group_is_fit_content_for_all_four_presets():
+    """`full` is IN this group. It was once excluded to keep the ~1013 pre-presets
+    images rendering byte-identically, which left a `full` image narrower than the
+    column flush left while every other preset centred. That freeze was retired
+    deliberately; `full` now differs from the others only in its caps."""
     css = _css()
     matches = FIG_GROUP.findall(css)
     assert len(matches) == 1, f"expected exactly one FIG_GROUP match, got {matches}"
     selectors = matches[0]
-    for name in ("small", "medium", "large"):
+    for name in ("small", "medium", "large", "full"):
         assert f"el--image--{name}" in selectors, selectors
-    assert "el--image--full" not in selectors, selectors
 
 
-def test_img_group_carries_margin_inline_auto_and_excludes_full():
+def test_img_group_carries_margin_inline_auto_for_all_four_presets():
     css = _css()
     matches = IMG_GROUP.findall(css)
     assert len(matches) == 1, f"expected exactly one IMG_GROUP match, got {matches}"
     selectors = matches[0]
-    for name in ("small", "medium", "large"):
+    for name in ("small", "medium", "large", "full"):
         assert re.search(rf"el--image--{name}\s+img", selectors), selectors
-    assert not re.search(r"el--image--full\s+img", selectors), selectors
 
 
 def test_retained_rule_is_unchanged():
