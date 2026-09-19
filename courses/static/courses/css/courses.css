@@ -355,6 +355,19 @@ blockquote {
    (and wins on source order, courses.css loading later) so blanks stay inline
    instead of each stretching to full width on its own line. */
 input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15rem; }
+/* An editable blank grows with what the student types: a fixed 8ch box scrolled
+   everything past ~6 characters out of view. 8ch stays the minimum, the line the
+   maximum. Where field-sizing is unsupported, blank_autosize.js sets the width.
+   `[type="text"]` lifts this to (0,2,1) so the padding beats app.css's
+   `input[type=text]` (0,1,1), which silently padded the blank 12px a side. */
+input.question__blank-input[type="text"] {
+  padding: var(--space-1) var(--space-2);
+  min-width: 8ch;
+  max-width: 100%;
+}
+@supports (field-sizing: content) {
+  input.question__blank-input[type="text"] { width: auto; field-sizing: content; }
+}
 /* Solved fill-blank: a fully-correct answer locks its blanks read-only (server side
    via fillblank.render_inputs(locked=True); question.js does the same after a live
    correct check), so give them the answered look a consumed fill gate already has
