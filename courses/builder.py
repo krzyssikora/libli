@@ -1140,56 +1140,119 @@ def _copy_below(el, unit, _export, _importer, TransferError):
 
 
 @transaction.atomic
-def paste_element(course, element_pk, parent_ref, tab, mode, unit_token, before=None):
-    """Move or copy the marked element's subtree into (parent_ref, tab).
+def paste_element(
+    course,
+    element_pk,
+    parent_ref,
+    tab,
+    mode,
+    unit_token,
+    before=None,
+    dest_unit_pk=None,
+):
+    """Move or copy the marked element's subtree into (parent_ref, tab) of the
+    DESTINATION unit.
 
-    Returns (unit, placed_join) -- the join, not just the unit, because the view
-    derives the post-paste open-set by walking placed_join.parent upward.
+    Returns (dest_unit, placed_join) -- the destination, because the view rebinds
+    `unit` from this tuple and renders its fragments (returning the source would
+    paint unit X's editor into Y's page); the join, because the view derives the
+    post-paste open-set by walking placed_join.parent upward.
 
-    Locks first, token second, rule third: paste_allowed is re-evaluated INSIDE
-    this transaction and this lock, so a concurrent add into the destination slot
-    cannot interleave between the render-time check and the placement. The
-    render-time call is advisory; this one is the enforcement.
+    `dest_unit_pk` is the unit the author is looking at (the view passes the posted
+    `unit`). None -- callers that predate cross-unit copy -- runs the in-unit path
+    unchanged. Otherwise an unlocked lookup of the element's unit decides the path.
 
-    `before` names the join the subtree must land directly ABOVE, and is the whole
-    of the paste-at-a-position path. The destination slot is then DERIVED from that
-    join rather than posted, so `parent_ref`/`tab` are ignored and the two can never
-    disagree -- the client has one thing to get right instead of three. Naming the
-    anchor rather than an integer index also keeps the placement race-free: the
-    index is resolved here, inside the transaction and the lock, so a mark left
-    pending while a co-author edits the list cannot land the element one slot off.
+    LOCK ORDER (cross-unit). Every element-level writer locks exactly one unit, and
+    in-unit writers on an element take it through _locked_element (element row +
+    unit row in one joined SELECT ... FOR UPDATE). The copy takes the SOURCE through
+    that same shape and the two unit rows in ascending pk order, so two opposite
+    copies (X->Y, Y->X) cannot deadlock with each other, and a copy holding Y while
+    waiting for (e, X) cannot deadlock with an element-level writer on X, which
+    never wants Y. The general rule it does NOT cover: any transaction that locks or
+    writes more than one unit row in an order other than ascending pk (sibling
+    reorders and reparents, node add/delete compaction, subtree flag updates,
+    cascade deletes) can deadlock with a copy. Postgres aborts one side (40P01): if
+    it is the copy, element_paste answers 409; if it is the other writer, that
+    endpoint answers 500 -- rare, consistent, accepted (spec D11).
+
+    Locks first, token second, rule third: paste_allowed is re-evaluated INSIDE this
+    transaction and these locks, so a concurrent add into the destination slot
+    cannot interleave between the render-time check and the placement. The token is
+    checked against the DESTINATION only; the source is only read, and its lock
+    stops it changing mid-export.
+
+    `before` names the join the subtree must land directly ABOVE (move or copy). The
+    destination slot is then DERIVED from that join, so `parent_ref`/`tab` are
+    ignored. Resolving the anchor here, inside the lock, keeps the placement
+    race-free.
     """
     if mode not in ("move", "copy"):
         raise NestingError("unknown mode")
 
-    el, unit = _locked_element(course, element_pk)
-    _check_token(unit.updated, unit_token)
+    facts = None
+    if dest_unit_pk is None:
+        el, dest_unit = _locked_element(course, element_pk)
+        _check_token(dest_unit.updated, unit_token)
+        source_unit = dest_unit
+    else:
+        try:
+            dest_pk = int(dest_unit_pk)
+            src_pk = (
+                Element.objects.filter(pk=element_pk, unit__course=course)
+                .values_list("unit_id", flat=True)
+                .first()
+            )
+        except (ValueError, TypeError):
+            raise ConflictError() from None
+        if src_pk is None:  # gone, or another course's element
+            raise ConflictError()
+        if src_pk == dest_pk:
+            el, dest_unit = _locked_element(course, element_pk)
+            if dest_unit.pk != dest_pk:
+                raise ConflictError()
+            _check_token(dest_unit.updated, unit_token)
+            source_unit = dest_unit
+        else:
+            if src_pk < dest_pk:
+                el, source_unit = _locked_element(course, element_pk)
+                dest_unit = _locked_unit(course, dest_pk)
+            else:
+                dest_unit = _locked_unit(course, dest_pk)
+                el, source_unit = _locked_element(course, element_pk)
+            if source_unit.pk != src_pk:
+                raise ConflictError()
+            _check_token(dest_unit.updated, unit_token)
+            # Once, from the SOURCE unit's map: the destination's map does not hold
+            # the marked subtree. In-unit keeps facts=None -- a whole-unit map would
+            # make every in-unit paste of a leaf load the entire unit.
+            facts = subtree_facts(el, children_map=unit_children_map(source_unit))
 
     anchor = None
     if before in (None, ""):
-        dest_parent, tab_id = _parse_scope_ref(unit, parent_ref, tab)
+        dest_parent, tab_id = _parse_scope_ref(dest_unit, parent_ref, tab)
     else:
-        # move-only, deliberately: the editor offers no copy-before control, so a
-        # copy carrying an anchor is a malformed payload. Refusing beats silently
-        # dropping the argument and appending, which would look like a UI bug.
-        if mode != "move":
-            raise NestingError("before is a move-only argument")
-        anchor = _resolve_before(unit, el, before)
+        anchor = _resolve_before(dest_unit, el, before)
         dest_parent, tab_id = anchor.parent, anchor.tab_id
 
     ok, reason = paste_allowed(
-        unit, el, dest_parent, tab_id, mode, positional=anchor is not None
+        dest_unit,
+        el,
+        dest_parent,
+        tab_id,
+        mode,
+        facts=facts,
+        positional=anchor is not None,
     )
     if not ok:
         raise PlacementRefused(reason)
 
-    if mode == "move":
-        placed = _move_into(el, unit, dest_parent, tab_id, anchor=anchor)
+    if mode == "move":  # reachable in-unit only: clause 0 refuses a cross-unit move
+        placed = _move_into(el, dest_unit, dest_parent, tab_id, anchor=anchor)
     else:
-        placed = _copy_into(el, unit, dest_parent, tab_id)
+        placed = _copy_into(el, source_unit, dest_unit, dest_parent, tab_id, anchor)
 
-    unit.save(update_fields=["updated"])
-    return unit, placed
+    dest_unit.save(update_fields=["updated"])
+    return dest_unit, placed
 
 
 def _resolve_before(unit, el, before):
@@ -1262,19 +1325,23 @@ def _move_into(el, unit, dest_parent, tab_id, anchor=None):
     return el
 
 
-def _copy_into(el, unit, dest_parent, tab_id):
-    """Serialise the subtree and re-materialise it in the destination slot.
+def _copy_into(el, source_unit, dest_unit, dest_parent, tab_id, anchor=None):
+    """Serialise the subtree out of SOURCE_UNIT and re-materialise it in the
+    destination slot of DEST_UNIT (the same unit for an in-unit copy).
 
-    The same three-step shape duplicate_element uses, with the destination being
-    the caller's rather than the source's own scope. Runs inside paste_element's
-    transaction and lock.
+    The same three-step shape duplicate_element uses. Runs inside paste_element's
+    transaction, holding both units' locks (source and destination).
+
+    build_element_export needs the SOURCE: it asserts the root belongs to the unit
+    it exports. The media map points at the source's MediaAsset rows, which is
+    correct because both units are in the same course.
     """
     from courses.transfer import export as _export
     from courses.transfer import importer as _importer
     from courses.transfer.schema import TransferError
 
     try:
-        document, media_assets, problems = _export.build_element_export(unit, el)
+        document, media_assets, problems = _export.build_element_export(source_unit, el)
         if problems:
             # build_export RECORDS a dangling GFK and continues, dropping the broken
             # join and its ENTIRE subtree from the payload. With
@@ -1283,7 +1350,7 @@ def _copy_into(el, unit, dest_parent, tab_id):
             # yield a silently thinned subtree with a 200.
             raise TransferError(_("This element is damaged and cannot be copied."))
         media_map = {mid: asset for (mid, asset, _ph) in media_assets}
-        new_join = _importer.graft_elements(document, media_map, unit)
+        new_join = _importer.graft_elements(document, media_map, dest_unit)
     except TransferError:
         raise  # already normalized by graft_elements' _run_import
     except Exception as exc:
@@ -1297,7 +1364,8 @@ def _copy_into(el, unit, dest_parent, tab_id):
     new_join.parent = dest_parent
     new_join.tab_id = tab_id
     new_join.save(update_fields=["parent", "tab_id"])
-    ordering.place_element(new_join, unit, None)
+    # None appends; an anchor lands the copy directly above it.
+    ordering.place_element(new_join, dest_unit, None, before=anchor)
     return new_join
 
 
