@@ -176,6 +176,8 @@
         if (was !== undefined) setOpen(all[k], was);
       }
       savedOpen = null;
+      // A row picked DURING the query must not vanish into a group the restore shut.
+      if (selectedRow()) openAncestors(selectedRow());
     }
     for (var i = 0; i < all.length; i++) {
       var title = (all[i].getAttribute("data-title") || "").toLowerCase();

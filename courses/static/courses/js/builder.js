@@ -109,18 +109,30 @@
     setPanel(neutralPanel);
     clearMoving();
     var mv = pk == null ? null : root.querySelector('a[data-move="' + pk + '"]');
-    if (mv) mv.focus();
+    // The row may be gone or hidden (its chapter collapsed, a filter): never strand
+    // focus on <body> -- the panel, now showing the course, takes it instead.
+    if (mv && mv.checkVisibility && !mv.checkVisibility()) mv = null;
+    if (!mv) {
+      if (!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex", "-1");
+      mv = panel;
+    }
+    mv.focus();
   }
   // On document, not root: clicking a slot (a non-focusable <li>) leaves focus on
-  // <body>, where a root listener would never hear the key. Escape inside a text
-  // field or a confirm strip belongs to that widget (inline rename reverts, the
-  // strip dismisses itself), so those are left alone.
+  // <body>, where a root listener would never hear the key. But document also hears
+  // the Escape that closes a header menu (core/js/ui.js), so only a key aimed at the
+  // picker, the builder, or nothing (<body>) dismisses. Escape inside a text field
+  // or a confirm strip belongs to that widget (inline rename reverts, the strip
+  // dismisses itself -- detaching the target, which root.contains() then rejects).
   document.addEventListener("keydown", function (e) {
-    if (e.key !== "Escape" || !panel.querySelector("form.move-picker")) return;
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    if (!panel.querySelector("form.move-picker")) return;
     var t = e.target;
-    if (t && t.closest && !panel.contains(t)
-        && t.closest("input, textarea, select, [contenteditable], [data-flag-strip], dialog")) return;
-    dismissPicker();
+    if (!t || !t.closest) return;
+    if (t === document.body || panel.contains(t) || (root.contains(t)
+        && !t.closest("input, textarea, select, [contenteditable], [data-flag-strip], dialog"))) {
+      dismissPicker();
+    }
   });
   // ---- end Move-picker state ----
 

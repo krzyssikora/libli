@@ -716,7 +716,7 @@ in the table. They are listed here so their absence is a decision, not an oversi
 | Builder unit panel | `manage/_unit_panel.html:3` | same |
 | Move picker heading | `manage/_move_picker.html:9` | same |
 | Move picker destination rows | `manage/_move_picker.html:27` | same |
-| Link picker display title | `manage/editor/_link_picker_node.html:26` | `link_dialog.js:238` — `mount.innerHTML = html` |
+| Link picker display title | `manage/editor/_link_picker_node.html:26` | `link_dialog.js:324` — `mount.innerHTML = html` |
 | Media library usage list | `manage/media/_asset_cell.html:23` | **Mixed, and excluded for two reasons.** It is server-rendered from `_asset_grid.html` *and* returned as a JS-swapped fragment (`views_media.py:60,89`), so the swapped path needs the same re-render hook as the rows above — but unlike them, a marker on the server-rendered path *would* take effect, so the blanket rule alone does not cover it. Independently, `u.unit_title` comes from `courses/media.py:51` as a **snapshot**, not a live `ContentNode.title`, so it is not the same data this change is about. |
 
 Enabling these needs three things this change deliberately does not do: exporting

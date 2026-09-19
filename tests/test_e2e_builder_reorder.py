@@ -16,6 +16,7 @@ Marked e2e (excluded from the default run; run with -m e2e).
 import os
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -314,3 +315,77 @@ def test_escape_in_a_tree_text_field_leaves_the_picker_open(page, live_server):
         "Escape in the add-title field dismissed the Move picker"
     )
     assert page.locator(f'li.tree__row.moving[data-node="{intro.pk}"]').count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_escape_closing_a_header_menu_leaves_the_picker_open(page, live_server):
+    """core/js/ui.js closes the header's dropdowns on a DOCUMENT Escape too. That
+    key belongs to the menu: the picker (also listening on document) must not be
+    dismissed by it."""
+    pa = _make_pa_user("pa9menu")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9menu")
+    _goto_builder(page, live_server)
+
+    _open_picker(page, intro.pk)
+    menu = page.locator("[data-account-menu]")
+    menu.locator("[data-menu-trigger]").click()
+    expect(menu.locator("[data-menu-panel]")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(menu.locator("[data-menu-panel]")).to_be_hidden()
+    # Both listeners run inside the SAME keydown dispatch, so once the menu has
+    # closed a dismissal would already have happened.
+    assert page.locator("[data-panel] form.move-picker").count() == 1, (
+        "Escape that closed the account menu also dismissed the Move picker"
+    )
+    assert page.locator(f'li.tree__row.moving[data-node="{intro.pk}"]').count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_escape_closing_a_confirm_strip_leaves_the_picker_open(page, live_server):
+    """The confirm strip dismisses itself on Escape (and removes itself, so the
+    key's target is DETACHED by the time document hears it). The picker stays."""
+    pa = _make_pa_user("pa9strip")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9strip")
+    _goto_builder(page, live_server)
+
+    _open_picker(page, intro.pk)
+    page.click(
+        f'li.tree__row[data-node="{ch1.pk}"] > .tree__rowhead '
+        'a[data-flag-confirm][data-flag="published"]'
+    )
+    strip = page.locator(f'[data-flag-strip="{ch1.pk}"]')
+    expect(strip).to_be_visible()
+    page.wait_for_function(
+        "() => document.activeElement"
+        " && document.activeElement.hasAttribute('data-flag-strip')"
+    )
+    page.keyboard.press("Escape")
+    expect(strip).to_have_count(0)
+    assert page.locator("[data-panel] form.move-picker").count() == 1, (
+        "Escape that closed the confirm strip also dismissed the Move picker"
+    )
+    assert page.locator(f'li.tree__row.moving[data-node="{intro.pk}"]').count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cancel_with_the_moving_row_collapsed_focuses_the_panel(page, live_server):
+    """The row's Move... control is gone (its chapter was collapsed while the picker
+    was open), so Cancel cannot return focus there. It must not strand focus on
+    <body>: the panel, now showing the course, takes it."""
+    pa = _make_pa_user("pa9fall")
+    course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
+    _login(page, live_server, "pa9fall")
+    _goto_builder(page, live_server)
+
+    _open_picker(page, intro.pk)
+    page.click(f'[data-toggle="{ch1.pk}"]')
+    expect(page.locator(f'a[data-move="{intro.pk}"]')).to_have_count(0)
+    page.locator("[data-panel] [data-move-cancel]").click()
+    page.wait_for_selector('[data-panel] [data-panel-for="course"]', timeout=5000)
+    page.wait_for_function(
+        "() => document.activeElement"
+        " && document.activeElement.hasAttribute('data-panel')",
+        timeout=5000,
+    )
