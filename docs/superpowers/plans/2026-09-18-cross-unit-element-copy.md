@@ -8,7 +8,20 @@
 
 **Tech Stack:** Django 5 / Python 3.13, PostgreSQL (psycopg 3), server-rendered templates + vanilla JS (`editor.js`), KaTeX auto-render, pytest + pytest-django, Playwright (sync) for e2e.
 
-**Spec:** `docs/superpowers/specs/2026-09-18-cross-unit-element-copy-design.md` — read it alongside this plan. Every "§n" below refers to that spec. Where this plan and the spec disagree, the spec wins; stop and report the disagreement.
+**Spec:** `docs/superpowers/specs/2026-09-18-cross-unit-element-copy-design.md` — read it alongside this plan. Every "§n" below refers to that spec. Where this plan and the spec disagree, the spec wins; stop and report the disagreement — **except for the deliberate deviations listed below**, which were settled in plan review, do not trigger stop-and-report, and are each listed in the PR body.
+
+## Deliberate deviations from the spec (settled — do not "fix" back)
+
+None touches an owner decision (D1–D12); each corrects a test or verification detail the spec got wrong or left out.
+
+| # | Spec says | Plan does | Why |
+|---|---|---|---|
+| V1 | ≤ 480px: `documentElement.scrollWidth == clientWidth` | `overflow <= base_overflow` (the same page unmarked) | The unmarked editor page may already overflow at 400px; the banner must add none, not fix pre-existing overflow. |
+| V2 | The "from"-link `position: relative` mutant is "re-confirmed red" | If it stays green, record that it is not caught | Its nearest positioned ancestor (`.clip-banner__line`) may keep the twin inside the viewport; faking a red would be worse than an honest gap. |
+| V3 | Dropping `element` from `_paste_before` turns `test_a_paste_before_with_a_stale_token_is_a_409`'s pre-assertion red | The mutant is aimed at `test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark` | `_assert_posts_the_mark` checks the caller's argument, not the POSTed field, so the spec's predicted red cannot happen; the positive reorder test is what proves the field travels. |
+| V4 | "e2e (one test, real UI)" | Three e2e tests | The narrow-viewport and nothing-fits checks need their own viewport / fixture. |
+| V5 | No icon-size rule | `.iconbtn .ic { width: 1rem; height: 1rem; display: block; }` | The editor page does not load `builder.css` (home of the global `.ic` size); an unsized `<svg>` renders at 300×150. |
+| V6 | List cap `min(35vh, 18rem)` in every layout | Tighter cap inside the 70rem media block **if** the Task 7 measurement shows `.pane-body` below ~40% | The spec's stated goal (~40%) wins over its arithmetic. |
 
 ## Global Constraints
 
@@ -1864,8 +1877,10 @@ def _paste_before(client, course, unit, anchor, mode="move", token=None, *, elem
 
 
 def _assert_posts_the_mark(client, element):
-    """Pre-assertion for every 409 test: the `element` about to be posted IS the
-    session mark, so the stale-form check can never be what answers 409."""
+    """Pre-assertion for every 409 test: the `element` ARGUMENT the caller hands the
+    helper equals the session mark. It does not inspect the POST data -- that the
+    helpers really transmit the field is pinned by the Task 5 Step 7 mutant on
+    test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark."""
     assert client.session["element_clip"]["element"] == element.pk
 ```
 
@@ -3104,9 +3119,17 @@ Read each summary line. Any failure in an unrelated file: A/B it on `origin/mast
 uv run ruff format tests/test_e2e_cross_unit_copy.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
+git status --short
 git add tests/test_e2e_cross_unit_copy.py
+# ALSO stage any file this task changed to make an e2e assertion pass -- most
+# likely courses/static/courses/css/editor.css (alignment, share, containment)
+# and possibly courses/static/courses/js/editor.js. Never the capture script.
+git add courses/static/courses/css/editor.css courses/static/courses/js/editor.js  # only if changed
 git commit -m "test(e2e): a copy follows the author to another unit"
+git status --short
 ```
+
+The final `git status --short` must show nothing but the untracked capture script (if kept) — any modified tracked file means a Task 8 fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e").
 
 ---
 
