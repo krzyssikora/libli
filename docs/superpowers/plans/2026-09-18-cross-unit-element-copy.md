@@ -78,7 +78,7 @@ None touches an owner decision (D1–D12); each corrects a test or verification 
 | `tests/test_element_paste_view.py` | context, POST, cost, deadlock tests; helper migration | 4, 5 |
 | `tests/test_editor_clip_templates.py` | render-level tests | 6 |
 | `tests/test_editor_styles.py` | CSS guard class tuple | 7 |
-| `tests/test_e2e_cross_unit_copy.py` (new) | the one e2e test | 8 |
+| `tests/test_e2e_cross_unit_copy.py` (new) | the three e2e tests (V4) | 8 |
 
 ---
 
@@ -1583,7 +1583,7 @@ def test_a_cross_unit_marked_render_stays_within_its_query_ceiling(
     _text(x, parent=root, tab=rslots[1])
     assert _mark(client, course, x, root).status_code == 200
 
-    with django_assert_max_num_queries(60):  # tightened to measured + 5 in Step 5
+    with django_assert_max_num_queries(60):  # tightened to measured + 5 in Step 5b
         _editor_get(client, course, y)
 
 
@@ -1608,7 +1608,7 @@ def test_a_cross_unit_marked_render_never_falls_back_to_walking_parents(
     assert _editor_get(client, course, y).status_code == 200
 ```
 
-For the ceiling test: after Step 4, temporarily set the ceiling to `1` and run the test — the failure message prints the real count. Set the ceiling to that count + 5 and write the count into the docstring's `MEASURED BASELINE:` line. The starting value `60` is only a loose first bound; it must not be committed unmeasured.
+The ceiling's starting value `60` is only a loose first bound; Step 5b measures and tightens it, and it must not be committed unmeasured.
 
 `ContentNodeFactory` defaults: check `kind`/`unit_type` for containers (`grep -n "class ContentNodeFactory" -A12 tests/factories.py`); if `unit_type=""` fails validation for a container, pass whatever the factory uses for non-units (the builder's own container tests show it).
 
@@ -1802,7 +1802,11 @@ In `test_the_clip_context_keys_reach_both_render_paths`, change "must carry the 
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_paste_view.py tests/test_element_clip_view.py tests/test_editor_clip_templates.py courses/tests/test_paste_rule.py`
-Expected: all PASS (with the measured ceiling filled in). `tests/test_element_clip_view.py` pins `_clip_context`'s guarded-lookup behaviour, which this task rewrites.
+Expected: all PASS. `tests/test_element_clip_view.py` pins `_clip_context`'s guarded-lookup behaviour, which this task rewrites.
+
+- [ ] **Step 5b: Measure and tighten the query ceiling**
+
+In `test_a_cross_unit_marked_render_stays_within_its_query_ceiling`, temporarily set the ceiling to `1` and run `uv run pytest tests/test_element_paste_view.py -k cross_unit_marked_render_stays` — the failure message prints the real count. Set the ceiling to that count + 5, write the count into the docstring's `MEASURED BASELINE:` line, and re-run: PASS.
 
 - [ ] **Step 6: Falsify**
 
@@ -2782,7 +2786,7 @@ Expected: all PASS.
 
 - [ ] **Step 6: Manual check (screenshots)**
 
-Start the dev server on the local mat-pp copy (`uv run python manage.py runserver`), hard-reload with the service worker bypassed (DevTools → Application → Service workers → "Bypass for network"; a stale worker serves old static). As a course owner: mark an element in one unit, open "Copy to another unit…", follow a link. Take screenshots, light and dark, of: the source banner with the list open; the destination banner (with the "from" link); a quiz destination showing "Nothing can be pasted into this unit."; a ≤ 480px viewport with a long element title (≥ 80 characters). Judge dark separately. **Measure the wide-layout share now, not in Task 8:** at a 1280×720 window, with a course of 40+ units and the list open, run in the console `(p => p.querySelector('.pane-body').clientHeight / p.clientHeight)(document.querySelector('[data-scope="editor"]'))`. The spec expects `.pane-body` to keep ≥ ~40% of the pane (its "~40%" is derived arithmetic, not a measurement). If the share is below 0.4, add inside the existing `@media (min-width: 70rem)` block of `editor.css`:
+Start the dev server on the local mat-pp copy (`uv run python manage.py runserver`), hard-reload with the service worker bypassed (DevTools → Application → Service workers → "Bypass for network"; a stale worker serves old static). As a course owner: mark an element in one unit, open "Copy to another unit…", follow a link. Take screenshots, light and dark, of: the source banner with the list open; the destination banner (with the "from" link); a quiz destination showing "Nothing can be pasted into this unit."; a ≤ 480px viewport with a long element title (≥ 80 characters). Judge dark separately. **Measure the wide-layout share now, not in Task 8:** at a 1280×720 **viewport** (DevTools responsive/device mode set to exactly 1280×720 — a 1280×720 *window* is smaller, and the e2e sets the viewport exactly), with a course of 40+ units and the list open, run in the console `(p => p.querySelector('.pane-body').clientHeight / p.clientHeight)(document.querySelector('[data-scope="editor"]'))`. The spec expects `.pane-body` to keep ≥ ~40% of the pane (its "~40%" is derived arithmetic, not a measurement). If the share is below 0.4, add inside the existing `@media (min-width: 70rem)` block of `editor.css`:
 ```css
   /* Viewport-locked layout: the open list takes height from .pane-body, so it is
      capped tighter here -- MEASURED at 1280x720 the base cap left .pane-body
@@ -3067,7 +3071,7 @@ def test_the_cancel_stays_on_the_pill_when_nothing_fits(page, live_server):
     )
 ```
 
-**The committed e2e file contains no `page.screenshot` calls.** Screenshots (Task 7 Step 6 covers them manually) come from a separate, **uncommitted** `tests/capture_cross_unit_copy_screenshots.py` (the repo's `tests/capture_*_screenshots.py` convention) that reuses `_seed`, drives the same steps, and writes light shots, then sets `user.theme = "dark"; user.save()` before a fresh login for the dark ones (never a cookie). Judge dark separately. Delete the script (or leave it untracked) — it is never staged.
+**The committed e2e file contains no `page.screenshot` calls.** Screenshots (Task 7 Step 6 covers them manually) come from a separate, **uncommitted** script modelled on the repo's tracked `tests/capture_*_screenshots.py` files, kept **outside the repo** (in the session scratchpad) and run from the worktree; it reuses `_seed`, drives the same steps, and writes light shots, then sets `user.theme = "dark"; user.save()` before a fresh login for the dark ones (never a cookie). Judge dark separately. Keeping it out of the tree matters: `ruff check .` / `ruff format --check .` in Step 6 lint untracked files too, so a scratch script under `tests/` would turn the gate red for a file never committed.
 
 - [ ] **Step 2: Run the e2e tests**
 
@@ -3085,7 +3089,22 @@ Expected: all PASS (they locate `#clip-banner`, which kept its id).
 
 - [ ] **Step 5: Timing on mat-pp (manual, reported in the PR)**
 
-On the local dev database (never prod), in `uv run python manage.py shell`, pick the largest mat-pp unit as X (source) and another large unit as Y; with a `django.test.Client(HTTP_HOST="localhost")` logged in as the course owner (`client.force_login(owner)`), write the mark and **save** it — `client.session` returns a fresh store on every access, so an unsaved assignment is silently lost and the GETs would time the cheap unmarked path:
+On the local dev database (never prod), in `uv run python manage.py shell`, pin the inputs:
+```python
+from django.db.models import Count
+from django.test import Client
+from courses.models import ContentNode, Course, Element
+course = Course.objects.get(slug="mat-pp")  # the local copy; confirm the slug first
+X, Y = (ContentNode.objects.filter(course=course, kind="unit")
+        .annotate(n=Count("elements")).order_by("-n")[:2])  # the two largest units
+def _descendants(j):
+    kids = list(j.children.all())
+    return len(kids) + sum(_descendants(k) for k in kids)
+container_join = max(X.elements.filter(parent=None), key=_descendants)
+client = Client(HTTP_HOST="localhost")
+client.force_login(course.owner)
+```
+then write the mark and **save** it — `client.session` returns a fresh store on every access, so an unsaved assignment is silently lost and the GETs would time the cheap unmarked path:
 ```python
 from django.urls import reverse
 
@@ -3140,7 +3159,7 @@ git commit -m "test(e2e): a copy follows the author to another unit"
 git status --short
 ```
 
-The final `git status --short` must show nothing but the untracked capture script (if kept) — any modified tracked file means a Task 8 fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e"). If the query ceiling moved (Step 6), also `git add tests/test_element_paste_view.py`.
+The final `git status --short` must show nothing (the capture script lives outside the repo) — any modified tracked file means a Task 8 fix was left out of the commit. If CSS/JS was changed, say so in the commit message (e.g. append "; fix banner geometry found by e2e"). If the query ceiling moved (Step 6), also `git add tests/test_element_paste_view.py`.
 
 - [ ] **Step 8: Collect what the PR body must include**
 
@@ -3151,6 +3170,15 @@ Write these into a scratch note for whoever opens the PR:
 4. The light and dark screenshots from Task 7 Step 6 / the capture script.
 5. Any CSS/JS fix Task 8 made, and the final measured query ceiling.
 6. Owner decisions D10 (interactive elements refused into a quiz, cross-unit only) and D11 (the rare deadlock outcomes) as reminders for the reviewer.
+
+- [ ] **Step 9: Rebase and regenerate the binary catalogues**
+
+The `.mo` files are binary and cannot be merged by hand, so bring the branch up to date before the PR:
+```bash
+git fetch origin
+git rebase origin/master
+```
+If either `locale/*/LC_MESSAGES/django.po` changed upstream (or conflicted — resolve the `.po` text, never the `.mo`): re-run Task 6 Step 8's catalogue procedure (`makemessages -l pl -l en --no-obsolete`, re-check the five Polish msgstrs, the fuzzy count = 0, `compilemessages -l pl -l en`, `uv run pytest tests/test_i18n_po_health.py`), then commit both `.po` and both `.mo`. Re-run the per-task test files touched by the rebase before handing off.
 
 ---
 
