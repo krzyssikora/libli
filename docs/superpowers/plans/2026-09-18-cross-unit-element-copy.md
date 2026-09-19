@@ -34,7 +34,7 @@ None touches an owner decision (D1–D12); each corrects a test or verification 
   echo "$TEST_DATABASE_URL"
   uv run python -c "import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.test'); django.setup(); from django.conf import settings; print(settings.DATABASES['default']['PORT'])"
   ```
-  Expected: the URL ends `127.0.0.1:55433/libli` and the port prints `55433`. **If either differs, stop** — without it the suite creates and drops `test_libli` on the local server that holds mat-pp. `.env` is gitignored; never commit it.
+  Expected: the port prints `55433` — **the Python probe is decisive**. The `echo` checks only for a stale **exported** value (an exported variable beats `.env`): an empty line is fine (the value comes from `.env`); a non-empty value must end `127.0.0.1:55433/libli`. **If the port differs, or the echo shows another URL, stop** — without it the suite creates and drops `test_libli` on the local server that holds mat-pp. `.env` is gitignored; never commit it.
 - **Test mechanics:**
   - Tools are not on PATH: `uv run pytest …`, `uv run ruff …`, `uv run python manage.py …`.
   - **Never pass `-q`** (addopts already has it; a second one hides the summary).
@@ -1890,7 +1890,7 @@ def _assert_posts_the_mark(client, element):
     assert client.session["element_clip"]["element"] == element.pk
 ```
 
-Update **every** call of `_paste` / `_paste_before` in the file to pass `element=<the marked element>` (the `subject` of that test; `element=None` in `test_a_paste_with_no_mark_is_a_409`). Update the inline `client.post` to `manage_element_paste` in `test_a_vanished_destination_is_a_422_not_a_400` to include `"element": <marked>.pk` in its data dict. `grep -n "_paste(\|_paste_before(\|manage_element_paste" tests/test_element_paste_view.py` must show no call without `element=` afterwards.
+Update **every** call of `_paste` / `_paste_before` in the file to pass `element=<the marked element>` (the `subject` of that test; `element=None` in `test_a_paste_with_no_mark_is_a_409`). Update the inline `client.post` to `manage_element_paste` in `test_a_vanished_destination_is_a_422_not_a_400` to include `"element": <marked>.pk` in its data dict. Verify by running the file (`uv run pytest tests/test_element_paste_view.py`): `element` is a required keyword-only argument, so a missed `_paste` / `_paste_before` call fails as `TypeError: … missing 1 required keyword-only argument: 'element'` (a line-based grep cannot check calls that span lines). The inline `client.post` is not covered by that: check it by eye with `grep -n -A8 "manage_element_paste" tests/test_element_paste_view.py`.
 
 In each existing 409 test — `test_a_mark_naming_another_unit_is_a_409`, `test_a_mark_pointing_at_a_deleted_row_is_a_409`, `test_a_stale_token_is_a_409`, `test_a_paste_before_with_a_stale_token_is_a_409` — add `_assert_posts_the_mark(client, <marked>)` directly before the request. (`test_a_paste_with_no_mark_is_a_409` is the exception: no mark exists, and the empty-clip check runs first.) In `test_a_mark_naming_another_unit_is_a_409`, after its 409 assertion, add `assert client.session["element_clip"]["element"] == subject.pk  # kept`. In `test_a_mark_pointing_at_a_deleted_row_is_a_409`, add `assert "element_clip" not in client.session` after the 409 (the same response's render cleared it).
 
@@ -2671,7 +2671,7 @@ In `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`, replace
         )
 ```
 
-(`re` is already imported at the top of that file — used by `_code_only` — so add nothing). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red; delete the `.iconbtn .ic` rule → red.
+(`re` is already imported at the top of that file — used by `_code_only` — so add nothing). Also rewrite the comment directly above the old loop (`# Same argument for the clipboard's four classes: _element_row.html, _editor_scope.html and _paste_buttons.html reference them…`): it must no longer say "four", and must name the templates that now use these classes — `_element_row.html`, `_editor_scope.html`, `_paste_buttons.html`, `_paste_before_button.html`, `_element_row_controls.html`, `_copy_units_tree.html`, `_copy_units_node.html` (banner, unit list, paste controls, icon sizing). Mutant: delete the `.clip-banner__from { … }` rule (keep `.clip-banner__from-prefix` and `.clip-banner__from a`) → still green, because `.clip-banner__from a` styles the class at a boundary — acceptable, the class IS styled; delete all three `.clip-banner__from…` rules → red; delete the `.iconbtn .ic` rule → red.
 
 Run: `uv run pytest tests/test_editor_styles.py`
 Expected: FAIL on `.clip-banner__line`.
@@ -2794,7 +2794,7 @@ Start the dev server on the local mat-pp copy (`uv run python manage.py runserve
      <share>% of the pane. */
   .clip-banner__units-list { max-height: min(20vh, 12rem); }
 ```
-re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the row action bar's Duplicate button and every paste button show a normal-size (1rem) icon, not a 300×150 one; the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR.
+re-measure, lower the cap further if still short, write the measured shares into the comment, and record the deviation from the spec's `min(35vh, 18rem)` in the PR body (the spec's stated goal — `.pane-body` keeps ~40% — wins over its arithmetic). Confirm: the row action bar's Duplicate button and every paste button show a normal-size (1rem) icon, not a 300×150 one; the pill aligns with the "Editor" heading; the ✕ stays on the pill with the list open; the "from" link is visible when the label truncates; badges render (they are twinned in `editor.css`). Fix anything wrong before committing. Keep the screenshots for the PR, **saved in the session scratchpad, never inside the worktree** — an untracked file there would break Task 8's empty-`git status` checks.
 
 - [ ] **Step 7: Commit**
 
@@ -3162,6 +3162,8 @@ Read each summary line. Any failure in an unrelated file: A/B it on `origin/mast
 
 Re-read the cross-unit query count now that Tasks 6–7's templates render on the same GET: set `test_a_cross_unit_marked_render_stays_within_its_query_ceiling`'s ceiling to `1` temporarily, read the real count from the failure, and if it moved since Task 4 update the `MEASURED BASELINE` line and the ceiling (count + 5). Commit that with Step 7.
 
+Do the same for the SAME-UNIT sibling, `test_a_marked_render_does_not_walk_parents_per_slot`: every same-unit marked render now also pays `copy_units_tree`'s `_children_map` query (Task 4). Measure its real count the same way (ceiling to `1`, read the count, restore the ceiling — leave the ceiling at its current value if it still holds). In its docstring, add `copy_units_tree` (one `_children_map` query) to the cost list and replace "around 32" with the measured figure, keeping the docstring's line count unchanged. If the count exceeds the existing ceiling, stop and report — do not raise a ceiling without a reason. Commit with Step 7.
+
 - [ ] **Step 7: Commit the branch-gate follow-ups (only if anything changed)**
 
 ```bash
@@ -3170,7 +3172,7 @@ git status --short
 uv run ruff format tests/test_element_paste_view.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
-git add tests/test_element_paste_view.py  # only if the query ceiling moved (Step 6)
+git add tests/test_element_paste_view.py  # only if either ceiling test changed (Step 6)
 # ALSO any file a Step 6 failure fix touched -- by explicit path, never -A.
 git commit -m "test(paste): re-measured cross-unit query ceiling after the banner templates"
 git status --short
