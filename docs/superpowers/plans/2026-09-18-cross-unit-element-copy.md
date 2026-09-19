@@ -12,7 +12,7 @@
 
 ## Deliberate deviations from the spec (settled — do not "fix" back)
 
-None touches an owner decision (D1–D12); each corrects a test or verification detail the spec got wrong or left out.
+V1–V7 touch no owner decision (D1–D12); each corrects a test or verification detail the spec got wrong or left out. V8 records the owner's own later decision, D13.
 
 | # | Spec says | Plan does | Why |
 |---|---|---|---|
@@ -3359,6 +3359,10 @@ def test_a_level_of_a_unitless_container_is_a_404(client):
     part = _unit(course, "PartP", kind="part", unit_type="")
     _unit(course, "Under", parent=part)
     empty = _unit(course, "EmptySection", kind="section", unit_type="", parent=part)
+    # A unit-less CHILD container, so `empty` IS a key of the unpruned _children_map
+    # (which only keys parents that have children) -- without it the mutant below
+    # would 404 anyway and stay green.
+    _unit(course, "EmptyChapter", kind="chapter", unit_type="", parent=empty)
 
     assert _level(client, course, empty).status_code == 404
 
@@ -3410,8 +3414,10 @@ def test_a_level_refuses_post(client):
 
 
 def test_a_levels_query_count_does_not_grow_with_its_size(client):
-    """Mutant: a per-row query in the row partial (e.g. n.course.slug instead of
-    course_slug in the unit link) -> RED."""
+    """Mutant: a per-row query in the row partial, e.g. {{ n.parent.title }} added to
+    each unit row -> RED. (NOT n.course.slug: nodes from course.nodes.all() already
+    carry .course via the reverse-FK manager's known-related-objects cache, so that
+    mutant costs no query and would stay green.)"""
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
@@ -3431,7 +3437,7 @@ def test_a_levels_query_count_does_not_grow_with_its_size(client):
     assert len(big_q) == len(small_q)
 ```
 
-In `test_the_clip_context_keys_reach_both_render_paths`: "thirteen" → "fourteen", and add `copy_units_open` to whatever key list it checks.
+In `test_the_clip_context_keys_reach_both_render_paths`: "thirteen" → "fourteen". That test asserts individual values, not a key list, so add a check on **both** halves (the `_mark` fragment response and the GET) that the key arrives with a real value: put the marked unit under a part (create a part and give the marked unit `parent=part`, or add a second test shaped like it that does), and assert `resp.context["copy_units_open"] == {part.pk}` on both paths. A fragment builder that dropped the key would otherwise render every container collapsed after each swap — undefined template variables are falsy — and nothing would notice.
 
 In `tests/test_editor_clip_templates.py`:
 
@@ -3443,8 +3449,8 @@ def _banner(body):
     return body[start : body.index('class="pane-body"', start)]
 ```
 
-  Re-run every existing test that uses `_banner` or slices on `</details>` (`test_the_destination_banner_links_back_to_the_source` slices to `"<details"` — still correct).
-- Rewrite `test_the_unit_list_handles_an_irregular_course`: keep its root-level assertion and its `"EmptySectionE" not in banner` assertion; replace `f'href="{_editor_url(course, under_part)}"' in banner` with three assertions — the part renders as `<details class="clip-banner__group" data-units-url=` (collapsed: no `open`); `under_part`'s href is **absent** from the initial render; a GET of `courses:manage_copy_units` with `parent=part.pk` contains it.
+  `grep -n '</details>' tests/test_editor_clip_templates.py` and re-anchor every slice that ends at the first `</details>` after the banner the same way (`test_the_destination_banner_links_back_to_the_source` slices to `"<details"` — still correct).
+- Rewrite `test_the_unit_list_handles_an_irregular_course`: it slices on its OWN (`body[start : body.index("</details>", start)]` from `"clip-banner__units"`), and the first `</details>` is now the collapsed part's, which would cut off `other_root` — replace that slice with `body[start : body.index('class="pane-body"', start)]` (still starting at `"clip-banner__units"`, so the "from" link stays excluded). Keep its root-level assertion and its `"EmptySectionE" not in banner` assertion; replace `f'href="{_editor_url(course, under_part)}"' in banner` with three assertions — the part renders as `<details class="clip-banner__group" data-units-url=` (collapsed: no `open`); `under_part`'s href is **absent** from the initial render; a GET of `courses:manage_copy_units` with `parent=part.pk` contains it.
 - Add:
 
 ```python
@@ -3627,7 +3633,9 @@ Add, directly before the existing capture-phase `root.addEventListener("toggle",
     if (!list || !url) return;
     details.setAttribute("data-loading", "");
     fetch(url, { headers: { "X-Requested-With": "fetch" } })
-      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+      // r.redirected: an expired session 302s to the login page, which fetch follows
+      // to a 200 -- never inject that page (same guard as link_dialog.js).
+      .then(function (r) { if (!r.ok || r.redirected) throw new Error(String(r.status)); return r.text(); })
       .then(function (html) {
         list.innerHTML = html;
         details.setAttribute("data-loaded", "");
@@ -3660,11 +3668,13 @@ Match the file's style (`var`, `function`, no arrow functions). `msg()` and `roo
 In `editor.css`, directly after the `.clip-banner__unit-current` rule:
 
 ```css
-/* D13: a container row is its own <details>; its rows arrive on first open. */
+/* D13: a container row is its own <details>; its rows arrive on first open (their
+   <ol> is indented by the existing `.clip-banner__units-list ol` rule). */
 .clip-banner__group > summary { cursor: pointer; }
-.clip-banner__group > ol { margin: 0; padding-inline-start: var(--space-4); }
 .clip-banner__unit--error { color: var(--text-secondary); font-style: italic; }
 ```
+
+Add `".clip-banner__group"` to the class tuple in `tests/test_editor_styles.py::test_editor_css_styles_action_buttons`.
 
 Check it in light and dark with Task 7's scratch-script approach (screenshots in the scratchpad, never the worktree): the list with the open path, and one other part opened by clicking.
 
@@ -3720,6 +3730,39 @@ def test_a_collapsed_part_loads_its_units_on_open(page, live_server):
     deep_link.click()
     page.wait_for_url(f"**/unit/{deep.pk}/edit/")
     expect(page.locator("#clip-banner .clip-banner__from a")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_level_shows_an_error_and_retries_on_reopen(page, live_server):
+    """Mutant: set data-loaded in the loader's catch branch -> RED (no retry)."""
+    page.set_viewport_size({"width": 1280, "height": 720})
+    user = _make_pa_user("pa")
+    course, a, _b, subject, _rows, part, deep = _seed(user)
+    _login(page, live_server, "pa")
+    page.goto(_editor(live_server, course, a))
+    row = page.locator(f".el-row[data-element='{subject.pk}']")
+    with page.expect_response(lambda r: "element/clip/" in r.url):
+        row.locator(
+            "> .el-row__head .el-actions form[data-op='element-clip'] button"
+        ).click()
+    page.locator("#clip-banner .clip-banner__units > summary").click()
+    group = page.locator(
+        f"#clip-banner details.clip-banner__group[data-units-url*='parent={part.pk}']"
+    )
+
+    # FULFIL (never hold) the request with a 500: a held route hangs sync Playwright.
+    page.route("**/copy-units/**", lambda route: route.fulfill(status=500, body=""))
+    group.locator("> summary").click()
+    expect(group.locator(".clip-banner__unit--error")).to_be_visible()
+    page.unroute("**/copy-units/**")
+
+    group.locator("> summary").click()  # close
+    with page.expect_response(lambda r: "copy-units/" in r.url and r.status == 200):
+        group.locator("> summary").click()  # re-open: retries
+    expect(
+        page.locator(f"#clip-banner a[href$='/unit/{deep.pk}/edit/']")
+    ).to_be_visible()
+    expect(group.locator(".clip-banner__unit--error")).to_have_count(0)
 ```
 
 (The `_seed` title for `part` must not be "Unit …" — the existing tests locate units by href, not title, so this is safe; check nothing in them counts top-level rows.)
@@ -3735,18 +3778,19 @@ Expected: all PASS. If a query-ceiling test moved, re-measure the cross-unit one
 By hand, one at a time, each reverted by hand, `git diff` after each:
 1. In `_copy_units_node.html`, `{% elif n.pk in copy_units_open %}` → `{% elif True %}` → `test_the_path_to_the_current_unit_is_open_and_other_containers_are_not` red.
 2. Delete the `can_manage_course` check in `copy_units_level` → `test_a_level_is_refused_to_a_user_who_cannot_manage_the_course` red.
-3. In `copy_units_level`, serve the unpruned map (`cmap = _children_map(course)`, 404 only when `parent_pk not in cmap`, rows `cmap[parent_pk]`) → `test_a_level_of_a_unitless_container_is_a_404` red (`EmptySection` has no children so it is not a key of `cmap` either — if this mutant stays green, make the empty section hold a *container* with no unit, e.g. an empty chapter, so it IS a `cmap` key; record which fixture you used).
-4. In the row partial's unit link, `slug=course_slug` → `slug=n.course.slug` → `test_a_levels_query_count_does_not_grow_with_its_size` red.
+3. In `copy_units_level`, serve the unpruned map (`cmap = _children_map(course)`, 404 only when `parent_pk not in cmap`, rows `cmap[parent_pk]`) → `test_a_level_of_a_unitless_container_is_a_404` red (the fixture's `EmptySection` holds a unit-less `EmptyChapter`, so it IS a `cmap` key and the mutant serves it with a 200).
+4. In the row partial's unit row, add `{{ n.parent.title }}` (an uncached relation — one query per row) → `test_a_levels_query_count_does_not_grow_with_its_size` red. (Not `n.course.slug`: the reverse-FK manager caches `.course` on every node, so that costs no query.)
 5. Delete the `loadUnitsLevel(e.target)` line from the toggle listener → `test_a_collapsed_part_loads_its_units_on_open` red (no `copy-units/` response).
 6. Delete `typesetTitles(list);` in the loader → the same e2e test red on the `.katex` count.
+7. In the loader's `.catch`, add `details.setAttribute("data-loaded", "");` → `test_a_failed_level_shows_an_error_and_retries_on_reopen` red (the re-open sends no request).
 
 - [ ] **Step 11: Commit**
 
 ```bash
-uv run ruff format courses/views_manage.py courses/urls.py tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_e2e_cross_unit_copy.py
+uv run ruff format courses/views_manage.py courses/urls.py tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_e2e_cross_unit_copy.py tests/test_editor_styles.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
-git add courses/views_manage.py courses/urls.py templates/courses/manage/editor/_copy_units_tree.html templates/courses/manage/editor/_copy_units_node.html templates/courses/manage/editor/_copy_units_level.html templates/courses/manage/editor/editor.html courses/static/courses/js/editor.js courses/static/courses/css/editor.css locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_e2e_cross_unit_copy.py
+git add tests/test_editor_styles.py courses/views_manage.py courses/urls.py templates/courses/manage/editor/_copy_units_tree.html templates/courses/manage/editor/_copy_units_node.html templates/courses/manage/editor/_copy_units_level.html templates/courses/manage/editor/editor.html courses/static/courses/js/editor.js courses/static/courses/css/editor.css locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_e2e_cross_unit_copy.py
 git commit -m "feat(paste): the unit list loads each level on expand (D13)"
 git status --short
 ```
