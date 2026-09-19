@@ -1566,6 +1566,9 @@ PASTE_REFUSAL_MESSAGES = {
     "question_in_quiz": gettext_lazy(
         "Questions can only be placed inside a container in a lesson unit."
     ),
+    "interactive_in_quiz": gettext_lazy(
+        "Interactive elements can only be placed in a lesson unit."
+    ),
     "too_deep": gettext_lazy("This element is too deep to fit there."),
     "own_slot": gettext_lazy("It is already there."),
     "parent_gone": gettext_lazy("The destination was removed while you were working."),

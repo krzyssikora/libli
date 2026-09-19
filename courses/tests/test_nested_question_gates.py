@@ -245,6 +245,9 @@ def test_every_paste_reason_has_a_message():
     }
     # Not vacuous: the walk really did find the reasons, including the new one.
     assert "question_in_quiz" in returned
+    # Non-vacuity for clause 2d too: a 2c/2d return factored into a helper would be
+    # invisible to this walk -- this line turns that refactor RED.
+    assert "interactive_in_quiz" in returned
     # SUBSET, never equality: the map also holds `parent_gone`, which paste_allowed
     # never returns -- the paste VIEW supplies it from ParentGoneError.
     assert returned <= set(PASTE_REFUSAL_MESSAGES)

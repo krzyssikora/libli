@@ -574,17 +574,31 @@ def paste_allowed(
 
     Reason precedence, fixed and depended on by every caller's tests: wrong_unit,
     into_own_subtree, not_a_container, unknown_slot, type_not_nestable,
-    question_in_quiz, too_deep, own_slot. Clause 4 is tested before the container
-    checks so that "into your own child" reports that rather than "not a container"
-    when the child is a leaf.
+    question_in_quiz, interactive_in_quiz, too_deep, own_slot. Clause 4 is tested
+    before the container checks so that "into your own child" reports that rather
+    than "not a container" when the child is a leaf.
+
+    Cross-unit (marked_join in another unit of the same course): only a COPY is
+    admissible (clause 0), and a quiz destination additionally refuses a subtree
+    holding a nested question (2c) or any interactive element (2d). Both are
+    cross-unit only; in-unit they would block moves of content a quiz already holds.
     """
-    if marked_join.unit_id != unit.pk:  # clause 0
-        return False, "wrong_unit"
+    # Clause 0. `unit` is the DESTINATION. The same-unit test comes first and
+    # short-circuits, so the common in-unit render never loads marked_join.unit.
+    cross_unit = marked_join.unit_id != unit.pk
+    if cross_unit:
+        if mode == "move":  # a cross-unit MOVE would strand unit-keyed learner data
+            return False, "wrong_unit"
+        # Defence in depth: the endpoint's course filter already 409s a foreign
+        # course's element before this runs (paste_element step 1).
+        if marked_join.unit.course_id != unit.course_id:
+            return False, "wrong_unit"
     if dest_parent is not None and dest_parent.unit_id != unit.pk:  # clause 0
         return False, "wrong_unit"
 
     if facts is None:
         facts = subtree_facts(marked_join)
+    is_quiz = unit.unit_type == ContentNode.UnitType.QUIZ
 
     if dest_parent is None:
         # The synthetic top-level slot. A non-empty tab here cannot come from the
@@ -592,6 +606,14 @@ def paste_allowed(
         # runs -- so this is defence, not a reachable branch.
         if tab:
             return False, "unknown_slot"
+        # Clauses 2c / 2d, top-level branch. CROSS-UNIT ONLY: a quiz can already
+        # hold such content (imported, or a lesson flipped to quiz), and refusing
+        # its in-unit move would be a regression. Literal returns, never a helper:
+        # test_every_paste_reason_has_a_message walks these Return nodes.
+        if cross_unit and is_quiz and facts.nested_question:  # clause 2c
+            return False, "question_in_quiz"
+        if cross_unit and is_quiz and facts.has_interactive:  # clause 2d
+            return False, "interactive_in_quiz"
         if dest_depth is None:
             dest_depth = 1
     else:
@@ -635,16 +657,21 @@ def paste_allowed(
         # deliberately -- pasting a question back to TOP LEVEL in a quiz stays legal,
         # so the dest_parent is None branch must never see this check.
         #
-        # It inherits clause 2's narrowness and checks the pasted subtree's ROOT
-        # only: pasting a CONTAINER that already holds a question is not re-checked.
-        # Sound rather than closed, because rename_node stops a unit becoming a quiz
-        # while such content exists and clause 0 (wrong_unit) makes cross-unit pastes
-        # impossible -- the only way in is pre-existing malformed content.
+        # It checks the pasted subtree's ROOT only. The rest of the subtree is
+        # clause 2c's job, which runs for CROSS-UNIT pastes -- the one new way a
+        # question-bearing container can reach a quiz. In-unit, rename_node stops a
+        # unit becoming a quiz while such content exists, so the only way in is
+        # pre-existing malformed content, which stays movable on purpose.
         if (
             model_to_key(type(marked_join.content_object)) in NESTABLE_QUESTION_KEYS
             and unit.unit_type == ContentNode.UnitType.QUIZ
         ):
             return False, "question_in_quiz"
+
+        if cross_unit and is_quiz and facts.nested_question:  # clause 2c
+            return False, "question_in_quiz"
+        if cross_unit and is_quiz and facts.has_interactive:  # clause 2d
+            return False, "interactive_in_quiz"
 
         if dest_depth is None:
             dest_depth = element_depth(dest_parent) + 1

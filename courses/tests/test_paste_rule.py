@@ -16,7 +16,9 @@ from courses.models import SpoilerElement
 from courses.models import StepperElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from tests.factories import ContentNodeFactory
 from tests.factories import make_course_with_unit
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -523,3 +525,190 @@ def test_quiz_excluded_type_keys_match_the_add_menus_interactive_group():
     }
     assert hidden  # not vacuous: the menus really differ
     assert hidden == builder.QUIZ_EXCLUDED_TYPE_KEYS
+
+
+def _same_course_units(dest_type="lesson"):
+    """(source lesson, destination unit) in ONE course."""
+    course, src = make_course_with_unit()
+    dest = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type=dest_type, title="D"
+    )
+    return src, dest
+
+
+def test_a_cross_unit_copy_in_the_same_course_is_allowed_at_top_level():
+    src, dest = _same_course_units()
+    subject = _text(src)
+
+    assert builder.paste_allowed(dest, subject, None, "", "copy") == (True, None)
+
+
+def test_a_cross_unit_copy_in_the_same_course_is_allowed_into_a_slot():
+    src, dest = _same_course_units()
+    box, slots = _tabs(dest)
+    subject = _text(src)
+
+    assert builder.paste_allowed(dest, subject, box, slots[0], "copy") == (True, None)
+
+
+def test_a_cross_unit_move_is_refused():
+    src, dest = _same_course_units()
+    subject = _text(src)
+
+    assert builder.paste_allowed(dest, subject, None, "", "move") == (
+        False,
+        "wrong_unit",
+    )
+
+
+def test_a_cross_course_copy_is_refused():
+    """Mutant: drop the course comparison from clause 0 -> RED."""
+    _c1, dest = make_course_with_unit()
+    _c2, src = make_course_with_unit()
+    subject = _text(src)
+
+    assert builder.paste_allowed(dest, subject, None, "", "copy") == (
+        False,
+        "wrong_unit",
+    )
+
+
+def test_a_callout_holding_a_question_is_refused_into_a_quiz_at_top_level():
+    """Clause 2c. Mutant: delete the top-level-branch 2c return -> RED."""
+    src, quiz = _same_course_units("quiz")
+    box = _callout(src)
+    _choice(src, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, box, None, "", "copy") == (
+        False,
+        "question_in_quiz",
+    )
+
+
+def test_a_callout_holding_a_question_is_refused_into_a_quiz_slot():
+    """Clause 2c, container branch. Mutant: delete that 2c return -> RED."""
+    src, quiz = _same_course_units("quiz")
+    dest_box = _callout(quiz)
+    box = _callout(src)
+    _choice(src, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(
+        quiz, box, dest_box, CalloutElement.SLOT_ID, "copy"
+    ) == (False, "question_in_quiz")
+
+
+def test_a_callout_holding_a_question_is_allowed_into_a_lesson():
+    src, lesson = _same_course_units("lesson")
+    box = _callout(src)
+    _choice(src, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(lesson, box, None, "", "copy") == (True, None)
+
+
+def test_a_bare_question_may_be_copied_to_a_quizs_top_level():
+    src, quiz = _same_course_units("quiz")
+    q = _choice(src)
+
+    assert builder.paste_allowed(quiz, q, None, "", "copy") == (True, None)
+
+
+def test_an_in_unit_move_of_a_question_callout_inside_a_quiz_is_allowed():
+    """2c is CROSS-UNIT ONLY: pre-existing malformed quiz content must stay movable.
+
+    The callout starts NESTED, so the move to top level is a genuine relocation
+    and clause 5 (own_slot) cannot be what answers.
+
+    Mutant: drop `cross_unit and` from the top-level 2c check -> RED."""
+    course, _src = make_course_with_unit()
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    other, oslots = _tabs(quiz)
+    box = _callout(quiz, parent=other, tab=oslots[0])
+    _choice(quiz, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, box, None, "", "move") == (True, None)
+
+
+def test_an_in_unit_move_of_a_question_callout_into_a_quiz_slot_is_allowed():
+    """The container-branch 2c is cross-unit only too.
+
+    Mutant: drop `cross_unit and` from the container-branch 2c check -> RED."""
+    course, _src = make_course_with_unit()
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    dest_box, dslots = _tabs(quiz)
+    box = _callout(quiz)
+    _choice(quiz, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, box, dest_box, dslots[0], "move") == (
+        True,
+        None,
+    )
+
+
+def test_an_in_unit_move_of_a_stepper_to_a_quizs_top_level_is_allowed():
+    """The top-level 2d is cross-unit only too. The stepper starts nested so the
+    move is a genuine relocation.
+
+    Mutant: drop `cross_unit and` from the top-level 2d check -> RED."""
+    course, _src = make_course_with_unit()
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    box = _callout(quiz)
+    s = _stepper(quiz, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, s, None, "", "move") == (True, None)
+
+
+def test_a_stepper_is_refused_into_a_quiz():
+    """Clause 2d. Mutant: delete the top-level-branch 2d return -> RED."""
+    src, quiz = _same_course_units("quiz")
+    s = _stepper(src)
+
+    assert builder.paste_allowed(quiz, s, None, "", "copy") == (
+        False,
+        "interactive_in_quiz",
+    )
+
+
+def test_a_callout_holding_a_checklist_is_refused_into_a_quiz_at_top_level():
+    src, quiz = _same_course_units("quiz")
+    box = _callout(src)
+    _markdone(src, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(quiz, box, None, "", "copy") == (
+        False,
+        "interactive_in_quiz",
+    )
+
+
+def test_a_callout_holding_a_checklist_is_refused_into_a_quiz_slot():
+    """Mutant: delete the container-branch 2d return -> RED."""
+    src, quiz = _same_course_units("quiz")
+    dest_box = _callout(quiz)
+    box = _callout(src)
+    _markdone(src, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(
+        quiz, box, dest_box, CalloutElement.SLOT_ID, "copy"
+    ) == (False, "interactive_in_quiz")
+
+
+def test_a_callout_holding_a_checklist_is_allowed_into_a_lesson():
+    src, lesson = _same_course_units("lesson")
+    box = _callout(src)
+    _markdone(src, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.paste_allowed(lesson, box, None, "", "copy") == (True, None)
+
+
+def test_an_in_unit_move_of_a_stepper_inside_a_quiz_is_allowed():
+    """2d is CROSS-UNIT ONLY: a lesson flipped to quiz keeps its steppers.
+
+    Mutant: drop `cross_unit and` from the container-branch 2d check -> RED."""
+    course, _src = make_course_with_unit()
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    dest_box = _callout(quiz)
+    s = _stepper(quiz)
+
+    assert builder.paste_allowed(quiz, s, dest_box, CalloutElement.SLOT_ID, "move") == (
+        True,
+        None,
+    )
