@@ -408,6 +408,7 @@ def paste_buttons(context, parent="", tab=""):
         "tab": tab or "",
         "show_move": key in (context.get("move_slots") or set()),
         "show_copy": key in (context.get("copy_slots") or set()),
+        "clip_element_pk": context.get("clip_element_pk") or "",
     }
 
 
@@ -428,6 +429,9 @@ def paste_before_button(context, el):
     below it (already true, so the paste would spend a full re-render changing
     nothing). Both come from the view precomputed; re-deriving the second one here
     would need the whole ordered sibling list per row.
+
+    The button posts `mode` from the context -- copy-before in a destination
+    unit, move-before in the source (spec D4).
     """
     clip_pk = context.get("clip_element_pk") or ""
     row_pk = str(el.pk)
@@ -438,4 +442,10 @@ def paste_before_button(context, el):
         "show": key in (context.get("before_slots") or set()),
         "unit": context.get("unit"),
         "el": el,
+        # The partial sees ONLY this dict (inclusion tag): both keys must travel.
+        "clip_element_pk": clip_pk,
+        # "copy" in a destination unit, "move" in the source (spec D4). .get with a
+        # default: a render path without the full clip context hides or falls back,
+        # never raises.
+        "mode": context.get("clip_mode") or "move",
     }

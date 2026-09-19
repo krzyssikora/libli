@@ -7,9 +7,13 @@ test_no_paste_buttons_render_when_nothing_is_marked (the one absence-only test)
 stays green.
 """
 
+import re
+
 import pytest
 from django.urls import reverse
 
+from courses.models import CalloutElement
+from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
@@ -19,6 +23,7 @@ from courses.models import TwoColumnElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_pa
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -396,7 +401,8 @@ def test_the_banner_falls_back_to_the_type_summary_when_the_title_is_empty(clien
 
     resp = _mark(client, course, unit, subject)
     body = resp.content.decode()
-    banner = body[body.index('id="clip-banner"') : body.index('id="clip-banner"') + 400]
+    start = body.index("clip-banner__label")
+    banner = body[start : start + 400]
 
     assert banner.strip() != ""
     assert "Some prose" in banner or "Text" in banner
@@ -520,3 +526,252 @@ def test_the_editor_page_leaks_no_raw_template_comment(client):
     _text(unit, parent=dest, tab=slots[0])
 
     assert "{#" not in _editor(client, course, unit)
+
+
+def _unit(course, title, unit_type="lesson", parent=None, kind="unit"):
+    return ContentNodeFactory(
+        course=course, parent=parent, kind=kind, unit_type=unit_type, title=title
+    )
+
+
+def _banner(body):
+    start = body.index('id="clip-banner"')
+    return body[start : body.index('class="pane-body"', start)]
+
+
+def _editor_url(course, unit):
+    return reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+
+
+def test_the_destination_offers_copy_controls_and_no_move_controls(client):
+    """D7. Paired with presence assertions, so an empty tag cannot pass it."""
+    course, x = _seed(client)
+    y = _unit(course, "Y")
+    subject = _text(x)
+    _tabs(y)
+    _text(y)
+    _mark(client, course, x, subject)
+
+    body = _editor(client, course, y)
+
+    assert "Copy before this element" in body
+    assert 'value="copy"' in body
+    assert "Move before this element" not in body
+    assert "Move here" not in body
+    for form in re.findall(
+        r'<form[^>]*data-op="element-paste-before"[^>]*>.*?</form>', body, flags=re.S
+    ):
+        assert 'name="mode" value="copy"' in form
+
+
+def test_the_source_rows_keep_move_before_only(client):
+    """D4. The POSTED mode is asserted, not just the label: the label comes from
+    `{% if mode == "copy" %}`, so a hard-coded hidden input would keep it.
+
+    Mutant: hard-code `value="copy"` in _paste_before_button.html's mode input ->
+    RED here; hard-code `value="move"` -> RED on the destination test above."""
+    course, x = _seed(client)
+    _unit(course, "Y")
+    _text(x)
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    body = _editor(client, course, x)
+
+    assert "Move before this element" in body
+    assert "Copy before this element" not in body
+    forms = re.findall(
+        r'<form[^>]*data-op="element-paste-before"[^>]*>.*?</form>', body, flags=re.S
+    )
+    assert forms  # the loop below cannot pass on zero forms
+    for form in forms:
+        assert 'name="mode" value="move"' in form
+
+
+def test_the_destination_banner_links_back_to_the_source(client):
+    course, x = _seed(client)
+    x.title = "SourceUnitTitle"
+    x.save()
+    y = _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    banner = _banner(_editor(client, course, y))
+    # ONLY the "from" part: the unit list below it also links X with X's title,
+    # so a whole-banner assertion would pass whatever the from-link points at.
+    start = banner.index("clip-banner__from")
+    from_part = banner[start : banner.index("<details", start)]
+
+    assert f'href="{_editor_url(course, x)}"' in from_part
+    assert "SourceUnitTitle" in from_part
+    assert f'href="{_editor_url(course, y)}"' not in from_part
+
+
+def test_the_source_banner_has_no_from_link(client):
+    course, x = _seed(client)
+    _unit(course, "Y")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    body = _editor(client, course, x)
+
+    assert "clip-banner__from" not in body
+
+
+def test_the_unit_list_links_every_other_unit_and_not_the_current_one(client):
+    """Mutant: render the current unit as a link too -> RED."""
+    course, x = _seed(client)
+    x.title = "CurrentUnit"
+    x.save()
+    y = _unit(course, "OtherUnit")
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    banner = _banner(_editor(client, course, x))
+
+    assert f'href="{_editor_url(course, y)}"' in banner
+    assert f'href="{_editor_url(course, x)}"' not in banner
+    assert 'aria-current="page"' in banner
+    assert "CurrentUnit" in banner
+
+
+def test_a_one_unit_course_renders_no_unit_list(client):
+    """Mutant: drop the `{% if copy_units_available %}` guard -> RED."""
+    course, x = _seed(client)
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    body = _editor(client, course, x)
+
+    assert 'id="clip-banner"' in body
+    assert "clip-banner__units" not in body
+
+
+def test_the_unit_list_handles_an_irregular_course(client):
+    course, x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    under_part = _unit(course, "UnderPart", parent=part)
+    _unit(course, "EmptySectionE", kind="section", unit_type="", parent=part)
+    other_root = _unit(course, "OtherRoot")  # neither source nor current
+    subject = _text(x)
+    _mark(client, course, x, subject)
+    y = _unit(course, "RootY")
+
+    body = _editor(client, course, y)
+    # The <details> part only: the "from" link above it also carries X's href.
+    start = body.index("clip-banner__units")
+    banner = body[start : body.index('class="pane-body"', start)]
+
+    assert f'href="{_editor_url(course, other_root)}"' in banner  # root-level
+    assert "EmptySectionE" not in banner  # a unit-less container is omitted
+    # D13: the part is collapsed (no `open`) and its rows load on expand.
+    assert '<details class="clip-banner__group" data-units-url=' in banner
+    assert f'href="{_editor_url(course, under_part)}"' not in banner
+    level = client.get(
+        reverse("courses:manage_copy_units", kwargs={"slug": course.slug}),
+        {"parent": part.pk},
+    ).content.decode()
+    assert f'href="{_editor_url(course, under_part)}"' in level
+
+
+def test_the_path_to_the_current_unit_is_open_and_other_containers_are_not(client):
+    """Mutant: render every container open ({% elif True %} in
+    _copy_units_node.html) -> RED on the sibling assertions."""
+    course, x = _seed(client)
+    part = _unit(course, "PathPart", kind="part", unit_type="")
+    chapter = _unit(course, "PathChapter", kind="chapter", unit_type="", parent=part)
+    here = _unit(course, "HereUnit", parent=chapter)
+    sibling = _unit(course, "SiblingPart", kind="part", unit_type="")
+    hidden = _unit(course, "HiddenUnit", parent=sibling)
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    banner = _banner(_editor(client, course, here))
+
+    assert banner.count('<details class="clip-banner__group" open') == 2
+    assert 'aria-current="page"' in banner and "HereUnit" in banner
+    assert "SiblingPart" in banner  # its row is there, collapsed
+    assert "HiddenUnit" not in banner
+    assert f'href="{_editor_url(course, hidden)}"' not in banner
+
+
+def test_nothing_fits_is_said_out_loud(client):
+    """Mutant: drop the clip_nothing_fits paragraph -> RED."""
+    course, x = _seed(client)
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    box = Element.objects.create(
+        unit=x, content_object=CalloutElement.objects.create(kind="example")
+    )
+    Element.objects.create(
+        unit=x,
+        content_object=ChoiceQuestionElement.objects.create(stem="P.", multiple=False),
+        parent=box,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    _mark(client, course, x, box)
+
+    body = _editor(client, course, quiz)
+
+    assert "Nothing can be pasted into this unit." in body
+    assert 'data-op="element-paste"' not in body
+
+
+def test_the_banner_is_a_div_between_the_pane_head_and_the_error_slot(client):
+    """Asserted on a 422 render, so the error slot really exists to order against."""
+    course, x = _seed(client)
+    quiz = make_quiz_unit(course=course, parent=None, title="Q")
+    dest = Element.objects.create(
+        unit=quiz, content_object=CalloutElement.objects.create(kind="example")
+    )
+    subject = Element.objects.create(
+        unit=quiz,
+        content_object=ChoiceQuestionElement.objects.create(stem="P.", multiple=False),
+    )
+    _mark(client, course, quiz, subject)
+    quiz.refresh_from_db()
+
+    resp = client.post(  # a question into a quiz container: 422 question_in_quiz
+        reverse("courses:manage_element_paste", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "parent": dest.pk,
+            "tab": CalloutElement.SLOT_ID,
+            "mode": "move",
+            "element": subject.pk,
+            "unit": quiz.pk,
+            "unit_token": quiz.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 422
+    body = resp.content.decode()
+
+    assert '<div id="clip-banner" class="clip-banner">' in body
+    head_end = body.index("pane-head__count")
+    banner = body.index('id="clip-banner"')
+    error = body.index('id="editor-error"')
+    pane_body = body.index('class="pane-body"')
+    assert head_end < banner < error < pane_body
+
+
+def test_no_emoji_or_text_glyph_icons_remain_on_paste_controls(client):
+    """D9. Mutant: restore 📋 in _paste_buttons.html -> RED."""
+    course, x = _seed(client)
+    _tabs(x)
+    _text(x)
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    body = _editor(client, course, x)
+    scope = body[body.index('data-scope="editor"') : body.index('data-scope="preview"')]
+
+    assert "📋" not in scope
+    assert "⧉" not in scope
+    assert '<use href="#ed-paste-move"/>' in scope  # slot move + move-before
+    assert '<use href="#ed-paste-copy"/>' in scope  # slot copy + Duplicate
+    for form in re.findall(
+        r'<form[^>]*data-op="element-(?:paste|paste-before|duplicate)"[^>]*>.*?</form>',
+        scope,
+        flags=re.S,
+    ):
+        assert '<use href="#ed-paste-' in form

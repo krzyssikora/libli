@@ -181,6 +181,11 @@ urlpatterns = [
         name="manage_link_picker",
     ),
     path(
+        "manage/courses/<slug:slug>/copy-units/",
+        views_manage.copy_units_level,
+        name="manage_copy_units",
+    ),
+    path(
         "manage/courses/<slug:slug>/build/node/<int:pk>/export/",
         views_transfer.export_subtree,
         name="manage_node_export",

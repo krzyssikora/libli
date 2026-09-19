@@ -20,6 +20,14 @@
       });
     } catch (e) { /* leave raw LaTeX on error */ }
   }
+  // Typeset only [data-math-title] nodes that hold a delimiter (see applyFragments).
+  function typesetTitles(scope) {
+    scope.querySelectorAll("[data-math-title]").forEach(function (node) {
+      var text = node.textContent;
+      if (text.indexOf("\\(") === -1 && text.indexOf("\\[") === -1) return;
+      renderPreviewMath(node);
+    });
+  }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
@@ -139,6 +147,14 @@
     });
     refreshUnitTokens();  // after the swap: the pane now carries the fresh token
     applyStoredSlots(root);
+    // Node titles inside the swapped EDITOR scope -- the clip banner's "from" link
+    // and the "Copy to another unit..." list -- carry data-math-title. math.js
+    // typesets those only on page load, so re-run here. Only these nodes, never the
+    // whole pane (row labels and forms must stay raw), and skip any without a
+    // delimiter: the list can hold many titles and this runs on every op while a
+    // mark is pending.
+    var editorScope = root.querySelector('[data-scope="editor"]');
+    if (editorScope) typesetTitles(editorScope);
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices
@@ -724,11 +740,40 @@
   bindDnD();
   bindHover();
 
+  // "Copy to another unit..." (spec D13): a collapsed container fetches its rows once,
+  // on first open. data-loading guards a double toggle; a failure leaves it unloaded,
+  // so closing and re-opening retries.
+  function loadUnitsLevel(details) {
+    if (!details.open || details.hasAttribute("data-loaded") || details.hasAttribute("data-loading")) return;
+    var list = details.querySelector(":scope > ol");
+    var url = details.getAttribute("data-units-url");
+    if (!list || !url) return;
+    details.setAttribute("data-loading", "");
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      // r.redirected: an expired session 302s to the login page, which fetch follows
+      // to a 200 -- never inject that page (same guard as link_dialog.js).
+      .then(function (r) { if (!r.ok || r.redirected) throw new Error(String(r.status)); return r.text(); })
+      .then(function (html) {
+        list.innerHTML = html;
+        details.setAttribute("data-loaded", "");
+        typesetTitles(list);
+      })
+      .catch(function () {
+        list.innerHTML = "";
+        var li = document.createElement("li");
+        li.className = "clip-banner__unit clip-banner__unit--error";
+        li.textContent = msg("units-error", "Could not load the units.");
+        list.appendChild(li);
+      })
+      .then(function () { details.removeAttribute("data-loading"); });
+  }
+
   // Persist a slot's open/closed state whenever the author toggles it. `toggle` does NOT
   // bubble, so listen in the CAPTURE phase (which still sees non-bubbling descendant
   // events) rather than by delegation.
   root.addEventListener("toggle", function (e) {
     if (e.target.matches && e.target.matches(SLOT_DETAILS)) saveSlot(e.target);
+    if (e.target.matches && e.target.matches("details.clip-banner__group")) loadUnitsLevel(e.target);
   }, true);
   applyStoredSlots(root);  // restore on initial page load (a refresh loses in-memory state)
 

@@ -15,28 +15,34 @@
        data-move-url="{% url 'courses:manage_element_move' slug=unit.course.slug %}">
     <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span>{% comment %}
       `.pane-head` is `display:flex; justify-content:space-between` with exactly TWO
-      children today, which is what pins the count to the right edge. The banner
-      below becomes a THIRD child, so without the CSS in the styling task the row
-      re-distributes and the count drifts to the centre whenever a mark is pending
-      -- a visible change to existing chrome, not just to the new element.
+      children -- the banner below is a SIBLING after `.pane-head`, not a third
+      child of it, so this row keeps pinning the count to the right edge whether
+      or not a mark is pending.
       {% endcomment %}
+    </div>
       {% comment %}
       The mark banner MUST live inside [data-scope="editor"]: applyFragments
       replaces only the two panes, and editor.html's header region sits outside
       both -- a banner there would render once on page load and then never reflect
-      a select, a cancel or a paste.
+      a select, a cancel or a paste. It is a DIV and a sibling AFTER .pane-head (not
+      its third child): it holds flow content -- the <details> unit list -- which is
+      invalid in a span and would wreck the flex head. Order: head, banner, error
+      slot, body -- so a refusal sits between the banner and the list it concerns.
       {% endcomment %}
-      {% if clip_active %}<span id="clip-banner" class="clip-banner">⊹ {% blocktranslate %}Selected: {{ clip_label }}{% endblocktranslate %}
-        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_clip' slug=unit.course.slug %}" data-op="element-clip">
-          {% csrf_token %}
-          <input type="hidden" name="ctx" value="editor">
-          <input type="hidden" name="element" value="{{ clip_element_pk }}">
-          <input type="hidden" name="unit" value="{{ unit.pk }}">
-          <input type="hidden" name="action" value="cancel">
-          <button class="iconbtn" type="submit" aria-label="{% trans 'Cancel selection' %}" title="{% trans 'Cancel selection' %}">✕</button>
-        </form>
-      </span>{% endif %}
-    </div>
+      {% if clip_active %}<div id="clip-banner" class="clip-banner">
+        <div class="clip-banner__line">⊹ <span class="clip-banner__label">{% blocktranslate %}Selected: {{ clip_label }}{% endblocktranslate %}</span>{% if clip_source_unit %}<span class="clip-banner__from"><span class="clip-banner__from-prefix">— {% translate "from unit" context "clip banner" %}</span> <a href="{% url 'courses:manage_editor' slug=unit.course.slug pk=clip_source_unit.pk %}" data-math-title>{{ clip_source_unit.title }}</a></span>{% endif %}
+          <form class="tree__inline" method="post" action="{% url 'courses:manage_element_clip' slug=unit.course.slug %}" data-op="element-clip">
+            {% csrf_token %}
+            <input type="hidden" name="ctx" value="editor">
+            <input type="hidden" name="element" value="{{ clip_element_pk }}">
+            <input type="hidden" name="unit" value="{{ unit.pk }}">
+            <input type="hidden" name="action" value="cancel">
+            <button class="iconbtn" type="submit" aria-label="{% trans 'Cancel selection' %}" title="{% trans 'Cancel selection' %}">✕</button>
+          </form>
+        </div>
+        {% if clip_nothing_fits %}<p class="clip-banner__nothing">{% trans "Nothing can be pasted into this unit." %}</p>{% endif %}
+        {% if copy_units_available %}{% include "courses/manage/editor/_copy_units_tree.html" %}{% endif %}
+      </div>{% endif %}
       {% comment %}
       The editor's error slot. It MUST live inside [data-scope="editor"]:
       editor.js's applyFragments replaces only the two [data-scope] panes, so a

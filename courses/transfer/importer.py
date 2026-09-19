@@ -1251,16 +1251,16 @@ def graft_elements(document, media_map, unit):
 
     1. No `_create_nodes`. The node_map is fabricated over `unit`, because
        _create_elements looks the unit up as node_map[el["unit"]].
-    2. No `_rewrite_links`, because for an element-scoped export that call is
-       provably a NO-OP -- not because it would corrupt anything. build_export
-       emits link_nodes filtered to targets INSIDE the exported node set
-       (`{pk: node_ids[pk] for pk in referenced if pk in node_ids}`,
-       export.py:781-783), and here that set is exactly {unit}. So link_nodes
-       names at most unit.pk, the fabricated node_map maps it back to the SAME
-       unit, and _rewrite_links builds the identity mapping {unit.pk: unit.pk}
-       (or an empty one). A link to any node outside the export never enters
-       `mapping` and, under on_missing="keep", is left alone. Skipped as dead
-       work.
+    2. No `_rewrite_links`. The skip is a CORRECTNESS REQUIREMENT, not dead
+       work: for a cross-unit graft, `link_nodes` can name the SOURCE unit --
+       a link inside the copied subtree pointing back at it -- and the
+       fabricated node_map maps the source unit's export id to the
+       DESTINATION. Running `_rewrite_links` here would silently repoint that
+       link at the destination instead of leaving it pointed at the source.
+       A link to any node OUTSIDE the export is unaffected either way: it
+       never enters `link_nodes`' target set, so it is left alone under
+       `on_missing="keep"` regardless of whether `_rewrite_links` runs.
+       (Still true when the graft is in-unit: source and destination match.)
     3. It returns the created root JOIN, not a ContentNode.
 
     The root is re-derived as the single created join with `parent_id is None`

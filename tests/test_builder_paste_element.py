@@ -4,13 +4,17 @@ from courses import builder
 from courses.builder import ConflictError
 from courses.builder import PlacementRefused
 from courses.builder import paste_element
+from courses.models import CalloutElement
+from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import ImageElement
+from courses.models import MarkDoneElement
 from courses.models import MediaAsset
 from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TextElement
 from courses.transfer.schema import TransferError
+from tests.factories import ContentNodeFactory
 from tests.factories import make_course_with_unit
 from tests.factories import make_image_asset
 
@@ -570,17 +574,6 @@ def test_a_move_before_a_vanished_target_reports_the_destination_is_gone():
         paste_element(course, subject.pk, "", "", "move", _tok(unit), before=doomed_pk)
 
 
-def test_a_copy_may_not_name_a_before_target():
-    """The editor offers `before` for moves only, so a copy carrying one is a
-    malformed payload rather than a silently ignored argument."""
-    course, unit = make_course_with_unit()
-    subject = _text(unit)
-    anchor = _text(unit)
-
-    with pytest.raises(builder.NestingError):
-        paste_element(course, subject.pk, "", "", "copy", _tok(unit), before=anchor.pk)
-
-
 def test_a_plain_move_into_the_elements_own_slot_is_still_refused():
     """Clause 5's regression guard. `before` skips it; a slot paste must not.
 
@@ -594,3 +587,352 @@ def test_a_plain_move_into_the_elements_own_slot_is_still_refused():
         paste_element(course, subject.pk, "", "", "move", _tok(unit))
 
     assert exc.value.reason_key == "own_slot"
+
+
+def _callout(unit, parent=None, tab=""):
+    obj = CalloutElement.objects.create(kind="example")
+    return Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id=tab
+    )
+
+
+def _other_unit(course, title="Y", unit_type="lesson"):
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type=unit_type, title=title
+    )
+
+
+def _bodies(unit, parent=None, tab=""):
+    """Ordered bodies of one group -- content, never pks across models."""
+    return [
+        j.content_object.body
+        for j in Element.objects.filter(unit=unit, parent=parent, tab_id=tab)
+        .order_by("order", "pk")
+        .prefetch_related("content_object")
+    ]
+
+
+def test_an_in_unit_copy_may_name_a_before_target():
+    """Replaces test_a_copy_may_not_name_a_before_target: copy now accepts
+    `before`. Anchored on a DIFFERENT sibling -- a self-anchor stays a 400."""
+    course, unit = make_course_with_unit()
+    anchor = _text(unit, body="<p>anchor</p>")
+    subject = _text(unit, body="<p>subject</p>")
+
+    paste_element(course, subject.pk, "", "", "copy", _tok(unit), before=anchor.pk)
+
+    assert _bodies(unit) == ["<p>subject</p>", "<p>anchor</p>", "<p>subject</p>"]
+
+
+def test_a_cross_unit_copy_lands_at_the_end_of_the_chosen_slot():
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x, body="<p>subject</p>")
+    box, slots = _tabs(y)
+    _text(y, parent=box, tab=slots[0], body="<p>first</p>")
+    y.refresh_from_db()
+
+    paste_element(
+        course, subject.pk, str(box.pk), slots[0], "copy", _tok(y), dest_unit_pk=y.pk
+    )
+
+    assert _bodies(y, parent=box, tab=slots[0]) == ["<p>first</p>", "<p>subject</p>"]
+
+
+def test_a_cross_unit_copy_before_lands_directly_above_the_anchor():
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x, body="<p>subject</p>")
+    _text(y, body="<p>a</p>")
+    b = _text(y, body="<p>b</p>")
+    y.refresh_from_db()
+
+    paste_element(
+        course, subject.pk, "", "", "copy", _tok(y), before=b.pk, dest_unit_pk=y.pk
+    )
+
+    assert _bodies(y) == ["<p>a</p>", "<p>subject</p>", "<p>b</p>"]
+
+
+def test_a_cross_unit_copy_leaves_the_source_untouched_and_bumps_the_destination():
+    """Mutant: bump source_unit.updated too -> RED on the X assertion."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    _text(x, body="<p>one</p>")
+    subject = _text(x, body="<p>two</p>")
+    x.refresh_from_db()
+    y.refresh_from_db()
+    x_before, y_before = x.updated, y.updated
+    x_rows_before = _bodies(x)
+
+    paste_element(course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+    x.refresh_from_db()
+    y.refresh_from_db()
+    assert _bodies(x) == x_rows_before
+    assert x.updated == x_before
+    assert y.updated > y_before
+
+
+def test_a_cross_unit_copy_returns_the_destination_unit():
+    """Mutant: `return source_unit, placed` -> RED."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x)
+    y.refresh_from_db()
+
+    returned, placed = paste_element(
+        course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk
+    )
+
+    assert returned.pk == y.pk  # same model: ContentNode vs ContentNode
+    assert placed.unit_id == y.pk
+
+
+def test_a_cross_unit_copy_locks_the_destination_first_when_its_pk_is_lower():
+    """Every other cross-unit test in this file creates the SOURCE unit first, so
+    src_pk < dest_pk always holds and paste_element's `else` lock-order branch
+    (dest locked before source) never runs. Here the source (Y) is created AFTER
+    the destination (X), so src_pk > dest_pk and that branch is the one exercised.
+
+    Mutant: in that branch, change `dest_unit = _locked_unit(course, dest_pk)` to
+    `dest_unit = _locked_unit(course, src_pk)` -> RED (record the failure line)."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    assert y.pk > x.pk  # pins the fixture's intent: source created AFTER dest
+    subject = _text(y, body="<p>subject</p>")
+    box, slots = _tabs(x)
+    _text(x, parent=box, tab=slots[0], body="<p>first</p>")
+    x.refresh_from_db()
+    y.refresh_from_db()
+    x_before, y_before = x.updated, y.updated
+    y_rows_before = _bodies(y)
+
+    returned, placed = paste_element(
+        course, subject.pk, str(box.pk), slots[0], "copy", _tok(x), dest_unit_pk=x.pk
+    )
+
+    assert _bodies(x, parent=box, tab=slots[0]) == ["<p>first</p>", "<p>subject</p>"]
+    assert _bodies(y) == y_rows_before
+    assert returned.pk == x.pk
+    assert placed.unit_id == x.pk
+    x.refresh_from_db()
+    y.refresh_from_db()
+    assert x.updated > x_before
+    assert y.updated == y_before
+
+
+def test_a_cross_unit_copy_shares_the_media_asset():
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    asset = make_image_asset(course)
+    subject = Element.objects.create(
+        unit=x, content_object=ImageElement.objects.create(media=asset)
+    )
+    y.refresh_from_db()
+
+    _u, placed = paste_element(
+        course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk
+    )
+
+    assert placed.content_object.media == asset
+    assert MediaAsset.objects.filter(course=course).count() == 1
+
+
+def test_a_link_to_the_source_unit_still_points_at_the_source_after_the_copy():
+    """graft_elements skips _rewrite_links: running it would repoint this link at Y.
+    The node pk inside the href is a ContentNode pk compared with a ContentNode pk."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    body = f'<p><a href="/courses/n/{x.pk}/">back</a></p>'
+    subject = _text(x, body=body)
+    y.refresh_from_db()
+
+    _u, placed = paste_element(
+        course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk
+    )
+
+    assert f'href="/courses/n/{x.pk}/"' in placed.content_object.body
+
+
+def test_a_question_carries_its_marking_fields_into_a_quiz_unchanged():
+    course, x = make_course_with_unit()
+    quiz = _other_unit(course, title="Q", unit_type="quiz")
+    q = ChoiceQuestionElement.objects.create(
+        stem="Pick.", multiple=False, max_attempts=3, max_marks=4
+    )
+    subject = Element.objects.create(unit=x, content_object=q)
+    quiz.refresh_from_db()
+
+    _u, placed = paste_element(
+        course, subject.pk, "", "", "copy", _tok(quiz), dest_unit_pk=quiz.pk
+    )
+
+    copied = placed.content_object
+    assert (copied.marking_mode, copied.max_attempts, copied.max_marks) == (
+        q.marking_mode,
+        q.max_attempts,
+        q.max_marks,
+    )
+
+
+def test_a_stale_destination_token_is_a_conflict():
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x)
+
+    with pytest.raises(ConflictError):
+        paste_element(
+            course,
+            subject.pk,
+            "",
+            "",
+            "copy",
+            "2020-01-01T00:00:00+00:00",
+            dest_unit_pk=y.pk,
+        )
+
+
+def test_a_stale_source_token_is_irrelevant():
+    """X is never token-checked: the author posts Y's token only.
+
+    Mutant: check the token against source_unit instead -> RED here (Y's token
+    does not match X). test_a_stale_destination_token_is_a_conflict stays green
+    under that mutant -- its hard-coded 2020 token fails against X too."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x)
+    y.refresh_from_db()
+
+    paste_element(course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+    assert len(_bodies(y)) == 1
+
+
+def test_a_deleted_marked_element_is_a_conflict():
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x)
+    pk = subject.pk
+    subject.delete()
+    y.refresh_from_db()
+
+    with pytest.raises(ConflictError):
+        paste_element(course, pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+
+def test_an_element_of_another_course_is_a_conflict():
+    course, y = make_course_with_unit()
+    _c2, foreign_unit = make_course_with_unit()
+    foreign = _text(foreign_unit)
+    y.refresh_from_db()
+
+    with pytest.raises(ConflictError):
+        paste_element(course, foreign.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+
+def test_a_non_numeric_element_is_a_conflict():
+    course, y = make_course_with_unit()
+
+    with pytest.raises(ConflictError):
+        paste_element(course, "abc", "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+
+def test_a_cross_unit_move_is_refused_by_the_rule():
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x)
+    y.refresh_from_db()
+
+    with pytest.raises(PlacementRefused) as exc:
+        paste_element(course, subject.pk, "", "", "move", _tok(y), dest_unit_pk=y.pk)
+
+    assert exc.value.reason_key == "wrong_unit"
+
+
+def test_the_export_reads_the_source_unit():
+    """Mutant: call build_element_export(dest_unit, el) inside _copy_into -> the
+    export's assert fires, _copy_into wraps it into TransferError, and this test
+    goes RED on the TransferError (nothing is created in Y either)."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    subject = _text(x)
+    y.refresh_from_db()
+
+    paste_element(course, subject.pk, "", "", "copy", _tok(y), dest_unit_pk=y.pk)
+
+    assert Element.objects.filter(unit=y).count() == 1
+
+
+# --- refusals on the ENFORCING path (the render is advisory) -----------------
+
+
+def _refused(course, subject, dest_unit, parent_ref="", tab=""):
+    dest_unit.refresh_from_db()
+    with pytest.raises(PlacementRefused) as exc:
+        paste_element(
+            course,
+            subject.pk,
+            parent_ref,
+            tab,
+            "copy",
+            _tok(dest_unit),
+            dest_unit_pk=dest_unit.pk,
+        )
+    return exc.value.reason_key
+
+
+def test_a_question_callout_into_a_quiz_is_refused_on_the_enforcing_path():
+    """Mutant: compute the service's facts from unit_children_map(dest_unit) -> RED
+    (the root's children are missing, so nested_question reads False)."""
+    course, x = make_course_with_unit()
+    quiz = _other_unit(course, title="Q", unit_type="quiz")
+    box = _callout(x)
+    Element.objects.create(
+        unit=x,
+        content_object=ChoiceQuestionElement.objects.create(stem="P.", multiple=False),
+        parent=box,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    count_before = Element.objects.filter(unit=quiz).count()
+
+    assert _refused(course, box, quiz) == "question_in_quiz"
+    assert Element.objects.filter(unit=quiz).count() == count_before
+
+
+def test_a_checklist_callout_into_a_quiz_is_refused_on_the_enforcing_path():
+    """Same mutant as above -> RED (has_interactive reads False)."""
+    course, x = make_course_with_unit()
+    quiz = _other_unit(course, title="Q", unit_type="quiz")
+    box = _callout(x)
+    Element.objects.create(
+        unit=x,
+        content_object=MarkDoneElement.objects.create(prompt="Tick"),
+        parent=box,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    count_before = Element.objects.filter(unit=quiz).count()
+
+    assert _refused(course, box, quiz) == "interactive_in_quiz"
+    assert Element.objects.filter(unit=quiz).count() == count_before
+
+
+def test_a_two_level_container_into_a_depth_three_slot_is_too_deep():
+    """Destination depth is PINNED to 3 (a slot of a container at depth 2): the
+    root alone (a container, cap 3) would be admitted, the whole subtree is not.
+    A deeper slot would refuse the root alone too and let the mutant survive.
+    Same mutant as above -> RED."""
+    course, x = make_course_with_unit()
+    y = _other_unit(course)
+    outer = _callout(x)
+    _callout(x, parent=outer, tab=CalloutElement.SLOT_ID)  # callout > callout
+    d1 = _callout(y)
+    d2 = _callout(y, parent=d1, tab=CalloutElement.SLOT_ID)  # d2 is at depth 2
+    count_before = Element.objects.filter(unit=y).count()
+
+    reason = _refused(
+        course, outer, y, parent_ref=str(d2.pk), tab=CalloutElement.SLOT_ID
+    )
+
+    assert reason == "too_deep"
+    assert Element.objects.filter(unit=y).count() == count_before

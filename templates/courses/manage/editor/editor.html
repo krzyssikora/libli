@@ -24,6 +24,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
          data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}"
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
          data-msg-colour-region="{% trans 'Text colour cannot be applied inside a formula or a {{...}} blank.' %}"
+         data-msg-units-error="{% trans 'Could not load the units.' %}"
          data-msg-insert="{% trans 'Insert' %}" data-msg-cancel="{% trans 'Cancel' %}" data-msg-math="{% trans 'Insert math' %}">
   <svg width="0" height="0" class="editor__sprite" aria-hidden="true" focusable="false">
     <symbol id="ed-bold" viewBox="0 0 16 16"><path fill="currentColor" d="M4 2h5a3 3 0 0 1 0 6H4zm0 6h6a3 3 0 0 1 0 6H4z"/></symbol>
@@ -66,6 +67,9 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     <symbol id="ed-merge" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.6v6.8" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.4 1.4"/><path d="M4 8h2.2M5.1 6.9 6.2 8 5.1 9.1M12 8H9.8M10.9 6.9 9.8 8l1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ed-split" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.6v6.8" stroke="currentColor" stroke-width="1.3"/><path d="M6.6 8H4.2M5.5 6.9 4.2 8l1.3 1.1M9.4 8h2.4M10.5 6.9 11.8 8l-1.3 1.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ed-header" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6.8h11" stroke="currentColor" stroke-width="1.3"/><path d="M3.6 5.2h8.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></symbol>
+    {# ed-paste-move (arrow into a tray) / ed-paste-copy (two stacked sheets): every paste control and Duplicate (spec D9), replacing the 📋 / ⧉ glyphs. #}
+    <symbol id="ed-paste-move" viewBox="0 0 16 16"><path d="M8 2.5v7M5.2 6.8 8 9.6l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 10.5v1.8a1.2 1.2 0 0 0 1.2 1.2h8.6a1.2 1.2 0 0 0 1.2-1.2v-1.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="ed-paste-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.6v-.4a.9.9 0 0 0-.9-.9H3.4a.9.9 0 0 0-.9.9v6.2a.9.9 0 0 0 .9.9h.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
   </svg>
   {% include "courses/manage/_icon_sprite.html" %}
   <p class="editor-crumb">

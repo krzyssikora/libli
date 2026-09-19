@@ -451,59 +451,80 @@ button.asset-cell:hover { border-color: var(--primary); }
   padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle); }
 .pane-head h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane-head__count { font-size: .72rem; color: var(--text-tertiary); }
-/* Clipboard mark banner ("⊹ Selected: <label>" + a ✕ cancel), rendered into the
-   editor pane head only while a mark is pending.
-   margin-inline-start:auto is load-bearing, not spacing: .pane-head above is
-   justify-content:space-between with exactly TWO children, which is what pins the
-   count to the right edge. The banner is a THIRD child, so without the auto margin
-   the free space redistributes and the count drifts to the middle of the head
-   *whenever a mark is pending* — a visible change to existing chrome. With it, the
-   count stays adjacent to the h2 and the banner takes the right edge.
-   Accent family (not --primary) so it reads as the same "marked" colour as
-   .el-row--marked and never as the editing/primary state.
-   The label is a bare text node (no element to hang an ellipsis on), so the banner
-   itself does the truncating: display:block + nowrap + hidden + ellipsis. The cancel
-   form is taken OUT OF FLOW and parked in reserved padding at the trailing edge —
-   the ellipsis lands at the content edge, i.e. before the ✕, which therefore can
-   never be pushed away or clipped. (Measured: floating it instead drops the ✕ onto a
-   second line the moment the label overflows, because a float cannot sit beside a
-   line box wider than its container — that doubled the pane head's height.) */
-.clip-banner {
-  margin-inline-start: auto; position: relative;
-  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  /* min-width:0 lets the banner shrink as a flex item instead of squeezing the
-     count; max-width caps it so a 60-char element label cannot claim the head. */
-  min-width: 0; max-width: 60%;
+/* Clipboard mark banner: a sibling AFTER .pane-head (never its child — it holds the
+   <details> unit list, flow content the flex head cannot take). Same inline inset as
+   `.editor-pane > .op-error` for the same measured reason: .pane has no padding of
+   its own, so a bare child renders full-bleed with its border on the pane border.
+   flex:none so the viewport-locked two-pane layout never squeezes it; .pane-body
+   absorbs the list's height instead. */
+.editor-pane > .clip-banner { margin: var(--space-3) var(--space-4) 0; flex: none; }
+/* The pill. Accent family (not --primary) so it reads as the same "marked" colour as
+   .el-row--marked and never as the editing/primary state. A FLEX ROW that never
+   wraps: only the label and the "from" link truncate, so the link — the only way
+   back to the source unit — is never the first thing cut. The cancel form is OUT OF
+   FLOW in reserved trailing padding, so the ✕ can never be pushed away or clipped
+   (measured: floating it instead dropped the ✕ onto a second line and doubled the
+   head's height). position:relative anchors that ✕ to the pill, not the banner. */
+.clip-banner__line {
+  position: relative; display: flex; align-items: baseline; gap: var(--space-1);
+  white-space: nowrap; min-width: 0;
   padding: var(--space-1) var(--space-2);
-  /* the ✕'s reserved lane: its own width plus one gap */
   padding-inline-end: calc(1.4rem + var(--space-3));
   border: 1px solid var(--accent); border-radius: var(--radius-full);
   background: var(--accent-subtle); color: var(--text-secondary);
   font-size: .72rem; line-height: 1.3;
 }
-.clip-banner .tree__inline {
+/* Only the LABEL shrinks; the "from" part never does, it is capped at 45% instead.
+   Flex shrink is basis-weighted, so with both shrinkable a long label (big basis)
+   still took its share from the link -- MEASURED: the link rendered 0px wide,
+   leaving a bare "— from unit". */
+.clip-banner__label {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.clip-banner__from { display: inline-flex; flex: none; min-width: 0; max-width: 45%; gap: .25em; }
+.clip-banner__from-prefix { flex: none; }
+/* position:relative is load-bearing: KaTeX's .katex-mathml twin is position:absolute,
+   and a static overflow box is nobody's containing block, so it would escape this
+   clip and inflate the page's scroll area. */
+.clip-banner__from a {
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  position: relative; color: var(--accent);
+}
+.clip-banner__line .tree__inline {
   position: absolute; inset-inline-end: var(--space-1);
   top: 50%; transform: translateY(-50%);
 }
-/* Smaller than a row-bar .iconbtn (1.9rem): at that size the button alone would be
-   taller than the h2 and would drive the pane head's height. */
-.clip-banner .iconbtn {
+/* Smaller than a row-bar .iconbtn (1.9rem): at that size the button alone would
+   drive the pill's height. */
+.clip-banner__line .iconbtn {
   min-width: 1.4rem; min-height: 1.4rem; padding: 0; line-height: 1;
   font-size: .72rem; border-color: transparent; color: var(--text-secondary);
 }
-.clip-banner .iconbtn:hover { color: var(--text-primary); border-color: var(--border-strong); }
-/* Only while a mark is pending. .pane-head is justify-content:space-between, so with
-   its usual two children the gap is swallowed by free space and this is a no-op — but
-   the auto margin above packs the h2 and the count together, and without a gap they
-   render as "EDITOR4 elements" (measured). :has() scopes it so the unmarked head
-   cannot be affected even in principle. */
-.pane-head:has(.clip-banner) { gap: var(--space-2); }
-/* ...and the count must not pay for the banner: at the narrowest split it was the
-   only shrinkable item left, so "4 elements" broke onto two lines and made the head
-   59px tall (measured). flex:none hands the shrinking to the banner, which has
-   min-width:0 and an ellipsis and can absorb it. Also :has()-scoped: unmarked, the
-   count is never under pressure and this rule does not exist. */
-.pane-head:has(.clip-banner) .pane-head__count { flex: none; }
+.clip-banner__line .iconbtn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.clip-banner__nothing { margin: var(--space-2) 0 0; font-size: .78rem; color: var(--text-secondary); }
+.clip-banner__units { margin-top: var(--space-2); font-size: .78rem; }
+.clip-banner__units > summary { cursor: pointer; color: var(--accent); }
+/* Capped in EVERY layout: in the viewport-locked two-pane layout the list takes its
+   height from .pane-body. position:relative for the KaTeX reason above. */
+.clip-banner__units-list {
+  position: relative; max-height: min(35vh, 18rem); overflow-y: auto;
+  margin: var(--space-2) 0 0; padding-inline-start: var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  padding-block: var(--space-2);
+}
+.clip-banner__units-list ol { margin: 0; padding-inline-start: var(--space-4); }
+.clip-banner__unit { list-style: none; margin: .15rem 0; }
+.clip-banner__unit a { color: var(--text-primary); }
+.clip-banner__unit-current { font-weight: 600; color: var(--text-secondary); }
+/* D13: a container row is its own <details>; its rows arrive on first open (their
+   <ol> is indented by the existing `.clip-banner__units-list ol` rule). */
+.clip-banner__group > summary { cursor: pointer; }
+.clip-banner__unit--error { color: var(--text-secondary); font-style: italic; }
+/* The paste and Duplicate controls now hold an <svg class="ic">. The editor page does
+   not load builder.css (home of the global `.ic` size), and an unsized <svg> renders
+   at the UA default 300x150 -- so size it inside every icon button here. */
+.iconbtn .ic { width: 1rem; height: 1rem; display: block; }
 .pane-body { padding: var(--space-4); }
 /* Two-pane editor (wide screens): editor + preview fill the viewport below the unit
    header and each column scrolls INSIDE itself, so the page height is fixed by
@@ -547,6 +568,10 @@ button.asset-cell:hover { border-color: var(--primary); }
     grid-template-columns: minmax(var(--editor-min), var(--editor-split-max)) var(--preview-w);
     justify-content: center;
   }
+  /* Viewport-locked layout: the open list takes height from .pane-body, so it is
+     capped tighter here -- MEASURED at 1280x720 the base cap left .pane-body
+     8% of the pane, min(20vh, 12rem) 32%, this cap 44% (list closed: 72%). */
+  .clip-banner__units-list { max-height: min(14vh, 7rem); }
 }
 
 /* Thin, clearly-visible scrollbars for the two scrolling pane bodies (Firefox + WebKit). */
@@ -613,7 +638,7 @@ button.asset-cell:hover { border-color: var(--primary); }
    action bar does not wait for a hover to become legible — the same exemption
    .el-row--editing gets on the line above. */
 .el-row--marked .el-actions { opacity: 1; }
-/* The bar now holds seven controls (✎/✕ ↑ ↓ ⧉ ⊹ 🗑, six visible at a time) and stops
+/* The bar now holds seven controls (✎/✕ ↑ ↓ copy ⊹ 🗑, six visible at a time) and stops
    fitting beside the type tag at the narrowest split. MEASURED at a 1130px viewport
    (the editor pane's floor): .el-row__top offers 196px, the bar wants 250px, and
    because every child is a nowrap inline-flex form the bar could not shrink — it
@@ -697,7 +722,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 .typecard .ic { width: 1.2rem; height: 1.2rem; fill: currentColor; }
 @media (max-width: 720px) { .typemenu__group { grid-template-columns: repeat(3, 1fr); } }
 
-/* Paste controls (📋 Move here / ⧉ Copy here) for one slot. Their own row directly
+/* Paste controls (move / copy SVG icons) for one slot. Their own row directly
    UNDER the slot's add-menu, never beside it: .addwrap is a plain block whose
    .addbtn is width:100%, and .pastewrap is a block-level sibling inside a
    <details> / .el-row__spoiler / .el-row__callout / .pane-body — none of them flex.
@@ -714,7 +739,7 @@ button.asset-cell:hover { border-color: var(--primary); }
    container. */
 .pastewrap { margin-top: var(--space-4); display: flex; gap: var(--space-2); }
 .addwrap + .pastewrap { margin-top: var(--space-2); }
-/* Accent, matching .el-row--marked and .clip-banner: these buttons exist only while
+/* Accent, matching .el-row--marked and .clip-banner__line: these buttons exist only while
    a mark is pending, and their colour is what ties them to the marked row. */
 .pastebtn { border-color: var(--accent); color: var(--accent); }
 .pastebtn:hover { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-primary); }

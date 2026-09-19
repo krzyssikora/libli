@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 17:34+0200\n"
+"POT-Creation-Date: 2026-09-19 17:11+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -369,7 +369,7 @@ msgstr ""
 
 #: .\core\public_pages.py:338 .\courses\media.py:25 .\courses\models.py:791
 #: .\courses\templatetags\courses_manage_extras.py:36
-#: .\courses\views_manage.py:2026
+#: .\courses\views_manage.py:2228
 #: .\templates\courses\manage\editor\_add_menu.html:31
 #: .\templates\courses\manage\media\manager.html:26
 msgid "Video"
@@ -434,13 +434,13 @@ msgstr ""
 msgid "(none)"
 msgstr ""
 
-#: .\courses\builder.py:786
+#: .\courses\builder.py:881
 msgid ""
 "This unit has a question inside a container. Move it out of the container "
 "before turning the unit into a quiz."
 msgstr ""
 
-#: .\courses\builder.py:1018 .\courses\builder.py:1189
+#: .\courses\builder.py:1113 .\courses\builder.py:1351
 msgid "This element is damaged and cannot be copied."
 msgstr ""
 
@@ -934,14 +934,14 @@ msgstr ""
 
 #: .\courses\media.py:24 .\courses\models.py:790
 #: .\courses\templatetags\courses_manage_extras.py:35
-#: .\courses\views_manage.py:2025
+#: .\courses\views_manage.py:2227
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:26
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:26 .\courses\views_manage.py:2054
+#: .\courses\media.py:26 .\courses\views_manage.py:2256
 #: .\templates\courses\manage\editor\_add_menu.html:118
 msgid "Drag to image"
 msgstr ""
@@ -1019,13 +1019,13 @@ msgid "Unit"
 msgstr ""
 
 #: .\courses\models.py:200 .\templates\courses\manage\_add_affordance.html:23
-#: .\templates\courses\manage\editor\editor.html:94
+#: .\templates\courses\manage\editor\editor.html:98
 msgid "Lesson"
 msgstr ""
 
 #: .\courses\models.py:201 .\courses\rollups.py:164
 #: .\templates\courses\manage\_add_affordance.html:26
-#: .\templates\courses\manage\editor\editor.html:97
+#: .\templates\courses\manage\editor\editor.html:101
 msgid "Quiz"
 msgstr ""
 
@@ -1061,90 +1061,90 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-#: .\courses\models.py:868 .\courses\models.py:1218
+#: .\courses\models.py:868 .\courses\models.py:1226
 msgid "Small"
 msgstr ""
 
-#: .\courses\models.py:869 .\courses\models.py:1219
+#: .\courses\models.py:869 .\courses\models.py:1227
 msgid "Medium"
 msgstr ""
 
-#: .\courses\models.py:870 .\courses\models.py:1220
+#: .\courses\models.py:870 .\courses\models.py:1228
 msgid "Large"
 msgstr ""
 
-#: .\courses\models.py:877 .\courses\models.py:1224
+#: .\courses\models.py:877 .\courses\models.py:1232
 msgctxt "image size"
 msgid "Full"
 msgstr ""
 
-#: .\courses\models.py:1836
+#: .\courses\models.py:1852
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr ""
 
-#: .\courses\models.py:1837
+#: .\courses\models.py:1853
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr ""
 
-#: .\courses\models.py:1846
+#: .\courses\models.py:1862
 msgctxt "tabs label position"
 msgid "Above"
 msgstr ""
 
-#: .\courses\models.py:1847
+#: .\courses\models.py:1863
 msgctxt "tabs label position"
 msgid "Below"
 msgstr ""
 
-#: .\courses\models.py:1848
+#: .\courses\models.py:1864
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr ""
 
-#: .\courses\models.py:2177 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2193 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:2178
+#: .\courses\models.py:2194
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:2179
+#: .\courses\models.py:2195
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:2310
+#: .\courses\models.py:2326
 msgid "your answer, correct"
 msgstr ""
 
-#: .\courses\models.py:2311
+#: .\courses\models.py:2327
 msgid "your answer, incorrect"
 msgstr ""
 
-#: .\courses\models.py:2312
+#: .\courses\models.py:2328
 msgid "correct answer, not chosen"
 msgstr ""
 
-#: .\courses\models.py:2981
+#: .\courses\models.py:2997
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:2983
+#: .\courses\models.py:2999
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:2988
+#: .\courses\models.py:3004
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:3059
+#: .\courses\models.py:3075
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:3060
+#: .\courses\models.py:3076
 msgid "Submitted"
 msgstr ""
 
@@ -1215,7 +1215,7 @@ msgid "Great!"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:34
-#: .\courses\views_manage.py:2024
+#: .\courses\views_manage.py:2226
 #: .\templates\courses\manage\editor\_add_menu.html:29
 #: .\templates\courses\manage\editor\_element_body_row.html:19
 msgid "Text"
@@ -1226,41 +1226,41 @@ msgid "Embed"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:38
-#: .\courses\views_manage.py:2028
+#: .\courses\views_manage.py:2230
 #: .\templates\courses\manage\editor\_add_menu.html:33
 msgid "Math"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:39
-#: .\courses\views_manage.py:2029
+#: .\courses\views_manage.py:2231
 #: .\templates\courses\manage\editor\_add_menu.html:34
 msgid "HTML"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:40
-#: .\courses\views_manage.py:2030
+#: .\courses\views_manage.py:2232
 #: .\templates\courses\manage\editor\_add_menu.html:35
 msgid "Table"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:41
-#: .\courses\views_manage.py:2031 .\templates\courses\lesson_unit.html:83
+#: .\courses\views_manage.py:2233 .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:36
-#: .\templates\courses\manage\editor\editor.html:217
+#: .\templates\courses\manage\editor\editor.html:221
 #: .\templates\courses\quiz_unit.html:36
 msgid "Gallery"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:42
-#: .\courses\views_manage.py:2032 .\templates\courses\lesson_unit.html:87
+#: .\courses\views_manage.py:2234 .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\_add_menu.html:46
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:40
 msgid "Tabs"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:43
-#: .\courses\views_manage.py:2033
+#: .\courses\views_manage.py:2235
 #: .\templates\courses\manage\editor\_add_menu.html:47
 msgid "Columns"
 msgstr ""
@@ -1294,7 +1294,7 @@ msgid "Matrix"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:51
-#: .\courses\views_manage.py:2053
+#: .\courses\views_manage.py:2255
 #: .\templates\courses\manage\editor\_add_menu.html:103
 #: .\templates\courses\manage\editor\_add_menu.html:117
 msgid "Multi-select grid"
@@ -1309,14 +1309,14 @@ msgid "Essay"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:54
-#: .\courses\views_manage.py:2034
+#: .\courses\views_manage.py:2236
 #: .\templates\courses\manage\editor\_add_menu.html:123
 #: .\templates\courses\manage\editor\_element_row.html:10
 msgid "Slide break"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:55
-#: .\courses\views_manage.py:2035
+#: .\courses\views_manage.py:2237
 #: .\templates\courses\manage\editor\_add_menu.html:44
 #: .\templates\courses\manage\editor\_element_row.html:26
 msgid "Divider"
@@ -1324,7 +1324,7 @@ msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:56
 #: .\courses\templatetags\courses_manage_extras.py:176
-#: .\courses\views_manage.py:2036 .\notes\templates\notes\_notes_i18n.html:10
+#: .\courses\views_manage.py:2238 .\notes\templates\notes\_notes_i18n.html:10
 #: .\templates\courses\elements\revealgateelement.html:5
 #: .\templates\courses\manage\editor\_add_menu.html:53
 #: .\templates\courses\manage\editor\_edit_revealgate.html:6
@@ -1333,44 +1333,44 @@ msgid "Show more"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:57
-#: .\courses\views_manage.py:2037
+#: .\courses\views_manage.py:2239
 #: .\templates\courses\manage\editor\_add_menu.html:58
 msgid "Spoiler"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:58
-#: .\courses\views_manage.py:2038
+#: .\courses\views_manage.py:2240
 #: .\templates\courses\manage\editor\_add_menu.html:54
 msgid "Fill in & confirm"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:59
-#: .\courses\views_manage.py:2039
+#: .\courses\views_manage.py:2241
 #: .\templates\courses\manage\editor\_add_menu.html:55
 msgid "Choose & confirm"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:60
-#: .\courses\views_manage.py:2040
+#: .\courses\views_manage.py:2242
 #: .\templates\courses\manage\editor\_add_menu.html:56
 msgid "Switch grid"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:61
-#: .\courses\views_manage.py:2041
+#: .\courses\views_manage.py:2243
 #: .\templates\courses\manage\editor\_add_menu.html:57
 msgid "Fill-in table"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:62
-#: .\courses\views_manage.py:2042
+#: .\courses\views_manage.py:2244
 #: .\templates\courses\manage\editor\_add_menu.html:45
 msgid "Callout"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:63
 #: .\courses\templatetags\courses_manage_extras.py:182
-#: .\courses\views_manage.py:2043
+#: .\courses\views_manage.py:2245
 #: .\templates\courses\manage\editor\_add_menu.html:48
 msgid "Before / after"
 msgstr ""
@@ -1382,13 +1382,13 @@ msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:65
 #: .\courses\templatetags\courses_manage_extras.py:248
-#: .\courses\views_manage.py:2045
+#: .\courses\views_manage.py:2247
 #: .\templates\courses\manage\editor\_add_menu.html:60
 msgid "Checklist"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:66
-#: .\courses\views_manage.py:2046
+#: .\courses\views_manage.py:2248
 #: .\templates\courses\manage\editor\_add_menu.html:61
 msgid "Guess the number"
 msgstr ""
@@ -1445,7 +1445,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: .\courses\templatetags\courses_manage_extras.py:243
-#: .\courses\views_manage.py:2044
+#: .\courses\views_manage.py:2246
 #: .\templates\courses\manage\editor\_add_menu.html:59
 msgid "Step-by-step"
 msgstr ""
@@ -2535,172 +2535,176 @@ msgstr ""
 msgid "Generated %(date)s · Scope: %(scope)s"
 msgstr ""
 
-#: .\courses\views_manage.py:621
+#: .\courses\views_manage.py:709
 #, python-format
 msgid "Only the first %(limit)s scopes were opened."
 msgstr ""
 
-#: .\courses\views_manage.py:633
+#: .\courses\views_manage.py:721
 #, python-format
 msgid "Filtered: %(shown)s / %(total)s"
 msgstr ""
 
-#: .\courses\views_manage.py:777
+#: .\courses\views_manage.py:865
 #, python-format
 msgid "You can't add the %(kind)s level to this course."
 msgstr ""
 
-#: .\courses\views_manage.py:795 .\courses\views_manage.py:860
-#: .\courses\views_manage.py:926 .\courses\views_manage.py:952
-#: .\courses\views_manage.py:1015 .\courses\views_manage.py:1054
-#: .\courses\views_manage.py:1262 .\templates\courses\manage\builder.html:12
-#: .\templates\courses\manage\editor\_editor_scope.html:51
+#: .\courses\views_manage.py:883 .\courses\views_manage.py:948
+#: .\courses\views_manage.py:1014 .\courses\views_manage.py:1040
+#: .\courses\views_manage.py:1103 .\courses\views_manage.py:1142
+#: .\courses\views_manage.py:1350 .\templates\courses\manage\builder.html:12
+#: .\templates\courses\manage\editor\_editor_scope.html:57
 #: .\templates\courses\manage\editor\editor.html:26
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr ""
 
-#: .\courses\views_manage.py:908
+#: .\courses\views_manage.py:996
 #: .\templates\courses\manage\_tree_node.html:152
 msgid "Clear the filter to reorder."
 msgstr ""
 
-#: .\courses\views_manage.py:1095
+#: .\courses\views_manage.py:1183
 msgid "Bad ctx."
 msgstr ""
 
-#: .\courses\views_manage.py:1105
+#: .\courses\views_manage.py:1193
 msgid "Bad node."
 msgstr ""
 
-#: .\courses\views_manage.py:1119
+#: .\courses\views_manage.py:1207
 msgid "Bad flag."
 msgstr ""
 
-#: .\courses\views_manage.py:1133
+#: .\courses\views_manage.py:1221
 msgid "Bad value."
 msgstr ""
 
-#: .\courses\views_manage.py:1135
+#: .\courses\views_manage.py:1223
 msgid "Missing value."
 msgstr ""
 
-#: .\courses\views_manage.py:1140
+#: .\courses\views_manage.py:1228
 msgid "Bad scope."
 msgstr ""
 
-#: .\courses\views_manage.py:1148
+#: .\courses\views_manage.py:1236
 msgid "Bad confirmed."
 msgstr ""
 
-#: .\courses\views_manage.py:1159
+#: .\courses\views_manage.py:1247
 msgid "scope=node requires a unit."
 msgstr ""
 
-#: .\courses\views_manage.py:1163
+#: .\courses\views_manage.py:1251
 msgid "scope=subtree requires a container."
 msgstr ""
 
-#: .\courses\views_manage.py:1465
+#: .\courses\views_manage.py:1553
 msgid "Provide exactly one of direction or position."
 msgstr ""
 
-#: .\courses\views_manage.py:1471
+#: .\courses\views_manage.py:1559
 msgid "Invalid position."
 msgstr ""
 
-#: .\courses\views_manage.py:1561
+#: .\courses\views_manage.py:1649
 msgid "That element is not part of this unit."
 msgstr ""
 
-#: .\courses\views_manage.py:1562
+#: .\courses\views_manage.py:1650
 msgid "An element cannot be placed inside itself."
 msgstr ""
 
-#: .\courses\views_manage.py:1563
+#: .\courses\views_manage.py:1651
 msgid "That destination is not a container."
 msgstr ""
 
-#: .\courses\views_manage.py:1564
+#: .\courses\views_manage.py:1652
 msgid "That slot no longer exists."
 msgstr ""
 
-#: .\courses\views_manage.py:1565
+#: .\courses\views_manage.py:1653
 msgid "This type cannot be placed inside a container."
 msgstr ""
 
-#: .\courses\views_manage.py:1567
+#: .\courses\views_manage.py:1655
 msgid "Questions can only be placed inside a container in a lesson unit."
 msgstr ""
 
-#: .\courses\views_manage.py:1569
+#: .\courses\views_manage.py:1658
+msgid "Interactive elements can only be placed in a lesson unit."
+msgstr ""
+
+#: .\courses\views_manage.py:1660
 msgid "This element is too deep to fit there."
 msgstr ""
 
-#: .\courses\views_manage.py:1570
+#: .\courses\views_manage.py:1661
 msgid "It is already there."
 msgstr ""
 
-#: .\courses\views_manage.py:1571
+#: .\courses\views_manage.py:1662
 msgid "The destination was removed while you were working."
 msgstr ""
 
-#: .\courses\views_manage.py:1804
+#: .\courses\views_manage.py:2006
 msgid "That placement is not allowed."
 msgstr ""
 
-#: .\courses\views_manage.py:2027
+#: .\courses\views_manage.py:2229
 #: .\templates\courses\manage\editor\_add_menu.html:32
 msgid "Iframe"
 msgstr ""
 
-#: .\courses\views_manage.py:2047
+#: .\courses\views_manage.py:2249
 #: .\templates\courses\manage\editor\_add_menu.html:99
 #: .\templates\courses\manage\editor\_add_menu.html:111
 msgid "Short text"
 msgstr ""
 
-#: .\courses\views_manage.py:2048
+#: .\courses\views_manage.py:2250
 #: .\templates\courses\manage\editor\_add_menu.html:100
 #: .\templates\courses\manage\editor\_add_menu.html:112
 msgid "Short numeric"
 msgstr ""
 
-#: .\courses\views_manage.py:2049
+#: .\courses\views_manage.py:2251
 #: .\templates\courses\manage\editor\_add_menu.html:101
 #: .\templates\courses\manage\editor\_add_menu.html:113
 #: .\tests\test_i18n_questions_2b.py:35
 msgid "Fill in the blanks"
 msgstr ""
 
-#: .\courses\views_manage.py:2050
+#: .\courses\views_manage.py:2252
 #: .\templates\courses\manage\editor\_add_menu.html:114
 msgid "Drag the words"
 msgstr ""
 
-#: .\courses\views_manage.py:2051
+#: .\courses\views_manage.py:2253
 #: .\templates\courses\manage\editor\_add_menu.html:115
 msgid "Match pairs"
 msgstr ""
 
-#: .\courses\views_manage.py:2052
+#: .\courses\views_manage.py:2254
 #: .\templates\courses\manage\editor\_add_menu.html:102
 #: .\templates\courses\manage\editor\_add_menu.html:116
 msgid "Matrix question"
 msgstr ""
 
-#: .\courses\views_manage.py:2055
+#: .\courses\views_manage.py:2257
 #: .\templates\courses\manage\editor\_add_menu.html:119
 msgid "Extended response"
 msgstr ""
 
-#: .\courses\views_manage.py:2170
+#: .\courses\views_manage.py:2372
 #: .\templates\courses\manage\editor\_add_menu.html:98
 #: .\templates\courses\manage\editor\_add_menu.html:110
 msgid "Multiple choice"
 msgstr ""
 
-#: .\courses\views_manage.py:2170
+#: .\courses\views_manage.py:2372
 #: .\templates\courses\manage\editor\_add_menu.html:97
 #: .\templates\courses\manage\editor\_add_menu.html:109
 msgid "Single choice"
@@ -3559,7 +3563,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_element_row.html:375
 #: .\templates\courses\manage\editor\_host_form.html:26
 #: .\templates\courses\manage\editor\_link_dialog.html:86
-#: .\templates\courses\manage\editor\editor.html:28
+#: .\templates\courses\manage\editor\editor.html:29
 #: .\templates\courses\manage\export_preview.html:56
 #: .\templates\courses\manage\import_course.html:32
 #: .\templates\courses\manage\import_course.html:34
@@ -3737,7 +3741,7 @@ msgstr ""
 msgid "%(student)s submitted %(unit)s in %(course)s and it needs review."
 msgstr ""
 
-#: .\notifications\emails.py:61 .\tests\test_review_wording_pl.py:166
+#: .\notifications\emails.py:61 .\tests\test_review_wording_pl.py:176
 msgid "Your quiz was graded"
 msgstr ""
 
@@ -3761,7 +3765,7 @@ msgid "Quiz needs review"
 msgstr ""
 
 #: .\notifications\models.py:10 .\templates\core\user_settings.html:122
-#: .\tests\test_review_wording_pl.py:165
+#: .\tests\test_review_wording_pl.py:175
 msgid "Quiz graded"
 msgstr ""
 
@@ -4994,7 +4998,7 @@ msgid "Preview notice"
 msgstr ""
 
 #: .\templates\courses\_quiz_article.html:28
-#: .\templates\courses\manage\editor\editor.html:143
+#: .\templates\courses\manage\editor\editor.html:147
 msgid "Preview"
 msgstr ""
 
@@ -5152,7 +5156,7 @@ msgid "%(done)s / %(total)s"
 msgstr ""
 
 #: .\templates\courses\course_results.html:24
-#: .\tests\test_review_wording_pl.py:167
+#: .\tests\test_review_wording_pl.py:177
 msgid "submitted — not graded"
 msgstr ""
 
@@ -5311,14 +5315,14 @@ msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Previous slide"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Next slide"
 msgstr ""
@@ -5330,77 +5334,77 @@ msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Slide {n} of {total}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:83
-#: .\templates\courses\manage\editor\editor.html:217
+#: .\templates\courses\manage\editor\editor.html:221
 #: .\templates\courses\quiz_unit.html:36
 msgid "Previous image"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:83
-#: .\templates\courses\manage\editor\editor.html:217
+#: .\templates\courses\manage\editor\editor.html:221
 #: .\templates\courses\quiz_unit.html:36
 msgid "Next image"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:83
-#: .\templates\courses\manage\editor\editor.html:217
+#: .\templates\courses\manage\editor\editor.html:221
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Go to image {n}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:83
-#: .\templates\courses\manage\editor\editor.html:217
+#: .\templates\courses\manage\editor\editor.html:221
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:85
-#: .\templates\courses\manage\editor\editor.html:225
+#: .\templates\courses\manage\editor\editor.html:229
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarge image"
 msgstr "Enlarge image"
 
 #: .\templates\courses\lesson_unit.html:85
-#: .\templates\courses\manage\editor\editor.html:225
+#: .\templates\courses\manage\editor\editor.html:229
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarged image"
 msgstr "Enlarged image"
 
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs left"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs right"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:40
 msgid "Carousel"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Go to slide {n}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\editor.html:232
+#: .\templates\courses\manage\editor\editor.html:236
 #: .\templates\courses\quiz_unit.html:40
 msgid "slide"
 msgstr ""
@@ -5433,7 +5437,7 @@ msgid "Edit course metadata"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:6
-#: .\templates\courses\manage\editor\editor.html:82
+#: .\templates\courses\manage\editor\editor.html:86
 msgid "Media library"
 msgstr ""
 
@@ -5489,7 +5493,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: .\templates\courses\manage\_flag_strip_actions.html:24
-#: .\templates\courses\manage\editor\editor.html:114
+#: .\templates\courses\manage\editor\editor.html:118
 #, python-format
 msgid "%(n)s submission, all from archived groups."
 msgid_plural "%(n)s submissions, all from archived groups."
@@ -5497,7 +5501,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: .\templates\courses\manage\_flag_strip_actions.html:26
-#: .\templates\courses\manage\editor\editor.html:116
+#: .\templates\courses\manage\editor\editor.html:120
 #, python-format
 msgid "%(n)s student has submitted."
 msgid_plural "%(n)s students have submitted."
@@ -5505,7 +5509,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: .\templates\courses\manage\_flag_strip_actions.html:34
-#: .\templates\courses\manage\editor\editor.html:130
+#: .\templates\courses\manage\editor\editor.html:134
 #, python-format
 msgid "%(n)s student is part-way through."
 msgid_plural "%(n)s students are part-way through."
@@ -5673,7 +5677,7 @@ msgid "end"
 msgstr ""
 
 #: .\templates\courses\manage\_move_picker.html:38
-#: .\templates\courses\manage\editor\_paste_buttons.html:10
+#: .\templates\courses\manage\editor\_paste_buttons.html:11
 msgid "Move here"
 msgstr ""
 
@@ -5807,7 +5811,7 @@ msgid "Elements"
 msgstr ""
 
 #: .\templates\courses\manage\_unit_panel.html:19
-#: .\templates\courses\manage\editor\_editor_scope.html:65
+#: .\templates\courses\manage\editor\_editor_scope.html:71
 msgid "No elements yet."
 msgstr ""
 
@@ -6264,6 +6268,10 @@ msgstr ""
 msgid "Questions"
 msgstr ""
 
+#: .\templates\courses\manage\editor\_copy_units_tree.html:14
+msgid "Copy to another unit…"
+msgstr ""
+
 #: .\templates\courses\manage\editor\_edit_beforeafter.html:3
 msgid "Button label"
 msgstr ""
@@ -6289,7 +6297,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_filltable.html:48
 #: .\templates\courses\manage\editor\_edit_gallery.html:22
 #: .\templates\courses\manage\editor\_edit_spoiler.html:11
-#: .\templates\courses\manage\editor\_edit_table.html:48
+#: .\templates\courses\manage\editor\_edit_table.html:49
 #: .\templates\courses\manage\editor\_edit_text.html:4
 #: .\templates\courses\manage\editor\_rte_toolbar.html:3
 #: .\templates\courses\manage\editor\_rte_toolbar_caption.html:14
@@ -6300,7 +6308,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_filltable.html:49
 #: .\templates\courses\manage\editor\_edit_gallery.html:23
 #: .\templates\courses\manage\editor\_edit_spoiler.html:12
-#: .\templates\courses\manage\editor\_edit_table.html:49
+#: .\templates\courses\manage\editor\_edit_table.html:50
 #: .\templates\courses\manage\editor\_edit_text.html:5
 #: .\templates\courses\manage\editor\_rte_toolbar.html:4
 #: .\templates\courses\manage\editor\_rte_toolbar_caption.html:15
@@ -6311,7 +6319,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_filltable.html:50
 #: .\templates\courses\manage\editor\_edit_gallery.html:24
 #: .\templates\courses\manage\editor\_edit_spoiler.html:13
-#: .\templates\courses\manage\editor\_edit_table.html:50
+#: .\templates\courses\manage\editor\_edit_table.html:51
 #: .\templates\courses\manage\editor\_edit_text.html:6
 #: .\templates\courses\manage\editor\_rte_toolbar.html:5
 #: .\templates\courses\manage\editor\_rte_toolbar_caption.html:16
@@ -6378,7 +6386,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_callout.html:36
 #: .\templates\courses\manage\editor\_edit_filltable.html:54
 #: .\templates\courses\manage\editor\_edit_spoiler.html:26
-#: .\templates\courses\manage\editor\_edit_table.html:54
+#: .\templates\courses\manage\editor\_edit_table.html:55
 #: .\templates\courses\manage\editor\_edit_text.html:19
 msgid "Align left"
 msgstr ""
@@ -6386,7 +6394,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_callout.html:37
 #: .\templates\courses\manage\editor\_edit_filltable.html:55
 #: .\templates\courses\manage\editor\_edit_spoiler.html:27
-#: .\templates\courses\manage\editor\_edit_table.html:55
+#: .\templates\courses\manage\editor\_edit_table.html:56
 #: .\templates\courses\manage\editor\_edit_text.html:20
 msgid "Align center"
 msgstr ""
@@ -6394,7 +6402,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_callout.html:38
 #: .\templates\courses\manage\editor\_edit_filltable.html:56
 #: .\templates\courses\manage\editor\_edit_spoiler.html:28
-#: .\templates\courses\manage\editor\_edit_table.html:56
+#: .\templates\courses\manage\editor\_edit_table.html:57
 #: .\templates\courses\manage\editor\_edit_text.html:21
 msgid "Align right"
 msgstr ""
@@ -6510,9 +6518,9 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_filltable.html:51
 #: .\templates\courses\manage\editor\_edit_gallery.html:25
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:14
-#: .\templates\courses\manage\editor\_edit_table.html:51
+#: .\templates\courses\manage\editor\_edit_table.html:52
 #: .\templates\courses\manage\editor\_rte_toolbar.html:18
-#: .\templates\courses\manage\editor\editor.html:28
+#: .\templates\courses\manage\editor\editor.html:29
 msgid "Insert math"
 msgstr ""
 
@@ -6631,14 +6639,14 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_filltable.html:20
 #: .\templates\courses\manage\editor\_edit_filltable.html:79
 #: .\templates\courses\manage\editor\_edit_table.html:15
-#: .\templates\courses\manage\editor\_edit_table.html:80
+#: .\templates\courses\manage\editor\_edit_table.html:81
 msgid "Merge cells"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:21
 #: .\templates\courses\manage\editor\_edit_filltable.html:83
 #: .\templates\courses\manage\editor\_edit_table.html:16
-#: .\templates\courses\manage\editor\_edit_table.html:84
+#: .\templates\courses\manage\editor\_edit_table.html:85
 msgid "Header cell"
 msgstr ""
 
@@ -6715,17 +6723,17 @@ msgid "Reveal the rest of this section when solved"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:59
-#: .\templates\courses\manage\editor\_edit_table.html:59
+#: .\templates\courses\manage\editor\_edit_table.html:60
 msgid "Align top"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:60
-#: .\templates\courses\manage\editor\_edit_table.html:60
+#: .\templates\courses\manage\editor\_edit_table.html:61
 msgid "Align middle"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:61
-#: .\templates\courses\manage\editor\_edit_table.html:61
+#: .\templates\courses\manage\editor\_edit_table.html:62
 msgid "Align bottom"
 msgstr ""
 
@@ -6734,24 +6742,24 @@ msgid "Answer cell"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:66
-#: .\templates\courses\manage\editor\_edit_table.html:65
+#: .\templates\courses\manage\editor\_edit_table.html:66
 msgid "Image cell"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:69
 #: .\templates\courses\manage\editor\_edit_filltable.html:70
-#: .\templates\courses\manage\editor\_edit_table.html:68
 #: .\templates\courses\manage\editor\_edit_table.html:69
+#: .\templates\courses\manage\editor\_edit_table.html:70
 msgid "Image description (alt)"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:72
-#: .\templates\courses\manage\editor\_edit_table.html:71
+#: .\templates\courses\manage\editor\_edit_table.html:72
 msgid "Image size"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:81
-#: .\templates\courses\manage\editor\_edit_table.html:82
+#: .\templates\courses\manage\editor\_edit_table.html:83
 msgid "Split cell"
 msgstr ""
 
@@ -7027,7 +7035,11 @@ msgstr ""
 msgid "Fit to content"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_edit_table.html:77
+#: .\templates\courses\manage\editor\_edit_table.html:43
+msgid "Equal columns"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_table.html:78
 msgid "Remove image"
 msgstr ""
 
@@ -7086,7 +7098,7 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_editor_scope.html:17
 #: .\templates\courses\manage\editor\editor.html:3
-#: .\templates\courses\manage\editor\editor.html:141
+#: .\templates\courses\manage\editor\editor.html:145
 msgid "Editor"
 msgstr ""
 
@@ -7099,13 +7111,22 @@ msgid_plural "%(n)s elements"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\templates\courses\manage\editor\_editor_scope.html:32
+#: .\templates\courses\manage\editor\_editor_scope.html:36
 #, python-format
 msgid "Selected: %(clip_label)s"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_editor_scope.html:39
+#: .\templates\courses\manage\editor\_editor_scope.html:36
+msgctxt "clip banner"
+msgid "from unit"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_editor_scope.html:43
 msgid "Cancel selection"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_editor_scope.html:46
+msgid "Nothing can be pasted into this unit."
 msgstr ""
 
 #: .\templates\courses\manage\editor\_element_row.html:7
@@ -7258,7 +7279,7 @@ msgid "Remove link"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_link_dialog.html:87
-#: .\templates\courses\manage\editor\editor.html:28
+#: .\templates\courses\manage\editor\editor.html:29
 msgid "Insert"
 msgstr ""
 
@@ -7274,11 +7295,15 @@ msgstr ""
 msgid "Max marks"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_paste_before_button.html:12
+#: .\templates\courses\manage\editor\_paste_before_button.html:13
+msgid "Copy before this element"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_paste_before_button.html:13
 msgid "Move before this element"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_paste_buttons.html:11
+#: .\templates\courses\manage\editor\_paste_buttons.html:12
 msgid "Copy here"
 msgstr ""
 
@@ -7337,33 +7362,37 @@ msgstr ""
 msgid "Text colour cannot be applied inside a formula or a {{...}} blank."
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:78
+#: .\templates\courses\manage\editor\editor.html:28
+msgid "Could not load the units."
+msgstr ""
+
+#: .\templates\courses\manage\editor\editor.html:82
 msgid "Back to builder"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:131
+#: .\templates\courses\manage\editor\editor.html:135
 msgid "Editing this quiz will not re-grade the responses already recorded."
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:132
+#: .\templates\courses\manage\editor\editor.html:136
 msgid ""
 "Adding or removing questions can make old and new submissions' scores "
 "incomparable."
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:133
+#: .\templates\courses\manage\editor\editor.html:137
 msgid "Deleting a question also deletes every recorded answer to it."
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:139
+#: .\templates\courses\manage\editor\editor.html:143
 msgid "View"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:140
+#: .\templates\courses\manage\editor\editor.html:144
 msgid "Editor view"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:142
+#: .\templates\courses\manage\editor\editor.html:146
 msgid "Split"
 msgstr ""
 
