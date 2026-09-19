@@ -248,6 +248,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
   (fillgate.js calls window.libliRevealCascade). editor.js re-runs libliInitFillGates
   over the pane after each fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/fillgate.js' %}" defer></script>
+  <script src="{% static 'courses/js/blank_autosize.js' %}" defer></script>
   {% comment %}The preview renders the student switchgate widget, whose Confirm ships
   `hidden` (switchgate.js arms it) and whose check submit is inert without JS. Load after
   reveal.js (switchgate.js calls window.libliRevealCascade). editor.js re-runs
