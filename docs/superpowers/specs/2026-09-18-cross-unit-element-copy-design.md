@@ -34,6 +34,7 @@ them is **Disputed**, never applied.
 | D10 | Interactive elements (gates, fill-table, spoiler, step-by-step, checklist, guess-the-number — alone or inside a container) cannot be copied into a quiz. Cross-unit only; in-unit moves inside existing quizzes are unchanged. (Approved 2026-09-19 after spec-review; §2 clause 2d.) |
 | D11 | Accepted: a rare deadlock between a copy and a concurrent multi-unit writer in the same section; if Postgres aborts the copy the author gets a 409 reload, if it aborts the other operation that endpoint answers a 500; data stays consistent. (Approved 2026-09-19; §4 step 2.) |
 | D12 | The "Copy to another unit…" list is a new plain-link partial reusing the link picker's data source and badges, not `_link_picker.html` itself (a JS widget with no links). (Approved 2026-09-19; see the D5 note below.) |
+| D13 | The "Copy to another unit…" list is a **collapsible tree**: every part / chapter / section is its own `<details>`, collapsed — except the containers on the path to the current unit, which render open with their rows, so the current unit is visible and highlighted. A collapsed container's rows are fetched from a **new manage-gated endpoint** the first time it is opened (**JS**). This replaces D5's "works without JS, no new endpoint" for this list, D12's fully-expanded partial, and §8's "render flat above ~10%" rule. (Approved 2026-09-19, after measurement: the fully-expanded mat-pp tree — 886 units — cost 15–16% of every marked render and added ~242 KB of HTML, and a long fully-expanded tree is bad UX. See "Amendment: D13".) |
 
 **Implementation notes on two decisions** (interpretation, not reversal):
 
@@ -938,3 +939,95 @@ ascending-pk acquisition, documented in the code; a concurrency test would be fl
     another unit…" control);
   - a 40P01 deadlock on an in-unit paste now answers 409 instead of 500;
   - the icon swap (D9).
+
+## Amendment: D13 — the unit list loads each level on expand (2026-09-19)
+
+Supersedes, for the "Copy to another unit…" list only: D5's "works without JS, no new
+endpoint", D12's fully-expanded partial, and §8's "if the tree adds more than ~10% … rendered
+flat" rule. Everything else in the spec stands (the outer `<details>`, plain `<a>` links to
+each unit's editor page, the current unit as `aria-current` text, badges, pruning,
+`copy_units_available`, the scroll cap, KaTeX containment, typesetting after a swap).
+
+**Measured reason.** On the local mat-pp copy (886 units), a cross-unit marked editor GET
+took ~1.9–2.0 s; the recursive fully-expanded list cost 293–328 ms of it (15–16%) and ~242 KB
+of HTML, on every editor render and fragment op while a mark is pending (same-unit marks
+included). `copy_units_tree()` itself costs ~38 ms; the rest is rendering 886 recursive
+includes.
+
+### Behaviour
+
+- Inside the outer `<details class="clip-banner__units">`, each **container** row (part,
+  chapter, section) is a nested `<details class="clip-banner__group">` whose `<summary>`
+  holds its badge and title. **Units** stay plain rows: a link, or the current unit as text.
+- On render, a container is **open, with its rows rendered by the server**, iff the current
+  unit lies somewhere below it ("the open path"). Every other container is **collapsed and
+  empty**: its `<ol>` has no rows, and its `<details>` carries `data-units-url`.
+- Opening a collapsed, not-yet-loaded container fetches its rows once (GET, below), puts them
+  in its `<ol>`, marks it loaded (`data-loaded`), and typesets its `[data-math-title]` nodes
+  (same delimiter short-circuit as §8). Re-opening it does not refetch. Rows for a container
+  come back in the same shape: sub-containers collapsed and empty (the open path is never
+  inside a fetched level, because every container on it was already rendered).
+- A failed fetch shows one row "Could not load the units." inside that container and leaves
+  it **not** loaded, so closing and re-opening retries.
+- A fragment swap re-renders the banner: the open path is open again, any other container
+  the author had opened is collapsed again (consistent with §8: the list closes after a swap).
+- Without JS a collapsed container opens to an empty list. Accepted: the editor itself
+  requires JS; the open path (the common target: nearby units) still works.
+
+### Server
+
+- `copy_units_tree(course)` is unchanged (return shape, pruning, `available`).
+- New pure helper `copy_units_open_path(units_map, unit)` in `courses/views_manage.py`:
+  the set of container pks with `unit` somewhere below them, computed from the pruned map
+  (a child→parent dict built from it; no query). Empty for a root-level unit, and for a unit
+  not in the map.
+- `_clip_context` gains one key in both branches: `copy_units_open` (that set); the empty
+  dict carries `set()`. The key count becomes fourteen (docstrings and
+  `test_the_clip_context_keys_reach_both_render_paths` follow).
+- New view `copy_units_level(request, slug)`, URL
+  `manage/courses/<slug:slug>/copy-units/` named `courses:manage_copy_units`, GET only
+  (`require_GET`), `@login_required`, gated by `can_manage_course` → `PermissionDenied` (403)
+  exactly like `link_picker`. Query parameters: `parent` (container pk, required) and
+  `current` (the current unit's pk, used only to mark `aria-current`; missing / non-numeric
+  → no row is marked current). It builds `copy_units_tree(course)` and answers **404** when
+  `parent` is non-numeric, not a node of this course, or not a key of the pruned map (a unit,
+  or a container with no unit below it). Otherwise it renders the row partial for each of
+  `units_map[parent]`, with an empty open set — a bare fragment of `<li>` rows (no
+  `base.html`), `200`. Its query count is independent of the course size (one
+  `_children_map` query plus auth/session/course).
+- One row partial serves both the banner and the endpoint, so the two can never render a
+  row differently. It takes `n`, `copy_units_map`, `copy_units_open`, `current_pk`,
+  `course_slug`, and recurses **only** into open containers.
+
+### Client
+
+- `editor.js`: the existing capture-phase `toggle` listener on `root` (a `toggle` event does
+  not bubble) also handles `details.clip-banner__group`: when it opens and is neither loaded
+  nor loading, GET `data-units-url` with `X-Requested-With: fetch`, fill the container's own
+  `<ol>`, set `data-loaded`, typeset. The typesetting loop added in Task 7 is extracted into
+  one helper used by both `applyFragments` and the loader.
+- The error text is a new msgid "Could not load the units." (Polish: "Nie udało się wczytać
+  jednostek."), exposed like the editor's other client strings (`data-msg-*` on the editor
+  root in `editor.html`, read with `msg()`).
+
+### Testing (in addition to the above sections)
+
+- `copy_units_open_path`: ancestors of a unit two levels down; empty for a root-level unit;
+  empty for a unit not in the map.
+- Endpoint: rows of a part (a unit link to its editor URL, a sub-container collapsed with
+  `data-units-url` and no grandchild rows); `current` marks that unit `aria-current` and
+  unlinked; a pruned (unit-less) container → 404; a unit pk → 404; another course's node →
+  404; non-numeric → 404; a user who cannot manage the course → 403; anonymous → login
+  redirect; POST → 405; query count equal for a small and a large level.
+- Render: the current unit two levels down renders with both ancestors open and itself
+  `aria-current`; a sibling container is collapsed with no rows; the unit-under-a-part case
+  of the irregular-course test is now asserted through the endpoint, not the initial render.
+- **Mutants:** render every container open (drop the open-path check) → the collapsed-sibling
+  test goes red; drop the manage check → the 403 test goes red; drop the pruned-map 404 →
+  the unit-less-container test goes red; delete the JS loader → the e2e lazy-load step goes
+  red.
+- e2e: a unit inside a collapsed part is not visible; opening the part waits on the
+  `copy-units/` **response**, then the link is visible, carries a typeset maths title, and
+  following it lands in that unit's editor with the "from" link.
+- The timing of Task 8 is re-run after this change and reported; the ~10% rule no longer
+  triggers a fallback — the figure is reported to the owner.

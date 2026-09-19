@@ -21,7 +21,9 @@ None touches an owner decision (D1–D12); each corrects a test or verification 
 | V3 | Dropping `element` from `_paste_before` turns `test_a_paste_before_with_a_stale_token_is_a_409`'s pre-assertion red | The mutant is aimed at `test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark` | `_assert_posts_the_mark` checks the caller's argument, not the POSTed field, so the spec's predicted red cannot happen; the positive reorder test is what proves the field travels. |
 | V4 | "e2e (one test, real UI)" | Three e2e tests | The narrow-viewport and nothing-fits checks need their own viewport / fixture. |
 | V5 | No icon-size rule | `.iconbtn .ic { width: 1rem; height: 1rem; display: block; }` | The editor page does not load `builder.css` (home of the global `.ic` size); an unsized `<svg>` renders at 300×150. |
-| V6 | List cap `min(35vh, 18rem)` in every layout | Tighter cap inside the 70rem media block **if** the Task 7 measurement shows `.pane-body` below ~40% | The spec's stated goal (~40%) wins over its arithmetic. |
+| V6 | List cap `min(35vh, 18rem)` in every layout | Tighter cap inside the 70rem media block **if** the Task 7 measurement shows `.pane-body` below ~40% | The spec's stated goal (~40%) wins over its arithmetic. **Outcome (Task 7):** `min(14vh, 7rem)`; measured share 0.084 base → 0.323 at `min(20vh, 12rem)` → 0.436. |
+| V7 | `.clip-banner__label` `flex: 1 1 auto`; `.clip-banner__from` `flex: 0 1 auto; max-width: 45%` | Only the label shrinks; `.clip-banner__from` does not shrink, capped at 45% (its `<a>` still truncates inside) | Task 7's screenshots: with the spec's values the "from" link rendered 0px wide — violating §8/D6 "the link is never the first thing cut". Cost: with a short label a long "from" title truncates at 45% despite spare room. |
+| V8 | §8: fully-expanded list; flat fallback above ~10% | D13 (owner, 2026-09-19): collapsible tree, levels loaded on expand — Tasks 9–10 | Measured 15–16% / 242 KB on mat-pp; see the spec's "Amendment: D13". |
 
 ## Global Constraints
 
@@ -3231,3 +3233,531 @@ If upstream changed a `.po` without a conflict stopping the rebase, still run st
 | Error-handling table | 3, 4, 5 |
 | Testing — rule, service, views, e2e, mutants | 1–8 |
 | Out-of-scope in-unit changes (five) | 3 (before+copy), 5 (stale form, deadlock), 6 (banner, icons) |
+
+---
+
+## Amendment tasks — D13 (added 2026-09-19, after Task 8 halted at Step 5)
+
+Task 8 is complete through Step 4b (commit `9c467ea5`: the e2e file). Its Step 5 halted: the fully-expanded unit list cost 15–16% of a marked render on mat-pp. The owner chose **D13** (spec, "Amendment: D13"): a collapsible tree whose levels load on expand. Task 9 builds it; Task 10 resumes Task 8 from Step 5.
+
+### Task 9: The unit list loads each level on expand (D13)
+
+**Files:**
+- Modify: `courses/views_manage.py` (`copy_units_open_path` new; `copy_units_level` view new; `_clip_context` + `_cross_unit_clip_context` gain `copy_units_open`; `copy_units_tree` docstring)
+- Modify: `courses/urls.py` (one path)
+- Modify: `templates/courses/manage/editor/_copy_units_tree.html`, `templates/courses/manage/editor/_copy_units_node.html`
+- Create: `templates/courses/manage/editor/_copy_units_level.html`
+- Modify: `templates/courses/manage/editor/editor.html` (one `data-msg-*` attribute)
+- Modify: `courses/static/courses/js/editor.js`, `courses/static/courses/css/editor.css`
+- Modify: `locale/{pl,en}/LC_MESSAGES/django.{po,mo}`
+- Test: `tests/test_element_paste_view.py`, `tests/test_editor_clip_templates.py`, `tests/test_e2e_cross_unit_copy.py`
+
+**Interfaces:**
+- Consumes: `copy_units_tree(course) -> (pruned_map, pruned_top, available)` (Task 4, unchanged).
+- Produces:
+  - `copy_units_open_path(units_map, unit) -> set[int]`.
+  - `_clip_context` key `copy_units_open` (fourteenth key; `set()` in the empty dict).
+  - URL `courses:manage_copy_units` → `copy_units_level(request, slug)`, GET `?parent=<pk>&current=<pk>`.
+  - Row partial `_copy_units_node.html` variables: `n`, `copy_units_map`, `copy_units_open`, `current_pk`, `course_slug`.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `tests/test_element_paste_view.py` (add `from courses.views_manage import copy_units_open_path` to the imports; `ContentNode`, `CourseFactory`, `reverse` are needed — import any that are missing):
+
+```python
+def test_copy_units_open_path_is_every_container_above_the_unit():
+    course = CourseFactory()
+    part = _unit(course, "P", kind="part", unit_type="")
+    chapter = _unit(course, "C", kind="chapter", unit_type="", parent=part)
+    deep = _unit(course, "Deep", parent=chapter)
+    _unit(course, "Other")
+
+    units_map, _top, _available = copy_units_tree(course)
+
+    assert copy_units_open_path(units_map, deep) == {part.pk, chapter.pk}
+
+
+def test_copy_units_open_path_is_empty_for_a_root_level_unit():
+    course = CourseFactory()
+    root = _unit(course, "Root")
+    part = _unit(course, "P", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+
+    units_map, _top, _available = copy_units_tree(course)
+
+    assert copy_units_open_path(units_map, root) == set()
+
+
+def test_copy_units_open_path_is_empty_for_a_unit_not_in_the_map():
+    course = CourseFactory()
+    _unit(course, "A")
+    _unit(course, "B")
+    stranger = _unit(CourseFactory(), "Elsewhere")
+
+    units_map, _top, _available = copy_units_tree(course)
+
+    assert copy_units_open_path(units_map, stranger) == set()
+
+
+def _level(client, course, parent=None, current=None):
+    params = {}
+    if parent is not None:
+        params["parent"] = parent if isinstance(parent, (int, str)) else parent.pk
+    if current is not None:
+        params["current"] = current.pk
+    return client.get(
+        reverse("courses:manage_copy_units", kwargs={"slug": course.slug}), params
+    )
+
+
+def _other_course_with_a_part(course):
+    other = CourseFactory(owner=course.owner)
+    part = _unit(other, "ForeignPart", kind="part", unit_type="")
+    _unit(other, "ForeignUnit", parent=part)
+    return other, part
+
+
+def test_a_level_lists_its_units_as_links_and_its_containers_collapsed(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    leaf = _unit(course, "LeafUnit", parent=part)
+    chapter = _unit(course, "ChapterC", kind="chapter", unit_type="", parent=part)
+    _unit(course, "GrandchildUnit", parent=chapter)
+
+    resp = _level(client, course, part)
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    leaf_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": leaf.pk}
+    )
+    assert f'href="{leaf_url}"' in body
+    assert "ChapterC" in body
+    assert 'class="clip-banner__group"' in body
+    assert "data-units-url=" in body
+    assert "GrandchildUnit" not in body  # collapsed: no grandchild rows
+
+
+def test_a_level_marks_the_current_unit_and_does_not_link_it(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    here = _unit(course, "HereUnit", parent=part)
+    _unit(course, "ThereUnit", parent=part)
+
+    body = _level(client, course, part, current=here).content.decode()
+
+    here_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": here.pk}
+    )
+    assert 'aria-current="page"' in body
+    assert f'href="{here_url}"' not in body
+
+
+def test_a_level_of_a_unitless_container_is_a_404(client):
+    """Mutant: serve the UNPRUNED _children_map instead of the pruned map -> RED."""
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+    empty = _unit(course, "EmptySection", kind="section", unit_type="", parent=part)
+
+    assert _level(client, course, empty).status_code == 404
+
+
+def test_a_level_of_a_unit_or_a_foreign_or_bad_node_is_a_404(client):
+    course, x = _seed(client)
+    _other, foreign_part = _other_course_with_a_part(course)
+
+    assert _level(client, course, x).status_code == 404  # a unit
+    assert _level(client, course, foreign_part).status_code == 404
+    assert _level(client, course, "abc").status_code == 404
+    assert _level(client, course).status_code == 404  # no parent at all
+```
+
+For the permission test, look at how this file (or `tests/test_element_clip_view.py`) already builds "a logged-in author who cannot manage this course" and reuse that exact construction — do not invent one. Then:
+
+```python
+def test_a_level_is_refused_to_a_user_who_cannot_manage_the_course(client):
+    """Mutant: drop the can_manage_course check -> RED."""
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+    # <log the client in as an author who cannot manage `course`, as the existing
+    #  permission tests do>
+
+    assert _level(client, course, part).status_code == 403
+
+
+def test_a_level_needs_a_login(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+    client.logout()
+
+    assert _level(client, course, part).status_code == 302
+
+
+def test_a_level_refuses_post(client):
+    course, _x = _seed(client)
+    part = _unit(course, "PartP", kind="part", unit_type="")
+    _unit(course, "Under", parent=part)
+
+    resp = client.post(
+        reverse("courses:manage_copy_units", kwargs={"slug": course.slug}),
+        {"parent": part.pk},
+    )
+
+    assert resp.status_code == 405
+
+
+def test_a_levels_query_count_does_not_grow_with_its_size(client):
+    """Mutant: a per-row query in the row partial (e.g. n.course.slug instead of
+    course_slug in the unit link) -> RED."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    course, _x = _seed(client)
+    small = _unit(course, "Small", kind="part", unit_type="")
+    _unit(course, "S1", parent=small)
+    big = _unit(course, "Big", kind="part", unit_type="")
+    for i in range(30):
+        _unit(course, f"B{i}", parent=big)
+    _level(client, course, small)  # warm the session/auth path
+
+    with CaptureQueriesContext(connection) as small_q:
+        _level(client, course, small)
+    with CaptureQueriesContext(connection) as big_q:
+        _level(client, course, big)
+
+    assert len(big_q) == len(small_q)
+```
+
+In `test_the_clip_context_keys_reach_both_render_paths`: "thirteen" → "fourteen", and add `copy_units_open` to whatever key list it checks.
+
+In `tests/test_editor_clip_templates.py`:
+
+- Re-anchor `_banner`'s end — nested `<details>` now close before the banner does, so "the first `</details>`" is no longer the banner's end:
+
+```python
+def _banner(body):
+    start = body.index('id="clip-banner"')
+    return body[start : body.index('class="pane-body"', start)]
+```
+
+  Re-run every existing test that uses `_banner` or slices on `</details>` (`test_the_destination_banner_links_back_to_the_source` slices to `"<details"` — still correct).
+- Rewrite `test_the_unit_list_handles_an_irregular_course`: keep its root-level assertion and its `"EmptySectionE" not in banner` assertion; replace `f'href="{_editor_url(course, under_part)}"' in banner` with three assertions — the part renders as `<details class="clip-banner__group" data-units-url=` (collapsed: no `open`); `under_part`'s href is **absent** from the initial render; a GET of `courses:manage_copy_units` with `parent=part.pk` contains it.
+- Add:
+
+```python
+def test_the_path_to_the_current_unit_is_open_and_other_containers_are_not(client):
+    """Mutant: render every container open ({% elif True %} in
+    _copy_units_node.html) -> RED on the sibling assertions."""
+    course, x = _seed(client)
+    part = _unit(course, "PathPart", kind="part", unit_type="")
+    chapter = _unit(course, "PathChapter", kind="chapter", unit_type="", parent=part)
+    here = _unit(course, "HereUnit", parent=chapter)
+    sibling = _unit(course, "SiblingPart", kind="part", unit_type="")
+    hidden = _unit(course, "HiddenUnit", parent=sibling)
+    subject = _text(x)
+    _mark(client, course, x, subject)
+
+    banner = _banner(_editor(client, course, here))
+
+    assert banner.count('<details class="clip-banner__group" open') == 2
+    assert 'aria-current="page"' in banner and "HereUnit" in banner
+    assert "SiblingPart" in banner  # its row is there, collapsed
+    assert "HiddenUnit" not in banner
+    assert f'href="{_editor_url(course, hidden)}"' not in banner
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `uv run pytest tests/test_element_paste_view.py tests/test_editor_clip_templates.py -k "open_path or level or path_to_the_current or irregular or clip_context_keys"`
+Expected: FAIL — `ImportError: cannot import name 'copy_units_open_path'`, `NoReverseMatch: … 'manage_copy_units'`, and the template assertions.
+
+- [ ] **Step 3: Server**
+
+In `courses/views_manage.py`, directly after `copy_units_tree`:
+
+```python
+def copy_units_open_path(units_map, unit):
+    """The container pks with `unit` somewhere below them, from copy_units_tree()'s
+    PRUNED map -- no query. These render open, with their rows, so the current unit is
+    visible when the list opens (spec D13); every other container renders collapsed and
+    loads its rows from copy_units_level on first open."""
+    parent_of = {}
+    for parent_pk, kids in units_map.items():
+        for kid in kids:
+            parent_of[kid.pk] = parent_pk
+    path = set()
+    node_pk = parent_of.get(unit.pk)
+    while node_pk is not None:
+        path.add(node_pk)
+        node_pk = parent_of.get(node_pk)
+    return path
+```
+
+Rewrite `copy_units_tree`'s docstring sentence "so the template iterates only what it renders -- a Django template cannot look ahead" to add that the banner renders only the top level and the open path, the rest arriving through `copy_units_level` (spec D13). Its code is unchanged.
+
+In `_clip_context`: add `"copy_units_open": set(),` to `empty`; in the same-unit branch, directly after the `copy_units_tree(unit.course)` line, add `units_open = copy_units_open_path(units_map, unit)`, and add `"copy_units_open": units_open,` to the returned dict. The same two edits in `_cross_unit_clip_context`. Update both docstrings' key lists ("thirteen" → "fourteen", name `copy_units_open`).
+
+New view, directly after `link_picker` (which it mirrors):
+
+```python
+@login_required
+@require_GET
+def copy_units_level(request, slug):
+    """One level of the "Copy to another unit..." tree, as bare <li> rows (spec D13).
+
+    The banner renders the top level and the open path; a collapsed container fetches
+    its rows here the first time the author opens it (editor.js). `current` only marks
+    the author's unit as aria-current text; a missing or bad value marks nothing. 404
+    for anything that is not a container WITH a unit below it in this course -- the
+    pruned map is the authority, so a crafted parent cannot list what the banner hides.
+    """
+    course = get_object_or_404(Course, slug=slug)
+    if not can_manage_course(request.user, course):
+        raise PermissionDenied
+    units_map, _top, _available = copy_units_tree(course)
+    try:
+        parent_pk = int(request.GET.get("parent", ""))
+    except ValueError:
+        raise Http404 from None
+    if parent_pk not in units_map:
+        raise Http404
+    try:
+        current_pk = int(request.GET.get("current", ""))
+    except ValueError:
+        current_pk = None
+    return render(
+        request,
+        "courses/manage/editor/_copy_units_level.html",
+        {
+            "rows": units_map[parent_pk],
+            "copy_units_map": units_map,
+            "copy_units_open": set(),
+            "current_pk": current_pk,
+            "course_slug": course.slug,
+        },
+    )
+```
+
+`None` is a key of the pruned map (the roots), but `int()` never yields it, so the top level is never served here (the banner always renders it). Import `require_GET` (`django.views.decorators.http`) and `Http404` (`django.http`) only if the file does not already. In `courses/urls.py`, directly after the `manage_link_picker` path:
+
+```python
+    path(
+        "manage/courses/<slug:slug>/copy-units/",
+        views_manage.copy_units_level,
+        name="manage_copy_units",
+    ),
+```
+
+- [ ] **Step 4: Templates**
+
+`templates/courses/manage/editor/_copy_units_level.html` (new):
+
+```django
+{% comment %}
+One level of the copy-units tree for copy_units_level (spec D13): bare <li> rows,
+rendered by the SAME row partial as the banner, so the two can never differ.
+{% endcomment %}
+{% for n in rows %}{% include "courses/manage/editor/_copy_units_node.html" with n=n %}{% endfor %}
+```
+
+`templates/courses/manage/editor/_copy_units_node.html` (replace the whole file):
+
+```django
+{% load courses_manage_extras %}
+{% comment %}
+One row of the copy-units tree (spec D13). A unit is a link to its editor page, or --
+the CURRENT unit -- text with aria-current. A container is its own <details>: OPEN with
+its rows when it is on the path to the current unit (copy_units_open), otherwise
+collapsed and EMPTY, carrying data-units-url so editor.js fetches its rows from
+copy_units_level on first open. Recurses only into open containers. Badges are the
+link picker's markup (twinned in editor.css). Takes n, copy_units_map,
+copy_units_open, current_pk, course_slug -- never unit/course objects, so the endpoint
+and the banner render identical rows and no row costs a query.
+{% endcomment %}
+<li class="clip-banner__unit">
+  {% if n.kind == "unit" %}
+    {% if n.unit_type == "quiz" %}<span class="tree__badge tree__badge--unit tree__badge--quiz" title="{{ n.get_unit_type_display }}">Q</span>{% else %}<span class="tree__badge tree__badge--unit tree__badge--lesson" title="{{ n.get_unit_type_display }}">L</span>{% endif %}
+    {% if n.pk == current_pk %}<span class="clip-banner__unit-current" aria-current="page" data-math-title>{{ n.title }}</span>{% else %}<a href="{% url 'courses:manage_editor' slug=course_slug pk=n.pk %}" data-math-title>{{ n.title }}</a>{% endif %}
+  {% elif n.pk in copy_units_open %}
+    <details class="clip-banner__group" open data-loaded>
+      <summary><span class="tree__badge tree__badge--{{ n.kind }}">{{ n.get_kind_display }}</span> <span class="clip-banner__unit-group" data-math-title>{{ n.title }}</span></summary>
+      {% with children=copy_units_map|get_item:n.pk %}<ol>{% for child in children %}{% include "courses/manage/editor/_copy_units_node.html" with n=child %}{% endfor %}</ol>{% endwith %}
+    </details>
+  {% else %}
+    <details class="clip-banner__group" data-units-url="{% url 'courses:manage_copy_units' slug=course_slug %}?parent={{ n.pk }}{% if current_pk %}&amp;current={{ current_pk }}{% endif %}">
+      <summary><span class="tree__badge tree__badge--{{ n.kind }}">{{ n.get_kind_display }}</span> <span class="clip-banner__unit-group" data-math-title>{{ n.title }}</span></summary>
+      <ol></ol>
+    </details>
+  {% endif %}
+</li>
+```
+
+In `_copy_units_tree.html`: change the include to `{% include "courses/manage/editor/_copy_units_node.html" with n=n current_pk=unit.pk course_slug=unit.course.slug %}` (the other variables come from the context), and rewrite its `{% comment %}` for D13 (the server renders the top level and the open path; other levels load on expand from `copy_units_level`; every unit is still a plain link). The `.clip-banner__units` / `.clip-banner__units-list` classes stay.
+
+`editor.html`: add to the editor root `<section class="editor" …>`, next to the other `data-msg-*` attributes: `data-msg-units-error="{% trans 'Could not load the units.' %}"`.
+
+- [ ] **Step 5: JS**
+
+In `editor.js`, add a helper next to `renderPreviewMath`, and replace the inline `[data-math-title]` loop Task 7 added in `applyFragments` with `typesetTitles(editorScope);` (keep that block's comment):
+
+```js
+  // Typeset only [data-math-title] nodes that hold a delimiter (see applyFragments).
+  function typesetTitles(scope) {
+    scope.querySelectorAll("[data-math-title]").forEach(function (node) {
+      var text = node.textContent;
+      if (text.indexOf("\\(") === -1 && text.indexOf("\\[") === -1) return;
+      renderPreviewMath(node);
+    });
+  }
+```
+
+Add, directly before the existing capture-phase `root.addEventListener("toggle", …)`:
+
+```js
+  // "Copy to another unit..." (spec D13): a collapsed container fetches its rows once,
+  // on first open. data-loading guards a double toggle; a failure leaves it unloaded,
+  // so closing and re-opening retries.
+  function loadUnitsLevel(details) {
+    if (!details.open || details.hasAttribute("data-loaded") || details.hasAttribute("data-loading")) return;
+    var list = details.querySelector(":scope > ol");
+    var url = details.getAttribute("data-units-url");
+    if (!list || !url) return;
+    details.setAttribute("data-loading", "");
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+      .then(function (html) {
+        list.innerHTML = html;
+        details.setAttribute("data-loaded", "");
+        typesetTitles(list);
+      })
+      .catch(function () {
+        list.innerHTML = "";
+        var li = document.createElement("li");
+        li.className = "clip-banner__unit clip-banner__unit--error";
+        li.textContent = msg("units-error", "Could not load the units.");
+        list.appendChild(li);
+      })
+      .then(function () { details.removeAttribute("data-loading"); });
+  }
+```
+
+and extend that existing listener (do not add a second `toggle` listener):
+
+```js
+  root.addEventListener("toggle", function (e) {
+    if (e.target.matches && e.target.matches(SLOT_DETAILS)) saveSlot(e.target);
+    if (e.target.matches && e.target.matches("details.clip-banner__group")) loadUnitsLevel(e.target);
+  }, true);
+```
+
+Match the file's style (`var`, `function`, no arrow functions). `msg()` and `root` already exist.
+
+- [ ] **Step 6: CSS**
+
+In `editor.css`, directly after the `.clip-banner__unit-current` rule:
+
+```css
+/* D13: a container row is its own <details>; its rows arrive on first open. */
+.clip-banner__group > summary { cursor: pointer; }
+.clip-banner__group > ol { margin: 0; padding-inline-start: var(--space-4); }
+.clip-banner__unit--error { color: var(--text-secondary); font-style: italic; }
+```
+
+Check it in light and dark with Task 7's scratch-script approach (screenshots in the scratchpad, never the worktree): the list with the open path, and one other part opened by clicking.
+
+- [ ] **Step 7: Catalogue**
+
+As Task 6 Step 8 (`makemessages -l pl -l en --no-obsolete`; never hand-edit `en`): Polish `Could not load the units.` → `Nie udało się wczytać jednostek.`; clear any `#, fuzzy` and `#|` line on it (makemessages fuzzy-prefills wrong translations); fuzzy count 0 (grep without `$`); `compilemessages -l pl -l en`; `uv run pytest tests/test_i18n_po_health.py` PASS.
+
+- [ ] **Step 8: e2e**
+
+In `tests/test_e2e_cross_unit_copy.py`, `_seed` gains, after the filler units, a root-level part holding one unit with a maths title:
+
+```python
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type="", parent=None, title="Deep part"
+    )
+    deep = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        title="Deep unit \\(z^2\\)",
+    )
+```
+
+and returns them too (`return course, a, b, subject, rows, part, deep`; update every caller's unpacking — nothing else in the three existing tests changes, their units are root-level). Add:
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_a_collapsed_part_loads_its_units_on_open(page, live_server):
+    page.set_viewport_size({"width": 1280, "height": 720})
+    user = _make_pa_user("pa")
+    course, a, _b, subject, _rows, part, deep = _seed(user)
+    _login(page, live_server, "pa")
+    page.goto(_editor(live_server, course, a))
+    row = page.locator(f".el-row[data-element='{subject.pk}']")
+    with page.expect_response(lambda r: "element/clip/" in r.url):
+        row.locator(
+            "> .el-row__head .el-actions form[data-op='element-clip'] button"
+        ).click()
+
+    page.locator("#clip-banner .clip-banner__units > summary").click()
+    deep_link = page.locator(f"#clip-banner a[href$='/unit/{deep.pk}/edit/']")
+    expect(deep_link).to_have_count(0)  # collapsed: not in the DOM yet
+
+    group = page.locator(
+        f"#clip-banner details.clip-banner__group[data-units-url*='parent={part.pk}']"
+    )
+    with page.expect_response(lambda r: "copy-units/" in r.url and r.status == 200):
+        group.locator("> summary").click()
+
+    expect(deep_link).to_be_visible()
+    expect(deep_link.locator(".katex")).to_have_count(1)
+    deep_link.click()
+    page.wait_for_url(f"**/unit/{deep.pk}/edit/")
+    expect(page.locator("#clip-banner .clip-banner__from a")).to_be_visible()
+```
+
+(The `_seed` title for `part` must not be "Unit …" — the existing tests locate units by href, not title, so this is safe; check nothing in them counts top-level rows.)
+
+- [ ] **Step 9: Run the tests**
+
+Run: `uv run pytest tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_element_clip_view.py tests/test_editor_styles.py tests/test_i18n_po_health.py`
+then: `uv run pytest -m e2e tests/test_e2e_cross_unit_copy.py tests/test_e2e_clipboard.py tests/test_e2e_paste_before.py tests/test_e2e_before_after.py`
+Expected: all PASS. If a query-ceiling test moved, re-measure the cross-unit one as Task 4 Step 5b does; the same-unit ceiling is never raised — investigate instead.
+
+- [ ] **Step 10: Falsify**
+
+By hand, one at a time, each reverted by hand, `git diff` after each:
+1. In `_copy_units_node.html`, `{% elif n.pk in copy_units_open %}` → `{% elif True %}` → `test_the_path_to_the_current_unit_is_open_and_other_containers_are_not` red.
+2. Delete the `can_manage_course` check in `copy_units_level` → `test_a_level_is_refused_to_a_user_who_cannot_manage_the_course` red.
+3. In `copy_units_level`, serve the unpruned map (`cmap = _children_map(course)`, 404 only when `parent_pk not in cmap`, rows `cmap[parent_pk]`) → `test_a_level_of_a_unitless_container_is_a_404` red (`EmptySection` has no children so it is not a key of `cmap` either — if this mutant stays green, make the empty section hold a *container* with no unit, e.g. an empty chapter, so it IS a `cmap` key; record which fixture you used).
+4. In the row partial's unit link, `slug=course_slug` → `slug=n.course.slug` → `test_a_levels_query_count_does_not_grow_with_its_size` red.
+5. Delete the `loadUnitsLevel(e.target)` line from the toggle listener → `test_a_collapsed_part_loads_its_units_on_open` red (no `copy-units/` response).
+6. Delete `typesetTitles(list);` in the loader → the same e2e test red on the `.katex` count.
+
+- [ ] **Step 11: Commit**
+
+```bash
+uv run ruff format courses/views_manage.py courses/urls.py tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_e2e_cross_unit_copy.py
+uv run ruff check --no-cache .
+uv run ruff format --check .
+git add courses/views_manage.py courses/urls.py templates/courses/manage/editor/_copy_units_tree.html templates/courses/manage/editor/_copy_units_node.html templates/courses/manage/editor/_copy_units_level.html templates/courses/manage/editor/editor.html courses/static/courses/js/editor.js courses/static/courses/css/editor.css locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo tests/test_element_paste_view.py tests/test_editor_clip_templates.py tests/test_e2e_cross_unit_copy.py
+git commit -m "feat(paste): the unit list loads each level on expand (D13)"
+git status --short
+```
+
+`git status --short` must be empty afterwards.
+
+### Task 10: Resume Task 8 from Step 5
+
+Run Task 8's Steps 5–9 as written, with these changes:
+- **Step 5 (timing):** same inputs and method; report the tree cost (full GET vs `copy_units_tree` stubbed) and the source-map cost. **No fallback triggers any more** (D13 replaced it): report the figures; if the tree still exceeds ~10%, say so plainly in the PR notes for the owner — do not change the design.
+- **Step 6 (branch gate):** unchanged (the e2e line already lists `tests/test_e2e_cross_unit_copy.py`); both query-ceiling re-reads as written.
+- **Step 7:** commit only if something changed.
+- **Step 8 (PR notes):** add V7 and V8/D13 with the before/after timing, and that the `en` catalogue picked up the pre-existing untranslated "Equal columns" (#335).
+- **Step 9 (rebase):** unchanged.
