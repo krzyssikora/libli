@@ -168,6 +168,26 @@ NESTABLE_QUESTION_KEYS = frozenset(
     }
 )
 
+# The add menu's "Interactive" group, as TRANSFER keys (courses.transfer.export
+# SERIALIZERS, what model_to_key returns). Quiz units hide this whole group
+# (_add_menu.html, `{% if not unit_is_quiz %}`) and student state saves require a
+# lesson, so a CROSS-UNIT copy into a quiz refuses any subtree holding one (clause
+# 2d in paste_allowed). Pinned to the template by a derived drift guard in
+# courses/tests/test_paste_rule.py -- never by a count.
+QUIZ_EXCLUDED_TYPE_KEYS = frozenset(
+    {
+        "reveal_gate",
+        "fill_gate",
+        "switch_gate",
+        "switch_grid",
+        "fill_table",
+        "spoiler",
+        "stepper",
+        "mark_done",
+        "guess_number",
+    }
+)
+
 # Form key -> transfer key, for the types where the two namespaces diverge.
 #
 # The choice entry is "choicequestion", NOT the add-menu card names
@@ -426,17 +446,24 @@ def resolve_scope(unit, parent_ref, tab, type_key):
 
 @dataclass(frozen=True)
 class SubtreeFacts:
-    """The two facts about a marked element that do NOT depend on the destination.
+    """The four facts about a marked element that do NOT depend on the destination.
 
     Computed once per render and passed to every per-slot paste_allowed call; the
-    endpoint omits it and paste_allowed computes it itself. That parameter is what
-    makes the N advisory calls and the one enforcing call provably the same code --
-    the alternative, a view applying `dest_depth <= scalar` on its own, would put a
+    endpoint omits it and paste_allowed computes it itself (a cross-unit paste
+    computes it once, from the SOURCE unit's map). That parameter is what makes the
+    N advisory calls and the one enforcing call provably the same code -- the
+    alternative, a view applying `dest_depth <= scalar` on its own, would put a
     second copy of clause 3 outside the authority.
+
+    `nested_question`: a question sits STRICTLY below the root (clause 2c).
+    `has_interactive`: any node, root included, is a QUIZ_EXCLUDED_TYPE_KEYS type
+    (clause 2d).
     """
 
     min_headroom: int
     subtree_pks: frozenset
+    nested_question: bool
+    has_interactive: bool
 
 
 def _slot_cap(join):
@@ -466,15 +493,38 @@ def subtree_facts(join, children_map=None):
     the endpoint makes, ruinous for the per-render walk.
 
     Cycle-guarded by `seen`, for the same reason _collect_subtree_pks is.
+
+    Both quiz facts inherit this walk -- EVERY child row, matched slot or not --
+    while a copy's payload comes from the export's resolved-slot walk, which drops
+    orphaned children. So a container whose only question/interactive descendant is
+    an orphan is refused into a quiz although its copy would carry neither. That is
+    deliberate: the same facts govern moves, where orphans travel, and for copies
+    the error is harmlessly strict. Do not "fix" the walk to match the export.
+    A dangling GFK gives type(None): model_to_key returns None and isinstance is
+    False, so it counts as neither.
     """
+    # Function-local, like paste_allowed's and unit_has_nested_question's: the
+    # transfer package pulls courses.forms / courses.media, so a module-level edge
+    # risks an import cycle.
+    from courses.richtext import CONCRETE_QUESTION_MODELS
+    from courses.transfer.export import model_to_key
+
+    question_types = tuple(CONCRETE_QUESTION_MODELS)
     seen = set()
     headroom = [MAX_NEST_DEPTH]
+    nested_question = [False]
+    has_interactive = [False]
 
     def walk(node, rel):
         if node.pk in seen:
             return
         seen.add(node.pk)
         headroom[0] = min(headroom[0], _slot_cap(node) - rel)
+        obj = node.content_object
+        if rel >= 1 and isinstance(obj, question_types):
+            nested_question[0] = True
+        if model_to_key(type(obj)) in QUIZ_EXCLUDED_TYPE_KEYS:
+            has_interactive[0] = True
         if children_map is not None:
             kids = children_map.get(node.pk, [])
         else:
@@ -483,7 +533,12 @@ def subtree_facts(join, children_map=None):
             walk(child, rel + 1)
 
     walk(join, 0)
-    return SubtreeFacts(min_headroom=headroom[0], subtree_pks=frozenset(seen))
+    return SubtreeFacts(
+        min_headroom=headroom[0],
+        subtree_pks=frozenset(seen),
+        nested_question=nested_question[0],
+        has_interactive=has_interactive[0],
+    )
 
 
 def paste_allowed(
@@ -605,17 +660,38 @@ def paste_allowed(
     return True, None
 
 
+def unit_children_map(unit):
+    """{parent_pk_or_None: [joins]} over EVERY join of `unit`, each list ordered by
+    ("order", "pk"), with content_type selected and content_object prefetched.
+
+    ONE query for the joins plus one per distinct content type for the GFK
+    prefetch. Shared by enumerate_slots (the destination's slots) and by the
+    cross-unit paste paths (the SOURCE subtree's facts) -- one builder, so the two
+    walks cannot drift apart.
+    """
+    joins = list(
+        unit.elements.all()
+        .select_related("content_type")
+        .prefetch_related("content_object")
+        .order_by("order", "pk")
+    )
+    children_map = {}
+    for join in joins:
+        children_map.setdefault(join.parent_id, []).append(join)
+    return children_map
+
+
 def enumerate_slots(unit):
     """Every container slot in `unit`, as (parent_join | None, tab_id, dest_depth).
 
-    Returns `(pairs, children_map)`. The map is `{parent_pk_or_None: [joins]}` and
-    is returned so the caller can hand it to subtree_facts rather than pay for a
-    second walk.
+    Returns `(pairs, children_map)`. The map comes from unit_children_map (same
+    cost: one query for the joins plus one per distinct content type for the GFK
+    prefetch) and is returned so the caller can hand it to subtree_facts rather
+    than pay for a second walk.
 
-    ONE query builds the map, plus one per distinct content type for the GFK
-    prefetch. Descending `join.children` from the ORM at each node instead -- even
-    with prefetch_related hung off it -- is WORSE than naive: one children query
-    plus one per content type, per join. build_export is not a precedent to copy
+    Descending `join.children` from the ORM at each node instead -- even with
+    prefetch_related hung off it -- is WORSE than naive: one children query plus
+    one per content type, per join. build_export is not a precedent to copy
     wholesale; it prefetches its roots in one query and then re-queries children per
     container through the resolved_* accessors, and that second half is the shape to
     avoid.
@@ -628,15 +704,7 @@ def enumerate_slots(unit):
 
     Skipped entirely when nothing is marked: no walk, no cost on the common render.
     """
-    joins = list(
-        unit.elements.all()
-        .select_related("content_type")
-        .prefetch_related("content_object")
-        .order_by("order", "pk")
-    )
-    children_map = {}
-    for join in joins:
-        children_map.setdefault(join.parent_id, []).append(join)
+    children_map = unit_children_map(unit)
 
     pairs = [(None, "", 1)]
     seen = set()

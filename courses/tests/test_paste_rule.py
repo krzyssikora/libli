@@ -1,13 +1,19 @@
 """The placement rule. Every case here names the mutant it catches; a row that
 cannot go RED under any mutation is decoration, not a test."""
 
+import re
+
 import pytest
+from django.template.loader import render_to_string
 
 from courses import builder
 from courses.models import CalloutElement
+from courses.models import ChoiceQuestionElement
 from courses.models import Element
+from courses.models import MarkDoneElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
+from courses.models import StepperElement
 from courses.models import TabsElement
 from courses.models import TextElement
 from tests.factories import make_course_with_unit
@@ -352,3 +358,168 @@ def test_subtree_facts_terminates_on_a_parent_cycle():
     facts = builder.subtree_facts(a)
 
     assert facts.subtree_pks == frozenset({a.pk, b.pk})
+
+
+def _callout(unit, parent=None, tab=""):
+    obj = CalloutElement.objects.create(kind="example")
+    return Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id=tab
+    )
+
+
+def _choice(unit, parent=None, tab=""):
+    obj = ChoiceQuestionElement.objects.create(stem="Pick one.", multiple=False)
+    return Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id=tab
+    )
+
+
+def _markdone(unit, parent=None, tab=""):
+    obj = MarkDoneElement.objects.create(prompt="Tick")
+    return Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id=tab
+    )
+
+
+def _stepper(unit, parent=None, tab=""):
+    obj = StepperElement.objects.create(prompt="Steps")
+    return Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id=tab
+    )
+
+
+def test_nested_question_is_false_for_a_lone_question_root():
+    """Mutant: make nested_question include the root (drop `rel >= 1`) -> RED."""
+    _course, unit = make_course_with_unit()
+    q = _choice(unit)
+
+    assert builder.subtree_facts(q).nested_question is False
+
+
+def test_nested_question_is_true_for_a_container_holding_a_question():
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    _choice(unit, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.subtree_facts(box).nested_question is True
+
+
+def test_nested_question_is_true_for_a_question_two_levels_down():
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    tabs, slots = _tabs(unit, parent=box, tab=CalloutElement.SLOT_ID)
+    _choice(unit, parent=tabs, tab=slots[0])
+
+    assert builder.subtree_facts(box).nested_question is True
+
+
+def test_has_interactive_sees_an_interactive_root():
+    _course, unit = make_course_with_unit()
+
+    assert builder.subtree_facts(_stepper(unit)).has_interactive is True
+
+
+def test_has_interactive_sees_an_interactive_two_levels_down():
+    """callout > tabs > checklist, inside the depth cap.
+
+    Mutant: stop the walk at depth 1 (e.g. `if rel >= 1: return` after the
+    headroom line) -> RED."""
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    tabs, slots = _tabs(unit, parent=box, tab=CalloutElement.SLOT_ID)
+    _markdone(unit, parent=tabs, tab=slots[0])
+
+    assert builder.subtree_facts(box).has_interactive is True
+
+
+def test_has_interactive_is_false_for_a_subtree_with_none():
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    _text(unit, parent=box, tab=CalloutElement.SLOT_ID)
+
+    assert builder.subtree_facts(box).has_interactive is False
+
+
+def test_has_interactive_never_counts_a_dangling_gfk():
+    """model_to_key(type(None)) is None, never an interactive key.
+
+    Mutant: treat a None key as interactive
+    (`key is None or key in QUIZ_EXCLUDED_TYPE_KEYS`) -> RED.
+
+    Repoint object_id rather than deleting the concrete: every concrete declares
+    GenericRelation(Element), so deleting it CASCADES the join away."""
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    broken = _text(unit, parent=box, tab=CalloutElement.SLOT_ID)
+    Element.objects.filter(pk=broken.pk).update(object_id=9_999_999)
+
+    facts = builder.subtree_facts(box)
+
+    assert facts.has_interactive is False
+    assert facts.nested_question is False
+
+
+def test_the_map_walk_and_the_orm_walk_agree():
+    """The render passes unit_children_map(); the endpoint omits it. Both must
+    produce identical facts, or the advisory buttons and the enforcing check
+    disagree."""
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    tabs, slots = _tabs(unit, parent=box, tab=CalloutElement.SLOT_ID)
+    _markdone(unit, parent=tabs, tab=slots[0])
+    _choice(unit, parent=tabs, tab=slots[1])
+
+    mapped = builder.subtree_facts(box, children_map=builder.unit_children_map(unit))
+
+    assert mapped == builder.subtree_facts(box)
+
+
+def test_unit_children_map_groups_every_join_by_parent():
+    _course, unit = make_course_with_unit()
+    box = _callout(unit)
+    child = _text(unit, parent=box, tab=CalloutElement.SLOT_ID)
+    top = _text(unit)
+
+    cmap = builder.unit_children_map(unit)
+
+    assert cmap[None] == [box, top]
+    assert cmap[box.pk] == [child]
+
+
+_CARD = re.compile(r'data-add-type="([^"]+)"')
+
+
+def _top_level_cards(unit_is_quiz):
+    html = render_to_string(
+        "courses/manage/editor/_add_menu.html",
+        {
+            "depth": 0,
+            "nested": False,
+            "max_nest_depth": builder.MAX_NEST_DEPTH,
+            "unit_is_quiz": unit_is_quiz,
+            "parent": "",
+            "tab": "",
+        },
+    )
+    return set(_CARD.findall(html))
+
+
+def test_quiz_excluded_type_keys_match_the_add_menus_interactive_group():
+    """DERIVED, never a hard-coded count: the add menu hides exactly these types
+    in a quiz, so the paste rule must refuse exactly these types into one.
+
+    Depth 0 and nested=False on purpose: a deeper menu drops the depth-gated
+    spoiler card from BOTH menus and would fake a drift.
+
+    Mutant: remove one key from QUIZ_EXCLUDED_TYPE_KEYS -> RED. Mutant: spell the
+    set with card names ("revealgate", "markdone", ...) -> RED."""
+    lesson = _top_level_cards(unit_is_quiz=False)
+    quiz = _top_level_cards(unit_is_quiz=True)
+
+    # A future quiz-only card must be noticed deliberately, not absorbed.
+    assert quiz - lesson == set()
+    hidden = {
+        builder._NESTABLE_FORM_KEY_ALIASES.get(name, name) for name in lesson - quiz
+    }
+    assert hidden  # not vacuous: the menus really differ
+    assert hidden == builder.QUIZ_EXCLUDED_TYPE_KEYS
