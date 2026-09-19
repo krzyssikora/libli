@@ -1653,7 +1653,7 @@ def copy_units_tree(course):
 
 - [ ] **Step 4: Rewrite `_clip_context`**
 
-Replace `_clip_context` (docstring and body, through its final `return {...}`) with:
+Replace `_clip_context`'s signature line, docstring and body **from the signature through `facts = builder_svc.subtree_facts(marked, children_map=children_map)`** (inclusive) with the block below. Everything from `move_slots, copy_slots = set(), set()` down to the final `return {...}` is **kept** — the block is NOT a whole-function replacement:
 
 ```python
 def _clip_context(request, unit):
@@ -3191,7 +3191,7 @@ The final `git status --short` must show nothing — any modified tracked file m
 
 - [ ] **Step 8: Collect what the PR body must include**
 
-Write these into a scratch note for whoever opens the PR:
+Write these into a scratch note **in the session scratchpad, never inside the worktree** (an untracked file there fails Step 9's empty-`git status` check), and pass its path to whoever opens the PR:
 1. The deviations table V1–V6, each with its outcome — for V6 the measured `.pane-body` share and the cap actually used (or "not needed").
 2. V2's result: whether removing `position: relative` from the "from" link was caught by the e2e.
 3. The two timing figures from Step 5 (tree render cost; source-map cost) and whether the tree crossed ~10%.
