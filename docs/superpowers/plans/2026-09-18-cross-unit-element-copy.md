@@ -3358,11 +3358,12 @@ def test_a_level_of_a_unitless_container_is_a_404(client):
     course, _x = _seed(client)
     part = _unit(course, "PartP", kind="part", unit_type="")
     _unit(course, "Under", parent=part)
-    empty = _unit(course, "EmptySection", kind="section", unit_type="", parent=part)
-    # A unit-less CHILD container, so `empty` IS a key of the unpruned _children_map
-    # (which only keys parents that have children) -- without it the mutant below
-    # would 404 anyway and stay green.
-    _unit(course, "EmptyChapter", kind="chapter", unit_type="", parent=empty)
+    empty = _unit(course, "EmptyChapter", kind="chapter", unit_type="", parent=part)
+    # A unit-less CHILD container (a section is deeper than a chapter, so the tree is
+    # valid), so `empty` IS a key of the unpruned _children_map (which only keys
+    # parents that have children) -- without it the mutant below would 404 anyway
+    # and stay green.
+    _unit(course, "EmptySection", kind="section", unit_type="", parent=empty)
 
     assert _level(client, course, empty).status_code == 404
 
@@ -3778,7 +3779,7 @@ Expected: all PASS. If a query-ceiling test moved, re-measure the cross-unit one
 By hand, one at a time, each reverted by hand, `git diff` after each:
 1. In `_copy_units_node.html`, `{% elif n.pk in copy_units_open %}` → `{% elif True %}` → `test_the_path_to_the_current_unit_is_open_and_other_containers_are_not` red.
 2. Delete the `can_manage_course` check in `copy_units_level` → `test_a_level_is_refused_to_a_user_who_cannot_manage_the_course` red.
-3. In `copy_units_level`, serve the unpruned map (`cmap = _children_map(course)`, 404 only when `parent_pk not in cmap`, rows `cmap[parent_pk]`) → `test_a_level_of_a_unitless_container_is_a_404` red (the fixture's `EmptySection` holds a unit-less `EmptyChapter`, so it IS a `cmap` key and the mutant serves it with a 200).
+3. In `copy_units_level`, serve the unpruned map (`cmap = _children_map(course)`, 404 only when `parent_pk not in cmap`, rows `cmap[parent_pk]`) → `test_a_level_of_a_unitless_container_is_a_404` red (the fixture's `EmptyChapter` holds a unit-less `EmptySection`, so it IS a `cmap` key and the mutant serves it with a 200).
 4. In the row partial's unit row, add `{{ n.parent.title }}` (an uncached relation — one query per row) → `test_a_levels_query_count_does_not_grow_with_its_size` red. (Not `n.course.slug`: the reverse-FK manager caches `.course` on every node, so that costs no query.)
 5. Delete the `loadUnitsLevel(e.target)` line from the toggle listener → `test_a_collapsed_part_loads_its_units_on_open` red (no `copy-units/` response).
 6. Delete `typesetTitles(list);` in the loader → the same e2e test red on the `.katex` count.
