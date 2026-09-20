@@ -1,5 +1,8 @@
+import re
+
 import pytest
 
+from core.help import DOCS_ROOT
 from core.public_pages import PAGES
 from core.public_pages import normalize_lang
 from core.public_pages import render_markdown
@@ -83,6 +86,35 @@ def test_sanitiser_does_not_raise_on_a_link():
 # and test_public_pages_render.py, so a missing key is a KeyError across roughly
 # every token test and reads as an unrelated mass failure.
 BASE_CFG = {**_DEFAULTS, "name": "Greenfield School"}
+
+
+def test_polish_pages_place_the_contact_token_after_a_colon():
+    """When no address is configured, {libli:contact_email} renders the fallback
+    „osoba, która prowadzi ten serwis" -- a NOMINATIVE noun phrase. Polish
+    sentences govern case, so any wording that asks for another one reads wrong
+    („Zapytaj osoba…"), and the author cannot tell: with an address set, every
+    phrasing looks fine. That defect shipped twice, on the for-schools page and
+    in the pricing fallback.
+
+    The convention that removes the whole class: in a pl page the token always
+    follows a colon, a position that asks nothing of its case. English has no
+    cases, so this is a pl-only rule and the .md pages are its only authoring
+    surface -- gettext strings carrying the same token need the same care, but
+    a source scan cannot see them.
+    """
+    seen = 0
+    for path in sorted((DOCS_ROOT / "public").glob("*.pl.md")):
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"\{libli:contact_email\}", text):
+            seen += 1
+            before = text[: match.start()].rstrip()
+            assert before.endswith(":"), (
+                f"{path.name}: the contact token must follow a colon so the "
+                f"nominative fallback reads correctly, got ...{before[-40:]!r}"
+            )
+    # Not a pinned count -- pages come and go. This only refuses to pass
+    # vacuously if every token is deleted or the glob stops matching.
+    assert seen, "no {libli:contact_email} found in any pl page -- guard is inert"
 
 
 def cfg(**over):

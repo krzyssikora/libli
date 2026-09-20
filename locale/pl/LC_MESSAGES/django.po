@@ -371,7 +371,7 @@ msgstr "Ceny dla Twojej szkoły wyceniamy indywidualnie."
 #: .\core\public_pages.py:327
 #, python-format
 msgid "Ask %(contact)s, and see the five numbers above."
-msgstr "Zapytaj %(contact)s — zobacz też pięć liczb powyżej."
+msgstr "Kontakt: %(contact)s — zobacz też pięć liczb powyżej."
 
 #: .\core\public_pages.py:336
 msgctxt "pricing table column"
