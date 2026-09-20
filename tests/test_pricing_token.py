@@ -183,3 +183,36 @@ def test_block_value_is_never_bare_inline_content():
     for lang in ("en", "pl"):
         value = _block_values(cfg(pricing_plans=[]), lang)["pricing_plans"]
         assert value.startswith("<p")
+
+
+def test_polish_fallback_does_not_inflect_the_contact_phrase():
+    """The contact fallback is a NOMINATIVE noun phrase, „osoba, która prowadzi
+    ten serwis". „Zapytaj" governs the accusative, so the shipped pl sentence
+    read „Zapytaj osoba, która prowadzi ten serwis" -- the same defect #323
+    fixed on the for-schools page, still live here because this sentence is a
+    gettext string rather than page markdown.
+
+    The pl msgstr now puts the phrase after a colon, which asks nothing of its
+    case, so the one token serves both an email and the fallback.
+    """
+    html = render(
+        "{libli:pricing_plans}\n",
+        lang="pl",
+        pricing_plans=_plans(None, None, None),
+        contact_email="",
+    )
+    assert "Zapytaj osoba" not in html
+    assert "Kontakt: osoba, która prowadzi ten serwis" in html
+
+
+def test_polish_fallback_still_names_a_configured_email():
+    """The caseless rewrite must not drop the token: with an address configured
+    the same sentence carries it. A msgstr that hardcoded the fallback phrase
+    would pass the test above and lose the address here."""
+    html = render(
+        "{libli:pricing_plans}\n",
+        lang="pl",
+        pricing_plans=_plans(None, None, None),
+        contact_email="biuro@example.com",
+    )
+    assert "Kontakt: biuro@example.com" in html
