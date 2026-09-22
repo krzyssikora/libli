@@ -138,8 +138,10 @@ Styling (in `core/static/core/css/app.css`, next to `.dash-card`; both page fami
 - fill: same height, `background: var(--accent)`, `min-width: 6px` (so the 1% sliver and the
   zero-dot read as continuous); both bars share the accent colour;
 - dot: 6px circle, `background: var(--accent)`, at the track's left end;
-- rows stacked with `var(--space-1)` gap; label and track on one line (label fixed width,
-  track `flex: 1 1 0`);
+- `.glance` is a two-column grid (`grid-template-columns: max-content 1fr`,
+  `.glance__row { display: contents }`) with `var(--space-1)` row gap, so the label column
+  is as wide as the longest label in the current language and both tracks start at the
+  same x; labels `white-space: nowrap`;
 - `@media (forced-colors: active)`: track gets a `1px solid CanvasText` border and
   transparent background; fill and dot use `background: Highlight` with
   `forced-color-adjust: none`, so they stay visible.
@@ -173,7 +175,9 @@ All strings below carry `context "course glance"` (Django template syntax — th
   non-empty). Teaching / Studio / Admin panels unchanged.
 - **Landing** (`templates/core/landing.html`): replace the three `.card` boxes inside
   `.landing-visual` (wrapper keeps `aria-hidden="true"`) with three
-  `<div class="glance-card">` elements, each: `<p class="glance-card__title">{% trans "…" %}</p>`
+  `<div class="glance-card">` elements, each:
+  `<p class="glance-card__title">{% trans "Mathematics" context "course glance" %}</p>` (all
+  three titles carry the same context, so no other msgid can hijack them)
   then the partial with `decorative=True`. `.glance-card` is its own static class — NOT
   `.dash-card` (whose hover lift signals a click target) and NOT the old `.card` rules. It
   looks like a dash-card at rest (surface, border, radius, small shadow), width ~14rem,
@@ -254,7 +258,8 @@ Render:
 Screenshots: light + dark (dark judged separately), plus forced-colors for the fill. The
 checklist explicitly covers the track-only and zero-dot states in both themes: an empty
 track must read as an empty bar, not a missing one. If `--border-subtle` disappears on the
-card surface, switch the track to a stronger existing border token.
+card surface, switch the track to a stronger existing border token. It also checks that
+labels neither wrap nor clip in pl and that both tracks align.
 
 Timing: the dashboard is the post-login landing page and previously ran no rollups. Before
 and after the change, time the dashboard and My courses for a student enrolled in the largest
