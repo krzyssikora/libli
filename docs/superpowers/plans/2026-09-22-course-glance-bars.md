@@ -494,7 +494,7 @@ At the top, add `import logging` before `from decimal import Decimal`, and after
 logger = logging.getLogger(__name__)
 ```
 
-These inserted lines shift `build_outline` down. A comment in `build_unit_nav`'s neighbourhood (~line 1177 before this task) cites `rollups.py:228-234, leaf key at :249` (build_outline's `completed` set and its `"completed"` key). After the edit, `grep -n "rollups.py:[0-9]" courses/*.py`, open `build_outline`, and update that citation to the lines where the `completed = set()` block and the `"completed": is_unit and …` key now sit.
+These inserted lines shift `build_outline` down. A comment in `build_unit_nav`'s neighbourhood (~line 1177 on master, ~1225 after Task 1 — trust the grep, not the number) cites `rollups.py:228-234, leaf key at :249` (build_outline's `completed` set and its `"completed"` key). After the edit, `grep -n "rollups.py:[0-9]" courses/*.py`, open `build_outline`, and update that citation to the lines where the `completed = set()` block and the `"completed": is_unit and …` key now sit.
 
 After `_results_width`, add:
 
@@ -913,15 +913,23 @@ def test_one_broken_course_does_not_break_the_page(client, url, monkeypatch, cap
 
 
 @pytest.mark.django_db
-def test_teaching_panel_has_no_glance(client):
+def test_teaching_and_studio_panels_have_no_glance(client):
+    # The user teaches one course, owns another, AND is enrolled in a third, so a
+    # glance DOES render (in My learning) -- the guard is not vacuous.
     teacher = make_login(client, "glance_teacher")
-    course = CourseFactory(title="Taught Course")
-    GroupFactory(course=course).teachers.add(teacher)
+    taught = CourseFactory(title="Taught Course")
+    GroupFactory(course=taught).teachers.add(teacher)
+    CourseFactory(title="Owned Course", owner=teacher)
+    EnrollmentFactory(student=teacher, course=CourseFactory(title="Learned Course"))
     soup = BeautifulSoup(client.get(reverse("home")).content, "html.parser")
+    learning = soup.select_one('[data-section="learning"]')
     teaching = soup.select_one('[data-section="teaching"]')
-    assert teaching is not None
+    studio = soup.select_one('[data-section="manage"]')
+    assert learning.select(".glance")
     assert teaching.find("a", string="Taught Course")  # panel content unchanged
-    assert not soup.select(".glance")
+    assert not teaching.select(".glance")
+    assert studio.find("a", string="Owned Course")
+    assert not studio.select(".glance")
 
 
 @pytest.mark.django_db
@@ -941,7 +949,7 @@ def test_view_query_cost_is_linear_in_courses(client, url):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_course_glance_render.py`
-Expected: `test_pages_render_each_state` and `test_one_broken_course_does_not_break_the_page` FAIL (no `.glance` in the pages). `test_teaching_panel_has_no_glance` and `test_view_query_cost_is_linear_in_courses` are regression guards and PASS already (no glance anywhere yet; zero per-course cost is trivially linear) — that is expected.
+Expected: `test_pages_render_each_state`, `test_one_broken_course_does_not_break_the_page` and `test_teaching_and_studio_panels_have_no_glance` FAIL (no `.glance` in the pages yet). `test_view_query_cost_is_linear_in_courses` is a regression guard and PASSES already (zero per-course cost is trivially linear) — that is expected.
 
 - [ ] **Step 3: Create `courses/glance.py`**:
 
@@ -1060,7 +1068,7 @@ with:
 
 - [ ] **Step 5b: Re-point shifted line citations**
 
-The `my_courses` and `home` edits change line counts in `courses/views.py` and `core/views.py`. Run `grep -rnE "(courses|core)/views\.py:[0-9]" --include=*.py --include=*.html --include=*.css . | grep -v '/.venv/'`. For every citation whose cited line lies BELOW the edited function, open the file, find the code the comment describes, and update the number to where it now sits (a citation that was already stale before this task: point it at the right line too, or leave it and note it — never make it worse).
+The `my_courses` and `home` edits change line counts in `courses/views.py` and `core/views.py`. FIRST run `uv run ruff format courses/views.py core/views.py` so formatting cannot shift lines again after you fix them. Then run `grep -rnE "(courses|core)/views\.py:[0-9]" --include=*.py --include=*.html --include=*.css . | grep -v '/.venv/'`. For every citation whose cited line lies BELOW the edited function, open the file, find the code the comment describes, and update the number to where it now sits (a citation that was already stale before this task: point it at the right line too, or leave it and note it — never make it worse).
 
 - [ ] **Step 6: Run the new tests, then the scoped regression set**
 
@@ -1440,12 +1448,12 @@ def test_capture(page, live_server):
 
 Run: `uv run pytest tests/capture_glance_screenshots.py -m e2e`
 Open each `.superpowers/shots/glance-*.png` with the Read tool. Judge light and dark separately. Check: a fill is visibly drawn (not empty bars); the zero-dot is visible; an empty track reads as an empty bar, not as nothing; labels do not wrap or clip; both tracks start at the same x, including in the narrow dashboard "My learning" panel; landing cards have no hover lift; forced-colors shows the fill.
-From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and, only if DARK fell short, in the `[data-theme="dark"]` block (~line 92). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
+From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and in the `[data-theme="dark"]` block (~line 92) — the darkened value if DARK fell short, otherwise `--glance-fill: var(--accent);` whenever `:root` got a darkened value (without it, a light-only fix would also darken the dark theme's fill against dark surfaces). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
 In `glance-dashboard-pl.png` confirm the Polish labels do not wrap or clip. For every notes line, check `raw` holds sensible colours and `surface_el` names a card/panel (not `glance__track`); if not, the measurement is broken — fix the script before trusting any ratio.
 
 - [ ] **Step 3: Timing**
 
-First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
+First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{http_code} %{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. EVERY sample must print `200`; a fast 302 (rejected session, verification redirect, the Platform-Admin setup-wizard redirect in `home`) times a redirect, not the page — discard it and fix the cause. The timed user must be a plain student (no `institution.change_institution` permission). Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
 
 - [ ] **Step 4: Falsification — each mutant must turn at least one test RED**
 
