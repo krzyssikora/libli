@@ -1239,7 +1239,8 @@ Clear any fuzzy flags + `#|` lines, then `uv run python manage.py compilemessage
 
 - [ ] **Step 6: Run tests**
 
-Run: `uv run pytest tests/test_course_glance_render.py tests/test_for_schools_footer.py tests/test_for_schools_page.py tests/test_surfaces.py tests/test_public_pages_footer.py tests/test_sso_config.py tests/test_error_pages.py` (every test that renders `/`, re-run after the landing edit)
+Run: `uv run pytest $( (printf '%s
+' tests/test_course_glance_render.py tests/test_for_schools_footer.py tests/test_for_schools_page.py tests/test_surfaces.py tests/test_public_pages_footer.py tests/test_sso_config.py tests/test_error_pages.py tests/test_favicon_render.py; grep -lE 'get\("/"|reverse\("landing"\)|landing\.html' tests/test_*.py | grep -v test_e2e_) | sort -u )` (every test that renders `/`, re-run after the landing edit; the grep keeps the list from drifting)
 Expected: PASS. Then `uv run pytest tests/test_i18n_po_health.py $(grep -lE "app\.css|tokens\.css" tests/test_*.py | grep -v test_e2e_)` (catalog hygiene + every test that reads the stylesheets, after this task's `app.css` edit).
 
 - [ ] **Step 7: Commit**
