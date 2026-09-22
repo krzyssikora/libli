@@ -868,6 +868,23 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .dash-card__actions a { color: var(--accent); text-decoration: none; font-weight: 500; font-size: .9rem; }
 .dash-card__actions a:hover { text-decoration: underline; }
 
+/* Course glance bars (templates/courses/_course_glance.html). The track is
+   deliberately light (owner decision D9); the fill carries the information. */
+.glance { display: grid; grid-template-columns: max-content 1fr; align-items: center;
+  column-gap: var(--space-2); row-gap: var(--space-1); margin-top: var(--space-1); }
+.glance__row { display: contents; }
+.glance__label { font-size: .75rem; color: var(--text-secondary); white-space: nowrap; }
+.glance__track { display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+  background: var(--border-subtle); }
+.glance__fill, .glance__dot { display: block; height: 6px; border-radius: 999px;
+  background: var(--accent); }
+.glance__fill { min-width: 6px; }
+.glance__dot { width: 6px; flex: none; }
+@media (forced-colors: active) {
+  .glance__track { background: transparent; border: 1px solid CanvasText; }
+  .glance__fill, .glance__dot { forced-color-adjust: none; background: Highlight; }
+}
+
 /* Home dashboard panels */
 .dash-grid { display: grid; gap: var(--space-4); margin-top: var(--space-5);
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
