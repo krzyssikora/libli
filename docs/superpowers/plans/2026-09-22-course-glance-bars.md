@@ -1328,6 +1328,9 @@ CONTRAST_JS = """
   while (surface && bg(surface) === 'rgba(0, 0, 0, 0)') surface = surface.parentElement;
   return {
     raw: {fill: bg(fill), track: bg(track), surface: bg(surface)},
+    measured: fill.className,
+    course: (fill.closest('li, .glance-card')?.querySelector('a, .glance-card__title')
+             ?.textContent || '').trim(),
     surface_el: surface.className || surface.tagName,
     fill_vs_track: ratio(bg(fill), bg(track)),
     fill_vs_surface: ratio(bg(fill), bg(surface)),
@@ -1409,6 +1412,8 @@ def test_capture(page, live_server):
         _login(page, live_server, "glanceshots")
         for name, path in (("dashboard", "/home/"), ("mycourses", "/courses/")):
             page.goto(f"{live_server.url}{path}")
+            # Mislabelled "dark" numbers would gate the --glance-fill decision.
+            assert page.locator("html").get_attribute("data-theme") == theme
             page.screenshot(path=str(OUT_DIR / f"glance-{name}-{theme}.png"), full_page=True)
             notes.append(f"- {name} {theme}: {page.evaluate(CONTRAST_JS)}")
         page.context.clear_cookies()
@@ -1417,6 +1422,7 @@ def test_capture(page, live_server):
         page.context.add_cookies([{"name": "libli_theme", "value": theme,
                                    "url": live_server.url}])
         page.goto(f"{live_server.url}/")
+        assert page.locator("html").get_attribute("data-theme") == theme
         page.screenshot(path=str(OUT_DIR / f"glance-landing-{theme}.png"), full_page=True)
         notes.append(f"- landing {theme}: {page.evaluate(CONTRAST_JS)}")
 
