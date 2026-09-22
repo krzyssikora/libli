@@ -61,7 +61,13 @@ the figures are exact, the widths are clamped so rounding can never lie visually
 ```
 
 - Progress sums `required_done` / `required_total` over the top-level items of
-  `build_outline(course, user, drafts=drafts)`. No new arithmetic for "required".
+  `build_outline(course, user, drafts=drafts)`. No new arithmetic for "required". The same
+  sum already exists as `course_progress` in the unit-navigation helper
+  (`courses/rollups.py`, ~line 1104); extract it into one small helper
+  (e.g. `_course_required_totals(tree) -> (done, total)`) used by both, so the twins cannot drift.
+- The width arithmetic lives in two pure helpers, `_progress_width(done, total)` and
+  `_results_width(score, max_score, percent)`, which `course_glance` calls; the boundary
+  tests target these directly (no 250-row fixtures).
 - Results is `build_course_results(course, user, drafts=drafts)`; `results_pct` is its
   `percent` verbatim (D1 — cumulative Σscore/Σmax over counted quizzes; pending excluded).
 - `progress_width`:
@@ -215,8 +221,10 @@ Unit (`course_glance`):
 - one submitted quiz with `max_score == 0` → `results_width is None` (not 0).
 - no required lessons → `progress_width is None`; 0 of N → `progress_width is None`,
   `progress_done == 0`.
-- boundaries: 1 of 250 lessons → `progress_width == 1`; 199 of 200 → 99; N of N → 100;
-  results 1/300 → `results_width == 1` (not the dot); 299/300 → 99.
+- boundaries, on the pure helpers: `_progress_width(1, 250) == 1`; `(199, 200) == 99`;
+  `(N, N) == 100`; `(0, N) is None`; `(0, 0) is None`; `_results_width` with 1/300 → 1
+  (not the dot), 299/300 → 99, 0/10 → 0, `percent=None` with `score=0` → None, score > max
+  → 100. One or two DB-level `course_glance` tests cover the wiring.
 - additional lessons and quizzes do not move progress.
 - draft units hidden with `drafts="hide"`.
 - query count: warm the ContentType cache first. Both fixtures have at least one quiz, one
@@ -231,7 +239,10 @@ Render:
 - each row of the "Fill rules" table above (track only / dot / fill with `width: N%`) on
   My courses and dashboard.
 - a 0-of-N progress row emits neither `.glance__dot` nor `.glance__fill` (D4).
-- `aria-label`s carry the figures; pl labels use the right plural form for totals 1, 3, 5.
+- `aria-label`s carry the figures. en: totals 1 and 2 render "… of 1 lesson" vs
+  "… of 2 lessons" (this is what catches a dropped `count`). pl: every `msgstr[n]` index is
+  filled and totals 1, 3, 5 render the exact expected strings (the pl genitive may be
+  identical across forms, so this test does not claim to prove plural selection).
 - no visible digits: collect the text content of the `.glance` block only (not the title,
   not attributes) and assert it contains no digit. Fixtures use digit-free course titles.
 - landing in pl shows Hiszpański A2 / Matematyka / Biologia, is inside `aria-hidden`, has no
@@ -254,8 +265,10 @@ Scoped regression run (the context values of these two views change type): the t
 touching them — `tests/test_consumption_pages.py`, `tests/test_courses_views.py`,
 `tests/test_surfaces.py`, `tests/test_help.py`, `tests/test_subject_admin_views.py`,
 `tests/test_dashboard_panels.py`, `tests/test_nav_structure.py`,
-`tests/test_grouping_course_links.py` — plus every non-e2e file a grep of `tests/` for
-`reverse("home")`, `my_courses` or `landing` turns up, plus the new tests.
+`tests/test_grouping_course_links.py`, `tests/test_auth_login.py`,
+`tests/test_ui_foundation.py` — plus every non-e2e file a grep of `tests/` for
+`reverse("home")`, `my_courses`, `landing`, `"/home/"` or `"/courses/"` turns up, plus the
+new tests.
 
 ## Out of scope
 
