@@ -34,6 +34,7 @@ the My results page. The landing page shows the same card, with fixed sample val
 | D5 | **No visible numbers.** Label + bar only. Labels ("Progress", "Results") are small and muted — `--text-secondary`, NOT `--text-tertiary` (fails AA). |
 | D6 | Screen readers DO get the figures (a spoken value per bar), invisible on screen. |
 | D7 | Bars appear in **both** My courses and the dashboard's "My learning" panel, from ONE shared partial. Enrolled courses only — "Teaching" and "Studio" panels unchanged. |
+| D9 | Owner's words: "The lines would have a certain width shown in a **light colour**, and a part of the width would be shown in brighter colour or thicker." The TRACK is deliberately light; it is NOT held to a 3:1 contrast target (that would make it dark). The FILL carries the information and is. |
 | D8 | Landing page: three sample cards drawn by the **same partial**, fixed values, translated names **Spanish A2 / Mathematics / Biology** (pl: Hiszpański A2 / Matematyka / Biologia). Values cover the states: Spanish high progress + good result; Mathematics little progress + middling result; Biology barely started + results track only. Whole block stays `aria-hidden`; not clickable. |
 
 ## Architecture / components
@@ -273,8 +274,9 @@ Render:
   identical across forms, so this test does not claim to prove plural selection).
 - no visible digits: collect the text content of the `.glance` block only (not the title,
   not attributes) and assert it contains no digit. Fixtures use digit-free course titles.
-- landing in pl shows Hiszpański A2 / Matematyka / Biologia, is inside `aria-hidden`, has no
-  `<a>`, emits no `role="img"`, and cards use `.glance-card` (not `.dash-card`).
+- landing in pl shows Hiszpański A2 / Matematyka / Biologia, is inside `aria-hidden`; the
+  `.landing-visual` block (not the whole page, which has CTAs and footer links) contains no
+  `<a>` and no `role="img"`, and cards use `.glance-card` (not `.dash-card`).
 - landing D8 states: Spanish A2 has fills `width: 70%` and `width: 85%`; Mathematics
   `width: 20%` and `width: 55%`; Biology exactly one fill (`width: 5%`) and neither fill nor
   dot in its results row; no `width: %` anywhere on the page.
@@ -283,7 +285,12 @@ Render:
 Screenshots: light + dark (dark judged separately), plus forced-colors for the fill. The
 checklist explicitly covers the track-only and zero-dot states in both themes: an empty
 track must read as an empty bar, not a missing one. If `--border-subtle` disappears on the
-card surface, switch the track to a stronger existing border token. It also checks that
+card surface, switch the track to a stronger existing border token (it stays LIGHT — D9).
+Measured contrast, recorded in the PR for light and dark: the fill (and dot) must reach
+≥3:1 against BOTH the track and the card surface (WCAG 1.4.11; `--accent` is the target, a
+darker accent variant if it falls short). The track's own ratio against the surface is
+recorded but deliberately not held to 3:1 (D9); the spoken figure (D6) carries the
+information for users who cannot perceive the track's ends. It also checks that
 labels neither wrap nor clip in pl and that both tracks align, including in the narrow
 dashboard "My learning" panel.
 
