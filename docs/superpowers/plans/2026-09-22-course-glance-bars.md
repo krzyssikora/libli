@@ -14,7 +14,7 @@
 
 - **Worktree setup (once, before Task 1):** the worktree has no `.env`. Copy it from the main repo: `cp ../../libli/.env .env` (it is gitignored — never commit it). Start the test DB container once: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. Never run two pytest processes at once (shared test DB).
 - Run tests with `uv run pytest <paths>` from the worktree root. **Never pass `-q`** (addopts already has it; doubling hides the summary). Always read the final summary line — do not trust the exit code alone.
-- Imports: ruff `force-single-line = true` — one `from x import y` per line. Before each commit: `uv run ruff check --no-cache <changed .py files>` and `uv run ruff format --check <changed .py files>`.
+- Imports: ruff `force-single-line = true` — one `from x import y` per line. Before each commit, in this order: `uv run ruff format <changed .py files>`, `uv run ruff check --no-cache <changed .py files>`, `uv run ruff format --check <changed .py files>` (the plan's pasted code is not pre-formatted; `format` wraps it, then the gates must pass).
 - Django template comments `{# #}` are SINGLE-LINE only; multi-line needs `{% comment %}`.
 - CSS comments: never put `*/` inside a comment's text (it ends the comment early and eats the next rule).
 - All new user-facing strings carry `context "course glance"`. Polish catalog is real Polish, not machine noise.
@@ -198,12 +198,18 @@ with:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `uv run pytest tests/test_course_glance.py tests/test_unit_nav_render.py tests/test_courses_rollups.py`
-Expected: all PASS (the last two prove the `build_unit_nav` refactor changed nothing).
+Run:
+
+```bash
+uv run pytest tests/test_course_glance.py tests/test_courses_rollups.py $(grep -rlE 'build_unit_nav|course_progress|unit-foot__course' --include='test_*.py' . | grep -v test_e2e_ | sort -u)
+```
+
+Expected: all PASS (every non-e2e test that touches `build_unit_nav` / `course_progress` / the footer bar proves the refactor changed nothing).
 
 - [ ] **Step 5: Lint and commit**
 
 ```bash
+uv run ruff format courses/rollups.py tests/test_course_glance.py
 uv run ruff check --no-cache courses/rollups.py tests/test_course_glance.py
 uv run ruff format --check courses/rollups.py tests/test_course_glance.py
 git add courses/rollups.py tests/test_course_glance.py
@@ -542,6 +548,7 @@ Expected: all PASS.
 - [ ] **Step 5: Lint and commit**
 
 ```bash
+uv run ruff format courses/rollups.py tests/test_course_glance.py
 uv run ruff check --no-cache courses/rollups.py tests/test_course_glance.py
 uv run ruff format --check courses/rollups.py tests/test_course_glance.py
 git add courses/rollups.py tests/test_course_glance.py
@@ -786,6 +793,7 @@ Expected: all PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff format tests/test_course_glance_render.py
 uv run ruff check --no-cache tests/test_course_glance_render.py
 uv run ruff format --check tests/test_course_glance_render.py
 git add templates/courses/_course_glance.html core/static/core/css/app.css locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_course_glance_render.py
@@ -1053,7 +1061,7 @@ Expected: PASS.
 Then build the regression list and run it in one process:
 
 ```bash
-grep -rlE 'reverse\("home"\)|my_courses|landing|"/home/"|"/courses/"' tests --include=test_*.py | grep -v test_e2e_ | sort -u > /tmp/glance_regress.txt
+grep -rlE 'reverse\("home"\)|my_courses|landing|"/home/"|"/courses/"' . --include='test_*.py' | grep -v test_e2e_ | grep -v '/.venv/' | sort -u > /tmp/glance_regress.txt
 uv run pytest tests/test_consumption_pages.py tests/test_courses_views.py tests/test_surfaces.py tests/test_help.py tests/test_subject_admin_views.py tests/test_dashboard_panels.py tests/test_nav_structure.py tests/test_grouping_course_links.py tests/test_auth_login.py tests/test_ui_foundation.py $(cat /tmp/glance_regress.txt)
 ```
 
@@ -1062,6 +1070,7 @@ Expected: summary line shows 0 failed, 0 errors.
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff format courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 uv run ruff check --no-cache courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 uv run ruff format --check courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 git add courses/glance.py courses/views.py core/views.py templates/courses/my_courses.html templates/core/home.html tests/test_course_glance_render.py
@@ -1212,6 +1221,7 @@ Expected: PASS. Then the catalog-hygiene tests as in Task 3 Step 6.
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff format tests/test_course_glance_render.py
 uv run ruff check --no-cache tests/test_course_glance_render.py
 uv run ruff format --check tests/test_course_glance_render.py
 git add templates/core/landing.html core/static/core/css/app.css locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_course_glance_render.py
@@ -1271,13 +1281,20 @@ OUT_DIR = Path(
 # so a normalisation failure is visible in the notes.
 CONTRAST_JS = """
 () => {
-  const ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
   const toRgb = css => {
-    ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = css;
-    ctx.fillRect(0, 0, 1, 1); return Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = '#000';
+    ctx.fillStyle = css;
+    ctx.fillRect(0, 0, 1, 1);
+    return Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
   };
   const lum = ([r, g, b]) => {
-    const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const f = c => {
+      c /= 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
   };
   const ratio = (a, b) => {
@@ -1406,7 +1423,7 @@ def test_capture(page, live_server):
 
 Run: `uv run pytest tests/capture_glance_screenshots.py -m e2e`
 Open each `.superpowers/shots/glance-*.png` with the Read tool. Judge light and dark separately. Check: a fill is visibly drawn (not empty bars); the zero-dot is visible; an empty track reads as an empty bar, not as nothing; labels do not wrap or clip; both tracks start at the same x, including in the narrow dashboard "My learning" panel; landing cards have no hover lift; forced-colors shows the fill.
-From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, darken the fill for that theme (e.g. a `color-mix(in srgb, var(--accent) 80%, black)` override scoped to that theme in the `.glance__fill, .glance__dot` rule), re-run, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
+From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css` in EVERY theme block — light, the explicit `[data-theme="dark"]` block (~line 92) AND the `prefers-color-scheme: dark` auto block (~line 143), which restates every dark token — defaulting to `var(--accent)` and darkened (e.g. `color-mix(in srgb, var(--accent) 80%, black)`) only where the ratio fell short. A dark override in one block only would pass the capture (it sets `theme = "dark"` explicitly) while auto-theme users on a dark OS keep the low-contrast fill. Re-run, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
 In `glance-dashboard-pl.png` confirm the Polish labels do not wrap or clip. For every notes line, check `raw` holds sensible colours and `surface_el` names a card/panel (not `glance__track`); if not, the measurement is broken — fix the script before trusting any ratio.
 
 - [ ] **Step 3: Timing**
@@ -1431,6 +1448,7 @@ Append the mutant → failing-test table to `.superpowers/shots/glance-verificat
 - [ ] **Step 5: Commit the capture script (and any test added in Step 4)**
 
 ```bash
+uv run ruff format tests/capture_glance_screenshots.py
 uv run ruff check --no-cache tests/capture_glance_screenshots.py
 uv run ruff format --check tests/capture_glance_screenshots.py
 git add tests/capture_glance_screenshots.py
