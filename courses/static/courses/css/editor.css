@@ -661,6 +661,13 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* Nested (inside-a-tab) rows are NOT draggable -- they reorder via the up/down arrows --
    so the drag grip is a misleading affordance there. Hide it. */
 .element-list--nested .ica--grip { display: none; }
+/* ...and drop its grid track with it. With the grip gone the body is the head's ONLY
+   child, so it auto-placed into the CONTENT-SIZED `auto` column and the 1fr column sat
+   empty. Two symptoms: .el-actions' margin-left:auto pushed only as far as the label's
+   width, so each nested row's buttons stopped at a different x; and a divider row's
+   contentless `flex: 1 1 auto` rules collapsed to 0px (135.9px top-level vs 0px
+   nested, measured -- pinned by test_nested_divider_row_still_draws_its_rules). */
+.element-list--nested .el-row__head { grid-template-columns: 1fr; }
 .el-row.lifted { opacity: .45; }
 /* A clearly visible insertion bar (not a 2px hairline the author can't aim at): a
    rounded primary bar with end caps, so where the element will land is unambiguous. */
@@ -693,16 +700,6 @@ button.asset-cell:hover { border-color: var(--primary); }
   flex: none; font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
   color: var(--text-tertiary);
 }
-/* A nested row's grip is display:none (`.element-list--nested .ica--grip` below), so
-   it leaves .el-row__head's `auto 1fr` grid entirely and the body auto-places into
-   the CONTENT-SIZED `auto` column. A text row is unaffected -- it just sizes to its
-   text. This row is not: its rules are `flex: 1 1 auto` spans with no content, so
-   with no free space to grow into they collapse to 0px and the row reads as a stray
-   "DIVIDER" label with the buttons packed left. MEASURED: 135.9px top-level vs 0px
-   nested in the same pane. Span both tracks so the body owns the full width wherever
-   it is placed. Nested-only: at top level the grip still occupies track 1, and
-   spanning from there would push the body onto a second grid row. */
-.element-list--nested .element-row--divider .el-row__body { grid-column: 1 / -1; }
 
 /* add-element dashed button + 5-card type menu */
 .addwrap { margin-top: var(--space-4); }

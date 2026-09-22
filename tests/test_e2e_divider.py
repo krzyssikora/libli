@@ -187,3 +187,39 @@ def test_nested_divider_row_still_draws_its_rules(page, live_server):
     ).first
     rule.wait_for(state="attached")
     assert rule.bounding_box()["width"] > 20
+
+
+@pytest.mark.django_db(transaction=True)
+def test_nested_rows_right_align_their_action_bars(page, live_server):
+    """Every nested row's action bar must end at its row's right edge.
+
+    The same grid defect as the divider test above, seen from a TEXT row: with the
+    grip hidden the body sat in the content-sized `auto` column, so `.el-actions`'
+    margin-left:auto pushed only as far as the label was wide, and a short label and
+    a long one put their buttons at different x. Two labels of very different length
+    are the point -- one label alone could happen to fill the pane."""
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    author = _make_pa_user("actalign")
+    course, unit = _seed_unit(author, "actalign")
+    callout = CalloutElement.objects.create(kind="example", heading="C")
+    join = add_element(unit, callout)
+    for body in ("<p>Hi</p>", "<p>A much longer label for the second child</p>"):
+        Element.objects.create(
+            unit=unit,
+            content_object=TextElement.objects.create(body=body),
+            parent=join,
+            tab_id=SLOT_ID,
+        )
+
+    _login(page, live_server, "actalign")
+    page.goto(_editor_url(live_server, course, unit))
+    rows = page.locator(".element-list--nested .el-row[data-element]")
+    expect(rows).to_have_count(2)
+    for i in range(2):
+        head = rows.nth(i).locator(".el-row__head").bounding_box()
+        bar = rows.nth(i).locator(".el-actions").bounding_box()
+        assert abs((head["x"] + head["width"]) - (bar["x"] + bar["width"])) < 1, i
