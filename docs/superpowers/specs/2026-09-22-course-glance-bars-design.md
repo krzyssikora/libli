@@ -68,12 +68,19 @@ the figures are exact, the widths are clamped so rounding can never lie visually
   - `None` if `progress_total == 0` or `progress_done == 0` (D4: track only, no dot);
   - else `round(100*done/total)`, clamped to **1..99** unless `done == total` (then 100).
     So 1/250 still draws a sliver and 199/200 never draws a full bar.
-- `results_width`:
-  - `None` if `results_pct is None` (nothing counted: track only);
-  - `0` if the summary's `score` is exactly 0 (D3: the zero-dot);
-  - else `round(100*score/max_score)`, clamped to **1..99** unless `score == max_score`
-    (then 100). So 1/300 draws a sliver, not the zero-dot, and 299/300 is not full.
-    Branching is on `score`, never on the rounded percent.
+- `results_width` — checks in THIS order (the order is load-bearing):
+  1. `None` if `results_pct is None` (nothing counted: track only). This MUST come first:
+     `build_course_results` returns `score == Decimal("0")` (not None) whenever any quiz is
+     submitted, including when every submission is awaiting review or has `max_score == 0`
+     — both have `percent is None` and must draw track only, not the dot;
+  2. `0` if the summary's `score` is exactly 0 (D3: the zero-dot);
+  3. else `round(100*score/max_score)`, clamped to **1..99** unless `score == max_score`
+     (then 100). So 1/300 draws a sliver, not the zero-dot, and 299/300 is not full.
+     Branching is on `score`, never on the rounded percent.
+- Accepted asymmetry: the SPOKEN results figure stays `percent` verbatim (so it always equals
+  the My results headline, D1), so at the extremes it can disagree with the drawn width
+  (1/300 is spoken "0%" but drawn as a sliver; 299/300 spoken "100%", drawn 99). This is
+  intentional; do not clamp the spoken figure.
 - The `None` vs `0` distinction is load-bearing (D3/D4) — templates test `is None` /
   `== 0`, never truthiness.
 - Cost: one outline walk + one results walk per enrolled course; must be a constant number
@@ -128,11 +135,14 @@ Styling (in `core/static/core/css/app.css`, next to `.dash-card`; both page fami
   the tokens above are the target.
 
 Strings (all translated, with pl entries):
-- labels: `{% pgettext "course glance" "Progress" %}` / `"Results"` — context-scoped so the
-  existing unscoped "Progress"/"Results" msgids elsewhere cannot silently change them;
-- progress figure: a `{% blocktrans count counter=progress_total %}` block
-  ("Progress: {done} of {counter} lesson" / "... lessons") with EVERY Polish `msgstr[n]`
-  index filled per the catalog's `Plural-Forms` header, each grammatically correct;
+All strings below carry `context "course glance"` (Django template syntax — there is no
+`{% pgettext %}` tag; the repo precedent is `{% trans "Open" context "course visibility" %}`):
+- labels: `{% trans "Progress" context "course glance" %}` /
+  `{% trans "Results" context "course glance" %}` — context-scoped so the existing unscoped
+  "Progress"/"Results" msgids elsewhere cannot silently change them;
+- progress figure:
+  `{% blocktrans with done=progress_done count counter=progress_total context "course glance" %}Progress: {{ done }} of {{ counter }} lesson{% plural %}Progress: {{ done }} of {{ counter }} lessons{% endblocktrans %}`
+  with EVERY Polish `msgstr[n]` index filled (pl has nplurals=3), each grammatically correct;
 - `progress_total == 0`: "Progress: no lessons to track";
 - results figure: "Results: {pct}%";
 - `results_pct is None`: "Results: no scores yet" (covers both "nothing submitted" and
@@ -169,9 +179,14 @@ Strings (all translated, with pl entries):
    `(course, glance)` pairs to the template.
 2. `course_glance` calls `build_outline` and `build_course_results` and returns the flat dict
    of section 1.
-3. The template includes `courses/_course_glance.html` with the dict's keys as flat context.
-4. The landing template includes the same partial with literal widths and `decorative=True`
-   — no database access.
+3. The template includes the partial with explicit keys and `only` (so no outer
+   `decorative` or other variable leaks in); the partial does its own `{% load i18n %}`:
+   `{% include "courses/_course_glance.html" with progress_width=glance.progress_width results_width=glance.results_width progress_done=glance.progress_done progress_total=glance.progress_total results_pct=glance.results_pct only %}`
+4. The landing template includes the same partial with literal widths — no database access:
+   `{% include "courses/_course_glance.html" with progress_width=70 results_width=85 decorative=True only %}`
+   (for Biology, `results_width=None`).
+5. Context key names stay as today: `courses` (my_courses) and `enrolled_courses` (home);
+   their values become lists of `(course, glance)` pairs.
 
 ## Error handling
 
@@ -189,6 +204,8 @@ Unit (`course_glance`):
 - no submission → `results_pct is None`, `results_width is None`.
 - one submitted quiz scored 0 → `results_pct == 0`, `results_width == 0`.
 - a quiz awaiting review is excluded (matches `build_course_results`).
+- ONLY a pending-review submission → `results_width is None` (not 0).
+- one submitted quiz with `max_score == 0` → `results_width is None` (not 0).
 - no required lessons → `progress_width is None`; 0 of N → `progress_width is None`,
   `progress_done == 0`.
 - boundaries: 1 of 250 lessons → `progress_width == 1`; 199 of 200 → 99; N of N → 100;
@@ -197,11 +214,14 @@ Unit (`course_glance`):
 - draft units hidden with `drafts="hide"`.
 - query count: warm the ContentType cache first, then assert the count is EQUAL for a small
   and a larger course that differ in units, quizzes, submissions and reviewed responses
-  together. At view level: My courses and the dashboard with 3 vs 2 enrolled courses differ by
-  exactly the same per-course constant.
+  together. At view level, for EACH of My courses and the dashboard: measure the request with
+  N = 1, 2, 3 enrolled courses and assert `count(3) - count(2) == count(2) - count(1)` (N = 0
+  is excluded because the per-request permission cache fills on the first course).
 
 Render:
-- each fill-table row (track only / dot / fill with `width: N%`) on My courses and dashboard.
+- each row of the "Fill rules" table above (track only / dot / fill with `width: N%`) on
+  My courses and dashboard.
+- a 0-of-N progress row emits neither `.glance__dot` nor `.glance__fill` (D4).
 - `aria-label`s carry the figures; pl labels use the right plural form for totals 1, 3, 5.
 - no visible digits: collect the text content of the `.glance` block only (not the title,
   not attributes) and assert it contains no digit. Fixtures use digit-free course titles.
@@ -217,7 +237,14 @@ Falsification — each must go RED before the suite is trusted:
 - replace D1 with a mean of per-quiz percentages;
 - branch results width on rounded percent instead of `score` (1/300 → dot);
 - remove the 99 clamp;
-- add a visible `{{ results_pct }}` to the partial.
+- add a visible `{{ results_pct }}` to the partial;
+- test `score == 0` before `percent is None` (pending-only course → dot);
+- `progress_width` returns 0 instead of None for 0 of N (progress row draws a dot).
+
+Scoped regression run (the context values of these two views change type): the tests
+touching them — `tests/test_consumption_pages.py`, `tests/test_courses_views.py`,
+`tests/test_surfaces.py`, `tests/test_help.py`, `tests/test_subject_admin_views.py` — plus
+the new tests.
 
 ## Out of scope
 
