@@ -80,7 +80,9 @@ the figures are exact, the widths are clamped so rounding can never lie visually
      submitted, including when every submission is awaiting review or has `max_score == 0`
      — both have `percent is None` and must draw track only, not the dot;
   2. `0` if the summary's `score` is exactly 0 (D3: the zero-dot);
-  3. `100` if `score >= max_score`; else `round(100*score/max_score)` clamped to **1..99**. So 1/300 draws a sliver, not the zero-dot, and 299/300 is not full.
+  3. `100` if `score >= max_score`; else the existing `_pct(score, max_score)` (Decimal,
+     ROUND_HALF_EVEN — the same rounding as `percent`, so mid-range width == spoken figure)
+     clamped to **1..99**. So 1/300 draws a sliver, not the zero-dot, and 299/300 is not full.
      Branching is on `score`, never on the rounded percent.
 - Accepted asymmetry: the SPOKEN results figure stays `percent` verbatim (so it always equals
   the My results headline, D1), so at the extremes it can disagree with the drawn width
@@ -224,7 +226,7 @@ Unit (`course_glance`):
 - boundaries, on the pure helpers: `_progress_width(1, 250) == 1`; `(199, 200) == 99`;
   `(N, N) == 100`; `(0, N) is None`; `(0, 0) is None`; `_results_width` with 1/300 → 1
   (not the dot), 299/300 → 99, 0/10 → 0, `percent=None` with `score=0` → None, score > max
-  → 100. One or two DB-level `course_glance` tests cover the wiring.
+  → 100, and a .5 boundary (1/8 → 12, equal to `_pct(1, 8)`). One or two DB-level `course_glance` tests cover the wiring.
 - additional lessons and quizzes do not move progress.
 - draft units hidden with `drafts="hide"`.
 - query count: warm the ContentType cache first. Both fixtures have at least one quiz, one
@@ -249,7 +251,10 @@ Render:
   `<a>`, emits no `role="img"`, and cards use `.glance-card` (not `.dash-card`).
 - Teaching/Studio panels unchanged for a teacher.
 
-Screenshots: light + dark (dark judged separately), plus forced-colors for the fill.
+Screenshots: light + dark (dark judged separately), plus forced-colors for the fill. The
+checklist explicitly covers the track-only and zero-dot states in both themes: an empty
+track must read as an empty bar, not a missing one. If `--border-subtle` disappears on the
+card surface, switch the track to a stronger existing border token.
 
 Timing: the dashboard is the post-login landing page and previously ran no rollups. Before
 and after the change, time the dashboard and My courses for a student enrolled in the largest
