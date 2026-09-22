@@ -918,7 +918,9 @@ def test_teaching_panel_has_no_glance(client):
     course = CourseFactory(title="Taught Course")
     GroupFactory(course=course).teachers.add(teacher)
     soup = BeautifulSoup(client.get(reverse("home")).content, "html.parser")
-    assert soup.select_one('[data-section="teaching"]') is not None
+    teaching = soup.select_one('[data-section="teaching"]')
+    assert teaching is not None
+    assert teaching.find("a", string="Taught Course")  # panel content unchanged
     assert not soup.select(".glance")
 
 
@@ -1027,13 +1029,16 @@ with:
     ).order_by("title")
 ```
 
-with:
+and fold the new import into the existing local import so the block stays sorted (ruff I001) — the result reads:
 
 ```python
     from courses.glance import enrolled_course_glances
+    from courses.models import Course
 
     enrolled_courses = enrolled_course_glances(request.user)
 ```
+
+(`Course` is still used further down in `home` for `taught_courses` / `owned_courses`.)
 
 In `templates/core/home.html` replace:
 
@@ -1052,6 +1057,10 @@ with:
     </li>
     {% endfor %}
 ```
+
+- [ ] **Step 5b: Re-point shifted line citations**
+
+The `my_courses` and `home` edits change line counts in `courses/views.py` and `core/views.py`. Run `grep -rnE "(courses|core)/views\.py:[0-9]" --include=*.py --include=*.html --include=*.css . | grep -v '/.venv/'`. For every citation whose cited line lies BELOW the edited function, open the file, find the code the comment describes, and update the number to where it now sits (a citation that was already stale before this task: point it at the right line too, or leave it and note it — never make it worse).
 
 - [ ] **Step 6: Run the new tests, then the scoped regression set**
 
@@ -1074,6 +1083,7 @@ uv run ruff format courses/glance.py courses/views.py core/views.py tests/test_c
 uv run ruff check --no-cache courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 uv run ruff format --check courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 git add courses/glance.py courses/views.py core/views.py templates/courses/my_courses.html templates/core/home.html tests/test_course_glance_render.py
+# plus, by explicit path, every file whose citation Step 5b re-pointed (e.g. demo/generator.py)
 git commit -m "feat(glance): bars on My courses and the dashboard"
 ```
 
