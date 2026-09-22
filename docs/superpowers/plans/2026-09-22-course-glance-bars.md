@@ -488,6 +488,8 @@ At the top, add `import logging` before `from decimal import Decimal`, and after
 logger = logging.getLogger(__name__)
 ```
 
+These inserted lines shift `build_outline` down. A comment in `build_unit_nav`'s neighbourhood (~line 1177 before this task) cites `rollups.py:228-234, leaf key at :249` (build_outline's `completed` set and its `"completed"` key). After the edit, `grep -n "rollups.py:[0-9]" courses/*.py`, open `build_outline`, and update that citation to the lines where the `completed = set()` block and the `"completed": is_unit and …` key now sit.
+
 After `_results_width`, add:
 
 ```python
@@ -778,7 +780,7 @@ msgstr "Wyniki: %(pct)s%%"
 - [ ] **Step 6: Run tests**
 
 Run: `uv run pytest tests/test_course_glance_render.py tests/test_course_glance.py`
-Then the catalog-hygiene tests: `uv run pytest tests -k "fuzzy or obsolete or catalog or po_"` (read the summary: if it says "no tests ran"/exit 5, find them with `grep -rln "fuzzy" tests` and run those files).
+Then the catalog-hygiene test: `uv run pytest tests/test_i18n_po_health.py` (never a `-k` sweep over the whole `tests/` tree — the full collection is heavy).
 Expected: all PASS.
 
 - [ ] **Step 7: Commit**
@@ -929,7 +931,7 @@ def test_view_query_cost_is_linear_in_courses(client, url):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_course_glance_render.py`
-Expected: the new tests FAIL (no `.glance` in the pages → `AttributeError`/assertion).
+Expected: `test_pages_render_each_state` and `test_one_broken_course_does_not_break_the_page` FAIL (no `.glance` in the pages). `test_teaching_panel_has_no_glance` and `test_view_query_cost_is_linear_in_courses` are regression guards and PASS already (no glance anywhere yet; zero per-course cost is trivially linear) — that is expected.
 
 - [ ] **Step 3: Create `courses/glance.py`**:
 
@@ -1210,6 +1212,8 @@ Expected: PASS. Then the catalog-hygiene tests as in Task 3 Step 6.
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_course_glance_render.py
+uv run ruff format --check tests/test_course_glance_render.py
 git add templates/core/landing.html core/static/core/css/app.css locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_course_glance_render.py
 git commit -m "feat(glance): translated sample cards on the landing page"
 ```
@@ -1261,19 +1265,39 @@ OUT_DIR = Path(
     os.environ.get("SHOT_DIR", Path(settings.BASE_DIR) / ".superpowers" / "shots")
 )
 
+# Colours are normalised through a 1x1 canvas: dark --accent is a color-mix(), which
+# Chromium reports as `color(srgb 0.87 0.69 0.51)` (0..1 channels), so a regex over
+# the computed string would read it as near-black. The raw strings are returned too,
+# so a normalisation failure is visible in the notes.
 CONTRAST_JS = """
 () => {
-  const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number);
+  const ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+  const toRgb = css => {
+    ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = css;
+    ctx.fillRect(0, 0, 1, 1); return Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+  };
   const lum = ([r, g, b]) => {
     const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
   };
-  const ratio = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p); return ((x + 0.05) / (y + 0.05)).toFixed(2); };
+  const ratio = (a, b) => {
+    const [x, y] = [lum(toRgb(a)), lum(toRgb(b))].sort((p, q) => q - p);
+    return ((x + 0.05) / (y + 0.05)).toFixed(2);
+  };
+  const bg = el => getComputedStyle(el).backgroundColor;
   const fill = document.querySelector('.glance__fill, .glance__dot');
-  const track = document.querySelector('.glance__track');
-  let card = track; while (card && getComputedStyle(card).backgroundColor === 'rgba(0, 0, 0, 0)') card = card.parentElement;
-  const bg = x => getComputedStyle(x).backgroundColor;
-  return { fill_vs_track: ratio(bg(fill), bg(track)), fill_vs_surface: ratio(bg(fill), bg(card)), track_vs_surface: ratio(bg(track), bg(card)) };
+  const track = fill.closest('.glance__track');
+  // The surface is the nearest ANCESTOR of the track with a painted background
+  // (.dash-card / .dash-panel / .glance-card / body) -- never the track itself.
+  let surface = track.parentElement;
+  while (surface && bg(surface) === 'rgba(0, 0, 0, 0)') surface = surface.parentElement;
+  return {
+    raw: {fill: bg(fill), track: bg(track), surface: bg(surface)},
+    surface_el: surface.className || surface.tagName,
+    fill_vs_track: ratio(bg(fill), bg(track)),
+    fill_vs_surface: ratio(bg(fill), bg(surface)),
+    track_vs_surface: ratio(bg(track), bg(surface)),
+  };
 }
 """
 
@@ -1293,7 +1317,19 @@ def _login(page, live_server, username):
 
 
 def _seed(student):
-    """Four courses covering fill, zero-dot, track-only and full."""
+    """Four courses covering partial fill, zero-dot, track-only and full."""
+    full = CourseFactory(title="Biology Basics")
+    EnrollmentFactory(student=student, course=full)
+    lesson = ContentNodeFactory(course=full, kind="unit", unit_type="lesson",
+                                parent=None, obligatory=True)
+    UnitProgressFactory(student=student, unit=lesson, completed=True)
+    quiz = ContentNodeFactory(course=full, kind="unit", unit_type="quiz", parent=None)
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a", marking_mode="A", max_marks=Decimal("4"))
+    Element.objects.create(unit=quiz, content_object=q)
+    QuizSubmissionFactory(student=student, unit=quiz, status="submitted",
+                          score=Decimal("4"), max_score=Decimal("4"))
+
     started = CourseFactory(title="Algebra Basics")
     EnrollmentFactory(student=student, course=started)
     lessons = [
@@ -1349,6 +1385,16 @@ def test_capture(page, live_server):
         page.screenshot(path=str(OUT_DIR / f"glance-landing-{theme}.png"), full_page=True)
         notes.append(f"- landing {theme}: {page.evaluate(CONTRAST_JS)}")
 
+    # Polish dashboard: labels must neither wrap nor clip.
+    student.theme = "light"
+    student.language = "pl"
+    student.save(update_fields=["theme", "language"])
+    page.context.clear_cookies()
+    _login(page, live_server, "glanceshots")
+    page.goto(f"{live_server.url}/home/")
+    page.screenshot(path=str(OUT_DIR / "glance-dashboard-pl.png"), full_page=True)
+    page.context.clear_cookies()
+
     page.emulate_media(forced_colors="active")
     page.goto(f"{live_server.url}/")
     page.screenshot(path=str(OUT_DIR / "glance-landing-forced-colors.png"), full_page=True)
@@ -1361,11 +1407,11 @@ def test_capture(page, live_server):
 Run: `uv run pytest tests/capture_glance_screenshots.py -m e2e`
 Open each `.superpowers/shots/glance-*.png` with the Read tool. Judge light and dark separately. Check: a fill is visibly drawn (not empty bars); the zero-dot is visible; an empty track reads as an empty bar, not as nothing; labels do not wrap or clip; both tracks start at the same x, including in the narrow dashboard "My learning" panel; landing cards have no hover lift; forced-colors shows the fill.
 From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, darken the fill for that theme (e.g. a `color-mix(in srgb, var(--accent) 80%, black)` override scoped to that theme in the `.glance__fill, .glance__dot` rule), re-run, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
-Repeat the dashboard capture once in Polish (add a pass in `test_capture` that sets `student.language = "pl"` — the `User.language` field — saves it, logs in, and shoots `glance-dashboard-pl.png`), and confirm Polish labels do not wrap or clip.
+In `glance-dashboard-pl.png` confirm the Polish labels do not wrap or clip. For every notes line, check `raw` holds sensible colours and `surface_el` names a card/panel (not `glance__track`); if not, the measurement is broken — fix the script before trusting any ratio.
 
 - [ ] **Step 3: Timing**
 
-With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
+With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
 
 - [ ] **Step 4: Falsification — each mutant must turn at least one test RED**
 
