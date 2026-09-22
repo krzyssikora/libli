@@ -251,6 +251,11 @@ Render:
 
 Screenshots: light + dark (dark judged separately), plus forced-colors for the fill.
 
+Timing: the dashboard is the post-login landing page and previously ran no rollups. Before
+and after the change, time the dashboard and My courses for a student enrolled in the largest
+local course available (and in several courses), and record the numbers in the PR body so a
+noticeable slowdown is visible before merge.
+
 Falsification — each must go RED before the suite is trusted:
 - `results_width` `None`→0 (dot on "nothing submitted");
 - drop the dot branch;
