@@ -147,7 +147,9 @@ Styling (in `core/static/core/css/app.css`, next to `.dash-card`; both page fami
 - `.glance` is a two-column grid (`grid-template-columns: max-content 1fr`,
   `.glance__row { display: contents }`) with `var(--space-1)` row gap, so the label column
   is as wide as the longest label in the current language and both tracks start at the
-  same x; labels `white-space: nowrap`;
+  same x; labels `white-space: nowrap`; `align-items: center` on `.glance` so each 6px
+  track sits level with its label; `.glance { margin-top: var(--space-1) }` separates it
+  from the course title (the dashboard `<li>` holds an inline `<a>` then the block `.glance`);
 - `@media (forced-colors: active)`: track gets a `1px solid CanvasText` border and
   transparent background; fill and dot use `background: Highlight` with
   `forced-color-adjust: none`, so they stay visible.
@@ -209,7 +211,9 @@ All strings below carry `context "course glance"` (Django template syntax — th
    `{% include "courses/_course_glance.html" with progress_width=glance.progress_width results_width=glance.results_width progress_done=glance.progress_done progress_total=glance.progress_total results_pct=glance.results_pct only %}`
 4. The landing template includes the same partial with literal widths — no database access:
    `{% include "courses/_course_glance.html" with progress_width=70 results_width=85 decorative=True only %}`
-   (for Biology, `results_width=None`).
+   (for Biology, `results_width=None`). EVERY include passes BOTH widths explicitly: under
+   `only` a missing key resolves to `""`, which is neither `None` nor `0` and would render a
+   broken `width: %` fill.
 5. Context key names stay as today: `courses` (my_courses) and `enrolled_courses` (home);
    their values become lists of `(course, glance)` pairs.
 
@@ -217,8 +221,10 @@ All strings below carry `context "course glance"` (Django template syntax — th
 
 - Containment: both rollups can raise (some on purpose, e.g. on an inconsistent tree). Today
   that breaks one course's outline/results page; unguarded, it would 500 the dashboard — the
-  post-login landing page — and My courses for every student in that course. So the views
-  call a small wrapper that catches `Exception` around `course_glance`, logs it with
+  post-login landing page — and My courses for every student in that course. So BOTH views
+  import ONE shared helper, `courses.rollups.course_glance_or_unknown(course, user, *, drafts)`,
+  which catches `Exception` around `course_glance` (looked up as a module global, which is
+  what the containment test patches: `courses.rollups.course_glance`), logs it with
   `logger.exception` (course pk in the message), and substitutes the "unknown" glance:
   `progress_done=0, progress_total=0, results_pct=None, progress_width=None,
   results_width=None` (track only, spoken "no lessons to track" / "no scores yet"). The
@@ -269,13 +275,17 @@ Render:
   not attributes) and assert it contains no digit. Fixtures use digit-free course titles.
 - landing in pl shows Hiszpański A2 / Matematyka / Biologia, is inside `aria-hidden`, has no
   `<a>`, emits no `role="img"`, and cards use `.glance-card` (not `.dash-card`).
+- landing D8 states: Spanish A2 has fills `width: 70%` and `width: 85%`; Mathematics
+  `width: 20%` and `width: 55%`; Biology exactly one fill (`width: 5%`) and neither fill nor
+  dot in its results row; no `width: %` anywhere on the page.
 - Teaching/Studio panels unchanged for a teacher.
 
 Screenshots: light + dark (dark judged separately), plus forced-colors for the fill. The
 checklist explicitly covers the track-only and zero-dot states in both themes: an empty
 track must read as an empty bar, not a missing one. If `--border-subtle` disappears on the
 card surface, switch the track to a stronger existing border token. It also checks that
-labels neither wrap nor clip in pl and that both tracks align.
+labels neither wrap nor clip in pl and that both tracks align, including in the narrow
+dashboard "My learning" panel.
 
 Timing: the dashboard is the post-login landing page and previously ran no rollups. Before
 and after the change, time the dashboard and My courses for a student enrolled in the largest
