@@ -1,5 +1,6 @@
 """Pre-order tree walks: units into outlines, quiz lists, and result rollups."""
 
+import logging
 from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
@@ -14,6 +15,8 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
 from courses.richtext import CONCRETE_QUESTION_MODELS
+
+logger = logging.getLogger(__name__)
 
 # Every concrete QuestionElement subclass -- the SAME source builder.py's
 # unit_has_nested_question uses. A hand list here once omitted both grid types.
@@ -864,6 +867,47 @@ def _results_width(score, max_score, percent):
     return _clamp_partial(_pct(score, max_score))
 
 
+def course_glance(course, user, *, drafts):
+    """The two at-a-glance figures for one enrolled course (spec §1).
+
+    Spoken figures (exact) and drawn widths (clamped) are separate keys. Reuses
+    build_outline and build_course_results -- no new arithmetic for "required" or
+    for the D1 cumulative percent. `drafts` is REQUIRED: the caller decides.
+    """
+    done, total = _course_required_totals(build_outline(course, user, drafts=drafts))
+    summary = build_course_results(course, user, drafts=drafts)
+    return {
+        "progress_done": done,
+        "progress_total": total,
+        "results_pct": summary["percent"],
+        "progress_width": _progress_width(done, total),
+        "results_width": _results_width(
+            summary["score"], summary["max_score"], summary["percent"]
+        ),
+    }
+
+
+UNKNOWN_GLANCE = {
+    "progress_done": 0,
+    "progress_total": 0,
+    "results_pct": None,
+    "progress_width": None,
+    "results_width": None,
+}
+
+
+def course_glance_or_unknown(course, user, *, drafts):
+    """course_glance, contained: the dashboard is the post-login landing page, so a
+    rollup that raises for ONE course must not 500 it for every student in that
+    course. Logs the full traceback and draws that course as track-only. The course's
+    own outline/results pages still raise, so the bug stays visible there."""
+    try:
+        return course_glance(course, user, drafts=drafts)
+    except Exception:
+        logger.exception("course_glance failed for course pk=%s", course.pk)
+        return dict(UNKNOWN_GLANCE)
+
+
 def _fmt_mark(value):
     """Decimal mark -> compact fixed-point string: no exponent notation (`:f`
     guarantees fixed-point, so Decimal('1E+2') renders '100'), no trailing zeros
@@ -1220,7 +1264,7 @@ def build_resume(course, user, tree):
     # views.py::build_lesson_context, every `seen` batch, every practice-state write.
     # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
     # open_pks is derived from exactly this filter (build_outline's completed set,
-    # rollups.py:228-234, leaf key at :249), so no mutant of it can go RED. It
+    # rollups.py:231-237, leaf key at :252), so no mutant of it can go RED. It
     # states the intent locally; do not spend a falsification round on it.
     a = (
         UnitProgress.objects.filter(student=user, unit_id__in=open_pks, completed=False)
