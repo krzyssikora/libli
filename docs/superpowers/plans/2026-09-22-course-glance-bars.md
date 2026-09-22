@@ -201,7 +201,7 @@ with:
 Run:
 
 ```bash
-uv run pytest tests/test_course_glance.py tests/test_courses_rollups.py $(grep -rlE 'build_unit_nav|course_progress|unit-foot__course' --include='test_*.py' . | grep -v test_e2e_ | sort -u)
+uv run pytest tests/test_course_glance.py tests/test_courses_rollups.py $(grep -rlE 'build_unit_nav|course_progress|unit-foot__course' --include='test_*.py' . | grep -v test_e2e_ | grep -v '/.venv/' | sort -u)
 ```
 
 Expected: all PASS (every non-e2e test that touches `build_unit_nav` / `course_progress` / the footer bar proves the refactor changed nothing).
@@ -787,7 +787,7 @@ msgstr "Wyniki: %(pct)s%%"
 - [ ] **Step 6: Run tests**
 
 Run: `uv run pytest tests/test_course_glance_render.py tests/test_course_glance.py`
-Then the catalog-hygiene test: `uv run pytest tests/test_i18n_po_health.py` (never a `-k` sweep over the whole `tests/` tree — the full collection is heavy).
+Then the catalog-hygiene test: `uv run pytest tests/test_i18n_po_health.py` (never a `-k` sweep over the whole `tests/` tree — the full collection is heavy), and the stylesheet guards for the `app.css` edit: `uv run pytest tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_print_tokens_css.py`.
 Expected: all PASS.
 
 - [ ] **Step 7: Commit**
@@ -1216,7 +1216,7 @@ Clear any fuzzy flags + `#|` lines, then `uv run python manage.py compilemessage
 - [ ] **Step 6: Run tests**
 
 Run: `uv run pytest tests/test_course_glance_render.py tests/test_for_schools_footer.py tests/test_for_schools_page.py`
-Expected: PASS. Then the catalog-hygiene tests as in Task 3 Step 6.
+Expected: PASS. Then `uv run pytest tests/test_i18n_po_health.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_print_tokens_css.py` (catalog hygiene + stylesheet guards for this task's `app.css` edit).
 
 - [ ] **Step 7: Commit**
 
@@ -1415,6 +1415,13 @@ def test_capture(page, live_server):
     page.emulate_media(forced_colors="active")
     page.goto(f"{live_server.url}/")
     page.screenshot(path=str(OUT_DIR / "glance-landing-forced-colors.png"), full_page=True)
+    # The dashboard has the zero-dot and empty tracks the landing lacks.
+    _login(page, live_server, "glanceshots")
+    page.screenshot(path=str(OUT_DIR / "glance-dashboard-forced-colors.png"), full_page=True)
+    notes.append(
+        "- Measured palette: the DEFAULT brand accent only; an install with a custom "
+        "--brand-accent (core/templatetags/branding.py) is not covered."
+    )
 
     (OUT_DIR / "glance-verification.md").write_text("\n".join(notes) + "\n", encoding="utf-8")
 ```
@@ -1423,12 +1430,12 @@ def test_capture(page, live_server):
 
 Run: `uv run pytest tests/capture_glance_screenshots.py -m e2e`
 Open each `.superpowers/shots/glance-*.png` with the Read tool. Judge light and dark separately. Check: a fill is visibly drawn (not empty bars); the zero-dot is visible; an empty track reads as an empty bar, not as nothing; labels do not wrap or clip; both tracks start at the same x, including in the narrow dashboard "My learning" panel; landing cards have no hover lift; forced-colors shows the fill.
-From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css` in EVERY theme block — light, the explicit `[data-theme="dark"]` block (~line 92) AND the `prefers-color-scheme: dark` auto block (~line 143), which restates every dark token — defaulting to `var(--accent)` and darkened (e.g. `color-mix(in srgb, var(--accent) 80%, black)`) only where the ratio fell short. A dark override in one block only would pass the capture (it sets `theme = "dark"` explicitly) while auto-theme users on a dark OS keep the low-contrast fill. Re-run, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
+From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and, only if DARK fell short, in the `[data-theme="dark"]` block (~line 92). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
 In `glance-dashboard-pl.png` confirm the Polish labels do not wrap or clip. For every notes line, check `raw` holds sensible colours and `surface_el` names a card/panel (not `glance__track`); if not, the measurement is broken — fix the script before trusting any ratio.
 
 - [ ] **Step 3: Timing**
 
-With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
+First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
 
 - [ ] **Step 4: Falsification — each mutant must turn at least one test RED**
 
@@ -1455,4 +1462,4 @@ git add tests/capture_glance_screenshots.py
 git commit -m "test(glance): screenshot, contrast and verification capture"
 ```
 
-(Commit CSS tweaks from Step 2 separately with `git add core/static/core/css/app.css` and a `fix(glance): …` message.)
+(Commit CSS tweaks from Step 2 separately: `git add core/static/core/css/app.css core/static/core/css/tokens.css` — tokens.css whenever `--glance-fill` was introduced, or the fill ships with an undefined token and renders EMPTY while every DOM test stays green — with a `fix(glance): …` message. Afterwards `git status --short` must show no modified tracked files.)
