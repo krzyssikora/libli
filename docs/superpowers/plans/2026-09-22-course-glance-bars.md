@@ -837,7 +837,7 @@ from tests.factories import UnitProgressFactory
 from tests.factories import make_login
 from tests.test_course_glance import _shaped_course
 
-PAGES = [reverse("home"), reverse("courses:my_courses")]
+PAGES = ["home", "courses:my_courses"]  # URL names; reversed inside each test
 
 
 def _glance_for(soup, title):
@@ -873,7 +873,7 @@ def _student_with_two_courses(client):
 @pytest.mark.parametrize("url", PAGES)
 def test_pages_render_each_state(client, url):
     _student_with_two_courses(client)
-    resp = client.get(url)
+    resp = client.get(reverse(url))
     assert resp.status_code == 200
     soup = BeautifulSoup(resp.content, "html.parser")
 
@@ -906,7 +906,7 @@ def test_one_broken_course_does_not_break_the_page(client, url, monkeypatch, cap
 
     monkeypatch.setattr(rollups, "course_glance", flaky)
     with caplog.at_level("ERROR", logger="courses.rollups"):
-        resp = client.get(url)
+        resp = client.get(reverse(url))
     assert resp.status_code == 200
     soup = BeautifulSoup(resp.content, "html.parser")
     assert _glance_for(soup, "Started Course").select(".glance__fill")
@@ -942,11 +942,13 @@ def test_view_query_cost_is_linear_in_courses(client, url):
     counts = {}
     for n in (1, 2, 3):
         EnrollmentFactory(student=student, course=_shaped_course(student, 2))
-        client.get(url)  # warm caches for this N
+        client.get(reverse(url))  # warm caches for this N
         with CaptureQueriesContext(connection) as ctx:
-            assert client.get(url).status_code == 200
+            assert client.get(reverse(url)).status_code == 200
         counts[n] = len(ctx)
     assert counts[3] - counts[2] == counts[2] - counts[1]
+    # The absolute per-course cost is recorded in Task 6 (verification notes).
+    print(f"per-course queries on {url}: {counts[2] - counts[1]}")
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -1237,7 +1239,7 @@ Clear any fuzzy flags + `#|` lines, then `uv run python manage.py compilemessage
 
 - [ ] **Step 6: Run tests**
 
-Run: `uv run pytest tests/test_course_glance_render.py tests/test_for_schools_footer.py tests/test_for_schools_page.py`
+Run: `uv run pytest tests/test_course_glance_render.py tests/test_for_schools_footer.py tests/test_for_schools_page.py tests/test_surfaces.py tests/test_public_pages_footer.py tests/test_sso_config.py tests/test_error_pages.py` (every test that renders `/`, re-run after the landing edit)
 Expected: PASS. Then `uv run pytest tests/test_i18n_po_health.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_print_tokens_css.py` (catalog hygiene + stylesheet guards for this task's `app.css` edit).
 
 - [ ] **Step 7: Commit**
@@ -1459,12 +1461,12 @@ def test_capture(page, live_server):
 
 Run: `uv run pytest tests/capture_glance_screenshots.py -m e2e`
 Open each `.superpowers/shots/glance-*.png` with the Read tool. Judge light and dark separately. Check: a fill is visibly drawn (not empty bars); the zero-dot is visible; an empty track reads as an empty bar, not as nothing; labels do not wrap or clip; both tracks start at the same x, including in the narrow dashboard "My learning" panel; landing cards have no hover lift; forced-colors shows the fill.
-From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and in the `[data-theme="dark"]` block (~line 92) — if DARK fell short, a LIGHTENED value (`color-mix(in srgb, var(--accent) 80%, white)`: the dark accent is a light tan on dark surfaces, so mixing in black would LOWER the ratio), otherwise `--glance-fill: var(--accent);` whenever `:root` got a darkened value (without it, a light-only fix would also darken the dark theme's fill against dark surfaces). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
+From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. Expect LIGHT `fill_vs_track` to fall short: the default accent `#C77B2A` against the light `--border-subtle` `#EDE8DE` is about 2.7:1 (against white about 3.3:1), so budget for the `--glance-fill` token, its darkened `:root` value, the dark-block `var(--accent)` pairing and the print-block restatement, and a second capture pass. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and in the `[data-theme="dark"]` block (~line 92) — if DARK fell short, a LIGHTENED value (`color-mix(in srgb, var(--accent) 80%, white)`: the dark accent is a light tan on dark surfaces, so mixing in black would LOWER the ratio), otherwise `--glance-fill: var(--accent);` whenever `:root` got a darkened value (without it, a light-only fix would also darken the dark theme's fill against dark surfaces). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
 In `glance-dashboard-pl.png` confirm the Polish labels do not wrap or clip. For every notes line, check `raw` holds sensible colours and `surface_el` names a card/panel (not `glance__track`); if not, the measurement is broken — fix the script before trusting any ratio.
 
 - [ ] **Step 3: Timing**
 
-First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{http_code} %{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. EVERY sample must print `200`; a fast 302 (rejected session, verification redirect, the Platform-Admin setup-wizard redirect in `home`) times a redirect, not the page — discard it and fix the cause. The timed user must be a plain student (no `institution.change_institution` permission). Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. Do NOT write to the dev DB (no new users, enrollments or sessions beyond the one read-only-purpose session above — it is the owner's own data). If no existing dev student is enrolled in a large course plus several others, skip the timing and write exactly that in the notes; never invent numbers.
+First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{http_code} %{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. EVERY sample must print `200`; a fast 302 (rejected session, verification redirect, the Platform-Admin setup-wizard redirect in `home`) times a redirect, not the page — discard it and fix the cause. The timed user must be a plain student (no `institution.change_institution` permission). Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. Also run `uv run pytest tests/test_course_glance_render.py -k query_cost -s` and record the printed per-course query counts for `/home/` and `/courses/` next to the medians (the linearity test cannot see a large constant per-course cost; this number can). Do NOT write to the dev DB (no new users, enrollments or sessions beyond the one read-only-purpose session above — it is the owner's own data). If no existing dev student is enrolled in a large course plus several others, skip the timing and write exactly that in the notes; never invent numbers.
 
 - [ ] **Step 4: Falsification — each mutant must turn at least one test RED**
 
