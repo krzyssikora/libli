@@ -1,5 +1,6 @@
 """Pre-order tree walks: units into outlines, quiz lists, and result rollups."""
 
+import logging
 from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
@@ -14,6 +15,8 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
 from courses.richtext import CONCRETE_QUESTION_MODELS
+
+logger = logging.getLogger(__name__)
 
 # Every concrete QuestionElement subclass -- the SAME source builder.py's
 # unit_has_nested_question uses. A hand list here once omitted both grid types.
@@ -816,6 +819,95 @@ def _pct(a, b):
     return int(round(Decimal(100) * Decimal(a) / Decimal(b)))
 
 
+def _course_required_totals(tree):
+    """(done, total) of required lessons over a build_outline tree's top-level items.
+
+    The ONE place the course-level sum lives: build_unit_nav's course_progress and
+    course_glance both read it, so "required" can never drift between the rail and
+    the dashboard bars.
+    """
+    done = sum(d["required_done"] for d in tree)
+    total = sum(d["required_total"] for d in tree)
+    return done, total
+
+
+def _clamp_partial(value):
+    """A partial (not complete) width is drawn in 1..99: never an empty-looking 0
+    for a started course, never a full-looking 100 for an unfinished one."""
+    return min(max(value, 1), 99)
+
+
+def _progress_width(done, total):
+    """Drawn progress width. None = track only (no required lessons, or none done:
+    D4 -- no dot for progress). 100 only when complete."""
+    if total <= 0 or done <= 0:
+        return None
+    if done >= total:
+        return 100
+    return _clamp_partial(_pct(done, total))
+
+
+def _results_width(score, max_score, percent):
+    """Drawn results width. The check ORDER is load-bearing:
+
+    1. percent None -> None (track only). Must come first: build_course_results
+       returns score == Decimal("0"), not None, for a pending-only course or a
+       max_score == 0 quiz, and those must not draw the zero-dot.
+    2. score exactly 0 -> 0 (the zero-dot, D3).
+    3. score >= max -> 100; else _pct (the percent's own rounding) clamped 1..99.
+
+    Branches on `score`, never on the rounded percent: 1/300 is a sliver, not the dot.
+    """
+    if percent is None:
+        return None
+    if score == 0:
+        return 0
+    if score >= max_score:
+        return 100
+    return _clamp_partial(_pct(score, max_score))
+
+
+def course_glance(course, user, *, drafts):
+    """The two at-a-glance figures for one enrolled course (spec §1).
+
+    Spoken figures (exact) and drawn widths (clamped) are separate keys. Reuses
+    build_outline and build_course_results -- no new arithmetic for "required" or
+    for the D1 cumulative percent. `drafts` is REQUIRED: the caller decides.
+    """
+    done, total = _course_required_totals(build_outline(course, user, drafts=drafts))
+    summary = build_course_results(course, user, drafts=drafts)
+    return {
+        "progress_done": done,
+        "progress_total": total,
+        "results_pct": summary["percent"],
+        "progress_width": _progress_width(done, total),
+        "results_width": _results_width(
+            summary["score"], summary["max_score"], summary["percent"]
+        ),
+    }
+
+
+UNKNOWN_GLANCE = {
+    "progress_done": 0,
+    "progress_total": 0,
+    "results_pct": None,
+    "progress_width": None,
+    "results_width": None,
+}
+
+
+def course_glance_or_unknown(course, user, *, drafts):
+    """course_glance, contained: the dashboard is the post-login landing page, so a
+    rollup that raises for ONE course must not 500 it for every student in that
+    course. Logs the full traceback and draws that course as track-only. The course's
+    own outline/results pages still raise, so the bug stays visible there."""
+    try:
+        return course_glance(course, user, drafts=drafts)
+    except Exception:
+        logger.exception("course_glance failed for course pk=%s", course.pk)
+        return dict(UNKNOWN_GLANCE)
+
+
 def _fmt_mark(value):
     """Decimal mark -> compact fixed-point string: no exponent notation (`:f`
     guarantees fixed-point, so Decimal('1E+2') renders '100'), no trailing zeros
@@ -1101,10 +1193,8 @@ def build_unit_nav(course, user, current_node, *, drafts="hide", with_data=None)
     prev_node = units[idx - 1] if (idx is not None and idx > 0) else None
     next_node = units[idx + 1] if (idx is not None and idx < len(units) - 1) else None
 
-    course_progress = {
-        "done": sum(d["required_done"] for d in tree),
-        "total": sum(d["required_total"] for d in tree),
-    }
+    done, total = _course_required_totals(tree)
+    course_progress = {"done": done, "total": total}
 
     part_progress = None
     _stamp_current_chain(tree, current_node.pk)
@@ -1174,7 +1264,7 @@ def build_resume(course, user, tree):
     # views.py::build_lesson_context, every `seen` batch, every practice-state write.
     # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
     # open_pks is derived from exactly this filter (build_outline's completed set,
-    # rollups.py:228-234, leaf key at :249), so no mutant of it can go RED. It
+    # rollups.py:231-237, leaf key at :252), so no mutant of it can go RED. It
     # states the intent locally; do not spend a falsification round on it.
     a = (
         UnitProgress.objects.filter(student=user, unit_id__in=open_pks, completed=False)

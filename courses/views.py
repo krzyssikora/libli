@@ -646,8 +646,13 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
 
 @login_required
 def my_courses(request):
-    courses = Course.objects.filter(enrollments__student=request.user).order_by("title")
-    return render(request, "courses/my_courses.html", {"courses": courses})
+    from courses.glance import enrolled_course_glances
+
+    return render(
+        request,
+        "courses/my_courses.html",
+        {"courses": enrolled_course_glances(request.user)},
+    )
 
 
 @login_required

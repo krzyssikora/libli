@@ -69,7 +69,7 @@ def render_element(
     # `None`, NOT `False`: a False default can never satisfy `is None`, which would
     # make this fallback dead code and silently no-op the editor-preview fix.
     #
-    # NOT the same thing as `previewing` (views.py:1394), which means "a
+    # NOT the same thing as `previewing` (views.py:1446), which means "a
     # NON-ENROLLED STUDENT is viewing this quiz" -- the opposite audience. This one
     # routes forms at a MANAGE-GATED endpoint and must never be set for a student.
     if editor_preview is None:

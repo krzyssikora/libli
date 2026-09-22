@@ -44,7 +44,7 @@ def test_figure_carries_the_preview_hook():
 
 def test_figure_does_not_carry_data_element_id():
     """Guards the progress.js invariant: [data-element-id] is queried unscoped on
-    student pages and must stay top-level-only. See views.py:709-713."""
+    student pages and must stay top-level-only. See views.py:885-889."""
     assert "data-element-id" not in render(make_image("small"))
 
 

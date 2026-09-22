@@ -1,0 +1,17 @@
+{% load i18n %}
+{% comment %}
+Course glance: two number-free bars (spec 2026-09-22-course-glance-bars-design.md).
+Widths: None = track only, 0 = the zero-dot, 1..100 = a fill. Never test a width with
+truthiness or ">": None and 0 mean different things (D3/D4). Every include passes both
+widths and `only`. `decorative` (landing) reads only the widths and emits no role/label.
+{% endcomment %}
+<div class="glance">
+  <div class="glance__row">
+    <span class="glance__label" aria-hidden="true">{% trans "Progress" context "course glance" %}</span>
+    <div class="glance__track"{% if not decorative %} role="img" aria-label="{% if progress_total == 0 %}{% trans "Progress: no lessons to track" context "course glance" %}{% else %}{% blocktrans with done=progress_done count counter=progress_total context "course glance" %}Progress: {{ done }} of {{ counter }} lesson{% plural %}Progress: {{ done }} of {{ counter }} lessons{% endblocktrans %}{% endif %}"{% endif %}>{% if progress_width is None %}{% elif progress_width == 0 %}<span class="glance__dot"></span>{% else %}<span class="glance__fill" style="width: {{ progress_width }}%"></span>{% endif %}</div>
+  </div>
+  <div class="glance__row">
+    <span class="glance__label" aria-hidden="true">{% trans "Results" context "course glance" %}</span>
+    <div class="glance__track"{% if not decorative %} role="img" aria-label="{% if results_pct is None %}{% trans "Results: no scores yet" context "course glance" %}{% else %}{% blocktrans with pct=results_pct context "course glance" %}Results: {{ pct }}%{% endblocktrans %}{% endif %}"{% endif %}>{% if results_width is None %}{% elif results_width == 0 %}<span class="glance__dot"></span>{% else %}<span class="glance__fill" style="width: {{ results_width }}%"></span>{% endif %}</div>
+  </div>
+</div>

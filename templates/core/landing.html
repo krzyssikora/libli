@@ -18,9 +18,18 @@
     {% endif %}
   </div>
   <div class="landing-visual" aria-hidden="true">
-    <div class="card">Hiszpański A2 · 62%</div>
-    <div class="card">Matematyka · 30%</div>
-    <div class="card">Biology · 88%</div>
+    <div class="glance-card">
+      <p class="glance-card__title">{% trans "Spanish A2" context "course glance" %}</p>
+      {% include "courses/_course_glance.html" with progress_width=70 results_width=85 decorative=True only %}
+    </div>
+    <div class="glance-card">
+      <p class="glance-card__title">{% trans "Mathematics" context "course glance" %}</p>
+      {% include "courses/_course_glance.html" with progress_width=20 results_width=55 decorative=True only %}
+    </div>
+    <div class="glance-card">
+      <p class="glance-card__title">{% trans "Biology" context "course glance" %}</p>
+      {% include "courses/_course_glance.html" with progress_width=5 results_width=None decorative=True only %}
+    </div>
   </div>
   {# Phase 3: open-courses teaser — conditional on Course.objects.filter(open=True) #}
 </section>

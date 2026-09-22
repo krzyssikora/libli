@@ -33,11 +33,10 @@ def home(request):
     ):
         return redirect("institution:setup")
 
+    from courses.glance import enrolled_course_glances
     from courses.models import Course
 
-    enrolled_courses = Course.objects.filter(
-        enrollments__student=request.user
-    ).order_by("title")
+    enrolled_courses = enrolled_course_glances(request.user)
     taught_courses = (
         Course.objects.filter(groups__teachers=request.user, groups__archived=False)
         .distinct()

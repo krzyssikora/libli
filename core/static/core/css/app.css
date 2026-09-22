@@ -323,10 +323,6 @@ input[type=number] {
 .landing-visual {
   display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-4);
 }
-.landing-visual .card {
-  max-width: 12rem; margin: 0; font-size: .875rem;
-  color: var(--text-secondary); text-align: center;
-}
 .landing-footer {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
@@ -867,6 +863,31 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .dash-card__actions { margin-top: auto; }
 .dash-card__actions a { color: var(--accent); text-decoration: none; font-weight: 500; font-size: .9rem; }
 .dash-card__actions a:hover { text-decoration: underline; }
+
+/* Course glance bars (templates/courses/_course_glance.html). The track is
+   deliberately light (owner decision D9); the fill carries the information. */
+.glance { display: grid; grid-template-columns: max-content 1fr; align-items: center;
+  column-gap: var(--space-2); row-gap: var(--space-1); margin-top: var(--space-1); }
+.glance__row { display: contents; }
+.glance__label { font-size: .75rem; color: var(--text-secondary); white-space: nowrap; }
+.glance__track { display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+  background: var(--border-subtle); }
+.glance__fill, .glance__dot { display: block; height: 6px; border-radius: 999px;
+  background: var(--glance-fill); }
+.glance__fill { min-width: 6px; }
+.glance__dot { width: 6px; flex: none; }
+
+/* Landing sample cards: look like a .dash-card at rest, but static (no hover lift,
+   not a link) -- they advertise, they do not navigate. */
+.glance-card { width: 14rem; margin: 0; padding: var(--space-4); text-align: left;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.glance-card__title { margin: 0; font-size: .95rem; font-weight: 600;
+  color: var(--text-primary); }
+@media (forced-colors: active) {
+  .glance__track { background: transparent; border: 1px solid CanvasText; }
+  .glance__fill, .glance__dot { forced-color-adjust: none; background: Highlight; }
+}
 
 /* Home dashboard panels */
 .dash-grid { display: grid; gap: var(--space-4); margin-top: var(--space-5);

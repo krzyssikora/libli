@@ -361,7 +361,7 @@ def test_parse_number_did_not_get_a_length_guard():
     # PINNING TEST — green before and after, and that is the point: it must stay
     # green while parse_numeric_value gains its guard. Its mutant is not a change
     # to this task's diff but a plausible FUTURE one: adding the same length guard
-    # to parse_number would regress views.py:1162 and element_forms.py:314/338.
+    # to parse_number would regress views.py:1273 and element_forms.py:314/338.
     from decimal import Decimal
 
     from courses.marking import parse_number

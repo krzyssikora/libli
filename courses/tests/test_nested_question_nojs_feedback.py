@@ -15,11 +15,11 @@ mutation -- which is why the fix re-emits a `page` dict at the barrier instead.
 
 Before the fix, a nested question showed feedback only via the practice-state RESTORE
 branch (courses_extras.py:55-85), which needs a STORED answer -- and a blank answer
-stores nothing (views.py:1059-1060 clears the key instead). That is why the BLANK
+stores nothing (views.py:1128-1129 clears the key instead). That is why the BLANK
 case is the one that proves the fix: the non-blank case below was already green
 through the restore branch and proves nothing about the seam.
 
-Falsification history: replacing `answer_is_empty(answer)` at views.py:1060 with
+Falsification history: replacing `answer_is_empty(answer)` at views.py:1128 with
 `False` (so a blank answer is stored) made the old absence test RED for every
 container, pinning the mechanism rather than the symptom -- and is exactly the
 one-liner the spec rejects, since storing a deliberately blanked answer would make

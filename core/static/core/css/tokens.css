@@ -30,6 +30,8 @@
   --accent:         var(--brand-accent);
   --accent-hover:   color-mix(in srgb, var(--brand-accent) 88%, black);
   --accent-subtle:  color-mix(in srgb, var(--brand-accent) 18%, var(--surface-raised));
+  /* Course glance fill: the accent alone is 2.7:1 on the light track (D9 keeps it light). */
+  --glance-fill:    color-mix(in srgb, var(--accent) 80%, black);
 
   /* surfaces / text / borders — flat literals (design-language.md, light) */
   --surface-base: #F4F1EA; --surface-raised: #FFFFFF; --surface-sunken: #FAF8F3;
@@ -98,6 +100,7 @@
   --accent:         color-mix(in srgb, var(--brand-accent) 70%, white);
   --accent-hover:   color-mix(in srgb, var(--brand-accent) 80%, white);
   --accent-subtle:  color-mix(in srgb, var(--brand-accent) 26%, var(--surface-raised));
+  --glance-fill:    var(--accent);
 
   /* surfaces / text / borders — flat literals (design-language.md, dark) */
   --surface-base: #1A1816; --surface-raised: #2C2925; --surface-sunken: #15130F;
@@ -149,6 +152,7 @@
     --accent:         var(--brand-accent);
     --accent-hover:   color-mix(in srgb, var(--brand-accent) 88%, black);
     --accent-subtle:  color-mix(in srgb, var(--brand-accent) 18%, var(--surface-raised));
+    --glance-fill:    color-mix(in srgb, var(--accent) 80%, black);
 
     /* surfaces / text / borders */
     --surface-base: #F4F1EA; --surface-raised: #FFFFFF; --surface-sunken: #FAF8F3;

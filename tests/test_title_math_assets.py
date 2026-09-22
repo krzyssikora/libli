@@ -266,7 +266,7 @@ def test_lesson_loads_katex_for_a_maths_title_sections_away(client):
 
 def test_quiz_unit_with_zero_questions_loads_katex_for_a_maths_title(client):
     """The fixture MUST have zero questions: has_math = bool(questions) or ...
-    (views.py:1318), so any quiz with a single question already loads KaTeX and
+    (views.py:1414), so any quiz with a single question already loads KaTeX and
     the positive assertion would be vacuous."""
     course = CourseFactory()
     quiz = ContentNodeFactory(
