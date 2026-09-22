@@ -1,11 +1,26 @@
 """Render contract of courses/_course_glance.html and its placements."""
 
 import re
+from decimal import Decimal
 
 import pytest
 from bs4 import BeautifulSoup
+from django.db import connection
 from django.template.loader import render_to_string
+from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 from django.utils import translation
+
+from courses.models import Element
+from courses.models import ShortTextQuestionElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import GroupFactory
+from tests.factories import QuizSubmissionFactory
+from tests.factories import UnitProgressFactory
+from tests.factories import make_login
+from tests.test_course_glance import _shaped_course
 
 
 def _render(**ctx):
@@ -147,3 +162,128 @@ def test_every_polish_plural_index_is_filled():
     for i in range(3):
         m = re.search(rf'msgstr\[{i}\] "(.*)"', block)
         assert m and m.group(1), f"msgstr[{i}] is empty"
+
+
+PAGES = ["home", "courses:my_courses"]  # URL names; reversed inside each test
+
+
+def _glance_for(soup, title):
+    """The .glance that follows the course title link on either page."""
+    link = soup.find("a", string=title)
+    assert link is not None, f"{title} not listed"
+    return link.find_next(class_="glance")
+
+
+def _student_with_two_courses(client):
+    student = make_login(client, "glance_student")
+    started = CourseFactory(title="Started Course")
+    EnrollmentFactory(student=student, course=started)
+    done = ContentNodeFactory(
+        course=started, kind="unit", unit_type="lesson", parent=None, obligatory=True
+    )
+    ContentNodeFactory(
+        course=started, kind="unit", unit_type="lesson", parent=None, obligatory=True
+    )
+    UnitProgressFactory(student=student, unit=done, completed=True)
+    quiz = ContentNodeFactory(
+        course=started, kind="unit", unit_type="quiz", parent=None
+    )
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a", marking_mode="A", max_marks=Decimal("10")
+    )
+    Element.objects.create(unit=quiz, content_object=q)
+    QuizSubmissionFactory(
+        student=student,
+        unit=quiz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("10"),
+    )
+    untouched = CourseFactory(title="Untouched Course")
+    EnrollmentFactory(student=student, course=untouched)
+    ContentNodeFactory(
+        course=untouched, kind="unit", unit_type="lesson", parent=None, obligatory=True
+    )
+    return student
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("url", PAGES)
+def test_pages_render_each_state(client, url):
+    _student_with_two_courses(client)
+    resp = client.get(reverse(url))
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.content, "html.parser")
+
+    started = _glance_for(soup, "Started Course")
+    p_track, r_track = started.select(".glance__track")
+    assert p_track.select_one(".glance__fill")["style"] == "width: 50%"
+    assert r_track.select(".glance__dot") and not r_track.select(".glance__fill")
+    assert r_track["aria-label"] == "Results: 0%"
+
+    untouched = _glance_for(soup, "Untouched Course")
+    p_track, r_track = untouched.select(".glance__track")
+    assert not p_track.select(".glance__fill") and not p_track.select(".glance__dot")
+    assert p_track["aria-label"] == "Progress: 0 of 1 lesson"
+    assert not r_track.select(".glance__fill") and not r_track.select(".glance__dot")
+    assert not re.search(r"\d", started.get_text() + untouched.get_text())
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("url", PAGES)
+def test_one_broken_course_does_not_break_the_page(client, url, monkeypatch, caplog):
+    import courses.rollups as rollups
+
+    _student_with_two_courses(client)
+    real = rollups.course_glance
+
+    def flaky(course, user, *, drafts):
+        if course.title == "Untouched Course":
+            raise RuntimeError("inconsistent tree")
+        return real(course, user, drafts=drafts)
+
+    monkeypatch.setattr(rollups, "course_glance", flaky)
+    with caplog.at_level("ERROR", logger="courses.rollups"):
+        resp = client.get(reverse(url))
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.content, "html.parser")
+    assert _glance_for(soup, "Started Course").select(".glance__fill")
+    broken = _glance_for(soup, "Untouched Course").select(".glance__track")
+    assert broken[0]["aria-label"] == "Progress: no lessons to track"
+    assert "inconsistent tree" in caplog.text
+
+
+@pytest.mark.django_db
+def test_teaching_and_studio_panels_have_no_glance(client):
+    # The user teaches one course, owns another, AND is enrolled in a third, so a
+    # glance DOES render (in My learning) -- the guard is not vacuous.
+    teacher = make_login(client, "glance_teacher")
+    taught = CourseFactory(title="Taught Course")
+    GroupFactory(course=taught).teachers.add(teacher)
+    CourseFactory(title="Owned Course", owner=teacher)
+    EnrollmentFactory(student=teacher, course=CourseFactory(title="Learned Course"))
+    soup = BeautifulSoup(client.get(reverse("home")).content, "html.parser")
+    learning = soup.select_one('[data-section="learning"]')
+    teaching = soup.select_one('[data-section="teaching"]')
+    studio = soup.select_one('[data-section="manage"]')
+    assert learning.select(".glance")
+    assert teaching.find("a", string="Taught Course")  # panel content unchanged
+    assert not teaching.select(".glance")
+    assert studio.find("a", string="Owned Course")
+    assert not studio.select(".glance")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("url", PAGES)
+def test_view_query_cost_is_linear_in_courses(client, url):
+    student = make_login(client, "glance_queries")
+    counts = {}
+    for n in (1, 2, 3):
+        EnrollmentFactory(student=student, course=_shaped_course(student, 2))
+        client.get(reverse(url))  # warm caches for this N
+        with CaptureQueriesContext(connection) as ctx:
+            assert client.get(reverse(url)).status_code == 200
+        counts[n] = len(ctx)
+    assert counts[3] - counts[2] == counts[2] - counts[1]
+    # The absolute per-course cost is recorded in Task 6 (verification notes).
+    print(f"per-course queries on {url}: {counts[2] - counts[1]}")

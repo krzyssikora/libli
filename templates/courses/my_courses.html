@@ -6,9 +6,10 @@
   <h1>{% trans "My courses" %}</h1>
   {% if courses %}
     <ul class="dash-cards">
-      {% for course in courses %}
+      {% for course, glance in courses %}
         <li class="dash-card">
           <a class="dash-card__title" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+          {% include "courses/_course_glance.html" with progress_width=glance.progress_width results_width=glance.results_width progress_done=glance.progress_done progress_total=glance.progress_total results_pct=glance.results_pct only %}
           <span class="dash-card__actions">
             <a href="{% url 'courses:course_results' slug=course.slug %}">{% trans "My results" %}</a>
           </span>

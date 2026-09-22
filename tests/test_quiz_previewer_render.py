@@ -136,7 +136,7 @@ def test_previewer_locked_question_freezes_inputs(client):
 @pytest.mark.django_db
 def test_submitted_quiz_still_freezes_inputs(client):
     """Rendered directly: quiz_unit redirects to results before rendering a
-    SUBMITTED quiz (views.py:1224), so a GET would return 302 and assert nothing.
+    SUBMITTED quiz (views.py:1471), so a GET would return 302 and assert nothing.
 
     Honest scope: read_only = quiz_submitted or previewing, so read_only superset
     quiz_submitted -- there is NO context state with quiz_submitted=True and

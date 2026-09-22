@@ -142,7 +142,7 @@ def parse_numeric_value(s):
 
     parse_number deliberately does NOT get the same length guard: it goes through
     Decimal, which has no digit limit, and guarding it would regress
-    views.py:1162 and element_forms.py:314/338."""
+    views.py:1273 and element_forms.py:314/338."""
     s = _coerce_numeric_input(s).strip()
     if len(s) > MAX_PARSED_NUMERIC_CHARS:
         # Guard BEFORE any regex: the branches below call int() on captured digit

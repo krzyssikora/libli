@@ -201,7 +201,7 @@ def test_student_page_carries_neither_marker_half(client):
     _containers(unit)
 
     # The student lesson route is `courses:lesson_unit` (courses/urls.py:27) and its
-    # kwarg is `node_pk`, NOT `pk` (views.py:807 `def lesson_unit(request, slug,
+    # kwarg is `node_pk`, NOT `pk` (views.py:821 `def lesson_unit(request, slug,
     # node_pk)`). This is the shape tests/test_e2e_tabs.py::_lesson_url already uses.
     html = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})

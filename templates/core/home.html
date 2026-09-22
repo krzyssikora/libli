@@ -12,8 +12,10 @@
   <h2 class="dash-panel__title">{% trans "My learning" %}</h2>
   {% if enrolled_courses %}
   <ul class="dash-list">
-    {% for course in enrolled_courses %}
-    <li><a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a></li>
+    {% for course, glance in enrolled_courses %}
+    <li><a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+      {% include "courses/_course_glance.html" with progress_width=glance.progress_width results_width=glance.results_width progress_done=glance.progress_done progress_total=glance.progress_total results_pct=glance.results_pct only %}
+    </li>
     {% endfor %}
   </ul>
   {% else %}
