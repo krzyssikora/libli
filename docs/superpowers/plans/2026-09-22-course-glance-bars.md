@@ -789,7 +789,7 @@ msgstr "Wyniki: %(pct)s%%"
 - [ ] **Step 6: Run tests**
 
 Run: `uv run pytest tests/test_course_glance_render.py tests/test_course_glance.py`
-Then the catalog-hygiene test: `uv run pytest tests/test_i18n_po_health.py` (never a `-k` sweep over the whole `tests/` tree — the full collection is heavy), and the stylesheet guards for the `app.css` edit: `uv run pytest tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_print_tokens_css.py`.
+Then the catalog-hygiene test: `uv run pytest tests/test_i18n_po_health.py` (never a `-k` sweep over the whole `tests/` tree — the full collection is heavy), and every non-e2e test that reads the stylesheets: `uv run pytest $(grep -lE "app\.css|tokens\.css" tests/test_*.py | grep -v test_e2e_)` (includes the comment/citation/print guards).
 Expected: all PASS.
 
 - [ ] **Step 7: Commit**
@@ -1240,7 +1240,7 @@ Clear any fuzzy flags + `#|` lines, then `uv run python manage.py compilemessage
 - [ ] **Step 6: Run tests**
 
 Run: `uv run pytest tests/test_course_glance_render.py tests/test_for_schools_footer.py tests/test_for_schools_page.py tests/test_surfaces.py tests/test_public_pages_footer.py tests/test_sso_config.py tests/test_error_pages.py` (every test that renders `/`, re-run after the landing edit)
-Expected: PASS. Then `uv run pytest tests/test_i18n_po_health.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_print_tokens_css.py` (catalog hygiene + stylesheet guards for this task's `app.css` edit).
+Expected: PASS. Then `uv run pytest tests/test_i18n_po_health.py $(grep -lE "app\.css|tokens\.css" tests/test_*.py | grep -v test_e2e_)` (catalog hygiene + every test that reads the stylesheets, after this task's `app.css` edit).
 
 - [ ] **Step 7: Commit**
 
@@ -1440,6 +1440,7 @@ def test_capture(page, live_server):
     page.context.clear_cookies()
     _login(page, live_server, "glanceshots")
     page.goto(f"{live_server.url}/home/")
+    assert page.locator("html").get_attribute("lang") == "pl"  # else an English page is mislabelled
     page.screenshot(path=str(OUT_DIR / "glance-dashboard-pl.png"), full_page=True)
     page.context.clear_cookies()
 
@@ -1474,7 +1475,7 @@ For each mutant: edit the code BY HAND, run `git diff` and READ it to confirm th
 
 1. `_results_width`: `return None` → `return 0` in the `percent is None` branch.
 2. Partial: delete both `{% elif … == 0 %}<span class="glance__dot"></span>` branches.
-3. `course_glance`: replace `summary["percent"]` with the mean of per-row `score_view["percent"]` values.
+3. `course_glance`: replace `summary["percent"]` with the mean of per-row `score_view["percent"]` over rows where it `is not None` (None if there are none) — `test_d1_cumulative_not_mean_of_percentages` must fail on its ASSERTION (77 != 80), not with an exception; an exception proves nothing about D1.
 4. `_results_width`: branch on `percent == 0` instead of `score == 0`.
 5. `_clamp_partial`: `min(max(value, 1), 99)` → `max(value, 1)`.
 6. Partial: add `{{ results_pct }}` inside the results `.glance__label`.
