@@ -118,6 +118,9 @@ Exact markup for one row (the other row is identical with `results`):
 
 - The label is a sibling of the track, `aria-hidden` so it is not read twice; the track
   carries the accessible name.
+- The branch inside the track is exactly
+  `{% if w is None %}{% elif w == 0 %}<dot>{% else %}<fill>{% endif %}` — never an ordering
+  comparison such as `w > 0`, which Django silently evaluates as False on `None`.
 - `decorative=True`: same markup but the track has NO `role` and NO `aria-label` (the
   landing wrapper's `aria-hidden` covers the block).
 
@@ -135,8 +138,11 @@ Styling (in `core/static/core/css/app.css`, next to `.dash-card`; both page fami
   (so the inline-span fill and dot honour width/height; fill and dot also get
   `display: block` — without it the bars render empty and no DOM test would notice, so the
   screenshot review must confirm a visible fill);
-- fill: same height, `background: var(--accent)`, `min-width: 6px` (so the 1% sliver and the
-  zero-dot read as continuous); both bars share the accent colour;
+- track `overflow: hidden`; fill same height, `border-radius: 999px`,
+  `background: var(--accent)`, `min-width: 6px`; both bars share the accent colour.
+  The 0-vs-tiny-nonzero difference (dot vs 1% fill) is STRUCTURAL (`.glance__dot` vs
+  `.glance__fill`) and visually identical by design — D3 only requires 0 to look different
+  from "nothing yet" (track only), which it does. DOM tests, not screenshots, guard it;
 - dot: 6px circle, `background: var(--accent)`, at the track's left end;
 - `.glance` is a two-column grid (`grid-template-columns: max-content 1fr`,
   `.glance__row { display: contents }`) with `var(--space-1)` row gap, so the label column
@@ -209,7 +215,16 @@ All strings below carry `context "course glance"` (Django template syntax — th
 
 ## Error handling
 
-- Nothing new can fail: both rollups already run on every outline / My results request.
+- Containment: both rollups can raise (some on purpose, e.g. on an inconsistent tree). Today
+  that breaks one course's outline/results page; unguarded, it would 500 the dashboard — the
+  post-login landing page — and My courses for every student in that course. So the views
+  call a small wrapper that catches `Exception` around `course_glance`, logs it with
+  `logger.exception` (course pk in the message), and substitutes the "unknown" glance:
+  `progress_done=0, progress_total=0, results_pct=None, progress_width=None,
+  results_width=None` (track only, spoken "no lessons to track" / "no scores yet"). The
+  course's own outline/results pages still raise as today, so the bug stays visible there
+  and in the logs. A test forces `course_glance` to raise and asserts the dashboard and
+  My courses still return 200, render the other courses' glances, and log the error.
 - `None` vs `0` is the main correctness hazard (D3/D4); templates test `is None` / `== 0`,
   never truthiness.
 - No division when `progress_total == 0` or when results are `None`.
@@ -233,9 +248,10 @@ Unit (`course_glance`):
   → 100, and a .5 boundary (1/8 → 12, equal to `_pct(1, 8)`). One or two DB-level `course_glance` tests cover the wiring.
 - additional lessons and quizzes do not move progress.
 - draft units hidden with `drafts="hide"`.
-- query count: warm the ContentType cache first. Both fixtures have at least one quiz, one
-  submission and one reviewed response, all with the SAME single question type; the larger
-  one only has more units, quizzes, submissions and reviewed responses. Assert the counts
+- query count: warm the ContentType cache first. Both fixtures have at least one required
+  lesson, one COMPLETED required lesson, one additional lesson, one quiz, one submission and
+  one reviewed response, all quizzes with the SAME single question type; the larger one only
+  has more of each. Assert the counts
   are EQUAL. At view level, for EACH of My courses and the dashboard: measure the request with
   N = 1, 2, 3 enrolled courses, every course built from that same fixture shape, and assert
   `count(3) - count(2) == count(2) - count(1)` (N = 0 is excluded because the per-request
