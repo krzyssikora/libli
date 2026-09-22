@@ -273,6 +273,53 @@ def test_teaching_and_studio_panels_have_no_glance(client):
     assert not studio.select(".glance")
 
 
+def _landing(client, lang):
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = lang
+    session.save()
+    resp = client.get("/")
+    assert resp.status_code == 200
+    return resp
+
+
+def _cards(resp):
+    soup = BeautifulSoup(resp.content, "html.parser")
+    visual = soup.select_one(".landing-visual")
+    assert visual is not None and visual["aria-hidden"] == "true"
+    return visual, {
+        c.select_one(".glance-card__title").get_text(strip=True): c
+        for c in visual.select(".glance-card")
+    }
+
+
+@pytest.mark.django_db
+def test_landing_polish_titles_and_states(client):
+    resp = _landing(client, "pl")
+    visual, cards = _cards(resp)
+    assert list(cards) == ["Hiszpański A2", "Matematyka", "Biologia"]
+    assert not visual.select("a") and not visual.select('[role="img"]')
+    assert not visual.select(".dash-card")
+
+    def widths(card):
+        return [f["style"] for f in card.select(".glance__fill")]
+
+    assert widths(cards["Hiszpański A2"]) == ["width: 70%", "width: 85%"]
+    assert widths(cards["Matematyka"]) == ["width: 20%", "width: 55%"]
+    biology = cards["Biologia"]
+    assert widths(biology) == ["width: 5%"]
+    results_track = biology.select(".glance__track")[1]
+    assert not results_track.select(".glance__fill, .glance__dot")
+    assert "width: %" not in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_landing_english_titles(client):
+    _visual, cards = _cards(_landing(client, "en"))
+    assert list(cards) == ["Spanish A2", "Mathematics", "Biology"]
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("url", PAGES)
 def test_view_query_cost_is_linear_in_courses(client, url):

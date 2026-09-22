@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-23 00:19+0200\n"
+"POT-Creation-Date: 2026-09-23 00:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -414,7 +414,7 @@ msgstr "%(above)s i więcej"
 msgid "Considering libli for a school?"
 msgstr "Rozważasz libli dla swojej szkoły?"
 
-#: .\core\views.py:142
+#: .\core\views.py:141
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
@@ -2600,11 +2600,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1491
+#: .\courses\views.py:1496
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1931
+#: .\courses\views.py:1936
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -4920,14 +4920,14 @@ msgstr "Menu"
 msgid "Primary"
 msgstr "Główne"
 
-#: .\templates\base.html:81 .\templates\core\home.html:45
+#: .\templates\base.html:81 .\templates\core\home.html:47
 #: .\templates\courses\manage\course_list.html:3
 #: .\templates\courses\manage\course_list.html:7
 msgid "Studio"
 msgstr "Studio"
 
 #: .\templates\base.html:87 .\templates\core\_public_footer.html:11
-#: .\templates\core\landing.html:32 .\templates\help\doc.html:21
+#: .\templates\core\landing.html:41 .\templates\help\doc.html:21
 #: .\templates\help\index.html:3 .\templates\help\index.html:7
 msgid "Help"
 msgstr "Pomoc"
@@ -4936,7 +4936,7 @@ msgstr "Pomoc"
 msgid "Admin"
 msgstr "Administracja"
 
-#: .\templates\base.html:117 .\templates\core\home.html:67
+#: .\templates\base.html:117 .\templates\core\home.html:69
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
@@ -4950,7 +4950,7 @@ msgstr "Kreator konfiguracji"
 msgid "SIS webhook guide"
 msgstr "Przewodnik webhooka SIS"
 
-#: .\templates\base.html:142 .\templates\core\home.html:65
+#: .\templates\base.html:142 .\templates\core\home.html:67
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
@@ -4960,11 +4960,11 @@ msgstr "Ustawienia"
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\core\_public_footer.html:4 .\templates\core\landing.html:31
+#: .\templates\core\_public_footer.html:4 .\templates\core\landing.html:40
 msgid "Privacy"
 msgstr "Prywatność"
 
-#: .\templates\core\_public_footer.html:13 .\templates\core\landing.html:34
+#: .\templates\core\_public_footer.html:13 .\templates\core\landing.html:43
 msgid "For schools"
 msgstr "Dla szkół"
 
@@ -4981,16 +4981,16 @@ msgstr "Witaj, %(name)s"
 msgid "My learning"
 msgstr "Moja nauka"
 
-#: .\templates\core\home.html:20
+#: .\templates\core\home.html:22
 #: .\templates\courses\manage\course_list.html:70
 msgid "No courses yet."
 msgstr "Brak kursów."
 
-#: .\templates\core\home.html:27
+#: .\templates\core\home.html:29
 msgid "Teaching"
 msgstr "Nauczanie"
 
-#: .\templates\core\home.html:33
+#: .\templates\core\home.html:35
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:8
@@ -5002,29 +5002,29 @@ msgstr "Nauczanie"
 msgid "Analytics"
 msgstr "Analityka"
 
-#: .\templates\core\home.html:38
+#: .\templates\core\home.html:40
 msgid "No classes assigned yet."
 msgstr "Brak przypisanych klas."
 
-#: .\templates\core\home.html:55 .\templates\courses\manage\course_form.html:3
+#: .\templates\core\home.html:57 .\templates\courses\manage\course_form.html:3
 #: .\templates\courses\manage\course_form.html:6
 #: .\templates\courses\manage\course_list.html:13
 msgid "New course"
 msgstr "Nowy kurs"
 
-#: .\templates\core\home.html:57
+#: .\templates\core\home.html:59
 msgid "All courses"
 msgstr "Wszystkie kursy"
 
-#: .\templates\core\home.html:64
+#: .\templates\core\home.html:66
 msgid "Administration"
 msgstr "Administracja"
 
-#: .\templates\core\home.html:74
+#: .\templates\core\home.html:76
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 
-#: .\templates\core\home.html:80 .\templates\courses\catalog.html:3
+#: .\templates\core\home.html:82 .\templates\courses\catalog.html:3
 #: .\templates\courses\catalog.html:6
 msgid "Browse courses"
 msgstr "Przeglądaj kursy"
@@ -5045,6 +5045,21 @@ msgstr ""
 #: .\templates\core\landing.html:14
 msgid "Continue with SSO"
 msgstr "Kontynuuj z SSO"
+
+#: .\templates\core\landing.html:22
+msgctxt "course glance"
+msgid "Spanish A2"
+msgstr "Hiszpański A2"
+
+#: .\templates\core\landing.html:26
+msgctxt "course glance"
+msgid "Mathematics"
+msgstr "Matematyka"
+
+#: .\templates\core\landing.html:30
+msgctxt "course glance"
+msgid "Biology"
+msgstr "Biologia"
 
 #: .\templates\core\user_settings.html:9
 msgid "Manage your account and preferences."
@@ -5406,7 +5421,7 @@ msgstr "Powrót do katalogu"
 
 #: .\templates\courses\course_results.html:3
 #: .\templates\courses\course_results.html:7
-#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:13
+#: .\templates\courses\my_courses.html:14 .\templates\courses\outline.html:13
 msgid "My results"
 msgstr "Moje wyniki"
 
@@ -8176,7 +8191,7 @@ msgstr "Brak przedmiotów."
 msgid "My courses"
 msgstr "Moje kursy"
 
-#: .\templates\courses\my_courses.html:19
+#: .\templates\courses\my_courses.html:20
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 

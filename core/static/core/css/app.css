@@ -323,10 +323,6 @@ input[type=number] {
 .landing-visual {
   display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-4);
 }
-.landing-visual .card {
-  max-width: 12rem; margin: 0; font-size: .875rem;
-  color: var(--text-secondary); text-align: center;
-}
 .landing-footer {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
@@ -880,6 +876,14 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
   background: var(--accent); }
 .glance__fill { min-width: 6px; }
 .glance__dot { width: 6px; flex: none; }
+
+/* Landing sample cards: look like a .dash-card at rest, but static (no hover lift,
+   not a link) -- they advertise, they do not navigate. */
+.glance-card { width: 14rem; margin: 0; padding: var(--space-4); text-align: left;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.glance-card__title { margin: 0; font-size: .95rem; font-weight: 600;
+  color: var(--text-primary); }
 @media (forced-colors: active) {
   .glance__track { background: transparent; border: 1px solid CanvasText; }
   .glance__fill, .glance__dot { forced-color-adjust: none; background: Highlight; }
