@@ -14,7 +14,7 @@
 
 - **Worktree setup (once, before Task 1):** the worktree has no `.env`. Copy it from the main repo: `cp ../../libli/.env .env` (it is gitignored — never commit it). Start the test DB container once: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. Never run two pytest processes at once (shared test DB).
 - Run tests with `uv run pytest <paths>` from the worktree root. **Never pass `-q`** (addopts already has it; doubling hides the summary). Always read the final summary line — do not trust the exit code alone.
-- Imports: ruff `force-single-line = true` — one `from x import y` per line. Before each commit, in this order: `uv run ruff format <changed .py files>`, `uv run ruff check --no-cache <changed .py files>`, `uv run ruff format --check <changed .py files>` (the plan's pasted code is not pre-formatted; `format` wraps it, then the gates must pass).
+- Imports: ruff `force-single-line = true` — one `from x import y` per line. Before each commit, in this order: `uv run ruff format <changed .py files>`, `uv run ruff check --fix --no-cache <changed .py files>` (sorts the merged import blocks, I001), `uv run ruff check --no-cache <changed .py files>`, `uv run ruff format --check <changed .py files>` (the plan's pasted code is not pre-formatted; `format` wraps it, then the gates must pass).
 - Django template comments `{# #}` are SINGLE-LINE only; multi-line needs `{% comment %}`.
 - CSS comments: never put `*/` inside a comment's text (it ends the comment early and eats the next rule).
 - All new user-facing strings carry `context "course glance"`. Polish catalog is real Polish, not machine noise.
@@ -210,6 +210,7 @@ Expected: all PASS (every non-e2e test that touches `build_unit_nav` / `course_p
 
 ```bash
 uv run ruff format courses/rollups.py tests/test_course_glance.py
+uv run ruff check --fix --no-cache courses/rollups.py tests/test_course_glance.py
 uv run ruff check --no-cache courses/rollups.py tests/test_course_glance.py
 uv run ruff format --check courses/rollups.py tests/test_course_glance.py
 git add courses/rollups.py tests/test_course_glance.py
@@ -484,7 +485,7 @@ def test_course_glance_query_count_is_size_independent():
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_course_glance.py`
-Expected: new tests FAIL with `ImportError: cannot import name 'course_glance'` (Task 1 tests still pass).
+Expected: the new tests FAIL with `ImportError: cannot import name 'course_glance'`, except `test_containment_logs_and_returns_unknown`, which fails with `AttributeError` from `monkeypatch.setattr` (the attribute does not exist yet). Task 1 tests still pass.
 
 - [ ] **Step 3: Implement** — in `courses/rollups.py`:
 
@@ -549,6 +550,7 @@ Expected: all PASS.
 
 ```bash
 uv run ruff format courses/rollups.py tests/test_course_glance.py
+uv run ruff check --fix --no-cache courses/rollups.py tests/test_course_glance.py
 uv run ruff check --no-cache courses/rollups.py tests/test_course_glance.py
 uv run ruff format --check courses/rollups.py tests/test_course_glance.py
 git add courses/rollups.py tests/test_course_glance.py
@@ -794,6 +796,7 @@ Expected: all PASS.
 
 ```bash
 uv run ruff format tests/test_course_glance_render.py
+uv run ruff check --fix --no-cache tests/test_course_glance_render.py
 uv run ruff check --no-cache tests/test_course_glance_render.py
 uv run ruff format --check tests/test_course_glance_render.py
 git add templates/courses/_course_glance.html core/static/core/css/app.css locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_course_glance_render.py
@@ -1068,7 +1071,7 @@ with:
 
 - [ ] **Step 5b: Re-point shifted line citations**
 
-The `my_courses` and `home` edits change line counts in `courses/views.py` and `core/views.py`. FIRST run `uv run ruff format courses/views.py core/views.py` so formatting cannot shift lines again after you fix them. Then run `grep -rnE "(courses|core)/views\.py:[0-9]" --include=*.py --include=*.html --include=*.css . | grep -v '/.venv/'`. For every citation whose cited line lies BELOW the edited function, open the file, find the code the comment describes, and update the number to where it now sits (a citation that was already stale before this task: point it at the right line too, or leave it and note it — never make it worse).
+The `my_courses` and `home` edits change line counts in `courses/views.py` and `core/views.py`. FIRST run `uv run ruff format courses/views.py core/views.py` so formatting cannot shift lines again after you fix them. Then run `grep -rnE "\bviews\.py:[0-9]" --include=*.py --include=*.html --include=*.css . | grep -v '/.venv/'` — the BARE form too, because many citations drop the directory (e.g. `courses/marking.py`, `courses/templatetags/courses_extras.py`, `tests/test_questions_2b_marking.py` cite plain `views.py:NNNN`). For each hit decide from its path and surrounding text which `views.py` it means (`courses/`, `core/`, or an unaffected one such as `tags/views.py`). For every `courses/views.py` citation whose cited line lies below `my_courses`, and every `core/views.py` citation below `home`, open the file, find the code the comment describes, and update the number to where it now sits (a citation that was already stale before this task: point it at the right line too, or leave it and note it — never make it worse).
 
 - [ ] **Step 6: Run the new tests, then the scoped regression set**
 
@@ -1078,8 +1081,8 @@ Expected: PASS.
 Then build the regression list and run it in one process:
 
 ```bash
-grep -rlE 'reverse\("home"\)|my_courses|landing|"/home/"|"/courses/"' . --include='test_*.py' | grep -v test_e2e_ | grep -v '/.venv/' | sort -u > /tmp/glance_regress.txt
-uv run pytest tests/test_consumption_pages.py tests/test_courses_views.py tests/test_surfaces.py tests/test_help.py tests/test_subject_admin_views.py tests/test_dashboard_panels.py tests/test_nav_structure.py tests/test_grouping_course_links.py tests/test_auth_login.py tests/test_ui_foundation.py $(cat /tmp/glance_regress.txt)
+uv run pytest $( (printf '%s
+' tests/test_consumption_pages.py tests/test_courses_views.py tests/test_surfaces.py tests/test_help.py tests/test_subject_admin_views.py tests/test_dashboard_panels.py tests/test_nav_structure.py tests/test_grouping_course_links.py tests/test_auth_login.py tests/test_ui_foundation.py; grep -rlE 'reverse\("home"\)|my_courses|landing|"/home/"|"/courses/"' . --include='test_*.py' | grep -v test_e2e_ | grep -v '/.venv/' | sed 's#^\./##') | sort -u )
 ```
 
 Expected: summary line shows 0 failed, 0 errors.
@@ -1088,6 +1091,7 @@ Expected: summary line shows 0 failed, 0 errors.
 
 ```bash
 uv run ruff format courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
+uv run ruff check --fix --no-cache courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 uv run ruff check --no-cache courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 uv run ruff format --check courses/glance.py courses/views.py core/views.py tests/test_course_glance_render.py
 git add courses/glance.py courses/views.py core/views.py templates/courses/my_courses.html templates/core/home.html tests/test_course_glance_render.py
@@ -1240,6 +1244,7 @@ Expected: PASS. Then `uv run pytest tests/test_i18n_po_health.py tests/test_css_
 
 ```bash
 uv run ruff format tests/test_course_glance_render.py
+uv run ruff check --fix --no-cache tests/test_course_glance_render.py
 uv run ruff check --no-cache tests/test_course_glance_render.py
 uv run ruff format --check tests/test_course_glance_render.py
 git add templates/core/landing.html core/static/core/css/app.css locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_course_glance_render.py
@@ -1454,12 +1459,12 @@ def test_capture(page, live_server):
 
 Run: `uv run pytest tests/capture_glance_screenshots.py -m e2e`
 Open each `.superpowers/shots/glance-*.png` with the Read tool. Judge light and dark separately. Check: a fill is visibly drawn (not empty bars); the zero-dot is visible; an empty track reads as an empty bar, not as nothing; labels do not wrap or clip; both tracks start at the same x, including in the narrow dashboard "My learning" panel; landing cards have no hover lift; forced-colors shows the fill.
-From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and in the `[data-theme="dark"]` block (~line 92) — the darkened value if DARK fell short, otherwise `--glance-fill: var(--accent);` whenever `:root` got a darkened value (without it, a light-only fix would also darken the dark theme's fill against dark surfaces). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
+From `glance-verification.md`: every `fill_vs_track` and `fill_vs_surface` must be ≥ 3.00. If one is short, introduce a `--glance-fill` token and have `.glance__fill, .glance__dot` use `background: var(--glance-fill)`. Define it in `core/static/core/css/tokens.css`: in `:root` (`--glance-fill: var(--accent);`, or a darkened `color-mix(in srgb, var(--accent) 80%, black)` if LIGHT fell short) and in the `[data-theme="dark"]` block (~line 92) — if DARK fell short, a LIGHTENED value (`color-mix(in srgb, var(--accent) 80%, white)`: the dark accent is a light tan on dark surfaces, so mixing in black would LOWER the ratio), otherwise `--glance-fill: var(--accent);` whenever `:root` got a darkened value (without it, a light-only fix would also darken the dark theme's fill against dark surfaces). (Auto-theme users are covered by that block: `templates/base.html` sets `data-theme="dark"` from `matchMedia` in JS; there is no separate `prefers-color-scheme` token block.) If you add it to the dark block, you MUST also restate it with the `:root` value inside the `@media print { [data-theme="dark"] { … } }` block (~line 137-143) — that block puts the light palette back for printing, and `tests/test_print_tokens_css.py` fails if a dark token is not restated there. Then run `uv run pytest tests/test_print_tokens_css.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py`. Re-run the capture, re-check. Record `track_vs_surface` but do not change the track to reach 3:1 (owner decision D9: the track stays light). If `--border-subtle` makes the empty track invisible, switch the track to `--border-default` or `--border-strong` (still light).
 In `glance-dashboard-pl.png` confirm the Polish labels do not wrap or clip. For every notes line, check `raw` holds sensible colours and `surface_el` names a card/panel (not `glance__track`); if not, the measurement is broken — fix the script before trusting any ratio.
 
 - [ ] **Step 3: Timing**
 
-First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{http_code} %{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. EVERY sample must print `200`; a fast 302 (rejected session, verification redirect, the Platform-Admin setup-wizard redirect in `home`) times a redirect, not the page — discard it and fix the cause. The timed user must be a plain student (no `institution.change_institution` permission). Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. If the dev DB has no such student, say so in the notes rather than inventing numbers.
+First confirm "before" really is master: `git -C C:/Users/krzys/Documents/Python/own/libli rev-parse --abbrev-ref HEAD` must print `master` and `git -C C:/Users/krzys/Documents/Python/own/libli status --short` must be empty; record `git -C … rev-parse --short HEAD` next to the "before" medians (if either check fails, note it and do not present the numbers as master). With the dev server data (`uv run python manage.py runserver`) and a student enrolled in the largest local course plus several others, time `/home/` and `/courses/` five times each on `master` (`git stash` is NOT allowed — use the main repo checkout at `C:/Users/krzys/Documents/Python/own/libli` for "before", this worktree for "after"), e.g. `curl -s -o /dev/null -w "%{http_code} %{time_total}\n" -b "sessionid=<id>" http://127.0.0.1:8000/home/`. EVERY sample must print `200`; a fast 302 (rejected session, verification redirect, the Platform-Admin setup-wizard redirect in `home`) times a redirect, not the page — discard it and fix the cause. The timed user must be a plain student (no `institution.change_institution` permission). Get `<id>` by creating a session for the student in `uv run python manage.py shell`: `from django.contrib.sessions.backends.db import SessionStore; from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY; u = get_user_model().objects.get(username="<name>"); s = SessionStore(); s[SESSION_KEY] = str(u.pk); s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY] = u.get_session_auth_hash(); s.create(); print(s.session_key)` (both servers share the dev DB, so one session works for before and after; run them one at a time on port 8000). Append the before/after medians to `.superpowers/shots/glance-verification.md`. Do NOT write to the dev DB (no new users, enrollments or sessions beyond the one read-only-purpose session above — it is the owner's own data). If no existing dev student is enrolled in a large course plus several others, skip the timing and write exactly that in the notes; never invent numbers.
 
 - [ ] **Step 4: Falsification — each mutant must turn at least one test RED**
 
@@ -1480,6 +1485,7 @@ Append the mutant → failing-test table to `.superpowers/shots/glance-verificat
 
 ```bash
 uv run ruff format tests/capture_glance_screenshots.py
+uv run ruff check --fix --no-cache tests/capture_glance_screenshots.py
 uv run ruff check --no-cache tests/capture_glance_screenshots.py
 uv run ruff format --check tests/capture_glance_screenshots.py
 git add tests/capture_glance_screenshots.py
