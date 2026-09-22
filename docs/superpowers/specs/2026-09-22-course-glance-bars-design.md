@@ -66,7 +66,7 @@ the figures are exact, the widths are clamped so rounding can never lie visually
   `percent` verbatim (D1 — cumulative Σscore/Σmax over counted quizzes; pending excluded).
 - `progress_width`:
   - `None` if `progress_total == 0` or `progress_done == 0` (D4: track only, no dot);
-  - else `round(100*done/total)`, clamped to **1..99** unless `done == total` (then 100).
+  - `100` if `done >= total`; else `round(100*done/total)` clamped to **1..99**.
     So 1/250 still draws a sliver and 199/200 never draws a full bar.
 - `results_width` — checks in THIS order (the order is load-bearing):
   1. `None` if `results_pct is None` (nothing counted: track only). This MUST come first:
@@ -74,8 +74,7 @@ the figures are exact, the widths are clamped so rounding can never lie visually
      submitted, including when every submission is awaiting review or has `max_score == 0`
      — both have `percent is None` and must draw track only, not the dot;
   2. `0` if the summary's `score` is exactly 0 (D3: the zero-dot);
-  3. else `round(100*score/max_score)`, clamped to **1..99** unless `score == max_score`
-     (then 100). So 1/300 draws a sliver, not the zero-dot, and 299/300 is not full.
+  3. `100` if `score >= max_score`; else `round(100*score/max_score)` clamped to **1..99**. So 1/300 draws a sliver, not the zero-dot, and 299/300 is not full.
      Branching is on `score`, never on the rounded percent.
 - Accepted asymmetry: the SPOKEN results figure stays `percent` verbatim (so it always equals
   the My results headline, D1), so at the extremes it can disagree with the drawn width
@@ -83,9 +82,11 @@ the figures are exact, the widths are clamped so rounding can never lie visually
   intentional; do not clamp the spoken figure.
 - The `None` vs `0` distinction is load-bearing (D3/D4) — templates test `is None` /
   `== 0`, never truthiness.
-- Cost: one outline walk + one results walk per enrolled course; must be a constant number
-  of queries per course, independent of units, quizzes, submissions and reviewed responses
-  (see Testing).
+- Cost: one outline walk + one results walk per enrolled course. The query count per course
+  is constant **for a fixed set of question types, once every query branch is non-empty**:
+  `_quiz_review_maps` does a generic-FK prefetch (one query per distinct question content
+  type) and skips queries entirely for empty `__in` lists. Within that envelope it must not
+  grow with the number of units, quizzes, submissions or reviewed responses (see Testing).
 
 ### 2. Display — `templates/courses/_course_glance.html`
 
@@ -122,7 +123,10 @@ Fill rules (by width):
 
 Styling (in `core/static/core/css/app.css`, next to `.dash-card`; both page families load it):
 - labels: `font-size: .75rem`, `color: var(--text-secondary)` (D5; NOT `--text-tertiary`);
-- track: height 6px, fully rounded, `background: var(--border-subtle)`;
+- track: height 6px, fully rounded, `background: var(--border-subtle)`, `display: flex`
+  (so the inline-span fill and dot honour width/height; fill and dot also get
+  `display: block` — without it the bars render empty and no DOM test would notice, so the
+  screenshot review must confirm a visible fill);
 - fill: same height, `background: var(--accent)`, `min-width: 6px` (so the 1% sliver and the
   zero-dot read as continuous); both bars share the accent colour;
 - dot: 6px circle, `background: var(--accent)`, at the track's left end;
@@ -144,7 +148,10 @@ All strings below carry `context "course glance"` (Django template syntax — th
   `{% blocktrans with done=progress_done count counter=progress_total context "course glance" %}Progress: {{ done }} of {{ counter }} lesson{% plural %}Progress: {{ done }} of {{ counter }} lessons{% endblocktrans %}`
   with EVERY Polish `msgstr[n]` index filled (pl has nplurals=3), each grammatically correct;
 - `progress_total == 0`: "Progress: no lessons to track";
-- results figure: "Results: {pct}%";
+- results figure:
+  `{% blocktrans with pct=results_pct context "course glance" %}Results: {{ pct }}%{% endblocktrans %}`
+  — the msgid becomes `Results: %(pct)s%%` and the pl msgstr must also use `%%`; a render
+  test asserts the pl `aria-label` reads exactly `Wyniki: 80%` (single `%`);
 - `results_pct is None`: "Results: no scores yet" (covers both "nothing submitted" and
   "submitted but awaiting review / ungraded" — neutral on purpose).
 
@@ -212,11 +219,13 @@ Unit (`course_glance`):
   results 1/300 → `results_width == 1` (not the dot); 299/300 → 99.
 - additional lessons and quizzes do not move progress.
 - draft units hidden with `drafts="hide"`.
-- query count: warm the ContentType cache first, then assert the count is EQUAL for a small
-  and a larger course that differ in units, quizzes, submissions and reviewed responses
-  together. At view level, for EACH of My courses and the dashboard: measure the request with
-  N = 1, 2, 3 enrolled courses and assert `count(3) - count(2) == count(2) - count(1)` (N = 0
-  is excluded because the per-request permission cache fills on the first course).
+- query count: warm the ContentType cache first. Both fixtures have at least one quiz, one
+  submission and one reviewed response, all with the SAME single question type; the larger
+  one only has more units, quizzes, submissions and reviewed responses. Assert the counts
+  are EQUAL. At view level, for EACH of My courses and the dashboard: measure the request with
+  N = 1, 2, 3 enrolled courses, every course built from that same fixture shape, and assert
+  `count(3) - count(2) == count(2) - count(1)` (N = 0 is excluded because the per-request
+  permission cache fills on the first course).
 
 Render:
 - each row of the "Fill rules" table above (track only / dot / fill with `width: N%`) on
@@ -243,8 +252,10 @@ Falsification — each must go RED before the suite is trusted:
 
 Scoped regression run (the context values of these two views change type): the tests
 touching them — `tests/test_consumption_pages.py`, `tests/test_courses_views.py`,
-`tests/test_surfaces.py`, `tests/test_help.py`, `tests/test_subject_admin_views.py` — plus
-the new tests.
+`tests/test_surfaces.py`, `tests/test_help.py`, `tests/test_subject_admin_views.py`,
+`tests/test_dashboard_panels.py`, `tests/test_nav_structure.py`,
+`tests/test_grouping_course_links.py` — plus every non-e2e file a grep of `tests/` for
+`reverse("home")`, `my_courses` or `landing` turns up, plus the new tests.
 
 ## Out of scope
 
