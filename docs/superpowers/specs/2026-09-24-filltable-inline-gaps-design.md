@@ -12,7 +12,11 @@ source found **83 affected cells in 19 lessons**. Three kinds of loss:
 
 - **the question itself** — `\(NWD(15, 16)=\)`, `\(3^5\cdot 3^4=3\)` (input is the
   exponent), `\(\log_{2}16=\)`, "Pole =" — the student sees an empty box with no
-  question;
+  question. **Limitation:** a `{{…}}` inside maths stays literal (§2), so a box can
+  never sit IN a superscript. The author writes the box on the baseline after the
+  maths — `\(3^5\cdot 3^4=3\)` then `{{9}}` renders as `3⁵·3⁴ = 3 ▢`, and the
+  instruction text says "wpisz wykładnik" — which is how the LAL original already
+  looked (the input sat on the baseline there too);
 - **an expression around the box** — `\((x+2)^2+(y\)` ▢ `\()^2=16\)`;
 - **a unit / suffix** — `\(\pi\)` (270/290_kolo_okrag, the trigger), `\(^{\circ}\)`,
   `\(\cdot\sqrt{6}\)`.
@@ -70,31 +74,59 @@ render, the check view and the editor template, so they cannot disagree.
   dropped). Raises `FillBlankError` on an empty marker (`{{}}`, `{{ | }}`) or an
   unterminated one (`{{9`). Unlike `fillblank.parse`, **zero markers is NOT an error**
   — it returns `(html, [])`.
+  - **Markup inside a marker is stripped.** Static cells are rich contenteditable
+    (B/I/U toolbar, `libliColour.mapColours`, stray `<br>`/`<span>`), so the marker
+    interior may hold tags: `{{<b>9</b>}}`. The interior's tags are removed (text
+    content only) BEFORE `html.unescape` + split, so the answer is `9`. An answer is
+    always plain text.
+  - **Maths inside a marker is rejected.** `mask_math` runs before marker
+    extraction, so `{{9\(\pi\)}}` would store the placeholder `9￿M0￿` as the answer —
+    unmatchable. A marker whose interior contains a math placeholder raises
+    `FillBlankError("math in marker")`, surfaced by the form as *"Row R, column C: an
+    answer box cannot contain maths — put the maths outside the braces, e.g.
+    `{{9}} \(\pi\)`."* (Fill-blank shares the latent flaw; fixing it there is out of
+    scope.)
 - `author_cell_html(cell) -> str` — the inverse for the editor: tokens become
   `{{alt1|alt2}}`, alternatives html-escaped (`quote=False`), exactly as
   `fillblank.to_author_stem`. Identity for a cell without `gaps`.
 - `reconcile_gaps(html, gaps) -> (html, gaps)` — the read-side repair (§4).
-- `answer_cells` is unchanged; a new `gap_cells(cells)` yields `(r, c, g, alts_string)`
-  for every gap so the "has at least one answer" and "no blank answer" rules and the
-  check view can iterate answer cells and gaps together.
+- `answer_cells` is unchanged; a new `gap_cells(cells)` yields `(r, c, g, alts)` with
+  `alts` the stored LIST of alternatives (no `|` join/re-split), so the "has at least
+  one answer" rule and the check view can iterate answer cells and gaps together.
 
 ### 3. Saving
 
-**Form** (`FillTableElementForm.clean_data`, `courses/element_forms.py`): for every
-static cell, sanitise then `parse_cell_gaps`; store `token_html` in `html` and set
-`gaps` (omit the key when empty). A `FillBlankError` becomes a `ValidationError`
-naming the cell: *"Row %(r)d, column %(c)d: an answer box `{{…}}` is empty or not
-closed."* (1-based, translated).
+**Form** (`FillTableElementForm.clean_data`, `courses/element_forms.py`):
+
+- **Order matters — parse BEFORE `normalize_data`.** Today `clean_data` calls
+  `FillTableElement.normalize_data(data)` and returns that `nd`; `normalize_data`
+  derives `gate` from the answers it can see. If the raw `{{…}}` were parsed only
+  after normalising, a gated table whose answers are ALL gaps would be normalised
+  with no visible answer → `gate: False` stored → `has_filltable_gate`
+  (`views.py`, `data__gate=True`) never arms reveal.js; the author's tick silently
+  lost. So: walk the RAW posted cells first; for every static (non-`answer`,
+  non-`image`) cell, sanitise its `html`, `parse_cell_gaps`, write `token_html`
+  back and set `gaps` (omit the key when empty); THEN `normalize_data`.
+- **A posted `gaps` key is discarded.** The form deletes any client-supplied `gaps`
+  on every cell before parsing; only what it parses from the `html` is stored.
+- A `FillBlankError` becomes a `ValidationError` naming the cell (1-based,
+  translated): *"Row %(r)d, column %(c)d: an answer box `{{…}}` is empty or not
+  closed."*, or the maths message from §2.
 
 The existing rules extend to gaps:
 - "at least one answer" — satisfied by ≥1 answer cell OR ≥1 gap. Message becomes:
   *"Add at least one answer — mark an answer cell, or type `{{answer}}` in a cell."*
+  The same new text goes in all three places that hold the old one: the server
+  `ValidationError`, the `data-msg-no-answer` attribute in `_edit_filltable.html`,
+  and the hard-coded fallback in `filltable_editor.js` `onSubmit`; plus the Polish
+  `.po` entry.
 - "no blank answer" — gaps can never be blank (parse rejects empty markers), so the
   rule stays as-is for answer cells.
 
 **Model** (`FillTableElement._cell` + `_sanitized_data`):
-- `_cell` carries `gaps` through for a static cell when it is a list of lists of
-  strings; anything else is dropped. Then `reconcile_gaps` (§4).
+- `_cell` carries `gaps` through for a static cell, then `reconcile_gaps` (§4). A
+  non-list `gaps` drops the whole key; within a list, a bad entry is handled PER
+  ENTRY as §4 defines.
 - `_sanitized_data` does NOT parse raw `{{…}}`. Only the form converts author
   markers. Other write paths (transfer import, course builder, LAL loader) store what
   they are given; a raw `{{9}}` arriving by those paths renders as literal text,
@@ -106,13 +138,20 @@ The existing rules extend to gaps:
 
 A stored cell's tokens and `gaps` can disagree only through a damaged archive or a
 hand DB edit. `reconcile_gaps`, run in `_cell`:
-- a token whose index has no entry in `gaps` → the token is removed from `html`;
-- a `gaps` entry with no token in `html` → the entry is dropped;
-- tokens are renumbered to `0..k-1` in document order and `gaps` reordered to match,
-  so the check view's `g` index always equals the rendered box's index;
-- a gap entry whose alternatives are all blank → token and entry both removed.
+1. **Entry cleaning** (per entry): an entry that is not a list → treated as empty.
+   Non-string alternatives are dropped; string alternatives are trimmed; blank ones
+   are dropped. An entry left with no alternatives is EMPTY.
+2. **Duplicate tokens:** if the same index appears more than once in `html`, the
+   FIRST occurrence is kept and every later occurrence is removed.
+3. a token whose index has no entry, or whose entry is EMPTY → the token is removed;
+4. a `gaps` entry with no token in `html` → the entry is dropped;
+5. surviving tokens are renumbered to `0..k-1` in document order and `gaps`
+   reordered to match, so the check view's `g` always equals the rendered box's
+   index and every rendered `g` is unique;
+6. `k == 0` → the `gaps` key is removed.
 
-Never raises; a repaired cell simply shows fewer boxes.
+Never raises; a repaired cell simply shows fewer boxes. Idempotent:
+`reconcile_gaps(*reconcile_gaps(h, g)) == reconcile_gaps(h, g)`.
 
 ### 5. Student render
 
@@ -126,15 +165,29 @@ safe-join the trusted sanitised text segments with server-built inputs:
 ```
 
 - Same `filltable__input` class → verdict colours, `lock()`, the confirm handler and
-  the reveal gate all apply unchanged. `--inline`: `display:inline-block; width:8ch;`
-  plus the (0,2,0) `.el--filltable` prefix the verdict rules need (see the specificity
-  note at `courses.css` "`.el--filltable` IS THE POINT") — a fixed width, never sized
-  to the answer.
+  the reveal gate all apply unchanged.
+- **`--inline` box model.** app.css's (0,1,1) `input[type=text]` rule owns this
+  control's box (`width:100%`, border-box, ~`var(--space-3)` padding — see the
+  courses.css notes around the existing `.el--filltable .filltable__input`
+  `min-width`). A bare `width:8ch` would leave ~4ch of content, and the full padding
+  breaks line rhythm inside running text. So, at (0,2,0) with the `.el--filltable`
+  prefix: `display:inline-block;
+  width: calc(6ch + 2 * var(--space-1) + 2px); min-width: 0;
+  padding-block: 0; padding-inline: var(--space-1); vertical-align: baseline;` —
+  a fixed width, never sized to the answer. The exact values are tuned against a
+  screenshot; the constraint is: ~6ch of CONTENT, text baseline aligned with the
+  surrounding text and KaTeX, line height not visibly increased.
+- **Visual check (required):** light AND dark screenshots of a cell with a box
+  between two maths spans (`\((x+2)^2+(y\) {{-1}} \()^2=16\)`) and of `{{9}} \(\pi\)`,
+  each judged separately.
 - aria-label omits "box N" when the cell has exactly one gap. Translated.
 - **Done state** (`mine.done`, `canonical_cells`): each gap input renders
-  `value=<first alternative>`, `readonly`, `filltable__input--correct` — mirroring the
-  answer-cell done branch. `canonical_cells` returns a `gaps_display` (first
-  alternatives) alongside, never mutating `self.data`.
+  `value=<first alternative>`, `readonly`, `filltable__input--correct` and a `size`
+  that fits the value — mirroring `fillblank.render_inputs(locked=True)`, so a long
+  first alternative is not clipped by the fixed inline width (the width rule must
+  yield to `size` in this state, e.g. `.filltable__input--inline:read-only
+  { width:auto }`). `canonical_cells` returns a `gaps_display` (first alternatives)
+  alongside, never mutating `self.data`.
 - The answer list is NEVER emitted into the page. The render builds from `html`
   tokens only; `gaps` is read only in the done state (answers already earned).
 - Implementation note: this is best done in Python (a template filter or a
@@ -149,10 +202,16 @@ unchanged) AND gaps (POST key `r{r}c{c}g{g}`), each through the existing
 every gap correct; zero of both → the existing empty response.
 
 `filltable.js`: `submit` appends `g` to the key when `data-g` is present; `paint`
-selects `[data-r][data-c][data-g]` when the reply carries `g`, else
-`[data-r][data-c]:not([data-g])`. The `:not([data-g])` is required — a cell's gaps
-share its `r`/`c`, so a bare `[data-r][data-c]` selector would paint a gap with an
-answer cell's verdict.
+selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
+`[data-r][data-c]:not([data-g])`.
+
+- **The real risk is the `g` part.** A cell's gaps share its `r`/`c`; if `paint`
+  drops or mis-builds the `data-g` term, `querySelector` returns the cell's FIRST
+  gap for every gap reply, so in a two-gap cell box 1 wears box 2's verdict and
+  box 2 is never painted.
+- `:not([data-g])` is defensive only: a cell is either an answer cell or a static
+  cell, never both, so an answer-cell reply's `(r,c)` cannot match a gap today. It
+  carries no RED-mutant requirement.
 
 ### 7. Editor
 
@@ -172,10 +231,19 @@ answer cell's verdict.
 
 ### 8. Transfer (export / import / duplicate)
 
-- `_ser_fill_table` carries `gaps` on a static cell when present.
+- `_ser_fill_table` needs NO change: its static branch already copies the cell
+  whole (`dict(c)`), so once `_cell` keeps `gaps` the export carries it for free.
+  The export → import round-trip test is the guard.
 - `FORMAT_VERSION` 15 → 16 (`courses/transfer/schema.py`), so an older instance
   refuses a v16 archive (`importer.py:194`) instead of rendering raw `￿` tokens.
   A v15 archive imports unchanged (no `gaps` anywhere).
+  - Seven tests pin `assert FORMAT_VERSION == 15` and must move to 16:
+    `courses/tests/test_beforeafter_transfer.py`, `test_caption_transfer.py`,
+    `test_image_size_transfer.py`, `tests/test_link_transfer.py`,
+    `tests/test_table_transfer.py`, `tests/test_tabs_transfer.py`,
+    `tests/test_transfer_schema.py`.
+  - Two branches making the same 15 → 16 bump merge with NO conflict. Before
+    merge, check no other open branch/PR also bumps `FORMAT_VERSION`.
 - `_val_fill_table`: if a static cell has `gaps`, it must be a list of lists of
   strings, else reject (gross corruption, matching that validator's lenient policy).
   Index mismatches are left to `reconcile_gaps`.
@@ -190,16 +258,38 @@ answer cell's verdict.
 - `views.py:155` math-delimiter detection reads static `html` — tokens contain no
   delimiters; unaffected.
 
+### 10. Existing live data with a literal `{{`
+
+After deploy, the form parses every static cell on every save. An EXISTING cell
+holding `{{…}}` outside maths would silently become an answer box the next time
+anything in its table is saved, and a stray unclosed `{{` would make the whole table
+unsaveable with an error on a cell the author never touched.
+
+**Required before merge:** query prod (read-only, or a fresh prod dump) for
+fill-table static cells whose `html`, with maths spans masked, contains `{{` or
+`}}`; record the count and the element ids in the PR. Zero hits → nothing more to
+do. Any hits → stop and bring them to the owner before merging (options: hand-edit
+those cells, or add an escape); do not decide silently.
+
 ## Tests
 
 Unit (no browser):
-- `parse_cell_gaps` / `author_cell_html` round-trip is identity on: one gap, several
-  gaps, gap between two maths spans, `{{` inside `\(…\)` (stays literal), alternatives
-  with `|`, `<` in an answer, no gaps.
+- `parse_cell_gaps` / `author_cell_html` are **idempotent**, not identity (spaces
+  around alternatives are trimmed, entities normalised): parse → author → parse gives
+  the same stored `(html, gaps)`. Cases: one gap, several gaps, gap between two
+  maths spans, `{{` inside `\(…\)` (stays literal), alternatives with `|`, `<` in an
+  answer, `{{ 9 | 9,0 }}`, no gaps.
+- Markup in a marker: `{{<b>9</b>}}` and a colour-mapped `{{<span …>9</span>}}` both
+  store the answer `9`.
+- Maths in a marker: `{{9\(\pi\)}}` is rejected with the maths message.
 - Form: empty and unterminated markers rejected with the right row/column; a table
   with only gaps saves; a table with neither answers nor gaps is rejected with the new
-  message.
-- `reconcile_gaps`: each of the four repair cases.
+  message; a posted `gaps` key is ignored.
+- **Gate through the FORM:** a POST whose only answers are `{{9}}` with `gate: true`
+  stores `gate: True` (a model-level test would not catch the ordering bug in §3).
+- `reconcile_gaps`: each rule in §4 (non-list entry, mixed blank/non-blank
+  alternatives, untrimmed alternatives, duplicate token, orphan token, orphan entry,
+  renumbering, all-removed → no `gaps` key), plus idempotence.
 - Check view: per-gap verdicts with `g`; answer cells unchanged; `all_correct` needs
   both kinds; case sensitivity honoured for gaps.
 - **Leak test:** the rendered student page for a table with gaps contains none of the
@@ -210,13 +300,16 @@ Unit (no browser):
   malformed `gaps` is rejected.
 - Builder summary count.
 
-e2e (one, driving the real editor): author types `{{9}} \(\pi\)` into a cell, saves;
-the student page shows an inline box beside a rendered π; typing `9` + Check turns it
-green; typing `8` turns it red and leaves an answer cell in the same table correctly
-painted (the `:not([data-g])` selector).
+e2e (one, driving the real editor): author types `{{9}} \(\pi\)` into one cell and
+`\((x+2)^2+(y\) {{-1}} \()^2=\) {{16}}` (TWO gaps) into another, saves; the student
+page shows inline boxes beside rendered maths; the student answers the first gap of
+the two-gap cell WRONG and the second RIGHT, + Check → each box gets its OWN
+verdict (first red, second green); correcting it turns both green.
 
-Falsify: the leak test, the `:not([data-g])` paint selector, and the gate-counts-gaps
-rule each get a deliberate mutant that must turn a test RED.
+Falsify: the leak test, the `data-g` term of the paint selector (drop it → the
+two-gap e2e must go RED), and the gate-counts-gaps rule through the form (parse
+after `normalize_data` → the form gate test must go RED) each get a deliberate
+mutant.
 
 ## Out of scope
 
