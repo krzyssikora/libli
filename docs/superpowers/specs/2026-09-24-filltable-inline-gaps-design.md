@@ -92,14 +92,22 @@ render, the check view and the editor template, so they cannot disagree.
   - **Maths inside a marker is rejected.** `mask_math` runs before marker
     extraction, so `{{9\(\pi\)}}` would store the placeholder `9￿M0￿` as the answer —
     unmatchable. A marker whose interior contains a math placeholder raises
-    `FillBlankError("math in marker")`, surfaced by the form as *"Row R, column C: an
+    `GapMathError`, a subclass of `FillBlankError` defined in `courses/filltable.py`
+    (the form branches on the CLASS, never on the message string), surfaced by the
+    form as *"Row R, column C: an
     answer box cannot contain maths — put the maths outside the braces, e.g.
     `{{9}} \(\pi\)`."* (Fill-blank shares the latent flaw; fixing it there is out of
     scope.)
 - `author_cell_html(cell) -> str` — the inverse for the editor: tokens become
   `{{alt1|alt2}}`, alternatives html-escaped (`quote=False`), exactly as
   `fillblank.to_author_stem`. Identity for a cell without `gaps`.
-- `reconcile_gaps(html, gaps) -> (html, gaps)` — the read-side repair (§4).
+- `reconcile_gaps(html, gaps) -> (html, gaps)` — the read-side repair (§4). Always
+  returns a list for `gaps` (`[]` when no box survives), so its output is a valid
+  input; `_cell` omits the `gaps` key when the returned list is empty.
+- **Cap:** at most `MAX_GAPS_PER_CELL = 10` markers per cell (the LAL corpus peaks
+  at 2). More → a form error *"Row R, column C: at most 10 answer boxes per cell."*
+  Rows/columns are already capped, so this bounds the inputs, POST keys and
+  check-view iterations per table; `reconcile_gaps` truncates to the cap on read.
 - `answer_cells` is unchanged; a new `gap_cells(cells)` yields `(r, c, g, alts)` with
   `alts` the stored LIST of alternatives (no `|` join/re-split), so the "has at least
   one answer" rule and the check view can iterate answer cells and gaps together.
@@ -168,7 +176,9 @@ hand DB edit. `reconcile_gaps`, run in `_cell`:
 5. surviving tokens are renumbered to `0..k-1` in document order and `gaps`
    reordered to match, so the check view's `g` always equals the rendered box's
    index and every rendered `g` is unique;
-6. `k == 0` → the `gaps` key is removed.
+6. only the first `MAX_GAPS_PER_CELL` surviving tokens are kept (later ones
+   removed with their entries);
+7. `k == 0` → returns `[]`, and `_cell` omits the `gaps` key.
 
 Never raises; a repaired cell simply shows fewer boxes. Idempotent:
 `reconcile_gaps(*reconcile_gaps(h, g)) == reconcile_gaps(h, g)`.
@@ -207,11 +217,20 @@ safe-join the trusted sanitised text segments with server-built inputs:
   `value=<first alternative>`, `readonly`, `filltable__input--correct` and a `size`
   that fits the value — mirroring `fillblank.render_inputs(locked=True)`, so a long
   first alternative is not clipped by the fixed inline width (the width rule must
-  yield to `size` in this state: `.el--filltable .filltable__input--inline:read-only
+  yield to `size` in this state: `.el--filltable .filltable__input--inline[readonly]
   { width:auto }`, (0,3,0), so it beats the (0,2,0) fixed width regardless of source
-  order). The done-state test/screenshot includes a long first alternative.
-  `canonical_cells` returns a `gaps_display` (first alternatives) alongside, never
-  mutating `self.data`.
+  order). **`[readonly]`, NEVER `:read-only`:** on a successful LIVE Check,
+  `filltable.js` `lock()` sets `disabled` (not `readonly`) on every input, and a
+  disabled input MATCHES `:read-only`; live-locked inline inputs carry no `size`, so
+  `width:auto` would fall back to the browser default `size=20` and every box in the
+  running text would jump from ~6ch to ~20ch at the moment of success. The
+  `[readonly]` attribute is set only by the server-rendered done state. The
+  done-state test/screenshot includes a long first alternative, AND an e2e check
+  asserts an inline box keeps its width after a successful live Check.
+- `canonical_cells` keeps its return type (one grid). On a static cell with `gaps`
+  it returns `{**cell, "gaps_display": [first alternative of each gap]}` — a per-cell
+  key; `gaps` itself stays on the cell in the done branch (answers already earned).
+  Never mutates `self.data`.
 - **Escaping.** Every server-built gap `<input>` is built with `format_html`, so
   `value`, `aria-label` and `size` are escaped. Stored alternatives are DECODED plain
   text (§2), so `a<b` or `"x" onfocus=…` is raw data; the inputs are safe-joined with
@@ -316,7 +335,9 @@ Unit (no browser):
   answer, `{{ 9 | 9,0 }}`, no gaps.
 - Markup in a marker: `{{<b>9</b>}}` and a colour-mapped `{{<span …>9</span>}}` both
   store the answer `9`.
-- Maths in a marker: `{{9\(\pi\)}}` is rejected with the maths message.
+- Maths in a marker: `{{9\(\pi\)}}` is rejected with the maths message (raised as
+  `GapMathError`); an empty marker gets the empty/unclosed message, not the maths one.
+- Cap: 11 markers in a cell → form error; 10 → saves.
 - Straddling tag: `<b>{{9</b>}}` stores the answer `9`, and after `save()` the cell
   html is balanced; `{<b>{</b>9}}` stays literal text with no gap.
 - Escaping: a done-state first alternative containing `<` and `"` renders escaped in
