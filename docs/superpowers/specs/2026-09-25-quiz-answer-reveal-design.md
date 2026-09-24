@@ -105,14 +105,30 @@ verdict is the **fresh** correctness (see §2.6 — their `reveal` is a string /
 `{value, tolerance}` dict with no boolean, so it cannot come from `reveal`). Base class:
 `None` (= not converted).
 
-**One "converted" predicate:** `question.converted_quiz_reveal` (true iff the type
-implements `part_verdicts`). It alone drives all four branches: the whole-element
-response in `_quiz_render_feedback` / `element_try`; `quiz_feedback_context` setting
-`reveal_template = None` (so the old `_reveal_*` list is never printed beside the key
-copy); the template's `data-question-inline` in quiz mode; and the results-page render
-(§4). Choice keeps `INLINE_QUIZ_REVEAL` for its own inline-marks path until PR 3 folds it
-in. Test: a locked converted question renders no `_reveal_*` markup, in the quiz and on
-the results page.
+**Two explicit per-type switches, set PR by PR:**
+
+1. **`SUPPORTS_REVEAL`** (class flag, base `False`). It alone drives: the Show answer
+   button's render, `can_reveal` (§3.5), the whole-element response in
+   `_quiz_render_feedback` / `element_try`, the template's `data-question-inline` in quiz
+   mode, and the `render(mode="results")` path (§4). Set in PR 1 on fill in the blanks,
+   short text and number; PR 2 on its five types; PR 3 on multiple choice and extended
+   response. An unset type behaves exactly as today (no button, fragment responses, old
+   results row), and a reveal POST for it gets the ineligible response (test).
+2. **The in-place view**, which decides what a locked, not-fully-correct question shows:
+   - `key_answer()` is not None → key copy + switch (every PR 1–2 type);
+   - multiple choice → its inline ✓ ✗ ＋ marks (`INLINE_QUIZ_REVEAL`, D8), no switch;
+   - extended response → no in-place view: its `_reveal_extendedresponse.html` keyword
+     block **stays** as its view inside the feedback box, no switch (D7).
+
+`quiz_feedback_context` sets `reveal_template = None` **iff the type has an in-place
+view** (key copy or inline marks), so the old `_reveal_*` list is never printed beside
+the key copy, while extended response keeps its keyword block. `part_verdicts` is
+implemented by every PR 1–2 type and by choice (via its picked-option marks); extended
+response returns `None` (nothing to colour). Test: a locked question of each
+`SUPPORTS_REVEAL` type renders no `_reveal_*` markup except extended response's keyword
+block, in the quiz and on the results page.
+
+Elsewhere in this spec, a **"converted type"** means a type with `SUPPORTS_REVEAL` set.
 
 Each converted type's template/tag paints its controls from a **`verdicts`** render
 argument — the `fillblank.render_inputs(verdicts=...)` pattern from PR #346, extended.
@@ -143,8 +159,10 @@ render/rehydrate path draws both copies identically:
 | Drag onto image | the correct `slot` value per zone |
 | Multiple choice, extended response | `None` (own view, D8 / D7) |
 
-When a question is **locked and not fully correct** (§2.6 defines the source of "fully
-correct"), the renderer draws a second copy from `key_answer()`.
+When a question is **locked AND not fully correct AND `key_answer()` is not None** (§2.6
+defines the source of "fully correct"), the renderer draws a second copy from
+`key_answer()` — and the switch (§2.3) is shown under exactly the same condition. Test: a
+wrong locked multiple-choice or extended-response question renders no switch and no copy.
 
 **What the copy contains — the controls region only.** Each converted template factors
 its answer controls into a per-type include (e.g. `_fillblank_controls.html`), rendered
@@ -163,7 +181,10 @@ button and at most one Show answer button per rendered question.
 
 **Author HTML inside the copy** (fill in the blanks, drag the words: the stem prose is
 author rich text). After rendering, the key copy's HTML is post-processed with
-BeautifulSoup (already a dependency): **every** `id` in it — template-generated or
+BeautifulSoup (already a dependency) using the **`html.parser`** parser and serialised
+with **`decode_contents()`** (a `NavigableString` decodes entities while a `Tag`
+re-escapes them — the known bs4 trap; test: a stem containing `\(a<b\)` and `&amp;`
+renders identically in both copies apart from the id suffixes): **every** `id` in it — template-generated or
 authored — gets the `-key` suffix and every `for=` / `aria-labelledby` /
 `aria-describedby` / `aria-controls` reference inside the copy is rewritten to match;
 `<iframe>` / `<embed>` / `<object>` elements are **removed** from the key copy (the
@@ -267,10 +288,11 @@ the drag UI is present in both copies.
 The other render paths must draw §1 state 2 or 4 identically:
 
 - **resume** (`build_quiz_context`, page load mid-quiz) and the **no-JS** re-render
-  compute `verdicts = part_verdicts(mark(answer_from_json(question, latest_answer)))`
-  for an answered question, locked or not (today they pass nothing until locked).
-  `latest_answer` is the stored JSON form; `mark()` takes the `build_answer` shape,
-  which `courses.quiz.answer_from_json` reconstructs;
+  compute `result = _stored_result(question, response)` and
+  `verdicts = question.part_verdicts(result)` for an answered question, **locked or
+  not** (today `build_quiz_context` builds `_stored_result` only on the locked branch and
+  passes nothing before). This is the one formula for every stored-answer path (§2.6);
+  `_stored_result` already applies `answer_from_json` before `mark()`;
 - **editor try-it** (`views_manage.element_try`, quiz branch, §3.3);
 - **previewer** (`quiz_answer`'s non-enrolled branch).
 
@@ -304,9 +326,13 @@ and `build_quiz_context` uses it. It is the **single source** for every stored-a
 path (reveal response, resume, no-JS, results page); `part_verdicts` reads its fresh
 `reveal`. No second implementation. `_stored_result` today copies only `reveal` /
 `annotated` from the fresh mark and takes `correct` from the stored fraction; it gains a
-**`fresh_correct`** field (the fresh `mark().correct`), which the single-part types'
-`part_verdicts` use. The key-edit test covers a short-text question as well as a
-multi-part one.
+**`fresh_correct`** field (the fresh `mark().correct`). `fresh_correct` is added to
+`courses.marking.MarkResult` as an optional field **defaulting to None** (a live `mark()`
+leaves it None), and the single-part types' `part_verdicts` read
+`fresh_correct if fresh_correct is not None else correct` — so they paint correctly on a
+live Check (from `correct`) and on a stored path (from the fresh mark). The key-edit test
+covers a short-text question as well as a multi-part one, and a live-Check test asserts
+the green / red part for short text and for number.
 
 The disagreement after a key edit is accepted — the marks are what was awarded; the
 colours and key show the key as it is now — and is written down so nobody "fixes" one to
@@ -349,8 +375,12 @@ to results otherwise, via `_quiz_locked_response`):
   "Your answer", the verdicts and the marks come from the stored latest attempt, so a
   student cannot slip in an unchecked answer. It does **not** increment
   `attempt_count` and creates **no** `Attempt` row;
-- ineligible (no attempt yet, or N/R) → fetch: 409 (quiz.js reloads); no-JS: redirect
-  back to the quiz unit page (the question renders its current state).
+- eligible, no-JS → the same full `quiz_unit.html` re-render the no-JS Check already
+  does (`_quiz_render_feedback`'s non-fetch branch), now showing the locked state through
+  the stored-answer path (§2.4);
+- ineligible (no attempt yet, or N/R, or not `SUPPORTS_REVEAL`) → fetch: 409 (quiz.js
+  reloads); no-JS: redirect back to the quiz unit page (the question renders its
+  current state).
 
 ### 3.3 Previewer and editor try-it (ephemeral)
 
@@ -386,7 +416,10 @@ attempt (the unlocked element, no reveal).
 
 The reveal button carries a server-rendered `data-confirm`, built with the latest
 attempt's marks, e.g. msgid `"Show the answer? This ends the question: you won't be
-able to try again, and you keep the marks you have now (%(earned)s of %(max)s)."`. It is
+able to try again, and you keep the marks you have now (%(earned)s of %(max)s)."`, with
+`earned` and `max` formatted exactly as the result line formats them (the existing
+`marks` template filter, `courses_extras.py`, incl. the Polish decimal comma); a test
+compares the confirm text's marks with the result line's. It is
 re-rendered with every whole-element response, so it always matches the latest Check.
 quiz.js / editor.js pass it to `confirm()`. No-JS proceeds without a prompt, like Finish.
 e2e must register a dialog handler (Playwright auto-dismisses `confirm` → the reveal
@@ -444,6 +477,17 @@ select fallback.
 `templates/courses/manage/analytics_student_quiz.html` shows an **"answer shown"** tag on
 rows whose `QuestionResponse.revealed_at` is set. Nothing else in analytics or the review
 queue changes.
+
+**`_results_row` has a second consumer:** `views_analytics._quiz_answer_rows` calls it and
+feeds `row["reveal_result"]`, `row["marks"]`, `row["outcome"]`, `row["earned"]` and
+`row["answered"]` to `answer_summary.summarise` and the analytics template — including a
+`reveal_result` built for **unanswered** AUTO rows (`mark(build_answer(QueryDict()))`),
+which the teacher's "expected answer" column relies on. Therefore `_results_row` keeps
+**every existing key with its current semantics**; the results page's new render data
+(`verdicts`, key copy, the `mode="results"` render) is built by a **separate helper**
+used only by `quiz_results.html`, and the §4 "`mark()` is not called for unanswered rows"
+rule applies to that helper only. Test: the analytics student-quiz page still shows the
+expected answer for an answered and an unanswered row of each `SUPPORTS_REVEAL` type.
 
 ## 6. Out of scope
 
