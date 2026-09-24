@@ -176,9 +176,9 @@ def test_resolved_grid_cells_resolves_the_submitted_image_not_the_stored_one():
     would notice resolved_grid_cells reverting to read the instance instead of
     grid_data. Pin the real contract: bind the form to a payload naming a
     DIFFERENT MediaAsset than the stored instance, force it invalid (no
-    answer cell, so clean_data's "at least one answer cell" check fires and
-    grid_data takes the submitted branch), and assert the submitted asset
-    wins."""
+    answer cell and no {{gap}}, so clean_data's "at least one answer or
+    gap" check fires and grid_data takes the submitted branch), and assert
+    the submitted asset wins."""
     course = make_course()
     stored_asset = make_image_asset(course, "stored.png")
     submitted_asset = make_image_asset(course, "submitted.png")
@@ -336,9 +336,10 @@ def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
     real answer cell -- so clean_data's earlier guards (caps, answer-cell
     presence, blank-answer) all pass and it reaches the img_ids course check,
     which is the rule that actually rejects it. Getting this wrong is easy: a
-    payload with no answer cell is rejected by "Mark at least one answer cell"
-    long before any media validation runs, and the test would then pass while
-    exercising a different rejection path than its name claims."""
+    payload with no answer cell and no {{gap}} is rejected by "Add at
+    least one answer" long before any media validation runs, and the test
+    would then pass while exercising a different rejection path than its
+    name claims."""
     mine = make_course()
     theirs = make_course()
     foreign = make_image_asset(theirs, filename="theirs.png")
@@ -493,9 +494,10 @@ def test_form_and_model_preserve_a_submitted_size(tmp_path, settings):
                 "header_row": False,
                 "header_col": False,
                 "border": "grid",
-                # An ANSWER CELL IS MANDATORY: FillTableElementForm.clean_data raises
-                # "Mark at least one answer cell (use the "Answer cell" button)." when
-                # answer_cells(cells) is empty, so an image-only payload can NEVER
+                # AN ANSWER OR A {{GAP}} IS MANDATORY: FillTableElementForm.clean_data
+                # raises "Add at least one answer — mark an answer cell, or type
+                # {{answer}} in a cell." when answer_cells(cells) is empty AND no
+                # cell has a gap, so an image-only payload with no {{gap}} can NEVER
                 # validate and this test — the pin for the slice's highest-frequency
                 # defect — could never pass.
                 "cells": [

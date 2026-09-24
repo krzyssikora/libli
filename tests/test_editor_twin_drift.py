@@ -51,11 +51,13 @@ def _functions(path):
 
     Bodies are delimited by counting braces, which is not a JS parser. Four
     things can contribute a non-structural brace: a string literal, a regex
-    literal, a template string, and a comment. The first three do not occur in
-    either editor; the fourth does (`{% trans %}`, `LAYOUT {r, c}`) but every
-    such comment is brace-BALANCED on its own line, so the running count is
-    undisturbed. An unbalanced one would swallow the rest of the file and
-    collapse the count, which EXPECTED_COUNTS catches.
+    literal, a template string, and a comment. The first three must never carry
+    a literal brace in either editor -- use the JS hex escape for the brace
+    instead, as filltable_editor.js onSubmit does; the fourth does
+    (`{% trans %}`, `LAYOUT {r, c}`) but every such comment is brace-BALANCED
+    on its own line, so the running count is undisturbed. An unbalanced one
+    would swallow the rest of the file and collapse the count, which
+    EXPECTED_COUNTS catches.
 
     Raises on a duplicate name rather than silently keeping the last definition
     and comparing the wrong pair.

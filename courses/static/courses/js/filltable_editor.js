@@ -1043,13 +1043,21 @@
         "td[data-answer] .filltable-editor__answer, th[data-answer] .filltable-editor__answer"
       )
     );
-    if (answerInputs.length === 0) {
+    // Brace-free on purpose: tests/test_editor_twin_drift.py delimits function
+    // bodies by counting braces per line, so a literal double open-brace would
+    // swallow the rest of this file; \x7b and \x7d are the escapes.
+    var markerOpen = "\x7b\x7b";
+    var hasGap = Array.prototype.some.call(
+      grid.querySelectorAll("td[contenteditable], th[contenteditable]"),
+      function (cell) { return cell.textContent.indexOf(markerOpen) !== -1; }
+    );
+    if (answerInputs.length === 0 && !hasGap) {
       e.preventDefault();
       e.stopPropagation();
       showAnswerError(
         editor,
         editor.getAttribute("data-msg-no-answer") ||
-          "Mark at least one answer cell (use the “Answer cell” button)."
+          "Add at least one answer — mark an answer cell, or type \x7b\x7banswer\x7d\x7d in a cell."
       );
       return;
     }
