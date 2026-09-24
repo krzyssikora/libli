@@ -77,7 +77,10 @@ render, the check view and the editor template, so they cannot disagree.
   - **Markup inside a marker is stripped.** Static cells are rich contenteditable
     (B/I/U toolbar, `libliColour.mapColours`, stray `<br>`/`<span>`), so the marker
     interior may hold tags: `{{<b>9</b>}}`. The interior's tags are removed (text
-    content only) BEFORE `html.unescape` + split, so the answer is `9`. An answer is
+    content only) BEFORE `html.unescape` + split, so the answer is `9`. Mechanism: a
+    real parser — `nh3.clean(interior, tags=set())` — never a `<[^>]*>` regex, because
+    nh3 leaves `>` unescaped inside attribute values (`<span title="a>b">` would leak
+    `b">` into the answer). An answer is
     always plain text. Only the INTERIOR is stripped: a marker straddling a tag
     (`<b>{{9</b>}}`, `{{<b>9}} rest</b>`) leaves an unbalanced tag in `token_html`
     (`<b>\uffff0\uffff`, an orphan `</b>`); that is acceptable because `FillTableElement.save()`
@@ -271,6 +274,10 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
   drops or mis-builds the `data-g` term, `querySelector` returns the cell's FIRST
   gap for every gap reply, so in a two-gap cell box 1 wears box 2's verdict and
   box 2 is never painted.
+- **Presence, not truthiness:** "the reply carries `g`" means `"g" in cell` (or
+  `cell.g != null`), never `if (cell.g)` — the first box has `g: 0`, which is falsy,
+  and would be routed to the `:not([data-g])` selector and never painted. Box 0 must
+  stay a checked case in the e2e.
 - `:not([data-g])` is defensive only: a cell is either an answer cell or a static
   cell, never both, so an answer-cell reply's `(r,c)` cannot match a gap today. It
   carries no RED-mutant requirement.
@@ -294,6 +301,19 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
   static cell's text contains `{{`. It does not validate markers — the server does.
 - One hint line under the grid (translated): *"Type `{{answer}}` in a cell to put an
   answer box inside its text; separate accepted alternatives with `|`."*
+- **`{{answer}}` in templates:** the hint and the `data-msg-no-answer` attribute are
+  emitted with `{% translate '…' %}` (or come from Python), NEVER
+  `{% blocktranslate %}` or plain template text — there `{{answer}}` is parsed as a
+  variable and silently renders empty ("Type  in a cell"). A partial-render test
+  asserts the literal `{{answer}}` appears in the editor output.
+- **New msgids** (all need Polish translations in `locale/pl`, plus the `en`
+  catalog): the no-answer message (§3), the empty/unclosed message (§3), the maths
+  message (§2), the cap message (§2), the multi-box aria-label (§5), the hint line.
+  The single-box aria-label REUSES the existing template msgid
+  `Answer, row %(r)s, column %(c)s` — so the Python `gettext` call must spell the
+  placeholders exactly `%(r)s`/`%(c)s`. The new no-answer msgid is close to the
+  old one, so `makemessages` will likely pre-fill a WRONG fuzzy translation: after
+  `makemessages`, no `#, fuzzy` entry may remain for any of these msgids.
 - Help: `docs/help/course-admin/interactive-elements.md` and `.pl.md`, Fill-in table
   entry, one short paragraph with the π example.
 - ⚠️ The table and fill-table editors are drift-guarded twins
@@ -306,6 +326,11 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
     to end-of-file.
   - If a new named function is added to `filltable_editor.js`, update
     `EXPECTED_COUNTS[FILL_JS]` (currently 37). Never loosen the guard.
+  - The new no-answer FALLBACK string in `onSubmit` also contains `{{answer}}`.
+    Write its braces as `\x7b\x7b` / `\x7d\x7d` escapes too (a balanced literal on
+    one line happens to keep the count, but wrapping or concatenating it breaks it).
+    Update the drift guard's docstring claim that brace-bearing literals "do not
+    occur" to say they must be written escaped.
 
 ### 8. Transfer (export / import / duplicate)
 
@@ -352,7 +377,10 @@ unsaveable with an error on a cell the author never touched.
 **Required before merge:** query prod (read-only, or a fresh prod dump) for
 fill-table static cells whose `html`, with `\(…\)`/`\[…\]` spans masked, contains
 `{{` or `}}` — counting `{{` inside `$$…$$` as a hit too (§2: `$$` is not
-protected); record the count and the element ids in the PR. Zero hits → nothing more to
+protected) — OR contains U+FFFF at all (the form's `strip_sentinel` runs on every
+static cell at every save, so any existing U+FFFF would be silently removed the next
+time anything in its table is saved; §1's "unchanged" promise and its test cover
+READS only); record the count and the element ids in the PR. Zero hits → nothing more to
 do. Any hits → stop and bring them to the owner before merging (options: hand-edit
 those cells, or add an escape); do not decide silently.
 
@@ -366,6 +394,7 @@ Unit (no browser):
   answer, `{{ 9 | 9,0 }}`, no gaps.
 - Markup in a marker: `{{<b>9</b>}}` and a colour-mapped `{{<span …>9</span>}}` both
   store the answer `9`.
+- Attribute with `>` in a marker: `{{<span title="a>b">9</span>}}` stores `9`.
 - Maths in a marker: `{{9\(\pi\)}}` is rejected with the maths message (raised as
   `GapMathError`); an empty marker gets the empty/unclosed message, not the maths one;
   `{{9\(x}}\)` (maths overlapping the marker's end) gets the empty/unclosed message.
