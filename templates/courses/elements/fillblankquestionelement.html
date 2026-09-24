@@ -7,17 +7,23 @@ mark_result.correct would lock every other fill-blank on the unit. mark_result i
 None in quiz mode (_quiz_article.html passes feedback_html instead), so the quiz's
 own quiz_submitted/locked gating is untouched.
 
+Lesson feedback marks each blank in place (mark_result=... paints it green/red)
+instead of listing the correct answers: INLINE_LESSON_FEEDBACK makes check_answer
+answer with this WHOLE element, and data-question-inline is what tells question.js
+and editor.js to swap the form body rather than just the feedback slot. Lesson
+only: a quiz answer is still the bare feedback fragment.
+
 data-lock-on-correct is question.js's opt-in flag: after a live correct check it
 locks these inputs client-side the same way, so the fetch path and a reload agree.
 {% endcomment %}
 <div class="el el--question el--fillblank" data-question>
   {% if element %}
-  <form class="question__form" method="post" action="{{ action_url }}" data-lock-on-correct>
+  <form class="question__form" method="post" action="{{ action_url }}" data-lock-on-correct{% if mode == "lesson" %} data-question-inline{% endif %}>
     {% csrf_token %}
     <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %}
               style="border:0;padding:0;margin:0 0 var(--space-3);">
       {% if element.pk == feedback_for_pk %}
-        {% render_fill_blanks el submitted_values locked=mark_result.correct %}
+        {% render_fill_blanks el submitted_values locked=mark_result.correct mark_result=mark_result %}
       {% else %}
         {% render_fill_blanks el %}
       {% endif %}

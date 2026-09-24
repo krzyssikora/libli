@@ -195,13 +195,19 @@ def sanitize(value):
 
 
 @register.simple_tag
-def render_fill_blanks(el, submitted_values=None, locked=False):
+def render_fill_blanks(el, submitted_values=None, locked=False, mark_result=None):
     """Render a fill-blank stem: text segments (sanitized HTML) interleaved with
     server-built <input name="blank"> elements (escaped values). `locked=True`
-    renders the read-only answered state (restore path). See courses.fillblank."""
+    renders the read-only answered state (restore path); `mark_result` paints each
+    blank with its own verdict (lesson feedback). See courses.fillblank."""
     from courses import fillblank
 
-    return fillblank.render_inputs(el.stem, submitted_values, locked=locked)
+    verdicts = None
+    if mark_result is not None:
+        verdicts = [item["correct"] for item in mark_result.reveal]
+    return fillblank.render_inputs(
+        el.stem, submitted_values, locked=locked, verdicts=verdicts
+    )
 
 
 @register.simple_tag

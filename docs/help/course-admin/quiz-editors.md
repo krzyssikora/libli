@@ -74,6 +74,11 @@ A stem with one or more inline gaps. Write the stem with each blank marked as
 into its own gap with its own accepted-answer list, and each gap is marked
 independently.
 
+In a **lesson**, checking an answer turns each gap green (right) or red (wrong)
+in place; the correct answers are not shown. If you want students to be able to
+look them up, put them in a Spoiler under the question. In a **quiz**, the
+correct answers are revealed once the question locks.
+
 ## {el:dragwords} Drag the words
 
 Like Fill in the blanks, but the student drags word chips into the gaps

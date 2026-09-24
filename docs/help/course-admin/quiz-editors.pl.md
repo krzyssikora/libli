@@ -82,6 +82,12 @@ akceptowanych wariantów, np. `Stolicą Francji jest {{Paryż|paryż}}.` —
 edytor zamienia każdy taki znacznik w osobną lukę z własną listą
 akceptowanych odpowiedzi, a każda luka jest oceniana niezależnie.
 
+W **lekcji** po sprawdzeniu odpowiedzi każda luka zmienia kolor na zielony
+(dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
+uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
+pytaniem. W **quizie** poprawne odpowiedzi są pokazywane, gdy pytanie zostanie
+zablokowane.
+
 ## {el:dragwords} Przeciągnij słowa
 
 Podobnie jak w pytaniach typu Uzupełnij luki, ale uczeń przeciąga fiszki ze

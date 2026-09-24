@@ -34,7 +34,6 @@ from courses.builder_open import container_pks
 from courses.builder_open import open_ids as _open_ids
 from courses.forms import CourseForm
 from courses.forms import SubjectForm
-from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -2757,13 +2756,15 @@ def element_try(request, slug, pk):
         from courses.quiz import selected_ids
 
         result = question.mark(answer)  # NOTHING is persisted
-        if isinstance(question, ChoiceQuestionElement):
-            selected = selected_ids(answer)
+        if question.INLINE_LESSON_FEEDBACK:
             return HttpResponse(
                 question.render(
                     element=el,
                     mode="lesson",
-                    selected_ids=selected,
+                    selected_ids=selected_ids(answer),
+                    submitted_values=(
+                        None if isinstance(answer, (set, frozenset)) else answer
+                    ),
                     mark_result=result,
                     feedback_for_pk=el.pk,
                     # DEFENCE IN DEPTH ONLY -- this fixes nothing observable. editor.js

@@ -2243,6 +2243,12 @@ class QuestionElement(ElementBase):
     # default off; only ChoiceQuestionElement opts in so far.
     INLINE_QUIZ_REVEAL = False
 
+    # The lesson counterpart: does this type mark its own controls in place after a
+    # lesson check? Types that opt in are answered with the WHOLE re-rendered element
+    # (check_answer / element_try; the form carries data-question-inline) and get no
+    # bottom reveal list in a lesson. Quiz feedback is unaffected.
+    INLINE_LESSON_FEEDBACK = False
+
     class MarkingMode(models.TextChoices):
         AUTO = "A", _("Auto-marked")
         NOT_MARKED = "N", _("Not marked")
@@ -2311,7 +2317,11 @@ class QuestionElement(ElementBase):
                 "selected_ids": set(selected_ids or ()),
                 "submitted_values": submitted_values,
                 "mark_result": mark_result,
-                "reveal_template": self.REVEAL_TEMPLATE,
+                "reveal_template": (
+                    None
+                    if mode == "lesson" and self.INLINE_LESSON_FEEDBACK
+                    else self.REVEAL_TEMPLATE
+                ),
                 "mode": mode,
                 "action_url": action_url,
                 "feedback_partial": feedback_partial,
@@ -2345,6 +2355,7 @@ class ChoiceQuestionElement(QuestionElement):
     # options. The lesson path already suppresses it via render()'s reveal_template
     # override below; this is the quiz half of the same rule.
     INLINE_QUIZ_REVEAL = True
+    INLINE_LESSON_FEEDBACK = True
 
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
@@ -2655,6 +2666,9 @@ class FillBlankQuestionElement(QuestionElement):
     """Stem with ordered blank tokens; each gap text-matched against its own answers."""
 
     RESTORABLE_IN_LESSON = True
+
+    # Lesson: each blank turns green/red in place; the answer list is quiz-only.
+    INLINE_LESSON_FEEDBACK = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
 
