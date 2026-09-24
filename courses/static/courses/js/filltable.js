@@ -17,9 +17,12 @@
 
   function paint(root, cells) {
     (cells || []).forEach(function (cell) {
-      var inp = root.querySelector(
-        '.filltable__input[data-r="' + cell.r + '"][data-c="' + cell.c + '"]'
-      );
+      // Presence, NOT truthiness: the first inline box has g === 0. A box shares
+      // its cell's r/c, so the g term is what picks the right box; an answer
+      // cell (no g) never matches an inline box.
+      var sel = '.filltable__input[data-r="' + cell.r + '"][data-c="' + cell.c + '"]';
+      sel += ("g" in cell) ? '[data-g="' + cell.g + '"]' : ":not([data-g])";
+      var inp = root.querySelector(sel);
       if (!inp) return;
       inp.classList.remove("filltable__input--correct", "filltable__input--incorrect");
       if (cell.correct === true) inp.classList.add("filltable__input--correct");
@@ -52,7 +55,9 @@
     if (!pk || pk === "0" || !url) return; // unsaved preview
     var body = new FormData();
     inputs(root).forEach(function (inp) {
-      body.append("r" + inp.dataset.r + "c" + inp.dataset.c, inp.value);
+      var key = "r" + inp.dataset.r + "c" + inp.dataset.c;
+      if (inp.dataset.g !== undefined) key += "g" + inp.dataset.g;
+      body.append(key, inp.value);
     });
     fetch(url, { method: "POST", headers: { "X-CSRFToken": csrf() }, body: body, credentials: "same-origin" })
       .then(function (r) { return r.json(); })
