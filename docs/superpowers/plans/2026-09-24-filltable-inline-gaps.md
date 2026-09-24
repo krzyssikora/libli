@@ -38,7 +38,7 @@
 
 ## Review Focus
 
-1. **A table saved before this feature, re-saved after it** — nothing in it changes unless the author typed `{{`. Pinned by Task 2's "no gaps = unchanged" test and Task 3's re-save test.
+1. **A table saved before this feature** — READ unchanged (pinned by Task 2's "no gaps = unchanged" test); RE-SAVED unchanged when it has no markers (pinned by Task 3's `test_resave_marker_free_table_is_identical`). The one save-side change — `strip_sentinel` removing a pre-existing U+FFFF — is guarded only by Task 11's prod audit.
 2. **Author re-opens a table with boxes and saves without touching it** — the boxes survive. Pinned by Task 6's editor round-trip test (and its mutant).
 3. **Student answers only some boxes of a multi-box cell** — each box painted independently, box 0 included. Pinned by Task 10's e2e (box 0 answered wrong) and its two paint-selector mutants.
 4. **Author pastes formatted text into a marker** (`{{<b>9</b>}}`, a coloured span) — the answer is still `9`. Pinned by Task 1.
@@ -413,8 +413,8 @@ Expected: all PASS (the existing form tests prove the three old helpers are unto
 - [ ] **Step 5: Lint and commit**
 
 ```bash
-uv run ruff check courses/filltable.py tests/test_filltable_gaps.py
 uv run ruff format courses/filltable.py tests/test_filltable_gaps.py
+uv run ruff check courses/filltable.py tests/test_filltable_gaps.py
 git add courses/filltable.py tests/test_filltable_gaps.py
 git commit -m "feat(filltable): parse, reverse and reconcile inline {{answer}} gaps
 
@@ -531,7 +531,7 @@ def test_canonical_cells_adds_gaps_display_without_mutating_data():
 - [ ] **Step 2: Run to verify failures**
 
 Run: `uv run pytest tests/test_filltable_gaps_model.py -v`
-Expected: FAIL — `test_gaps_carried_and_reconciled` (KeyError `gaps`), `test_gate_kept_for_gaps_only_table` (False), `test_canonical_cells_adds_gaps_display…` (KeyError). The two "unchanged"/"ignore" tests may already pass — that is expected; they pin behaviour.
+Expected: exactly four FAIL — `test_gaps_carried_and_reconciled` (KeyError `gaps`), `test_non_list_gaps_drops_key_and_tokens` (token still in html), `test_gate_kept_for_gaps_only_table` (False), `test_canonical_cells_adds_gaps_display_without_mutating_data` (KeyError). These PASS already and pin behaviour: `test_static_cell_without_gaps_is_unchanged_even_with_literal_token`, `test_all_gaps_removed_omits_key`, `test_answer_and_image_cells_ignore_gaps`, `test_gate_still_off_with_no_answers_and_no_gaps`, `test_save_rebalances_straddling_tag`.
 
 - [ ] **Step 3: Implement**
 
@@ -599,8 +599,8 @@ Expected: all PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-uv run ruff check courses/models.py tests/test_filltable_gaps_model.py
 uv run ruff format courses/models.py tests/test_filltable_gaps_model.py
+uv run ruff check courses/models.py tests/test_filltable_gaps_model.py
 git add courses/models.py tests/test_filltable_gaps_model.py
 git commit -m "feat(filltable): cells keep reconciled gaps; gate counts them
 
@@ -733,6 +733,21 @@ def test_resaving_stored_cells_keeps_gaps():
     assert again.cleaned_data["data"]["cells"] == el.normalize_data(el.data)["cells"]
 
 
+def test_resave_marker_free_table_is_identical():
+    cells = [
+        [
+            {"kind": "static", "html": "<b>czas</b> \\(x^2\\)"},
+            {"kind": "answer", "answer": "4 | four"},
+        ]
+    ]
+    el = FillTableElement(data={"cells": cells})
+    el.save()
+    before = el.normalize_data(el.data)["cells"]
+    f = _bind(el.data["cells"])
+    assert f.is_valid(), f.errors
+    assert f.cleaned_data["data"]["cells"] == before
+
+
 def test_resolved_grid_cells_author_html():
     el = FillTableElement(
         data={"cells": [[{"kind": "static", "html": f"{S}0{S}", "gaps": [["a<b"]]}]]}
@@ -811,7 +826,10 @@ In `FillTableElementForm.clean_data`, add imports at the top of the method and a
                     ) from None
                 if len(gaps) > MAX_GAPS_PER_CELL:
                     raise forms.ValidationError(
-                        _("Row %(r)d, column %(c)d: at most %(n)d answer boxes per cell.")
+                        _(
+                            "Row %(r)d, column %(c)d: at most %(n)d answer boxes "
+                            "per cell."
+                        )
                         % {"r": r + 1, "c": c + 1, "n": MAX_GAPS_PER_CELL}
                     )
                 cell["html"] = token_html
@@ -874,8 +892,8 @@ Mutant: move the whole `for r, row in enumerate(raw_cells …)` walk to AFTER `n
 - [ ] **Step 7: Commit**
 
 ```bash
-uv run ruff check courses/element_forms.py tests/test_filltable_gaps_form.py tests/test_filltable_form.py
 uv run ruff format courses/element_forms.py tests/test_filltable_gaps_form.py tests/test_filltable_form.py
+uv run ruff check courses/element_forms.py tests/test_filltable_gaps_form.py tests/test_filltable_form.py
 git add courses/element_forms.py tests/test_filltable_gaps_form.py tests/test_filltable_form.py
 git commit -m "feat(filltable): the form parses {{answer}} boxes before normalising
 
@@ -1150,8 +1168,8 @@ Mutant: in `_with_parts`, keep `gaps` in the non-done branch (`cell = {**cell, "
 - [ ] **Step 9: Commit**
 
 ```bash
-uv run ruff check courses/ tests/test_filltable_gaps_render.py
 uv run ruff format courses/filltable.py courses/models.py tests/test_filltable_gaps_render.py
+uv run ruff check courses/ tests/test_filltable_gaps_render.py
 git add courses/filltable.py courses/models.py templates/courses/elements/_filltable_cell.html courses/static/courses/css/courses.css tests/test_filltable_gaps_render.py
 git commit -m "feat(filltable): render inline answer boxes in static cells
 
@@ -1310,8 +1328,8 @@ Expected: all PASS. (The JS is exercised by Task 10's e2e, which also carries th
 - [ ] **Step 6: Commit**
 
 ```bash
-uv run ruff check courses/views.py tests/test_filltable_gaps_check.py
 uv run ruff format courses/views.py tests/test_filltable_gaps_check.py
+uv run ruff check courses/views.py tests/test_filltable_gaps_check.py
 git add courses/views.py courses/static/courses/js/filltable.js tests/test_filltable_gaps_check.py
 git commit -m "feat(filltable): check and paint each inline answer box
 
@@ -1399,10 +1417,10 @@ Expected: FAIL — tokens in the output, no hint, old message.
 3. Directly after the grid wrapper's closing `</div></div>` (the line after `</table>`), add:
 
 ```django
-  <p class="filltable-editor__hint field-help">{% trans 'Type {{answer}} in a cell to put an answer box inside its text; separate accepted alternatives with |.' %}</p>
+  <p class="el-editor__hint">{% trans 'Type {{answer}} in a cell to put an answer box inside its text; separate accepted alternatives with |.' %}</p>
 ```
 
-(Check `field-help` exists: `git grep -n "\.field-help" -- '*.css'`. If it does not, use the class the neighbouring editors use for a help line — grep `_edit_fillblank.html` for its hint and copy that class; do not invent new CSS.)
+(`el-editor__hint` is the class the fill-blank editor uses for its own `{{answer}}` hint — `templates/courses/manage/editor/_edit_fillblankquestion.html` — which also proves `{% trans %}` keeps a literal `{{answer}}`. Do not invent new CSS.)
 
 - [ ] **Step 4: JS submit guard**
 
@@ -1410,8 +1428,8 @@ In `filltable_editor.js` `onSubmit`, replace the `if (answerInputs.length === 0)
 
 ```js
     // Brace-free on purpose: tests/test_editor_twin_drift.py delimits function
-    // bodies by counting { and } per line, so a literal "{{" would swallow the
-    // rest of this file. \x7b is "{", \x7d is "}".
+    // bodies by counting braces per line, so a literal double open-brace would
+    // swallow the rest of this file; \x7b and \x7d are the escapes.
     var markerOpen = "\x7b\x7b";
     var hasGap = Array.prototype.some.call(
       grid.querySelectorAll("td[contenteditable], th[contenteditable]"),
@@ -1431,6 +1449,13 @@ In `filltable_editor.js` `onSubmit`, replace the `if (answerInputs.length === 0)
 
 No new NAMED function is added (the callback is anonymous), so `EXPECTED_COUNTS[FILL_JS]` stays 37.
 
+Brace balance check (the drift guard counts braces in comments and strings too, and `onSubmit` has no twin, so nothing else would catch an imbalance): every line you added or changed in `filltable_editor.js` must have equal `{` and `}` counts. Verify:
+
+```bash
+git diff -U0 courses/static/courses/js/filltable_editor.js | grep '^+[^+]' | awk '{o=gsub(/\{/,"{"); c=gsub(/\}/,"}"); if (o!=c) print "UNBALANCED: " $0}'
+```
+Expected: no output.
+
 - [ ] **Step 5: Drift-guard docstring + stale comments**
 
 In `tests/test_editor_twin_drift.py` `_functions` docstring, replace "The first three do not occur in either editor;" with "The first three must never carry a literal brace in either editor -- write one as `\x7b`/`\x7d` (filltable_editor.js `onSubmit` does);". In `tests/test_filltable_editor_partial.py`, update the two comments quoting "Mark at least one answer cell …" to quote the new message (comment-only change).
@@ -1447,6 +1472,8 @@ Mutant: change the `<td>` static branch back to `{{ cell.html|safe }}`. Run `uv 
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff format tests/test_filltable_gaps_editor.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py
+uv run ruff check tests/test_filltable_gaps_editor.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py
 git add templates/courses/manage/editor/_edit_filltable.html courses/static/courses/js/filltable_editor.js tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_filltable_gaps_editor.py
 git commit -m "feat(filltable): editor shows {{answer}} boxes, hints, accepts gaps-only tables
 
@@ -1539,8 +1566,8 @@ Expected: all PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-uv run ruff check courses/transfer tests/test_filltable_transfer.py
 uv run ruff format courses/transfer tests/test_filltable_transfer.py
+uv run ruff check courses/transfer tests/test_filltable_transfer.py
 git add courses/transfer tests/test_filltable_transfer.py courses/tests/test_beforeafter_transfer.py courses/tests/test_caption_transfer.py courses/tests/test_image_size_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py
 git commit -m "feat(transfer): fill-table gaps travel; format version 16
 
@@ -1626,8 +1653,8 @@ Expected: summary says `1 answer(s)`; the recolour test finds a match.
 - [ ] **Step 5: Commit**
 
 ```bash
-uv run ruff check courses/templatetags courses/recolour tests/test_table_manage_plumbing.py tests/test_recolour_dbscan.py
 uv run ruff format courses/templatetags courses/recolour tests/test_table_manage_plumbing.py tests/test_recolour_dbscan.py
+uv run ruff check courses/templatetags courses/recolour tests/test_table_manage_plumbing.py tests/test_recolour_dbscan.py
 git add courses/templatetags/courses_manage_extras.py courses/recolour/dbscan.py tests/test_table_manage_plumbing.py tests/test_recolour_dbscan.py
 git commit -m "feat(filltable): summary counts inline boxes; recolour skips gapped cells
 
@@ -1660,17 +1687,53 @@ Run: `uv run python manage.py makemessages -l pl -l en` (use the project's usual
 | `Type {{answer}} in a cell to put an answer box inside its text; separate accepted alternatives with \|.` | `Wpisz {{odpowiedź}} w komórce, aby wstawić pole odpowiedzi w jej tekst; akceptowane warianty oddziel znakiem \|.` |
 | `Element '%(el)s': fill-in table gaps must be a list.` | `Element '%(el)s': pola odpowiedzi tabeli do uzupełnienia muszą być listą.` |
 
+⚠️ **Backslashes in `.po`:** the table shows strings as they render. In `django.po` a backslash must be doubled — `makemessages` writes the maths msgid as `… e.g. {{9}} \\(\\pi\\).`, and the msgstr must be written the same way: `… np. {{9}} \\(\\pi\\).` A single `\(` is an invalid escape and breaks `compilemessages`.
+
 ⚠️ The Polish hint and no-answer text say `{{odpowiedź}}` as an EXAMPLE placeholder — that is only illustrative text; the marker syntax itself is language-neutral. **Flag these Polish strings to the owner in the PR for wording review** (they are an author-facing instruction).
 
 The `en` catalog: leave msgstr empty (English falls back to msgid) unless the en catalog convention in this repo fills them — match what neighbouring entries do.
 
 - [ ] **Step 3: Compile and verify**
 
-```bash
-uv run python manage.py compilemessages -l pl -l en
-grep -n -B1 -A3 "answer box\|at least one answer —\|box %(g)s\|gaps must be a list\|Type {{answer}}" locale/pl/LC_MESSAGES/django.po | grep -c fuzzy
+Run `uv run python manage.py compilemessages -l pl -l en`, then verify per ENTRY (a line grep cannot: `msgmerge --previous` puts `#, fuzzy` and `#| msgid` lines above a wrapped `msgid ""`). Save as a scratch script (NOT a heredoc — bash heredocs eat backslashes) and run with `uv run python <script>`:
+
+```python
+import polib  # if missing: uv run --with polib python <script>
+
+EXPECTED = {
+    "Add at least one answer — mark an answer cell, or type {{answer}} in a cell.":
+        "Dodaj co najmniej jedną odpowiedź — oznacz komórkę z odpowiedzią albo wpisz {{odpowiedź}} w komórce.",
+    "Row %(r)d, column %(c)d: an answer box {{…}} is empty or not closed.":
+        "Wiersz %(r)d, kolumna %(c)d: pole odpowiedzi {{…}} jest puste albo niezamknięte.",
+    "Row %(r)d, column %(c)d: an answer box cannot contain maths — put the maths outside the braces, e.g. {{9}} " + chr(92) + "(" + chr(92) + "pi" + chr(92) + ").":
+        "Wiersz %(r)d, kolumna %(c)d: pole odpowiedzi nie może zawierać wzoru — umieść wzór poza nawiasami, np. {{9}} " + chr(92) + "(" + chr(92) + "pi" + chr(92) + ").",
+    "Row %(r)d, column %(c)d: at most %(n)d answer boxes per cell.":
+        "Wiersz %(r)d, kolumna %(c)d: w jednej komórce może być najwyżej %(n)d pól odpowiedzi.",
+    "Answer, row %(r)s, column %(c)s, box %(g)s":
+        "Odpowiedź, wiersz %(r)s, kolumna %(c)s, pole %(g)s",
+    "Type {{answer}} in a cell to put an answer box inside its text; separate accepted alternatives with |.":
+        "Wpisz {{odpowiedź}} w komórce, aby wstawić pole odpowiedzi w jej tekst; akceptowane warianty oddziel znakiem |.",
+    "Element '%(el)s': fill-in table gaps must be a list.":
+        "Element '%(el)s': pola odpowiedzi tabeli do uzupełnienia muszą być listą.",
+}
+po = polib.pofile("locale/pl/LC_MESSAGES/django.po")
+bad = []
+for msgid, want in EXPECTED.items():
+    e = po.find(msgid)
+    if e is None or e.obsolete:
+        bad.append(("MISSING", msgid))
+    elif "fuzzy" in e.flags:
+        bad.append(("FUZZY", msgid))
+    elif e.msgstr != want:
+        bad.append(("WRONG", msgid, e.msgstr))
+print(bad or "OK")
 ```
-Expected: `0`. Note: `grep` exits 1 on zero matches — that is success here, don't wrap it in `set -e`.
+Expected: `OK`. Then confirm the compiled catalog renders single backslashes:
+
+```bash
+uv run python manage.py shell -c "from django.utils import translation; from django.utils.translation import gettext as g; translation.activate('pl'); print(g('Row %(r)d, column %(c)d: an answer box cannot contain maths — put the maths outside the braces, e.g. {{9}} \\\\(\\\\pi\\\\).') % {'r': 1, 'c': 1})"
+```
+Expected: a Polish line ending `np. {{9}} \(\pi\).` (one backslash each). If it prints English, the msgid spelling differs — compare with the `.po` entry.
 
 - [ ] **Step 4: Help pages**
 
@@ -1904,8 +1967,8 @@ Create a TEMPORARY file `tests/test_e2e_filltable_gaps_shots.py` (do not commit)
 - [ ] **Step 6: Commit**
 
 ```bash
-uv run ruff check tests/test_e2e_filltable_gaps.py
 uv run ruff format tests/test_e2e_filltable_gaps.py
+uv run ruff check tests/test_e2e_filltable_gaps.py
 git add tests/test_e2e_filltable_gaps.py
 git commit -m "test(filltable): e2e for authored inline boxes, per-box verdicts, lock width
 
@@ -1921,14 +1984,22 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Lint gates**
 
 ```bash
-uv run ruff check .
 uv run ruff format --check .
+uv run ruff check .
 ```
 Expected: both clean.
 
 - [ ] **Step 2: Whole-suite run, in chunks (a single full run is OOM-killed)**
 
-Run the non-e2e suite in ~4 chunks by directory (e.g. `tests/test_[a-f]*`, `tests/test_[g-o]*`, `tests/test_[p-z]*`, `courses/tests accounts core institution notes tags`), each foreground, reading every summary line. Then the fill-table e2e files: `uv run pytest tests/test_e2e_filltable.py tests/test_e2e_filltable_gaps.py tests/test_e2e_filltable_gate.py tests/test_e2e_spanning_roundtrip.py tests/test_e2e_table_cell_images.py -m e2e -v`. Any failure outside the files this branch touched: A/B it against `origin/master` before blaming the diff.
+First record the total: `uv run pytest --collect-only 2>&1 | tail -3` (note the "N tests collected" count). Run the non-e2e suite in chunks that together cover EVERY test directory, each foreground, reading every summary line:
+1. `uv run pytest tests/test_[a-f]*`
+2. `uv run pytest tests/test_[g-o]*`
+3. `uv run pytest tests/test_[p-z]* tests/demo tests/lal_import`
+4. `uv run pytest courses/tests accounts core institution notes tags integrations notifications`
+
+Then `ls -d */tests tests/*/ 2>/dev/null` and confirm every listed directory appeared in a chunk; the chunk pass/skip counts should sum to the non-e2e part of the collected total.
+
+Then the e2e files this branch can affect (the paint selector, the inline CSS next to the min-width floor, and the editor submit guard): `uv run pytest tests/test_e2e_filltable*.py tests/test_e2e_table_editor.py tests/test_e2e_spanning_roundtrip.py tests/test_e2e_spanning_merge.py tests/test_e2e_table_cell_images.py -m e2e -v`. Any failure outside the files this branch touched: A/B it against `origin/master` before blaming the diff.
 
 - [ ] **Step 3: Check no other open branch bumps FORMAT_VERSION**
 
