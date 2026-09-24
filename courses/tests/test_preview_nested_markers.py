@@ -45,12 +45,13 @@ def _text(body="x"):
 
 
 def _fixed_tabs_data():
-    """default_data() mints ids with secrets.token_hex(3) (models.py TabsElement.default_data), which are
-    rendered into data-tab-id, id="tabs-{eid}-{tid}-panel", the matching -label id and
-    aria-labelledby. Two renders of the SAME tree would therefore differ every time,
-    which would make Task 11's master-vs-master control diff impossible to satisfy.
-    Overwrite the ids with fixed literals; the shape is taken from default_data() so
-    this stays correct if the shape changes."""
+    """default_data() mints ids with secrets.token_hex(3) (models.py
+    TabsElement.default_data), which are rendered into data-tab-id,
+    id="tabs-{eid}-{tid}-panel", the matching -label id and aria-labelledby. Two
+    renders of the SAME tree would therefore differ every time, which would make
+    Task 11's master-vs-master control diff impossible to satisfy. Overwrite the
+    ids with fixed literals; the shape is taken from default_data() so this stays
+    correct if the shape changes."""
     d = TabsElement.default_data()
     for i, t in enumerate(d["tabs"], start=1):
         t["id"] = f"t{i:06d}"

@@ -19,7 +19,7 @@ from typing import NamedTuple
 #
 # ⚠️ courses/numeric.py DOES NOT EXIST. The parser lives in courses/marking.py,
 # and it is the same one ShortNumericQuestionElement.mark uses
-# (courses/models.py ShortNumericQuestionElement.mark) — which is the only reason our "correct" answer marks
+# (courses/models.py) — which is the only reason our "correct" answer marks
 # 1.0. (canonical_numeric_text is deliberately NOT imported: it preserves
 # fraction form rather than converting it — see _decimal_text below.)
 from courses.marking import parse_numeric_value
@@ -74,9 +74,9 @@ def _shortnumeric(q):
         return None  # a hand-edited row: every answer marks 0.0
     tol = parse_numeric_value(q.tolerance)
     # Explicit `is None`, NOT `... or Fraction(0)`: Fraction(0) is falsy, so the
-    # `or` form is right only by accident. courses/models.py ShortNumericQuestionElement.mark carries this
-    # exact comment about this exact expression — do not reintroduce the form it
-    # rejects.
+    # `or` form is right only by accident. ShortNumericQuestionElement.mark
+    # (courses/models.py) carries this exact comment about this exact
+    # expression — do not reintroduce the form it rejects.
     if tol is None:
         tol = Fraction(0)
     upper = want + tol  # mark() is abs(got - want) <= tol — ABSOLUTE tolerance

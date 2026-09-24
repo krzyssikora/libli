@@ -175,7 +175,7 @@ def small_course(
     # untested and nothing stops the generator stamping 1.0 on ungraded work.
     notes_quiz = _unit(course, part_a, "Notes quiz", "quiz")
     _choice_question(notes_quiz, correct="3")
-    # ⚠️ `accepted` MUST BE NON-EMPTY. `_accepted_lines` (courses/models.py _accepted_lines)
+    # ⚠️ `accepted` MUST BE NON-EMPTY. `_accepted_lines` (courses/models.py)
     # drops blank lines, so accepted="" yields [] and `_shorttext` returns None —
     # build_course_plan then takes the `question_dropped` branch and the row never
     # becomes a QuestionPlan at all. The effect is worse than a missing fixture:
