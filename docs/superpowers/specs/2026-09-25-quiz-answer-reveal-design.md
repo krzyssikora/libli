@@ -120,14 +120,28 @@ render/rehydrate path draws both copies identically:
 | Drag onto image | the correct `slot` value per zone |
 | Multiple choice, extended response | `None` (own view, D8 / D7) |
 
-When a question is **locked and not fully correct** (§4 defines the source of "fully
-correct" on the results page), the renderer draws a second copy from `key_answer()`:
+When a question is **locked and not fully correct** (§2.6 defines the source of "fully
+correct"), the renderer draws a second copy from `key_answer()`.
+
+**What the copy contains — the controls region only.** Each converted template factors
+its answer controls (the stem with its inputs / slots / grid, i.e. today's
+`<fieldset class="question__stem">` content) into a per-type include, e.g.
+`_fillblank_controls.html`, rendered once for "Your answer" and once with `copy="key"`
+for the correct answer. The form wrapper, the Check and Show answer buttons, the
+`[data-question-feedback]` box and `data-quiz-locked` are rendered **exactly once** per
+question — never inside the copy. Test: exactly one `[data-question-feedback]`, one
+Check button and at most one Show answer button per rendered question.
+
+The key copy's controls:
 
 - all parts painted correct;
 - every control **`disabled`** (not `readonly`, which has no effect on radios,
   checkboxes, selects or draggables) and **without a `name` attribute** — disabled
   controls are never serialised by `FormData`, and the missing `name` is defence in
-  depth, so no re-post can ever send the key as the student's answer;
+  depth, so no re-post can ever send the key as the student's answer. Drag types'
+  nameless `<select>`s carry **`data-slot`** instead, and dnd.js's selector widens from
+  `select[name="slot"]` to `select[name="slot"], select[data-slot]` so it still builds
+  the drag UI for the key copy (PR 2);
 - **every `id` in the copy gets a `-key` suffix**, and every `for=` / `aria-*` reference
   in the copy is rewritten to match, so ids stay unique and labels point at their own
   copy's controls.
@@ -140,9 +154,16 @@ response, or the resume render before that.
 `templates/courses/elements/_answer_switch.html` — a two-option segmented control
 ("Your answer" / "Correct answer") built from two radio inputs named
 `answer_view_<element.pk>`, placed **inside the question `<form>`** (so the fetch path's
-form-body swap carries it, §2.4), wrapped in `[data-answer-switch]`. A
-`[data-question]:has(...)` CSS rule shows the copy matching the checked radio, "Your
-answer" checked by default (D3). Keyboard-operable, no JS.
+form-body swap carries it, §2.4) but **outside every `<fieldset>`** — a direct child of
+the form next to the feedback box. A locked question's templates render their
+controls fieldset `disabled` and both freeze scripts disable `fieldset`s, and a disabled
+fieldset disables every control inside it regardless of any selector exclusion. The
+switch is wrapped in `[data-answer-switch]`, and the CSS rule that shows the copy
+matching the checked radio is scoped to **the form** (`form:has(...)`), not to
+`[data-question]`, so it works on every render path including the results page (§4),
+which renders each question inside the same form markup. "Your answer" is checked by
+default (D3). Keyboard-operable, no JS. Test: no switch radio has a `disabled`
+ancestor `fieldset`, in the server render and after each script's freeze.
 
 - `answer_view_*` joins the reserved POST names documented on
   `courses.quiz.parse_attempt`: no `build_answer` may read it. It only exists on a
@@ -165,18 +186,47 @@ button when eligible), swapped in via the existing `data-question-inline` form-b
 The converted type's form gains `data-question-inline` in quiz mode. Unconverted types
 keep today's fragment until their PR.
 
+**Per-type enhancers after a swap.** `form.innerHTML = …` replaces controls that
+per-type scripts enhanced at DOMContentLoaded: dnd.js (`init(root)`, drag UI) and
+blank_autosize.js (initial fit). quiz.js and editor.js must re-run both on the swapped
+form, through a small global each script exposes (e.g. `window.libliDnd.init(form)`,
+`window.libliBlankAutosize(form)`), and both must be idempotent. PR 1 needs the
+autosize re-run; PR 2 the dnd one. Test (PR 2 e2e): after a Check and after a reveal,
+the drag UI is present in both copies.
+
 The other render paths must draw §1 state 2 or 4 identically:
 
 - **resume** (`build_quiz_context`, page load mid-quiz) and the **no-JS** re-render
-  compute `verdicts = part_verdicts(mark(latest_answer))` for an unlocked answered
-  question (today they pass nothing until locked);
+  compute `verdicts = part_verdicts(mark(answer_from_json(question, latest_answer)))`
+  for an answered question, locked or not (today they pass nothing until locked).
+  `latest_answer` is the stored JSON form; `mark()` takes the `build_answer` shape,
+  which `courses.quiz.answer_from_json` reconstructs;
 - **editor try-it** (`views_manage.element_try`, quiz branch, §3.3);
 - **previewer** (`quiz_answer`'s non-enrolled branch).
 
 ### 2.5 Result line
 
 `_quiz_question_feedback.html` gains the **partial** state (0 < fraction < 1) and the
-marks, per §1. One template for all types.
+marks, per §1. One template for all types. The "· N attempts left" segment is
+**omitted** when `max_attempts` is None (unlimited); result-line tests cover both.
+
+### 2.6 One source per value — every render path
+
+Any render of an **already-stored** answer (the enrolled reveal response, resume, no-JS,
+the results page) re-marks it to get verdicts, and re-marking can disagree with what
+was awarded if the author has since edited the key. So on every path:
+
+- the **result line, the marks, the `data-confirm` marks and whether the switch is
+  shown** ("fully correct" or not) come from the **stored** `response.fraction` /
+  `earned_marks`;
+- the **part colours and `mark_result`** (hence the key copy) come from a **fresh**
+  `mark(answer_from_json(question, latest_answer))`.
+
+The disagreement after a key edit is accepted — the marks are what was awarded; the
+colours and key show the key as it is now — and is written down so nobody "fixes" one to
+match the other. A fresh Check (live or ephemeral) has only one result, so the question
+does not arise there. Test: edit the key after an attempt, then reveal; the line keeps
+the stored marks.
 
 ## 3. Show answer — server
 
@@ -232,6 +282,11 @@ attempt (the unlocked element, no reveal).
   form holds** at the moment of the reveal, which may differ from the last Checked
   answer. The enrolled path uses the stored answer. This is acceptable because nothing
   is persisted and only authors/previewers reach this path.
+- **Edge cases of that divergence, defined:** a reveal **bypasses the empty-answer
+  validation branch** — an emptied form is marked as-is (every part wrong, 0 marks),
+  locked, with an empty "Your answer" and the switch. A form that happens to be fully
+  correct locks as "✓ Correct · 1 / 1 · answer shown" with no switch. Both are in the
+  ephemeral-divergence tests.
 
 ### 3.4 Confirmation text
 
@@ -262,15 +317,9 @@ the time it is written (currently `0066_blank_answers_unescape`).
 `views._results_row` / `quiz_results.html` render each question **read-only through
 the same renderer**, from the stored `latest_answer`, locked.
 
-**One source per value:**
-
-- the **result line** (correct / partial / incorrect) and the **marks** come from the
-  stored `response.fraction` / `earned_marks`, as today;
-- the **switch is shown iff the stored outcome is not "correct"**;
-- the **part colours** come from a fresh `part_verdicts(mark(latest_answer))`. If the
-  author changed the key after the student answered, colours and the stored marks can
-  disagree; this is accepted (the marks are what was awarded; the colours show the key
-  as it is now) and is noted here so nobody "fixes" one to match the other.
+Values follow §2.6 (stored marks / fresh colours). **Unanswered** rows (no
+`QuestionResponse`, or `latest_answer` None) get `verdicts = None` — neutral controls —
+and `mark()` is **not** called for them; only the key copy is drawn.
 
 Rows:
 
