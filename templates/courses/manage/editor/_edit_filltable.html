@@ -14,7 +14,7 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
      data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}"
      data-msg-answer-placeholder="{% trans 'Accepted answer' %}"
      data-msg-answer-blank="{% trans 'An answer cell is blank — type its accepted answer, or make it a normal cell.' %}"
-     data-msg-no-answer="{% trans 'Mark at least one answer cell (use the “Answer cell” button).' %}"
+     data-msg-no-answer="{% trans 'Add at least one answer — mark an answer cell, or type {{answer}} in a cell.' %}"
      data-msg-merge="{% trans 'Merge cells' %}"
      data-msg-header="{% trans 'Header cell' %}"
      data-msg-merge-confirm="{% trans 'Merging will discard the content of the other selected cells.' %}"
@@ -124,10 +124,10 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
         {% else %}
           {% if cell.header %}
           <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.author_html|safe }}</th>
           {% else %}
           <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.author_html|safe }}</td>
           {% endif %}
         {% endif %}
         {% endfor %}
@@ -135,6 +135,8 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
       {% endfor %}
     </table>
   </div></div>
+
+  <p class="el-editor__hint">{% trans 'Type {{answer}} in a cell to put an answer box inside its text; separate accepted alternatives with |.' %}</p>
 
   {% comment %}Range membership is announced here rather than with aria-selected,
   which is only meaningful on gridcell/option/row roles and is ignored (and

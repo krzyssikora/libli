@@ -190,6 +190,7 @@ def element_summary(el):
     if name == "FillTableElement":
         d = FillTableElement.normalize_data(el.data)
         n_ans = sum(1 for row in d["cells"] for c in row if c["kind"] == "answer")
+        n_ans += sum(len(c.get("gaps") or []) for row in d["cells"] for c in row)
         rows, cols = len(d["cells"]), len(d["cells"][0])
         summary = _("%(rows)d×%(cols)d fill-in table, %(n)d answer(s)") % {
             "rows": rows,

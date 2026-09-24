@@ -620,7 +620,8 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     no behavioural pin.
 
     Seed a fill table with an image cell AND an answer cell (FillTableElementForm
-    requires at least one answer cell, so an image-only grid cannot be saved), then
+    requires at least one answer or a {{gap}}, so an image-only grid with
+    neither cannot be saved), then
     use tests/test_e2e_filltable.py's _goto_editor + _open_edit(page, element_pk) -
     NOT the plain table's _reopen, whose wait selector is [data-table-editor].
     """

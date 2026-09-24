@@ -79,8 +79,8 @@ def _fixtures():
     )
     cols = [GridColumn.objects.create(question=cg, label=lbl) for lbl in ("yes", "no")]
     for text in ("r1", "r2"):
-        # ⚠️ ROWS USE `statement`, COLUMNS USE `label`. GridRow (courses/models.py:2818)
-        # and MultiGridRow (:2905) declare `statement`; only the *Column models
+        # ⚠️ ROWS USE `statement`, COLUMNS USE `label`. GridRow and MultiGridRow
+        # (both courses/models.py) declare `statement`; only the *Column models
         # have `label`. Passing label= is a TypeError that kills the whole module
         # before a single assertion runs.
         GridRow.objects.create(question=cg, statement=text, correct_column=cols[0])

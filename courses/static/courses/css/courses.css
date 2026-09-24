@@ -1772,6 +1772,26 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   min-width: calc(4ch + 2 * var(--space-3) + 2px);
 }
 
+/* INLINE ANSWER BOX ({{answer}} typed into a static cell's text; spec
+   2026-09-24-filltable-inline-gaps §5). Sits in running text and maths, so it
+   must not fill the cell or pad the line. (0,2,0) and AFTER the min-width floor
+   above (same specificity) so `min-width: 0` wins on source order. The width is
+   content + padding + border because app.css's (0,1,1) rule makes the box
+   border-box; ~6ch of content, fixed -- never sized to the answer. */
+.el--filltable .filltable__input--inline {
+  display: inline-block;
+  width: calc(6ch + 2 * var(--space-1) + 2px);
+  min-width: 0;
+  padding-block: 0;
+  padding-inline: var(--space-1);
+  vertical-align: baseline;
+}
+/* Done state only: the server sets `readonly` + a fitting `size`, so a long first
+   answer is not clipped. [readonly], NEVER :read-only -- the live lock() sets
+   `disabled`, which matches :read-only, and with no `size` the box would jump to
+   the UA's 20ch on the moment of success. (0,3,0) beats the width above. */
+.el--filltable .filltable__input--inline[readonly] { width: auto; }
+
 /* Correctness states: filltable.js toggles these per input after a Check;
    a correct cell is then locked read-only (mirrors .fillgate's blank-input
    verdict states so the self-check families read as one, see app.css).

@@ -800,6 +800,15 @@ def _val_fill_table(data, elid, media_kinds):
                 )
             if cell.get("kind") == "image":
                 refs |= _require_media(cell.get("media"), elid, media_kinds, "image")
+            if (
+                cell.get("kind") not in ("answer", "image")
+                and "gaps" in cell
+                and not isinstance(cell["gaps"], list)
+            ):
+                _err(
+                    _("Element '%(el)s': fill-in table gaps must be a list."),
+                    el=elid,
+                )
     return refs
 
 

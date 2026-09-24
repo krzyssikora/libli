@@ -174,7 +174,7 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     rows = []
     for qplan in qplans[:limit]:  # qplans[:None] is already the whole list
         answer, fraction = _pick_answer(rng, qplan, p_correct)
-        # ⚠️ NOT_MARKED ROWS STORE NO FRACTION. courses/views.py:1645-1655 sets
+        # ⚠️ NOT_MARKED ROWS STORE NO FRACTION. courses/views.py quiz_answer sets
         # `response.fraction` / `earned_marks` ONLY when marking_mode is AUTO and
         # leaves them None otherwise. Writing 1.0 here would make every `[N]`
         # question in the kit render as fully correct on any surface that shows a
@@ -202,7 +202,7 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     # here — and this is the highest-volume write by an order of magnitude.
     QuestionResponse.objects.bulk_create(rows)
     # ⚠️ NO `Attempt` ROWS, deliberately. The real answer path
-    # (courses/views.py:1665) creates one Attempt per response; we write
+    # (courses/views.py quiz_answer) creates one Attempt per response; we write
     # attempt_count=1 with nothing behind it. What that costs: any surface that
     # JOINS Attempt shows a count with no history — PR 5's per-question view,
     # the stated consumer, reads attempt_count alone (views_analytics.py

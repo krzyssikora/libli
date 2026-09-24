@@ -1535,6 +1535,17 @@ class FillTableElement(ElementBase):
                 "halign": halign,
                 "valign": valign,
             }
+            # Inline {{answer}} gaps (spec 2026-09-24 §3/§4). ONLY when the raw
+            # cell has the key: a cell without one passes through untouched even
+            # if its html holds a literal U+FFFF token -- §1's byte-identical
+            # promise for every table saved before this feature.
+            if "gaps" in raw:
+                from courses.filltable import reconcile_gaps
+
+                html, gaps = reconcile_gaps(cell["html"], raw.get("gaps"))
+                cell["html"] = html
+                if gaps:
+                    cell["gaps"] = gaps
         # Spanning-table extras (imported): a header (<th>) cell + colspan/rowspan.
         # Absent when unset, so simple fill tables and the editor are unaffected.
         if raw.get("header"):
@@ -1580,8 +1591,8 @@ class FillTableElement(ElementBase):
         # A gate that can never be SATISFIED strands every following sibling behind
         # an unsatisfiable check, with no author-visible symptom. TWO grid shapes do
         # that, and FillTableElementForm.clean_data rejects BOTH:
-        #   (a) no answer cell at all -- filltable_check returns cells: [] /
-        #       all_correct: false unconditionally;
+        #   (a) no answer cell and no inline gap at all -- filltable_check returns
+        #       cells: [] / all_correct: false unconditionally;
         #   (b) an answer cell whose accepted-answer string is blank --
         #       marking.blank_matches loops over an EMPTY accepted list and returns
         #       False for every input.
@@ -1596,10 +1607,14 @@ class FillTableElement(ElementBase):
         gate = bool(data.get("gate"))
         if gate:
             from courses.filltable import answer_cells
+            from courses.filltable import gap_cells
             from courses.filltable import is_blank_answer
 
             answers = [ans for _r, _c, ans in answer_cells(cells)]
-            gate = bool(answers) and not any(is_blank_answer(a) for a in answers)
+            has_gap = next(gap_cells(cells), None) is not None
+            gate = (bool(answers) or has_gap) and not any(
+                is_blank_answer(a) for a in answers
+            )
         return {
             "header_row": bool(data.get("header_row")),
             "header_col": bool(data.get("header_col")),
@@ -1616,11 +1631,13 @@ class FillTableElement(ElementBase):
     def canonical_cells(self):
         """Grid shaped exactly like resolved_cells: image cells resolved to a
         MediaAsset (or degraded to empty static); static cells pass through
-        unchanged; each answer cell's `answer` is replaced by its FIRST
-        pipe-delimited alternative (courses.filltable.split_alternatives()[0];
-        no configured alternatives -> ""). Restore-only (mine.done); reads
-        self.data via resolved_cells but NEVER mutates it -- resolved_cells
-        already returns fresh cell dicts, not references into self.data."""
+        unchanged, except that a cell with inline `gaps` gains `gaps_display`
+        (the first alternative of each box); each answer cell's `answer` is
+        replaced by its FIRST pipe-delimited alternative
+        (courses.filltable.split_alternatives()[0]; no configured alternatives ->
+        ""). Restore-only (mine.done); reads self.data via resolved_cells but
+        NEVER mutates it -- resolved_cells already returns fresh cell dicts, not
+        references into self.data."""
         from courses.filltable import split_alternatives
 
         # resolve image pks -> MediaAsset, then swap answers
@@ -1632,6 +1649,11 @@ class FillTableElement(ElementBase):
                 if cell.get("kind") == self.ANSWER:
                     alts = split_alternatives(cell.get("answer", ""))
                     out_row.append({**cell, "answer": alts[0] if alts else ""})
+                elif cell.get("gaps"):
+                    # The SINGLE source of each inline box's done-state value.
+                    out_row.append(
+                        {**cell, "gaps_display": [g[0] for g in cell["gaps"]]}
+                    )
                 else:
                     out_row.append(cell)
             out.append(out_row)
@@ -1667,6 +1689,32 @@ class FillTableElement(ElementBase):
         self.data = self._sanitized_data(self.data)
         super().save(*args, **kwargs)
 
+    @staticmethod
+    def _with_parts(cells, *, done):
+        """Precompute each gapped static cell's `parts` (spec §5). In the non-done
+        branch `gaps` is REMOVED so no template can ever emit the answers."""
+        from courses.filltable import cell_parts
+
+        out = []
+        for r, row in enumerate(cells):
+            new_row = []
+            for c, cell in enumerate(row):
+                if cell.get("kind") not in (
+                    FillTableElement.ANSWER,
+                    "image",
+                ) and cell.get("gaps"):
+                    parts = cell_parts(cell, r, c, done=done)
+                    if done:
+                        cell = {**cell, "parts": parts}
+                    else:
+                        cell = {
+                            **{k: v for k, v in cell.items() if k != "gaps"},
+                            "parts": parts,
+                        }
+                new_row.append(cell)
+            out.append(new_row)
+        return out
+
     def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
@@ -1676,7 +1724,10 @@ class FillTableElement(ElementBase):
             # Shallow-copied dict, NEVER `self.data["cells"] = ...` -- mutating
             # self.data in place would silently overwrite the student's stored
             # pipe-delimited alternatives in-memory for the rest of the request.
-            ctx["data"] = {**nd, "cells": self.canonical_cells}
+            ctx["data"] = {
+                **nd,
+                "cells": self._with_parts(self.canonical_cells, done=True),
+            }
             if nd["gate"]:
                 # reveal.js::storedOpen tests `blob.open === true`, but state.py's
                 # _val_done stores only {"done": True} -- NOTHING ever writes
@@ -1688,7 +1739,10 @@ class FillTableElement(ElementBase):
                 ctx["mine"] = {**ctx["mine"], "open": True}
                 ctx["mine_json"] = json.dumps(ctx["mine"])
         else:
-            ctx["data"] = {**nd, "cells": self.resolved_cells}
+            ctx["data"] = {
+                **nd,
+                "cells": self._with_parts(self.resolved_cells, done=False),
+            }
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property

@@ -230,3 +230,36 @@ def test_a_second_apply_matches_nothing():
     entries = {"założenie": '<span class="tc-red">założenie</span>'}
     apply_matches(find_matches(course, entries, set()))
     assert find_matches(course, entries, set()) == []
+
+
+def test_a_filltable_cell_with_gaps_is_never_matched():
+    # Recolouring rewrites cell["html"] wholesale; on a gapped cell that would
+    # orphan its gaps and reconcile_gaps would silently drop every box.
+    from courses.models import FillTableElement
+
+    course = CourseFactory()
+    _part, unit = _unit(course)
+    ft = FillTableElement.objects.create(
+        data={"cells": [[{"kind": "static", "html": "a", "gaps": [["x"]]}]]}
+    )
+    Element.objects.create(unit=unit, content_object=ft)
+    ft.refresh_from_db()
+    assert ft.data["cells"][0][0]["gaps"]  # precondition: stored row keeps gaps
+    matches = find_matches(course, {"a": '<span class="tc-red">a</span>'}, set())
+    assert [m for m in matches if m.model is FillTableElement] == []
+
+
+def test_a_real_gapped_cell_is_not_matched_by_its_text():
+    from courses.models import FillTableElement
+
+    tok = "\uffff0\uffff"
+    course = CourseFactory()
+    _part, unit = _unit(course)
+    ft = FillTableElement.objects.create(
+        data={"cells": [[{"kind": "static", "html": "a" + tok, "gaps": [["x"]]}]]}
+    )
+    Element.objects.create(unit=unit, content_object=ft)
+    ft.refresh_from_db()
+    assert ft.data["cells"][0][0]["gaps"]  # precondition: stored row keeps gaps
+    matches = find_matches(course, {"a": '<span class="tc-red">a</span>'}, set())
+    assert [m for m in matches if m.model is FillTableElement] == []

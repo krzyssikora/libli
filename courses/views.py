@@ -1283,12 +1283,14 @@ def guessnumber_check(request, element_pk):
 @require_POST
 @login_required
 def filltable_check(request, element_pk):
-    """Server-side self-check for a Fill-in table. Per-cell correctness only —
-    NOTHING is persisted, no marks. Soft pk lookup (a missing/wrong-type pk is a
-    200 empty-set body, not 404) BEFORE any access dereference, mirroring
-    switchgrid_check. Response shape deliberately differs: flat r/c dicts + a
-    top-level `all_correct` (not switchgrid's nested `correct`)."""
+    """Server-side self-check for a Fill-in table. Per-cell (and per inline box)
+    correctness only — NOTHING is persisted, no marks. Soft pk lookup (a
+    missing/wrong-type pk is a 200 empty-set body, not 404) BEFORE any access
+    dereference, mirroring switchgrid_check. Response shape deliberately
+    differs: flat r/c dicts + a top-level `all_correct` (not switchgrid's
+    nested `correct`)."""
     from courses.filltable import answer_cells
+    from courses.filltable import gap_cells
     from courses.filltable import split_alternatives
 
     empty = {"cells": [], "all_correct": False}
@@ -1309,6 +1311,11 @@ def filltable_check(request, element_pk):
         alts = split_alternatives(answer)
         ok = blank_matches(got, alts, case_sensitive=case_sensitive)
         cells.append({"r": r, "c": c, "correct": ok})
+        all_correct = all_correct and ok
+    for r, c, g, alts in gap_cells(nd["cells"]):
+        got = request.POST.get(f"r{r}c{c}g{g}", "")
+        ok = blank_matches(got, alts, case_sensitive=case_sensitive)
+        cells.append({"r": r, "c": c, "g": g, "correct": ok})
         all_correct = all_correct and ok
     if not cells:
         return JsonResponse(empty)  # zero answer cells: never a vacuous True
