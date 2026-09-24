@@ -145,3 +145,61 @@ def answer_cells(cells):
         for c, cell in enumerate(row):
             if isinstance(cell, dict) and cell.get("kind") == "answer":
                 yield r, c, cell.get("answer", "")
+
+
+def cell_parts(cell, r, c, *, done):
+    """A static cell's html with each token replaced by its inline <input>, as ONE
+    safe string. Text segments are trusted (sanitised at save); every input is
+    built with format_html, the ONLY escaping they get (spec §5). In the done state
+    each box shows its gaps_display value, readonly, sized to fit -- `readonly` (not
+    `disabled`) is what the CSS width release keys on."""
+    from django.utils.html import format_html
+    from django.utils.safestring import mark_safe
+    from django.utils.translation import gettext as _
+
+    n_gaps = len(cell.get("gaps") or [])
+    display = cell.get("gaps_display") or []
+    out = []
+    for i, part in enumerate(_TOKEN_RE.split(cell.get("html") or "")):
+        if i % 2 == 0:
+            out.append(part)
+            continue
+        g = int(part)
+        if n_gaps == 1:
+            # Reuses the answer-cell template's msgid exactly.
+            label = _("Answer, row %(r)s, column %(c)s") % {"r": r + 1, "c": c + 1}
+        else:
+            label = _("Answer, row %(r)s, column %(c)s, box %(g)s") % {
+                "r": r + 1,
+                "c": c + 1,
+                "g": g + 1,
+            }
+        if done:
+            v = display[g] if 0 <= g < len(display) else ""
+            out.append(
+                format_html(
+                    '<input type="text" class="filltable__input '
+                    'filltable__input--inline filltable__input--correct" '
+                    'data-r="{}" data-c="{}" data-g="{}" value="{}" size="{}" '
+                    'readonly aria-label="{}">',
+                    r,
+                    c,
+                    g,
+                    v,
+                    max(len(v), 2),
+                    label,
+                )
+            )
+        else:
+            out.append(
+                format_html(
+                    '<input type="text" class="filltable__input '
+                    'filltable__input--inline" data-r="{}" data-c="{}" '
+                    'data-g="{}" aria-label="{}">',
+                    r,
+                    c,
+                    g,
+                    label,
+                )
+            )
+    return mark_safe("".join(str(p) for p in out))  # noqa: S308 — see docstring

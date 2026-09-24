@@ -1689,6 +1689,32 @@ class FillTableElement(ElementBase):
         self.data = self._sanitized_data(self.data)
         super().save(*args, **kwargs)
 
+    @staticmethod
+    def _with_parts(cells, *, done):
+        """Precompute each gapped static cell's `parts` (spec §5). In the non-done
+        branch `gaps` is REMOVED so no template can ever emit the answers."""
+        from courses.filltable import cell_parts
+
+        out = []
+        for r, row in enumerate(cells):
+            new_row = []
+            for c, cell in enumerate(row):
+                if cell.get("kind") not in (
+                    FillTableElement.ANSWER,
+                    "image",
+                ) and cell.get("gaps"):
+                    parts = cell_parts(cell, r, c, done=done)
+                    if done:
+                        cell = {**cell, "parts": parts}
+                    else:
+                        cell = {
+                            **{k: v for k, v in cell.items() if k != "gaps"},
+                            "parts": parts,
+                        }
+                new_row.append(cell)
+            out.append(new_row)
+        return out
+
     def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
@@ -1698,7 +1724,10 @@ class FillTableElement(ElementBase):
             # Shallow-copied dict, NEVER `self.data["cells"] = ...` -- mutating
             # self.data in place would silently overwrite the student's stored
             # pipe-delimited alternatives in-memory for the rest of the request.
-            ctx["data"] = {**nd, "cells": self.canonical_cells}
+            ctx["data"] = {
+                **nd,
+                "cells": self._with_parts(self.canonical_cells, done=True),
+            }
             if nd["gate"]:
                 # reveal.js::storedOpen tests `blob.open === true`, but state.py's
                 # _val_done stores only {"done": True} -- NOTHING ever writes
@@ -1710,7 +1739,10 @@ class FillTableElement(ElementBase):
                 ctx["mine"] = {**ctx["mine"], "open": True}
                 ctx["mine_json"] = json.dumps(ctx["mine"])
         else:
-            ctx["data"] = {**nd, "cells": self.resolved_cells}
+            ctx["data"] = {
+                **nd,
+                "cells": self._with_parts(self.resolved_cells, done=False),
+            }
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property
