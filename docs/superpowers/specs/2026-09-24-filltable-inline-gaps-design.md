@@ -48,11 +48,11 @@ the course changes.
 
 A static cell MAY carry an optional `gaps` key: a list with one entry per box, each
 entry the list of that box's accepted alternatives (trimmed, non-empty strings). The
-cell's `html` holds an opaque token `￿{n}￿` at box `n`'s position — the
+cell's `html` holds an opaque token `\uffff{n}\uffff` at box `n`'s position — the
 same sentinel/token as `courses/fillblank.py` (`SENTINEL`, `_TOKEN`, `_TOKEN_RE`).
 
 ```json
-{"kind": "static", "html": "￿0￿ \\(\\pi\\)", "gaps": [["9"]], "halign": "left", "valign": "top"}
+{"kind": "static", "html": "\uffff0\uffff \\(\\pi\\)", "gaps": [["9"]], "halign": "left", "valign": "top"}
 ```
 
 - A static cell with no boxes has **no `gaps` key** — its stored shape and every
@@ -80,7 +80,7 @@ render, the check view and the editor template, so they cannot disagree.
     content only) BEFORE `html.unescape` + split, so the answer is `9`. An answer is
     always plain text. Only the INTERIOR is stripped: a marker straddling a tag
     (`<b>{{9</b>}}`, `{{<b>9}} rest</b>`) leaves an unbalanced tag in `token_html`
-    (`<b>￿0￿`, an orphan `</b>`); that is acceptable because `FillTableElement.save()`
+    (`<b>\uffff0\uffff`, an orphan `</b>`); that is acceptable because `FillTableElement.save()`
     re-sanitises the cell html, which rebalances it. A brace pair split by a tag
     (`{<b>{</b>9}}`) matches no marker and is stored as literal text — documented
     behaviour, not an error.
@@ -90,11 +90,13 @@ render, the check view and the editor template, so they cannot disagree.
     read as a marker. Accepted (the LAL corpus and the editor use `\(`/`\[`); the §10
     prod query flags `{{` inside `$$…$$` too, so any live instance is surfaced.
   - **Maths inside a marker is rejected.** `mask_math` runs before marker
-    extraction, so `{{9\(\pi\)}}` would store the placeholder `9￿M0￿` as the answer —
+    extraction, so `{{9\(\pi\)}}` would store the placeholder `9\uffffM0\uffff` as the answer —
     unmatchable. A marker whose interior contains a math placeholder raises
     `GapMathError`, a subclass of `FillBlankError` defined in `courses/filltable.py`
     (the form branches on the CLASS, never on the message string), surfaced by the
-    form as *"Row R, column C: an
+    form as (note: maths that STARTS inside a marker and ends outside it,
+    `{{9\(x}}\)`, swallows the `}}` during masking, so it reports the
+    empty/unclosed message instead — accepted, pinned by a test) *"Row R, column C: an
     answer box cannot contain maths — put the maths outside the braces, e.g.
     `{{9}} \(\pi\)`."* (Fill-blank shares the latent flaw; fixing it there is out of
     scope.)
@@ -153,7 +155,7 @@ The existing rules extend to gaps:
   non-list `gaps` drops the whole key; within a list, a bad entry is handled PER
   ENTRY as §4 defines. `reconcile_gaps` runs ONLY when the raw cell has a `gaps`
   key; a cell without one is passed through untouched (even if its html happens to
-  contain `￿n￿` text), which is what keeps §1's "byte-identical" promise. Likewise
+  contain `\uffffn\uffff` text), which is what keeps §1's "byte-identical" promise. Likewise
   the render split (§5) applies only to cells with `gaps`.
 - `_sanitized_data` does NOT parse raw `{{…}}`. Only the form converts author
   markers. Other write paths (transfer import, course builder, LAL loader) store what
@@ -241,8 +243,13 @@ safe-join the trusted sanitised text segments with server-built inputs:
   Structurally enforced: in the non-done branch, `render()` passes cells with the
   `gaps` key REMOVED (only the precomputed parts reach the template), so a future
   `{{ cell }}` or `json_script` in the template cannot leak answers.
-- Implementation note: this is best done in Python (a template filter or a
-  precomputed `cell.parts` list), not template string-splitting.
+- **Where the inputs are built:** `render()` precomputes `cell["parts"]` (a list of
+  trusted-html / server-built-input pieces) for every static cell with `gaps`, in
+  BOTH the done and non-done branches; the template only outputs the parts. No
+  template filter. `r`/`c` are the RAW list indices — the same ones `answer_cells`,
+  `gap_cells`, the POST key and the existing `_filltable_cell.html`
+  (`forloop.parentloop.counter0` / `forloop.counter0`) use — so `data-r`/`data-c`,
+  the POST key and the aria-label numbers agree for answer cells and gaps alike.
 
 ### 6. Checking
 
@@ -277,8 +284,16 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
   answer box inside its text; separate accepted alternatives with `|`."*
 - Help: `docs/help/course-admin/interactive-elements.md` and `.pl.md`, Fill-in table
   entry, one short paragraph with the π example.
-- ⚠️ The table and fill-table editors are drift-guarded twins. This change touches
-  only the fill-table side; teach the drift guard the difference, never weaken it.
+- ⚠️ The table and fill-table editors are drift-guarded twins
+  (`tests/test_editor_twin_drift.py`). `onSubmit` has no twin, so no TWINS entry
+  changes. Two concrete constraints instead:
+  - The guard finds function bodies by counting `{`/`}` per line and assumes no
+    brace-bearing string or regex literal in either editor. Write the marker check
+    WITHOUT literal braces — e.g. `text.indexOf("\x7b\x7b")` — with a comment citing
+    the drift guard. A literal `"{{"` or `/\{\{/` silently extends `onSubmit`'s body
+    to end-of-file.
+  - If a new named function is added to `filltable_editor.js`, update
+    `EXPECTED_COUNTS[FILL_JS]` (currently 37). Never loosen the guard.
 
 ### 8. Transfer (export / import / duplicate)
 
@@ -286,8 +301,11 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
   whole (`dict(c)`), so once `_cell` keeps `gaps` the export carries it for free.
   The export → import round-trip test is the guard.
 - `FORMAT_VERSION` 15 → 16 (`courses/transfer/schema.py`), so an older instance
-  refuses a v16 archive (`importer.py:194`) instead of rendering raw `￿` tokens.
-  A v15 archive imports unchanged (no `gaps` anywhere).
+  refuses a v16 archive (`importer.py:194`) instead of rendering raw `\uffff` tokens.
+  A v15 archive imports unchanged (no `gaps` anywhere). `gaps` is honoured
+  whatever the archive's version: a hand-made older archive carrying `gaps` is
+  repaired by `reconcile_gaps` like any other, and the author owns their archive —
+  no version-gated drop.
   - Seven tests pin `assert FORMAT_VERSION == 15` and must move to 16:
     `courses/tests/test_beforeafter_transfer.py`, `test_caption_transfer.py`,
     `test_image_size_transfer.py`, `tests/test_link_transfer.py`,
@@ -305,9 +323,10 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
 ### 9. Other readers of fill-table cells
 
 - `courses_manage_extras` builder summary: *"N answer(s)"* counts answer cells + gaps.
-- `courses/recolour/*` and `fix_space_before_punctuation`: operate on cell `html`
-  only. The plan must verify each leaves a `￿{n}￿` token intact (a
-  space-fixer rule adjacent to a token must not merge or split it).
+- `courses/recolour/*` (`dbscan.py` `CELL_FIELDS`, `replay.py`) rewrites fill-table
+  cell `html`; the plan must verify it leaves a `\uffff{n}\uffff` token intact.
+  `fix_space_before_punctuation` never reads `FillTableElement.data` (its docstring
+  excludes answer keys from FIELDS), so it needs no check.
 - `views.py:155` math-delimiter detection reads static `html` — tokens contain no
   delimiters; unaffected.
 
@@ -336,7 +355,8 @@ Unit (no browser):
 - Markup in a marker: `{{<b>9</b>}}` and a colour-mapped `{{<span …>9</span>}}` both
   store the answer `9`.
 - Maths in a marker: `{{9\(\pi\)}}` is rejected with the maths message (raised as
-  `GapMathError`); an empty marker gets the empty/unclosed message, not the maths one.
+  `GapMathError`); an empty marker gets the empty/unclosed message, not the maths one;
+  `{{9\(x}}\)` (maths overlapping the marker's end) gets the empty/unclosed message.
 - Cap: 11 markers in a cell → form error; 10 → saves.
 - Straddling tag: `<b>{{9</b>}}` stores the answer `9`, and after `save()` the cell
   html is balanced; `{<b>{</b>9}}` stays literal text with no gap.
