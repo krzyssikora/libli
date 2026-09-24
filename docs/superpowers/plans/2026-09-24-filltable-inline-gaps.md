@@ -1162,7 +1162,7 @@ add:
 
 - [ ] **Step 7: Run tests**
 
-Run: `uv run pytest tests/test_filltable_gaps_render.py tests/test_filltable_restore.py tests/test_filltable_context.py tests/test_filltable_model.py tests/test_imagezoom_render.py -v`
+Run: `uv run pytest tests/test_filltable_gaps_render.py tests/test_filltable_restore.py tests/test_filltable_context.py tests/test_filltable_model.py tests/test_imagezoom_render.py tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_table_css.py -v`
 Expected: all PASS.
 
 - [ ] **Step 8: Falsify the leak test**
@@ -1453,12 +1453,12 @@ In `filltable_editor.js` `onSubmit`, replace the `if (answerInputs.length === 0)
 
 No new NAMED function is added (the callback is anonymous), so `EXPECTED_COUNTS[FILL_JS]` stays 37.
 
-Brace balance check (the drift guard counts braces in comments and strings too, and `onSubmit` has no twin, so nothing else would catch an imbalance): every line you added or changed in `filltable_editor.js` must have equal `{` and `}` counts. Verify:
+Brace balance check (the drift guard counts braces in comments and strings too, and `onSubmit` has no twin, so nothing else would catch an imbalance): no COMMENT or STRING line you added may be brace-unbalanced. Verify:
 
 ```bash
 git diff -U0 courses/static/courses/js/filltable_editor.js | grep '^+[^+]' | awk '{o=gsub(/\{/,"{"); c=gsub(/\}/,"}"); if (o!=c) print "UNBALANCED: " $0}'
 ```
-Expected: no output.
+Expected: exactly ONE line — `UNBALANCED: +    if (answerInputs.length === 0 && !hasGap) {` — the `if` header whose `}` is the unchanged closing line (its balance is the same as the line it replaced). Any other line printed, especially a comment or string, is a defect: fix it.
 
 - [ ] **Step 5: Drift-guard docstring + stale comments**
 
@@ -1480,7 +1480,7 @@ Change it to:
 
 - [ ] **Step 6: Run tests**
 
-Run: `uv run pytest tests/test_filltable_gaps_editor.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_filltable_gaps_form.py tests/test_filltable_manage_plumbing.py tests/test_text_colour_toolbars.py -v`
+Run: `uv run pytest tests/test_filltable_gaps_editor.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_filltable_gaps_form.py tests/test_filltable_manage_plumbing.py tests/test_text_colour_toolbars.py tests/test_cell_selector_guard.py tests/test_editor_js_scroll_invariants.py tests/test_colour_glue_drift.py -v`
 Expected: all PASS.
 
 Then the e2e that drives the no-answer guard and the error placement (the hint now sits between the grid and the error): `uv run pytest tests/test_e2e_editor_scroll_containment.py -m e2e -v` → PASS.
@@ -1507,7 +1507,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `courses/transfer/payloads.py` — `_val_fill_table` (~line 781)
 - Modify: `courses/transfer/schema.py:14` — `FORMAT_VERSION = 16`
-- Modify (15 → 16): `courses/tests/test_beforeafter_transfer.py:169`, `courses/tests/test_caption_transfer.py:62`, `courses/tests/test_image_size_transfer.py:44`, `tests/test_link_transfer.py:54`, `tests/test_table_transfer.py:299`, `tests/test_tabs_transfer.py:62`, `tests/test_transfer_schema.py:79`
+- Modify (15 → 16): `courses/tests/test_beforeafter_transfer.py:169`, `courses/tests/test_caption_transfer.py:62`, `courses/tests/test_image_size_transfer.py:44`, `tests/test_link_transfer.py:54`, `tests/test_table_transfer.py:299`, `tests/test_tabs_transfer.py:62`, `tests/test_transfer_schema.py:79`, and `tests/test_transfer_export.py:222` (`manifest["format_version"] == 15`)
 - Test: `tests/test_filltable_transfer.py` (extend)
 
 - [ ] **Step 1: Write the failing tests**
@@ -1597,11 +1597,11 @@ In `_val_fill_table`, inside the `for cell in row:` loop after the non-dict chec
 
 - [ ] **Step 4: Bump the format version**
 
-`courses/transfer/schema.py`: `FORMAT_VERSION = 16`. Add a one-line comment above it if the file has a version-history comment style elsewhere (grep `FORMAT_VERSION` comments in `payloads.py`, e.g. "added in FORMAT_VERSION 14"); otherwise none. Change the seven `assert FORMAT_VERSION == 15` lines to `== 16`. Then confirm no other pin: `git grep -n "FORMAT_VERSION == 15"` → no output.
+`courses/transfer/schema.py`: `FORMAT_VERSION = 16`. Add a one-line comment above it if the file has a version-history comment style elsewhere (grep `FORMAT_VERSION` comments in `payloads.py`, e.g. "added in FORMAT_VERSION 14"); otherwise none. Change the seven `assert FORMAT_VERSION == 15` lines to `== 16`, AND the eighth pin spelled differently: `tests/test_transfer_export.py:222` `assert manifest["format_version"] == 15` → `== 16`. Then confirm no other pin, both spellings: `git grep -nE 'FORMAT_VERSION == 15|format_version"\] == 15'` → no output.
 
 - [ ] **Step 5: Run tests**
 
-Run: `uv run pytest tests/test_filltable_transfer.py tests/test_transfer_schema.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_link_transfer.py courses/tests/test_beforeafter_transfer.py courses/tests/test_caption_transfer.py courses/tests/test_image_size_transfer.py -v`
+Run: `uv run pytest tests/test_filltable_transfer.py tests/test_transfer_schema.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_link_transfer.py courses/tests/test_beforeafter_transfer.py courses/tests/test_caption_transfer.py courses/tests/test_image_size_transfer.py tests/test_transfer_export.py -v`
 Expected: all PASS.
 
 - [ ] **Step 6: Commit**
@@ -1609,7 +1609,7 @@ Expected: all PASS.
 ```bash
 uv run ruff format courses/transfer tests/test_filltable_transfer.py
 uv run ruff check courses/transfer tests/test_filltable_transfer.py
-git add courses/transfer tests/test_filltable_transfer.py courses/tests/test_beforeafter_transfer.py courses/tests/test_caption_transfer.py courses/tests/test_image_size_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py
+git add courses/transfer tests/test_filltable_transfer.py courses/tests/test_beforeafter_transfer.py courses/tests/test_caption_transfer.py courses/tests/test_image_size_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py
 git commit -m "feat(transfer): fill-table gaps travel; format version 16
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -1664,6 +1664,23 @@ def test_a_filltable_cell_with_gaps_is_never_matched():
     assert [m for m in matches if m.model is FillTableElement] == []
 ```
 
+Also append (the §9 verification — passes before and after the guard, because exact matching is what protects real gapped cells):
+
+```python
+def test_a_real_gapped_cell_is_not_matched_by_its_text():
+    from courses.models import FillTableElement
+
+    tok = "\uffff0\uffff"
+    course = CourseFactory()
+    _part, unit = _unit(course)
+    ft = FillTableElement.objects.create(
+        data={"cells": [[{"kind": "static", "html": "a" + tok, "gaps": [["x"]]}]]}
+    )
+    Element.objects.create(unit=unit, content_object=ft)
+    matches = find_matches(course, {"a": '<span class="tc-red">a</span>'}, set())
+    assert [m for m in matches if m.model is FillTableElement] == []
+```
+
 (`FillTableElement.objects.create` does not run the form, and `_cell` drops tokenless gaps only on read — the stored row keeps `gaps` here, which is the shape the guard is for. Confirm with `ft.refresh_from_db(); assert ft.data["cells"][0][0]["gaps"]` as a precondition line.)
 
 - [ ] **Step 2: Run to verify failures**
@@ -1680,13 +1697,15 @@ Expected: summary says `1 answer(s)`; the recolour test finds a match.
         n_ans += sum(len(c.get("gaps") or []) for row in d["cells"] for c in row)
 ```
 
-**Deliberate deviation from spec §9** (which asked only to verify tokens survive a recolour): recolour matches a cell's WHOLE stored html against a key and replaces it wholesale with html built from the LAL source, which has no tokens — so a gapped cell can never be recoloured without losing its boxes. Gapped cells are therefore EXCLUDED from recolour. State this in the PR description ("cells with inline answer boxes are skipped by the recolour tool").
+**Spec §9 check, plus a defence-in-depth guard.** `find_matches` matches only when a cell's stored html EQUALS a key exactly, and keys are built from LAL source, which never contains U+FFFF — so a real gapped cell (html with tokens) is never matched and its tokens survive. That is the §9 verification; pin it with the second test below. The guard `if cell.get("gaps"): continue` additionally covers the only reachable hole: a `gaps` key on a token-less cell (direct model writes), where a wholesale html rewrite would orphan the gaps. Say in the PR: "recolour cannot touch cells with inline boxes (exact match excludes their tokens; an explicit guard covers the rest)".
 
 `dbscan.py`, after the `if cell.get("kind") not in (None, "static"): continue` guard:
 
 ```python
-                    # A cell with inline gaps keeps its boxes as tokens in html; a
-                    # wholesale html rewrite would orphan them (spec 2026-09-24 §9).
+                    # Defence in depth: exact matching already excludes a cell whose
+                    # html holds inline-box tokens (LAL keys never contain U+FFFF);
+                    # this also skips a token-less cell that carries `gaps`, where a
+                    # wholesale rewrite would orphan them (spec 2026-09-24 §9).
                     if cell.get("gaps"):
                         continue
 ```
@@ -2034,6 +2053,15 @@ git rebase origin/master
 ```
 If `locale/*/LC_MESSAGES/django.po` or `.mo` conflict: take master's copies (`git checkout origin/master -- locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo`), `git add` them and `git rebase --continue`. Then, regardless of conflicts, re-run Task 9 Steps 1–3 (makemessages, write the seven msgstrs, compilemessages, the polib check → `OK`) and commit the regenerated catalogs as `i18n(filltable): regenerate catalogs after rebase`. All later steps run on the rebased branch.
 
+- [ ] **Step 0b: Re-point line citations this branch moved**
+
+Tasks 2, 4 and 5 insert lines into `courses/models.py` and `courses/views.py`; comments elsewhere cite line numbers below those insertions (known: `courses/tests/test_preview_nested_markers.py`, `demo/builders.py`, `courses/rollups.py`, `courses/templatetags/courses_extras.py`, `demo/generator.py`). No test catches a stale `.py` citation. Run:
+
+```bash
+git grep -nE "(models|views)\.py:[0-9]+" -- ':!docs'
+```
+For each hit whose cited line now points at different code than on `origin/master` (compare `git show origin/master:courses/models.py | sed -n '<N>p'` with the current line), replace the number with the symbol name (e.g. `models.py FillTableElement.render`) — never just bump the number. Commit as `docs(comments): cite symbols, not lines, where this branch moved them`.
+
 - [ ] **Step 1: Lint gates**
 
 ```bash
@@ -2062,7 +2090,7 @@ Master first — an identical `15 → 16` edit on both sides merges with NO conf
 git fetch origin
 git show origin/master:courses/transfer/schema.py | grep '^FORMAT_VERSION'
 ```
-Expected: `FORMAT_VERSION = 15`. If it shows 16 or more, STOP: bump this branch to master's value + 1, update the seven pinned tests to match, re-run Task 7 Step 5, and tell the owner.
+Expected: `FORMAT_VERSION = 15`. If it shows 16 or more, STOP: bump this branch to master's value + 1, update the eight pinned tests to match (Task 7 Step 4's list), re-run Task 7 Step 5, and tell the owner.
 
 Then open PRs:
 
