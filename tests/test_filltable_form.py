@@ -48,7 +48,7 @@ def test_form_rejects_no_answer_cell_with_distinct_message():
         _data([[{"kind": "static", "html": "a"}, {"kind": "static", "html": "b"}]])
     )
     assert not f.is_valid()
-    assert any("at least one answer cell" in str(e).lower() for e in f.errors["data"])
+    assert any("add at least one answer" in str(e).lower() for e in f.errors["data"])
 
 
 def test_form_rejects_blank_answer_cell_with_distinct_message():

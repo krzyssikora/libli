@@ -1636,14 +1636,68 @@ class FillTableElementForm(_CourseScopedMediaForm):
         self.fields["data"].required = False
 
     def clean_data(self):
+        from courses.fillblank import FillBlankError
+        from courses.filltable import MAX_GAPS_PER_CELL
+        from courses.filltable import GapMathError
         from courses.filltable import answer_cells
+        from courses.filltable import gap_cells
         from courses.filltable import is_blank_answer
+        from courses.filltable import is_static_cell
+        from courses.filltable import parse_cell_gaps
+        from courses.sanitize import sanitize_cell
 
         data = self.cleaned_data.get("data")
         raw_cells = data.get("cells") if isinstance(data, dict) else None
         # Raw scan FIRST: rejects an out-of-range span before normalize_data
         # clamps it out of sight. Coerces malformed input rather than raising.
         _scan_spans(raw_cells)
+        # Parse {{answer}} markers on the RAW cells, BEFORE normalize_data: it
+        # derives `gate` from the answers it can see, so parsing afterwards would
+        # store gate:false for a table whose only answers are inline boxes
+        # (spec 2026-09-24-filltable-inline-gaps §3). A posted `gaps` key is
+        # discarded -- only what the html parses to is stored.
+        for r, row in enumerate(raw_cells if isinstance(raw_cells, list) else []):
+            if not isinstance(row, list):
+                continue
+            for c, cell in enumerate(row):
+                if not isinstance(cell, dict):
+                    continue
+                cell.pop("gaps", None)
+                if not is_static_cell(cell):
+                    continue
+                html = cell.get("html")
+                try:
+                    token_html, gaps = parse_cell_gaps(
+                        sanitize_cell(html if isinstance(html, str) else "")
+                    )
+                except GapMathError:
+                    raise forms.ValidationError(
+                        _(
+                            "Row %(r)d, column %(c)d: an answer box cannot contain "
+                            "maths — put the maths outside the braces, e.g. "
+                            "{{9}} \\(\\pi\\)."
+                        )
+                        % {"r": r + 1, "c": c + 1}
+                    ) from None
+                except FillBlankError:
+                    raise forms.ValidationError(
+                        _(
+                            "Row %(r)d, column %(c)d: an answer box {{…}} is empty "
+                            "or not closed."
+                        )
+                        % {"r": r + 1, "c": c + 1}
+                    ) from None
+                if len(gaps) > MAX_GAPS_PER_CELL:
+                    raise forms.ValidationError(
+                        _(
+                            "Row %(r)d, column %(c)d: at most %(n)d answer boxes "
+                            "per cell."
+                        )
+                        % {"r": r + 1, "c": c + 1, "n": MAX_GAPS_PER_CELL}
+                    )
+                cell["html"] = token_html
+                if gaps:
+                    cell["gaps"] = gaps
         nd = FillTableElement.normalize_data(data if isinstance(data, dict) else {})
         cells = nd["cells"]
         if not _caps_ok(self, cells):
@@ -1652,9 +1706,12 @@ class FillTableElementForm(_CourseScopedMediaForm):
                 % {"r": FillTableElement.MAX_ROWS, "c": FillTableElement.MAX_COLS}
             )
         answers = list(answer_cells(cells))
-        if not answers:
+        if not answers and next(gap_cells(cells), None) is None:
             raise forms.ValidationError(
-                _("Mark at least one answer cell (use the “Answer cell” button).")
+                _(
+                    "Add at least one answer — mark an answer cell, or type "
+                    "{{answer}} in a cell."
+                )
             )
         if any(is_blank_answer(ans) for _r, _c, ans in answers):
             raise forms.ValidationError(
@@ -1681,13 +1738,15 @@ class FillTableElementForm(_CourseScopedMediaForm):
     @property
     def grid_data(self):
         # PRESERVE THE AUTHOR'S TICK across a rejected save. normalize_data (which
-        # _grid_data runs) suppresses `gate` for the no-answer-cell and
-        # blank-answer-cell grids -- which are ALSO two of clean_data's five
+        # _grid_data runs) suppresses `gate` for the no-answer-and-no-gap and
+        # blank-answer-cell grids -- which are ALSO two of clean_data's eight
         # rejection reasons -- so the shared path would hand the template an
         # unticked box, silently dropping the author's intent while the error
-        # message points at the answer cell instead. A no-op for the other three
-        # rejection paths (_scan_spans, _caps_ok, image scope), where
-        # normalize_data leaves `gate` alone, and for every non-rejected path.
+        # message points at the answer cell (or marker) instead. A no-op for the
+        # six rejection paths that do not suppress `gate` -- _scan_spans, _caps_ok,
+        # image scope, and the three marker errors (empty/unclosed, maths, the
+        # per-cell cap) -- where normalize_data leaves `gate` alone, and for every
+        # non-rejected path.
         return _grid_data(self, preserve=("gate",))
 
     @property
@@ -1703,10 +1762,27 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
         Passes self.course so a submitted pk from another course -- or an
         in-course asset of the wrong kind -- resolves to nothing and takes that
-        same fallback, instead of rendering a foreign asset's URL."""
-        return FillTableElement.resolve_image_cells(
+        same fallback, instead of rendering a foreign asset's URL.
+
+        Every static cell also carries `author_html`: the editor must show
+        {{answer}}, never the stored U+FFFF tokens -- a token posted back is
+        stripped to a bare digit and every box in the table is lost on the next
+        save (spec §7). Identity for a cell without `gaps`."""
+        from courses.filltable import author_cell_html
+        from courses.filltable import is_static_cell
+
+        cells = FillTableElement.resolve_image_cells(
             self.grid_data["cells"], course=self.course
         )
+        return [
+            [
+                {**cell, "author_html": author_cell_html(cell)}
+                if is_static_cell(cell)
+                else cell
+                for cell in row
+            ]
+            for row in cells
+        ]
 
     @property
     def cell_image_sizes(self):
