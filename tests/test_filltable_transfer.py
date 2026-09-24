@@ -271,3 +271,65 @@ def test_every_production_write_path_stores_a_real_boolean():
 
     obj, _children = BUILDERS["fill_table"]({"gate": "yes", "cells": _GATE_CELLS}, {})
     assert obj.data["gate"] is True
+
+
+def test_gaps_round_trip_through_export_and_import():
+    S = "\uffff"
+    src = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "static", "html": f"{S}0{S} x", "gaps": [["9", "9,0"]]},
+                    {"kind": "answer", "answer": "4"},
+                ]
+            ]
+        }
+    )
+    src.save()
+    payload = SERIALIZERS["fill_table"][1](src, set())
+    VALIDATORS["fill_table"](payload, "e1", set())
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    cell = obj.normalize_data(obj.data)["cells"][0][0]
+    assert cell["html"] == f"{S}0{S} x"
+    assert cell["gaps"] == [["9", "9,0"]]
+
+
+def test_v15_payload_without_gaps_imports_unchanged():
+    # An archive written before this feature (format 15) has no `gaps` anywhere.
+    payload = {
+        "header_row": False,
+        "header_col": False,
+        "case_sensitive": False,
+        "gate": False,
+        "border": "grid",
+        "prompt": "",
+        "cells": [
+            [
+                {
+                    "kind": "static",
+                    "html": "<b>t</b>",
+                    "halign": "left",
+                    "valign": "top",
+                },
+                {"kind": "answer", "answer": "4", "halign": "left", "valign": "top"},
+            ]
+        ],
+    }
+    VALIDATORS["fill_table"](payload, "e1", set())
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    assert obj.normalize_data(obj.data)["cells"] == payload["cells"]
+
+
+def test_validator_rejects_non_list_gaps():
+    with pytest.raises(TransferError):
+        VALIDATORS["fill_table"](
+            {"cells": [[{"kind": "static", "html": "x", "gaps": "bad"}]]}, "e1", set()
+        )
+
+
+def test_validator_leaves_entry_level_gap_damage_to_reconcile():
+    VALIDATORS["fill_table"](
+        {"cells": [[{"kind": "static", "html": "x", "gaps": [["a", 3], "bad"]}]]},
+        "e1",
+        set(),
+    )  # must not raise

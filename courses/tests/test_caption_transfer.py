@@ -59,7 +59,7 @@ def test_format_version_is_pinned():
     # table width preset has since bumped it again to 15. Same reasoning as the
     # rename in tests/test_table_transfer.py. The pin stays -- its job is to make
     # a format change a deliberate edit, not to record which feature caused it.
-    assert FORMAT_VERSION == 15
+    assert FORMAT_VERSION == 16
 
 
 def test_a_v13_caption_is_escaped_because_it_is_plain_text():
