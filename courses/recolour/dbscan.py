@@ -130,6 +130,12 @@ def find_matches(course, entries, excluded):
                     # closed rather than left to ship unexecuted.
                     if cell.get("kind") not in (None, "static"):
                         continue
+                    # Defence in depth: exact matching already excludes a cell whose
+                    # html holds inline-box tokens (LAL keys never contain U+FFFF);
+                    # this also skips a token-less cell that carries `gaps`, where a
+                    # wholesale rewrite would orphan them (spec 2026-09-24 §9).
+                    if cell.get("gaps"):
+                        continue
                     stored = cell.get("html")
                     if stored and stored in entries:
                         matches.append(

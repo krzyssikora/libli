@@ -109,3 +109,22 @@ def test_element_save_accepts_table_type(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code != 400
+
+
+def test_filltable_summary_counts_inline_gaps():
+    S = "\uffff"
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {
+                        "kind": "static",
+                        "html": f"{S}0{S}{S}1{S}",
+                        "gaps": [["a"], ["b"]],
+                    },
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        }
+    )
+    assert element_summary(el) == "1×2 fill-in table, 3 answer(s)"
