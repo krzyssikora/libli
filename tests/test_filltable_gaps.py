@@ -10,7 +10,7 @@ from courses.filltable import gap_cells
 from courses.filltable import parse_cell_gaps
 from courses.filltable import reconcile_gaps
 
-S = "￿"
+S = "\uffff"
 
 
 def tok(n):
