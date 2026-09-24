@@ -97,6 +97,12 @@ się także na granicy elementu zawierającego tabelę — wewnątrz ramki odsł
 resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele tworzą
 łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 
+Pole odpowiedzi możesz też wstawić **w tekst komórki**: wpisz akceptowaną
+odpowiedź w podwójnych nawiasach klamrowych, np. `{{9}} \(\pi\)` pokaże pole, a
+za nim π, a `\(NWD(15, 16)=\) {{1}}` wstawi pole za wzorem. Akceptowane warianty
+oddziel znakiem `|` (`{{9|9,0}}`). Komórka może zawierać do 10 pól; wzoru nie
+można umieścić wewnątrz nawiasów.
+
 ## {el:spoiler} Rozwijana treść
 
 Blok, który ukrywa swoją zawartość za kliknięciem, wykorzystując

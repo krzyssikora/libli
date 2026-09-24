@@ -84,6 +84,12 @@ edge of whatever contains the table — inside a callout it reveals the rest
 of that callout and nothing beyond it. Two gated tables in a row chain: the
 first reveals the second, the second reveals what follows.
 
+You can also put an answer box **inside a cell's text**: type the accepted answer
+in double braces, e.g. `{{9}} \(\pi\)` shows a box followed by π, and
+`\(NWD(15, 16)=\) {{1}}` puts the box after the maths. Separate accepted
+alternatives with `|` (`{{9|9,0}}`). A cell may hold up to 10 boxes; maths cannot
+go inside the braces.
+
 ## {el:spoiler} Spoiler
 
 A collapsible block that hides its content behind a click, using a

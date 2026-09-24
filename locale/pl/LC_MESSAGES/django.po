@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-23 00:44+0200\n"
+"POT-Creation-Date: 2026-09-24 13:32+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -668,18 +668,42 @@ msgstr "Tabela musi zawierać co najmniej jedną komórkę."
 msgid "All table rows must have the same number of cells."
 msgstr "Wszystkie wiersze tabeli muszą mieć tę samą liczbę komórek."
 
-#: .\courses\element_forms.py:1592 .\courses\element_forms.py:1677
+#: .\courses\element_forms.py:1592 .\courses\element_forms.py:1734
 msgid "A table image is not an image in this course."
 msgstr "Obraz tabeli nie jest obrazem należącym do tego kursu."
 
-#: .\courses\element_forms.py:1657
-#: .\templates\courses\manage\editor\_edit_filltable.html:19
-msgid "Mark at least one answer cell (use the “Answer cell” button)."
+#: .\courses\element_forms.py:1676
+#, python-format
+msgid ""
+"Row %(r)d, column %(c)d: an answer box cannot contain maths — put the maths "
+"outside the braces, e.g. {{9}} \\(\\pi\\)."
 msgstr ""
-"Zaznacz co najmniej jedną komórkę odpowiedzi (użyj przycisku „Komórka "
-"odpowiedzi”)."
+"Wiersz %(r)d, kolumna %(c)d: pole odpowiedzi nie może zawierać wzoru — "
+"umieść wzór poza nawiasami, np. {{9}} \\(\\pi\\)."
 
-#: .\courses\element_forms.py:1662
+#: .\courses\element_forms.py:1685
+#, python-format
+msgid "Row %(r)d, column %(c)d: an answer box {{…}} is empty or not closed."
+msgstr ""
+"Wiersz %(r)d, kolumna %(c)d: pole odpowiedzi {{…}} jest puste albo "
+"niezamknięte."
+
+#: .\courses\element_forms.py:1693
+#, python-format
+msgid "Row %(r)d, column %(c)d: at most %(n)d answer boxes per cell."
+msgstr ""
+"Wiersz %(r)d, kolumna %(c)d: w jednej komórce może być najwyżej %(n)d pól "
+"odpowiedzi."
+
+#: .\courses\element_forms.py:1712
+#: .\templates\courses\manage\editor\_edit_filltable.html:19
+msgid ""
+"Add at least one answer — mark an answer cell, or type {{answer}} in a cell."
+msgstr ""
+"Dodaj co najmniej jedną odpowiedź — oznacz komórkę z odpowiedzią albo wpisz "
+"{{odpowiedź}} w komórce."
+
+#: .\courses\element_forms.py:1719
 #: .\templates\courses\manage\editor\_edit_filltable.html:18
 msgid ""
 "An answer cell is blank — type its accepted answer, or make it a normal cell."
@@ -687,53 +711,53 @@ msgstr ""
 "Komórka odpowiedzi jest pusta — wpisz akceptowaną odpowiedź lub zmień ją na "
 "zwykłą komórkę."
 
-#: .\courses\element_forms.py:1740
+#: .\courses\element_forms.py:1816
 msgid "A gallery needs a list of images."
 msgstr "Galeria musi zawierać listę obrazów."
 
-#: .\courses\element_forms.py:1744
+#: .\courses\element_forms.py:1820
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr "Galeria musi zawierać co najmniej %(n)d obrazów."
 
-#: .\courses\element_forms.py:1749
+#: .\courses\element_forms.py:1825
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr "Galeria jest ograniczona do %(n)d obrazów."
 
-#: .\courses\element_forms.py:1760
+#: .\courses\element_forms.py:1836
 msgid "A gallery image is not an image in this course."
 msgstr "Obraz galerii nie jest obrazem należącym do tego kursu."
 
-#: .\courses\element_forms.py:1836
+#: .\courses\element_forms.py:1912
 msgid "A tabs element needs a list of tabs."
 msgstr "Element zakładek wymaga listy zakładek."
 
-#: .\courses\element_forms.py:1839
+#: .\courses\element_forms.py:1915
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr "Element zakładek musi zawierać co najmniej %(n)d zakładek."
 
-#: .\courses\element_forms.py:1844
+#: .\courses\element_forms.py:1920
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr "Element zakładek jest ograniczony do %(n)d zakładek."
 
-#: .\courses\element_forms.py:1919
+#: .\courses\element_forms.py:1995
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
 msgid "Number of columns"
 msgstr "Liczba kolumn"
 
-#: .\courses\element_forms.py:1972
+#: .\courses\element_forms.py:2048
 msgid "Add at least one step."
 msgstr "Dodaj co najmniej jeden krok."
 
-#: .\courses\element_forms.py:1975
+#: .\courses\element_forms.py:2051
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr "Sekwencja może mieć najwyżej %(n)d kroków."
 
-#: .\courses\element_forms.py:2029
+#: .\courses\element_forms.py:2105
 #, python-format
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
@@ -752,6 +776,17 @@ msgstr "Nazwa"
 #: .\templates\courses\manage\gradebook_print.html:55
 msgid "Username"
 msgstr "Nazwa użytkownika"
+
+#: .\courses\filltable.py:170
+#: .\templates\courses\elements\_filltable_cell.html:1
+#, python-format
+msgid "Answer, row %(r)s, column %(c)s"
+msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
+
+#: .\courses\filltable.py:172
+#, python-format
+msgid "Answer, row %(r)s, column %(c)s, box %(g)s"
+msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s, pole %(g)s"
 
 #: .\courses\forms.py:55 .\templates\courses\manage\_structure_legend.html:3
 #: .\templates\courses\manage\editor\_add_menu.html:121
@@ -1126,73 +1161,73 @@ msgctxt "image size"
 msgid "Full"
 msgstr "Pełny"
 
-#: .\courses\models.py:1852
+#: .\courses\models.py:1906
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr "Zakładki"
 
-#: .\courses\models.py:1853
+#: .\courses\models.py:1907
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr "Karuzela"
 
-#: .\courses\models.py:1862
+#: .\courses\models.py:1916
 msgctxt "tabs label position"
 msgid "Above"
 msgstr "Nad"
 
-#: .\courses\models.py:1863
+#: .\courses\models.py:1917
 msgctxt "tabs label position"
 msgid "Below"
 msgstr "Pod"
 
-#: .\courses\models.py:1864
+#: .\courses\models.py:1918
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr "Ukryta"
 
-#: .\courses\models.py:2193 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2247 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:2194
+#: .\courses\models.py:2248
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:2195
+#: .\courses\models.py:2249
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2326
+#: .\courses\models.py:2380
 msgid "your answer, correct"
 msgstr "twoja odpowiedź, poprawna"
 
-#: .\courses\models.py:2327
+#: .\courses\models.py:2381
 msgid "your answer, incorrect"
 msgstr "twoja odpowiedź, niepoprawna"
 
-#: .\courses\models.py:2328
+#: .\courses\models.py:2382
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:2997
+#: .\courses\models.py:3051
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2999
+#: .\courses\models.py:3053
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:3004
+#: .\courses\models.py:3058
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:3075
+#: .\courses\models.py:3129
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:3076
+#: .\courses\models.py:3130
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1429,7 +1464,7 @@ msgid "Steps"
 msgstr "Kroki"
 
 #: .\courses\templatetags\courses_manage_extras.py:65
-#: .\courses\templatetags\courses_manage_extras.py:248
+#: .\courses\templatetags\courses_manage_extras.py:249
 #: .\courses\views_manage.py:2267
 #: .\templates\courses\manage\editor\_add_menu.html:60
 msgid "Checklist"
@@ -1456,17 +1491,17 @@ msgstr "Pokaż"
 msgid "%(rows)d×%(cols)d table"
 msgstr "tabela %(rows)d×%(cols)d"
 
-#: .\courses\templatetags\courses_manage_extras.py:194
+#: .\courses\templatetags\courses_manage_extras.py:195
 #, python-format
 msgid "%(rows)d×%(cols)d fill-in table, %(n)d answer(s)"
 msgstr "tabela do uzupełnienia %(rows)d×%(cols)d, liczba odpowiedzi: %(n)d"
 
-#: .\courses\templatetags\courses_manage_extras.py:207
+#: .\courses\templatetags\courses_manage_extras.py:208
 #, python-format
 msgid "%(summary)s · gate"
 msgstr "%(summary)s · bramka"
 
-#: .\courses\templatetags\courses_manage_extras.py:213
+#: .\courses\templatetags\courses_manage_extras.py:214
 #, python-format
 msgid "%(n)d image"
 msgid_plural "%(n)d images"
@@ -1474,7 +1509,7 @@ msgstr[0] "%(n)d obraz"
 msgstr[1] "%(n)d obrazy"
 msgstr[2] "%(n)d obrazów"
 
-#: .\courses\templatetags\courses_manage_extras.py:219
+#: .\courses\templatetags\courses_manage_extras.py:220
 #, python-format
 msgid "%(n)d tab"
 msgid_plural "%(n)d tabs"
@@ -1482,12 +1517,12 @@ msgstr[0] "%(n)d zakładka"
 msgstr[1] "%(n)d zakładki"
 msgstr[2] "%(n)d zakładek"
 
-#: .\courses\templatetags\courses_manage_extras.py:227
+#: .\courses\templatetags\courses_manage_extras.py:228
 #, python-format
 msgid "%(summary)s · carousel"
 msgstr "%(summary)s · karuzela"
 
-#: .\courses\templatetags\courses_manage_extras.py:233
+#: .\courses\templatetags\courses_manage_extras.py:234
 #, python-format
 msgid "%(n)d column"
 msgid_plural "%(n)d columns"
@@ -1495,7 +1530,7 @@ msgstr[0] "%(n)d kolumna"
 msgstr[1] "%(n)d kolumny"
 msgstr[2] "%(n)d kolumn"
 
-#: .\courses\templatetags\courses_manage_extras.py:243
+#: .\courses\templatetags\courses_manage_extras.py:244
 #: .\courses\views_manage.py:2266
 #: .\templates\courses\manage\editor\_add_menu.html:59
 msgid "Step-by-step"
@@ -2065,7 +2100,7 @@ msgid "Element '%(el)s': at least one column is required."
 msgstr "Element „%(el)s”: wymagana jest co najmniej jedna kolumna."
 
 #: .\courses\transfer\payloads.py:546 .\courses\transfer\payloads.py:566
-#: .\courses\transfer\payloads.py:868
+#: .\courses\transfer\payloads.py:877
 msgid "column"
 msgstr "kolumna"
 
@@ -2231,111 +2266,116 @@ msgstr "Element „%(el)s”: wiersz tabeli do uzupełnienia musi być listą."
 msgid "Element '%(el)s': fill-in table cell must be an object."
 msgstr "Element „%(el)s”: komórka tabeli do uzupełnienia musi być obiektem."
 
-#: .\courses\transfer\payloads.py:815
+#: .\courses\transfer\payloads.py:809
+#, python-format
+msgid "Element '%(el)s': fill-in table gaps must be a list."
+msgstr "Element '%(el)s': pola odpowiedzi tabeli do uzupełnienia muszą być listą."
+
+#: .\courses\transfer\payloads.py:824
 msgid "tabs data"
 msgstr "dane zakładek"
 
-#: .\courses\transfer\payloads.py:830
+#: .\courses\transfer\payloads.py:839
 #, python-format
 msgid "Element '%(el)s' has malformed tabs."
 msgstr "Element „%(el)s” ma nieprawidłowo sformatowane zakładki."
 
-#: .\courses\transfer\payloads.py:835
+#: .\courses\transfer\payloads.py:844
 #, python-format
 msgid "Element '%(el)s' has an invalid number of tabs."
 msgstr "Element „%(el)s” ma nieprawidłową liczbę zakładek."
 
-#: .\courses\transfer\payloads.py:839
+#: .\courses\transfer\payloads.py:848
 #, python-format
 msgid "Element '%(el)s' has a malformed tab."
 msgstr "Element „%(el)s” ma nieprawidłowo sformatowaną zakładkę."
 
-#: .\courses\transfer\payloads.py:840
+#: .\courses\transfer\payloads.py:849
 msgid "tab"
 msgstr "zakładka"
 
-#: .\courses\transfer\payloads.py:843
+#: .\courses\transfer\payloads.py:852
 #, python-format
 msgid "Element '%(el)s' has a malformed tab id."
 msgstr "Element „%(el)s” ma nieprawidłowo sformatowany identyfikator zakładki."
 
-#: .\courses\transfer\payloads.py:847
+#: .\courses\transfer\payloads.py:856
 #, python-format
 msgid "Element '%(el)s' has duplicate tab ids."
 msgstr "Element „%(el)s” ma zduplikowane identyfikatory zakładek."
 
-#: .\courses\transfer\payloads.py:856
+#: .\courses\transfer\payloads.py:865
 msgid "two-column data"
 msgstr "dane układu dwukolumnowego"
 
-#: .\courses\transfer\payloads.py:859
+#: .\courses\transfer\payloads.py:868
 #, python-format
 msgid "Element '%(el)s' has malformed columns."
 msgstr "Element „%(el)s” ma nieprawidłowo sformatowane kolumny."
 
-#: .\courses\transfer\payloads.py:863
+#: .\courses\transfer\payloads.py:872
 #, python-format
 msgid "Element '%(el)s' has an invalid number of columns."
 msgstr "Element „%(el)s” ma nieprawidłową liczbę kolumn."
 
-#: .\courses\transfer\payloads.py:867
+#: .\courses\transfer\payloads.py:876
 #, python-format
 msgid "Element '%(el)s' has a malformed column."
 msgstr "Element „%(el)s” ma nieprawidłowo sformatowaną kolumnę."
 
-#: .\courses\transfer\payloads.py:871
+#: .\courses\transfer\payloads.py:880
 #, python-format
 msgid "Element '%(el)s' has a malformed column id."
 msgstr "Element „%(el)s” ma nieprawidłowo sformatowany identyfikator kolumny."
 
-#: .\courses\transfer\payloads.py:873
+#: .\courses\transfer\payloads.py:882
 #, python-format
 msgid "Element '%(el)s' has duplicate column ids."
 msgstr "Element „%(el)s” ma zduplikowane identyfikatory kolumn."
 
-#: .\courses\transfer\payloads.py:921 .\courses\transfer\payloads.py:950
+#: .\courses\transfer\payloads.py:930 .\courses\transfer\payloads.py:959
 #, python-format
 msgid "Element '%(el)s' references an unknown parent."
 msgstr ""
 "Element „%(el)s” odwołuje się do nieznanego elementu nadrzędnego.Element "
 "„%(el)s” odwołuje się do nieznanego identyfikatora multimediów."
 
-#: .\courses\transfer\payloads.py:924
+#: .\courses\transfer\payloads.py:933
 #, python-format
 msgid "Element '%(el)s' has a parent that is not a container element."
 msgstr ""
 "Element „%(el)s” ma element nadrzędny, który nie jest elementem kontenerowym."
 
-#: .\courses\transfer\payloads.py:953
+#: .\courses\transfer\payloads.py:962
 #, python-format
 msgid "Element '%(el)s' is nested too deeply."
 msgstr "Element „%(el)s” jest zagnieżdżony zbyt głęboko."
 
-#: .\courses\transfer\payloads.py:956
+#: .\courses\transfer\payloads.py:965
 #, python-format
 msgid "Element '%(el)s' is a container and may not be nested this deeply."
 msgstr ""
 "Element „%(el)s” jest kontenerem i nie może być zagnieżdżony na tej "
 "głębokości."
 
-#: .\courses\transfer\payloads.py:961
+#: .\courses\transfer\payloads.py:970
 #, python-format
 msgid "Element '%(el)s' references a slot its parent does not have."
 msgstr ""
 "Element „%(el)s” odwołuje się do gniazda, którego nie ma jego element "
 "nadrzędny."
 
-#: .\courses\transfer\payloads.py:965
+#: .\courses\transfer\payloads.py:974
 #, python-format
 msgid "Element '%(el)s' may not be nested."
 msgstr "Element „%(el)s” nie może być zagnieżdżony."
 
-#: .\courses\transfer\payloads.py:981
+#: .\courses\transfer\payloads.py:990
 #, python-format
 msgid "Element '%(el)s' is a question and may not be nested in a quiz."
 msgstr "Element „%(el)s” jest pytaniem i nie może być zagnieżdżony w quizie."
 
-#: .\courses\transfer\payloads.py:1068
+#: .\courses\transfer\payloads.py:1077
 #, python-format
 msgid ""
 "Unknown element type '%(v)s' — this archive may come from a newer "
@@ -2344,7 +2384,7 @@ msgstr ""
 "Nieznany typ elementu „%(v)s” — to archiwum może pochodzić z nowszej wersji "
 "aplikacji."
 
-#: .\courses\transfer\payloads.py:1075
+#: .\courses\transfer\payloads.py:1084
 msgid "Element data must be an object."
 msgstr "Dane elementu muszą być obiektem."
 
@@ -2600,11 +2640,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1496
+#: .\courses\views.py:1503
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1936
+#: .\courses\views.py:1943
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -5480,11 +5520,6 @@ msgstr "Ten kurs nie ma jeszcze quizów"
 msgid "Back to course"
 msgstr "Powrót do kursu"
 
-#: .\templates\courses\elements\_filltable_cell.html:1
-#, python-format
-msgid "Answer, row %(r)s, column %(c)s"
-msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
-
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
 #: .\templates\courses\manage\analytics_student_quiz.html:59
@@ -7094,6 +7129,14 @@ msgstr "Rozmiar obrazu"
 #: .\templates\courses\manage\editor\_edit_table.html:83
 msgid "Split cell"
 msgstr "Rozdziel komórkę"
+
+#: .\templates\courses\manage\editor\_edit_filltable.html:142
+msgid ""
+"Type {{answer}} in a cell to put an answer box inside its text; separate "
+"accepted alternatives with |."
+msgstr ""
+"Wpisz {{odpowiedź}} w komórce, aby wstawić pole odpowiedzi w jej tekst; "
+"akceptowane warianty oddziel znakiem |."
 
 #: .\templates\courses\manage\editor\_edit_gallery.html:12
 msgid "Description position"
