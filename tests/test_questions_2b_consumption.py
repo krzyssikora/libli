@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from django.urls import reverse
 
@@ -174,8 +176,13 @@ def test_fillblank_check_answer_fragment_correct_and_partial(client):
     ok = client.post(url, {"blank": ["a", "b"]}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-correct" in ok.content
     partial = client.post(url, {"blank": ["a", "WRONG"]}, HTTP_X_REQUESTED_WITH="fetch")
-    assert b"is-incorrect" in partial.content
-    assert b"answer-correct" in partial.content  # the right gap still marked
+    assert b"question__verdict is-incorrect" in partial.content
+    # The right gap is still marked — on the blank itself (lesson feedback is in
+    # place; the per-gap answer list is quiz-only).
+    right, wrong = re.findall(
+        r'<input[^>]*name="blank"[^>]*>', partial.content.decode()
+    )
+    assert "is-correct" in right and "is-incorrect" in wrong
 
 
 @pytest.mark.django_db

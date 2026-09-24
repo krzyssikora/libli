@@ -1133,16 +1133,19 @@ def check_answer(request, slug, node_pk, element_pk):
             )
 
     if _wants_fragment(request):
-        if isinstance(question, ChoiceQuestionElement):
-            # Choice: return the full re-rendered element so inline per-option feedback
-            # lands in the choices list (question.js swaps the form body). render() sets
-            # reveal_template=None for lesson mode -> no duplicate bottom reveal list.
-            selected = selected_ids(answer)
+        if question.INLINE_LESSON_FEEDBACK:
+            # Choice / fill-blank: return the full re-rendered element so the inline
+            # feedback lands on the options / blanks (question.js swaps the form
+            # body). render() sets reveal_template=None for lesson mode -> no bottom
+            # reveal list.
             return HttpResponse(
                 question.render(
                     element=element,
                     mode="lesson",
-                    selected_ids=selected,
+                    selected_ids=selected_ids(answer),
+                    submitted_values=(
+                        None if isinstance(answer, (set, frozenset)) else answer
+                    ),
                     mark_result=result,
                     feedback_for_pk=element.pk,
                 )

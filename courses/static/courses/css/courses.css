@@ -380,6 +380,11 @@ input.question__blank-input[type="text"] {
   border-color: var(--success);
   background: var(--success-subtle);
 }
+/* Lesson feedback: a wrong blank is marked in place (fill-table's colours). */
+.el--fillblank .question__blank-input.is-incorrect {
+  border-color: var(--danger);
+  background: var(--danger-subtle);
+}
 .el--fillblank .question__blank-input.is-correct:read-only {
   color: var(--text-secondary);
   cursor: default;

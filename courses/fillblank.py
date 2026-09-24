@@ -93,7 +93,7 @@ def to_author_stem(token_stem, blanks):
     return _TOKEN_RE.sub(_swap, token_stem or "")
 
 
-def render_inputs(token_stem, submitted_values=None, locked=False):
+def render_inputs(token_stem, submitted_values=None, locked=False, verdicts=None):
     """Split a stored token-stem and safe-join server-built <input>s. The text
     segments are already-sanitized HTML (trusted); only the <input>s are inserted,
     with the repopulation value HTML-escaped.
@@ -101,8 +101,14 @@ def render_inputs(token_stem, submitted_values=None, locked=False):
     `locked=True` renders each input read-only + .is-correct with a `size` that
     fits its value -- the server-side answered appearance for a restored gate
     (the width-release CSS `.is-correct:read-only` needs the `size` to fit; without
-    it `width:auto` defaults to ~20ch and clips long answers)."""
+    it `width:auto` defaults to ~20ch and clips long answers).
+
+    `verdicts` (lesson feedback) is one bool per blank, in blank order: True marks
+    the input .is-correct, False .is-incorrect + aria-invalid, so the verdict sits
+    ON the blank instead of in a separate "Correct answer" list. None marks nothing.
+    """
     vals = list(submitted_values or [])
+    marks = list(verdicts or [])
     parts = _TOKEN_RE.split(token_stem or "")
     out = []
     for i, part in enumerate(parts):
@@ -124,12 +130,18 @@ def render_inputs(token_stem, submitted_values=None, locked=False):
                     )
                 )
             else:
+                verdict = marks[n] if 0 <= n < len(marks) else None
+                state = {True: " is-correct", False: " is-incorrect"}.get(verdict, "")
                 out.append(
                     str(
                         format_html(
                             '<input type="text" name="blank" value="{}" '
-                            'class="question__blank-input" autocomplete="off">',
+                            'class="question__blank-input{}"{} autocomplete="off">',
                             v,
+                            state,
+                            mark_safe(' aria-invalid="true"')  # noqa: S308 — constant
+                            if verdict is False
+                            else "",
                         )
                     )
                 )
