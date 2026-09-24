@@ -576,7 +576,7 @@ In `normalize_data`, replace the gate block body:
 
 Extend the comment above it (the "(a) no answer cell at all" line) to read "(a) no answer cell and no inline gap at all".
 
-In `canonical_cells`, add a branch inside the inner loop:
+In `canonical_cells`, update the docstring's "static cells pass through unchanged" to "static cells pass through unchanged, except that a cell with inline `gaps` gains `gaps_display` (the first alternative of each box)", and add a branch inside the inner loop:
 
 ```python
                 if cell.get("kind") == self.ANSWER:
@@ -662,6 +662,10 @@ def test_gate_survives_for_gaps_only_table_through_the_form():
 
 
 def test_posted_gaps_key_is_ignored():
+    """The guarantee comes from strip_sentinel (posted html cannot carry a real
+    token) + reconcile_gaps (gaps without tokens are dropped). The form's
+    cell.pop("gaps") is defence in depth and is NOT separately falsifiable --
+    this test pins the end result, not the pop."""
     f = _bind(
         [
             [
@@ -1158,7 +1162,7 @@ add:
 
 - [ ] **Step 7: Run tests**
 
-Run: `uv run pytest tests/test_filltable_gaps_render.py tests/test_filltable_restore.py tests/test_filltable_context.py tests/test_filltable_model.py -v`
+Run: `uv run pytest tests/test_filltable_gaps_render.py tests/test_filltable_restore.py tests/test_filltable_context.py tests/test_filltable_model.py tests/test_imagezoom_render.py -v`
 Expected: all PASS.
 
 - [ ] **Step 8: Falsify the leak test**
@@ -1458,12 +1462,28 @@ Expected: no output.
 
 - [ ] **Step 5: Drift-guard docstring + stale comments**
 
-In `tests/test_editor_twin_drift.py` `_functions` docstring, replace "The first three do not occur in either editor;" with "The first three must never carry a literal brace in either editor -- write one as `\x7b`/`\x7d` (filltable_editor.js `onSubmit` does);". In `tests/test_filltable_editor_partial.py`, update the two comments quoting "Mark at least one answer cell …" to quote the new message (comment-only change).
+In `tests/test_editor_twin_drift.py` `_functions` docstring, the sentence wraps across two lines:
+
+```
+    literal, a template string, and a comment. The first three do not occur in
+    either editor; the fourth does (`{% trans %}`, `LAYOUT {r, c}`) but every
+```
+Change it to:
+
+```
+    literal, a template string, and a comment. The first three must never carry
+    a literal brace in either editor -- write one as \x7b / \x7d, as
+    filltable_editor.js onSubmit does; the fourth does (`{% trans %}`,
+    `LAYOUT {r, c}`) but every
+```
+(re-wrap the rest of the paragraph so lines stay under 88 characters). In `tests/test_filltable_editor_partial.py`, update the two comments quoting "Mark at least one answer cell …" to quote the new message (comment-only change).
 
 - [ ] **Step 6: Run tests**
 
-Run: `uv run pytest tests/test_filltable_gaps_editor.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_filltable_gaps_form.py -v`
+Run: `uv run pytest tests/test_filltable_gaps_editor.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_filltable_gaps_form.py tests/test_filltable_manage_plumbing.py tests/test_text_colour_toolbars.py -v`
 Expected: all PASS.
+
+Then the e2e that drives the no-answer guard and the error placement (the hint now sits between the grid and the error): `uv run pytest tests/test_e2e_editor_scroll_containment.py -m e2e -v` → PASS.
 
 - [ ] **Step 7: Falsify the editor round-trip**
 
@@ -1514,6 +1534,27 @@ def test_gaps_round_trip_through_export_and_import():
     cell = obj.normalize_data(obj.data)["cells"][0][0]
     assert cell["html"] == f"{S}0{S} x"
     assert cell["gaps"] == [["9", "9,0"]]
+
+
+def test_v15_payload_without_gaps_imports_unchanged():
+    # An archive written before this feature (format 15) has no `gaps` anywhere.
+    payload = {
+        "header_row": False,
+        "header_col": False,
+        "case_sensitive": False,
+        "gate": False,
+        "border": "grid",
+        "prompt": "",
+        "cells": [
+            [
+                {"kind": "static", "html": "<b>t</b>", "halign": "left", "valign": "top"},
+                {"kind": "answer", "answer": "4", "halign": "left", "valign": "top"},
+            ]
+        ],
+    }
+    VALIDATORS["fill_table"](payload, "e1", set())
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    assert obj.normalize_data(obj.data)["cells"] == payload["cells"]
 
 
 def test_validator_rejects_non_list_gaps():
@@ -1639,6 +1680,8 @@ Expected: summary says `1 answer(s)`; the recolour test finds a match.
         n_ans += sum(len(c.get("gaps") or []) for row in d["cells"] for c in row)
 ```
 
+**Deliberate deviation from spec §9** (which asked only to verify tokens survive a recolour): recolour matches a cell's WHOLE stored html against a key and replaces it wholesale with html built from the LAL source, which has no tokens — so a gapped cell can never be recoloured without losing its boxes. Gapped cells are therefore EXCLUDED from recolour. State this in the PR description ("cells with inline answer boxes are skipped by the recolour tool").
+
 `dbscan.py`, after the `if cell.get("kind") not in (None, "static"): continue` guard:
 
 ```python
@@ -1759,7 +1802,7 @@ oddziel znakiem `|` (`{{9|9,0}}`). Komórka może zawierać do 10 pól; wzoru ni
 można umieścić wewnątrz nawiasów.
 ```
 
-Render check: the help pages go through Markdown — confirm `{{9}}` survives (it is inside backticks; `core/help.py` must not treat `{{` as a template). Run `uv run pytest -k help -v` (the help tests) and open the rendered page in the dev server or grep a help render test's output for `{{9}}`.
+Render check: run `uv run pytest tests/test_help.py -v` → PASS (the existing help text already shows `{{answer}}` in backticks, so the Markdown path is known to keep braces).
 
 - [ ] **Step 5: Commit**
 
@@ -1962,7 +2005,7 @@ Mutant in `courses.css`: `.el--filltable .filltable__input--inline[readonly]` �
 
 - [ ] **Step 5: Screenshots (light AND dark), judged separately**
 
-Create a TEMPORARY file `tests/test_e2e_filltable_gaps_shots.py` (do not commit) that seeds, via the ORM, one table with the three cases — `{{9}} \(\pi\)`, the two-box expression, and a done-state table whose first alternative is `12345678901234` — for a student whose `theme` is `"light"` and a second student with `theme="dark"` (the `<html data-theme>` comes from `user.theme`, not a cookie), and saves `page.locator(".filltable").first.screenshot(path=…)` into the session scratchpad directory. Seed the done state with `UnitProgress(student=…, unit=…, element_state={str(row.pk): {"done": True}})` (see `tests/test_filltable_restore.py::_seed_filltable`). Run it with `-m e2e`, then READ each PNG and judge: box baseline sits on the text/maths baseline; line height not visibly taller than a plain row; ~6 characters visible; the long done-state value is fully visible; dark mode box/text contrast readable. Tune the `--inline` CSS values if any check fails (re-run Tasks 4/10 tests after). Delete the temporary file.
+Create a TEMPORARY file `tests/test_e2e_filltable_gaps_shots.py` (do not commit) that seeds, via the ORM, one table with the three cases — `{{9}} \(\pi\)`, the two-box expression, and a done-state table whose first alternative is `12345678901234` — for a student whose `theme` is `"light"` and a second student with `theme="dark"` (the `<html data-theme>` comes from `user.theme`, not a cookie), and saves `page.locator(".filltable").first.screenshot(path=…)` into the session scratchpad directory. Seed the done state with `UnitProgress(student=…, unit=…, element_state={str(row.pk): {"done": True}})` (see `tests/test_filltable_restore.py::_seed_filltable`). Also screenshot the EDITOR for the Platform Admin author in light and dark (`user.theme`): open the table in the editor and capture the grid plus the hint line below it. `.el-editor__hint` carries `margin: calc(var(--space-2) * -1) 0 0` (`editor.css`), built to sit under a form field; directly after the scrolling grid it may overlap the grid's bottom edge or scrollbar. If it does, add `.el-editor--filltable .el-editor__hint { margin-top: var(--space-2); }` to `editor.css` and re-shoot. Run it with `-m e2e`, then READ each PNG and judge: box baseline sits on the text/maths baseline; line height not visibly taller than a plain row; ~6 characters visible; the long done-state value is fully visible; dark mode box/text contrast readable. Tune the `--inline` CSS values if any check fails (re-run Tasks 4/10 tests after). Delete the temporary file.
 
 - [ ] **Step 6: Commit**
 
@@ -1981,6 +2024,16 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 **Files:** none (verification only), plus the PR description.
 
+- [ ] **Step 0: Rebase onto current master and regenerate catalogs**
+
+This branch commits binary `.mo` files, which conflict on any catalog change merged since the branch point, and the gates below must run on the real base.
+
+```bash
+git fetch origin
+git rebase origin/master
+```
+If `locale/*/LC_MESSAGES/django.po` or `.mo` conflict: take master's copies (`git checkout origin/master -- locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo`), `git add` them and `git rebase --continue`. Then, regardless of conflicts, re-run Task 9 Steps 1–3 (makemessages, write the seven msgstrs, compilemessages, the polib check → `OK`) and commit the regenerated catalogs as `i18n(filltable): regenerate catalogs after rebase`. All later steps run on the rebased branch.
+
 - [ ] **Step 1: Lint gates**
 
 ```bash
@@ -1995,13 +2048,23 @@ First record the total: `uv run pytest --collect-only 2>&1 | tail -3` (note the 
 1. `uv run pytest tests/test_[a-f]*`
 2. `uv run pytest tests/test_[g-o]*`
 3. `uv run pytest tests/test_[p-z]* tests/demo tests/lal_import`
-4. `uv run pytest courses/tests accounts core institution notes tags integrations notifications`
+4. `uv run pytest courses/tests integrations notifications`
 
-Then `ls -d */tests tests/*/ 2>/dev/null` and confirm every listed directory appeared in a chunk; the chunk pass/skip counts should sum to the non-e2e part of the collected total.
+Then reconcile against the real list of test directories: `find . -name 'test_*.py' -not -path './docs/*' -not -path './.venv/*' -not -path './node_modules/*' | xargs -n1 dirname | sort -u`. Every directory printed must be covered by a chunk (a `tests/test_*` glob covers `./tests`); add any missing one to chunk 4. The chunk pass/skip counts should sum to the non-e2e part of the collected total.
 
-Then the e2e files this branch can affect (the paint selector, the inline CSS next to the min-width floor, and the editor submit guard): `uv run pytest tests/test_e2e_filltable*.py tests/test_e2e_table_editor.py tests/test_e2e_spanning_roundtrip.py tests/test_e2e_spanning_merge.py tests/test_e2e_table_cell_images.py -m e2e -v`. Any failure outside the files this branch touched: A/B it against `origin/master` before blaming the diff.
+Then the e2e files this branch can affect (the paint selector, the inline CSS next to the min-width floor, the editor submit guard and the hint placed after the grid): `uv run pytest tests/test_e2e_filltable*.py tests/test_e2e_table_editor.py tests/test_e2e_spanning_roundtrip.py tests/test_e2e_spanning_merge.py tests/test_e2e_table_cell_images.py tests/test_e2e_editor_scroll_containment.py -m e2e -v`. Any failure outside the files this branch touched: A/B it against `origin/master` before blaming the diff.
 
-- [ ] **Step 3: Check no other open branch bumps FORMAT_VERSION**
+- [ ] **Step 3: Check nobody else has taken FORMAT_VERSION 16**
+
+Master first — an identical `15 → 16` edit on both sides merges with NO conflict, giving two different formats both called 16:
+
+```bash
+git fetch origin
+git show origin/master:courses/transfer/schema.py | grep '^FORMAT_VERSION'
+```
+Expected: `FORMAT_VERSION = 15`. If it shows 16 or more, STOP: bump this branch to master's value + 1, update the seven pinned tests to match, re-run Task 7 Step 5, and tell the owner.
+
+Then open PRs:
 
 ```bash
 gh pr list --state open --json number,headRefName --jq '.[].headRefName' | while read b; do git fetch -q origin "$b" && git grep -n "^FORMAT_VERSION" "origin/$b" -- courses/transfer/schema.py; done
