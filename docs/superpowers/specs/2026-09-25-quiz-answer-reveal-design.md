@@ -42,6 +42,15 @@ problem.
 | D9 | Multiple choice stays **all-or-nothing**. Partial-credit scoring is a separate later idea (owner floated 1/n per option state; its "blank answer scores 0.6" flaw was discussed). | 1/n per option; right-minus-wrong. |
 | D10 | The **results page shows each question as it ended** (read-only, same renderer, switch). | Keeping the list page; a summary table with expandable questions. |
 | D11 | **Lessons unchanged**: no answers in lessons (PR #346 stands; an author can add a spoiler). | Show answer in lessons; a per-question author setting. |
+
+> **D11 premise correction (spec-review round 3) — OWNER TO CONFIRM.** D11 was chosen on
+> the author's statement that lessons show no answers since #346. That is true only for
+> fill in the blanks and multiple choice (`INLINE_LESSON_FEEDBACK = True`). The other
+> **eight** types still show today's `_reveal_*` answer list after a wrong lesson Check
+> (`views.check_answer` → `_question_feedback.html` → `reveal_template`). This spec
+> keeps lessons **exactly as they are today** (the operative meaning of "unchanged") and
+> the `_reveal_*` templates that lessons use survive (§8). Whether lessons should lose
+> those lists too is an open owner question, not decided here.
 | D12 | **Rendering approach 1**: the server draws the question a second time from a per-type `key_answer()` through the existing renderer. | Client-side JS filling in the key; a per-type correct-answer template. |
 
 ## 1. Student experience in a quiz
@@ -57,7 +66,8 @@ requires-review (R) questions are unchanged: they lock on first submission, show
      option) is **not** shown, because it would reveal the key;
    - result line: "✓ Correct · 1 / 1", "◐ Partly correct · 0.25 / 1 · 2 attempts
      left", "✗ Incorrect · 0 / 1 · 2 attempts left" (D4). The marks are
-     `earned_marks(fraction, max_marks)` of this attempt;
+     `earned_marks(to_stored_fraction(result.fraction), max_marks)` of this attempt
+     (§2.5 defines the outcome from those marks);
    - a **Show answer** button after Check (§3.1 fixes its position);
    - explanation still hidden (unchanged).
 
@@ -124,13 +134,28 @@ When a question is **locked and not fully correct** (§2.6 defines the source of
 correct"), the renderer draws a second copy from `key_answer()`.
 
 **What the copy contains — the controls region only.** Each converted template factors
-its answer controls (the stem with its inputs / slots / grid, i.e. today's
-`<fieldset class="question__stem">` content) into a per-type include, e.g.
-`_fillblank_controls.html`, rendered once for "Your answer" and once with `copy="key"`
-for the correct answer. The form wrapper, the Check and Show answer buttons, the
-`[data-question-feedback]` box and `data-quiz-locked` are rendered **exactly once** per
-question — never inside the copy. Test: exactly one `[data-question-feedback]`, one
-Check button and at most one Show answer button per rendered question.
+its answer controls into a per-type include (e.g. `_fillblank_controls.html`), rendered
+once for "Your answer" and once with `copy="key"` for the correct answer. Per type:
+
+| Type | Controls include holds | Stem |
+|---|---|---|
+| Fill in the blanks, drag the words | the token stem with its inputs / slots (the stem prose IS the controls) | inside the copy |
+| Short text, number | the `<input name="answer">` only (+ "± tolerance" in the key copy) | stays outside the form, once; the key copy sits right after the student's input |
+| Match pairs, both grids, drag onto image | the content of the type's controls `<fieldset>` | stays where it is today, once |
+
+The form wrapper, the Check and Show answer buttons, the `[data-question-feedback]` box
+and `data-quiz-locked` are rendered **exactly once** per question — never inside the
+copy. Test (quiz and editor paths): exactly one `[data-question-feedback]`, one Check
+button and at most one Show answer button per rendered question.
+
+**Author HTML inside the copy** (fill in the blanks, drag the words: the stem prose is
+author rich text). After rendering, the key copy's HTML is post-processed with
+BeautifulSoup (already a dependency): **every** `id` in it — template-generated or
+authored — gets the `-key` suffix and every `for=` / `aria-labelledby` /
+`aria-describedby` / `aria-controls` reference inside the copy is rewritten to match;
+`<iframe>` / `<embed>` / `<object>` elements are **removed** from the key copy (the
+student's copy keeps them; duplicating a GeoGebra applet is heavy and pointless). Tests
+include a stem with an authored id / anchor and one with an iframe.
 
 The key copy's controls:
 
@@ -142,9 +167,13 @@ The key copy's controls:
   nameless `<select>`s carry **`data-slot`** instead, and dnd.js's selector widens from
   `select[name="slot"]` to `select[name="slot"], select[data-slot]` so it still builds
   the drag UI for the key copy (PR 2);
-- **every `id` in the copy gets a `-key` suffix**, and every `for=` / `aria-*` reference
-  in the copy is rewritten to match, so ids stay unique and labels point at their own
-  copy's controls.
+- **the drag UI is inert when its controls are disabled** — dnd.js's `enhance` today
+  ignores `disabled` and builds live chips whose tap/drag changes the select's value
+  in code. It must build a display-only UI (chips `disabled`, no drag or tap-assign)
+  when the block's selects are disabled or the block is a key copy; this also covers a
+  locked "Your answer" on resume and in the editor, where no script freezes the chips.
+  Test: tapping / dragging a chip in either locked copy leaves every select unchanged;
+- ids per the author-HTML rule above.
 
 **The copy is rendered only when locked**; it never appears in the page, the Check
 response, or the resume render before that.
@@ -159,10 +188,12 @@ the form next to the feedback box. A locked question's templates render their
 controls fieldset `disabled` and both freeze scripts disable `fieldset`s, and a disabled
 fieldset disables every control inside it regardless of any selector exclusion. The
 switch is wrapped in `[data-answer-switch]`, and the CSS rule that shows the copy
-matching the checked radio is scoped to **the form** (`form:has(...)`), not to
-`[data-question]`, so it works on every render path including the results page (§4),
-which renders each question inside the same form markup. "Your answer" is checked by
-default (D3). Keyboard-operable, no JS. Test: no switch radio has a `disabled`
+matching the checked radio is scoped to a **`[data-answer-scope]`** container
+(`[data-answer-scope]:has(...)`): in the quiz and the editor that attribute sits on the
+question `<form>`; on the results page (§4), which has **no forms**, it sits on a plain
+`<div>` wrapping the read-only question. So the results page gains no form, no buttons
+and no submit target (question.js, which it loads, binds only to forms), and Enter on a
+switch radio there cannot submit anything. "Your answer" is checked by default (D3). Keyboard-operable, no JS. Test: no switch radio has a `disabled`
 ancestor `fieldset`, in the server render and after each script's freeze.
 
 - `answer_view_*` joins the reserved POST names documented on
@@ -186,12 +217,25 @@ button when eligible), swapped in via the existing `data-question-inline` form-b
 The converted type's form gains `data-question-inline` in quiz mode. Unconverted types
 keep today's fragment until their PR.
 
+Whole-element renders pass **`submitted_values`** (from `courses.quiz.rehydrate`) and
+**`feedback_for_pk=element.pk`** as well as `selected_ids` — today
+`_quiz_render_feedback` and `element_try` pass only `selected_ids`, because choice was
+the only whole-element type, and the fill-blank / short-text templates show values only
+when `element.pk == feedback_for_pk`. The key copy uses the same pairing with
+`key_answer()` as its values.
+
+**Validation (empty answer) responses stay the feedback fragment only** — no swap — on
+both the enrolled and the ephemeral path, for every type. The student's current
+(empty) inputs stay as they are; nothing is rehydrated from the stored answer. Test:
+clear the inputs, Check → the validation message appears and the inputs stay empty, on
+both paths.
+
 **Per-type enhancers after a swap.** `form.innerHTML = …` replaces controls that
-per-type scripts enhanced at DOMContentLoaded: dnd.js (`init(root)`, drag UI) and
-blank_autosize.js (initial fit). quiz.js and editor.js must re-run both on the swapped
-form, through a small global each script exposes (e.g. `window.libliDnd.init(form)`,
-`window.libliBlankAutosize(form)`), and both must be idempotent. PR 1 needs the
-autosize re-run; PR 2 the dnd one. Test (PR 2 e2e): after a Check and after a reveal,
+dnd.js enhanced at DOMContentLoaded. quiz.js must call dnd.js's existing idempotent
+global **`window.libliEnhanceDnd(form)`** after its swap (editor.js already calls it).
+blank_autosize.js needs no change: its document-wide `MutationObserver` already re-fits
+after any swap, and it is a no-op where `field-sizing: content` is supported (so a
+Chromium e2e cannot test it anyway). Test (PR 2 e2e): after a Check and after a reveal,
 the drag UI is present in both copies.
 
 The other render paths must draw §1 state 2 or 4 identically:
@@ -206,8 +250,14 @@ The other render paths must draw §1 state 2 or 4 identically:
 
 ### 2.5 Result line
 
-`_quiz_question_feedback.html` gains the **partial** state (0 < fraction < 1) and the
-marks, per §1. One template for all types. The "· N attempts left" segment is
+`_quiz_question_feedback.html` gains the **partial** state and the marks, per §1. One
+template for all types. The outcome is classified **by earned marks, not by fraction**,
+exactly as `views._results_row` does today — `earned == max_marks` → correct,
+`earned > 0` → partial, else incorrect — via **one shared helper** (e.g.
+`courses.scoring.outcome(earned, max_marks)`) used by the live line and the results page
+alike, so a tiny fraction that rounds to 0.00 reads "Incorrect" in both places. Every
+path gets `earned` as `earned_marks(to_stored_fraction(result.fraction), max_marks)`
+(`earned_marks` needs the Decimal stored fraction; a raw float raises). The "· N attempts left" segment is
 **omitted** when `max_attempts` is None (unlimited); result-line tests cover both.
 
 ### 2.6 One source per value — every render path
@@ -221,6 +271,12 @@ was awarded if the author has since edited the key. So on every path:
   `earned_marks`;
 - the **part colours and `mark_result`** (hence the key copy) come from a **fresh**
   `mark(answer_from_json(question, latest_answer))`.
+
+This split **already exists**: `views._stored_result(question, response)` builds a
+`MarkResult` from the stored fraction/correctness plus a fresh `reveal` / `annotated`,
+and `build_quiz_context` uses it. It is the **single source** for every stored-answer
+path (reveal response, resume, no-JS, results page); `part_verdicts` reads its fresh
+`reveal`. No second implementation.
 
 The disagreement after a key edit is accepted — the marks are what was awarded; the
 colours and key show the key as it is now — and is written down so nobody "fixes" one to
@@ -334,6 +390,10 @@ Rows:
 
 Unconverted types (during PR 1–2) keep today's list rows.
 
+The results page loads only question.js (and KaTeX when `has_math`) today. **PR 2 adds
+dnd.js** to it so drag types show the (inert, §2.2) drag UI rather than the native
+select fallback.
+
 ## 5. Teacher analytics
 
 `templates/courses/manage/analytics_student_quiz.html` shows an **"answer shown"** tag on
@@ -392,5 +452,9 @@ section; author help is below.
 2. **Drag the words, match pairs, drag onto image, choice grid, multi grid.**
 3. **Multiple choice + extended response.** Choice: ✓/✗ on picks from the first Check
    (＋ only when locked), Show answer, results. Extended response: Show answer reveals
-   its keyword list. Delete the now-unused `_reveal_*.html` and their unused msgids.
-   Help updated again.
+   its keyword list. **Do not delete the `_reveal_*.html` templates**: lessons still
+   render them for the eight types without `INLINE_LESSON_FEEDBACK` (D11 premise
+   correction). Only a template that no lesson or quiz path can reach any more may be
+   deleted, and each deletion needs a grep of every `REVEAL_TEMPLATE` / `reveal_template`
+   consumer. Test (PR 3): a wrong **lesson** Check renders without error for every
+   question type. Help updated again.
