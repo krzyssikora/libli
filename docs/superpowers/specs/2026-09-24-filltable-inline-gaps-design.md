@@ -108,6 +108,9 @@ render, the check view and the editor template, so they cannot disagree.
   input; `_cell` omits the `gaps` key when the returned list is empty.
 - **Cap:** at most `MAX_GAPS_PER_CELL = 10` markers per cell (the LAL corpus peaks
   at 2). More → a form error *"Row R, column C: at most 10 answer boxes per cell."*
+  The FORM checks `len(gaps) > MAX_GAPS_PER_CELL` after a SUCCESSFUL parse; it is not
+  an exception class. So a cell with 11 markers AND an empty one reports the
+  empty/unclosed error (the parse fails first).
   Rows/columns are already capped, so this bounds the inputs, POST keys and
   check-view iterations per table; `reconcile_gaps` truncates to the cap on read.
 - `answer_cells` is unchanged; a new `gap_cells(cells)` yields `(r, c, g, alts)` with
@@ -232,7 +235,8 @@ safe-join the trusted sanitised text segments with server-built inputs:
 - `canonical_cells` keeps its return type (one grid). On a static cell with `gaps`
   it returns `{**cell, "gaps_display": [first alternative of each gap]}` — a per-cell
   key; `gaps` itself stays on the cell in the done branch (answers already earned).
-  Never mutates `self.data`.
+  Never mutates `self.data`. `gaps_display` is the SINGLE source of the done-state
+  `value`: the done-branch `parts` are built from it, never from `gaps` directly.
 - **Escaping.** Every server-built gap `<input>` is built with `format_html`, so
   `value`, `aria-label` and `size` are escaped. Stored alternatives are DECODED plain
   text (§2), so `a<b` or `"x" onfocus=…` is raw data; the inputs are safe-joined with
@@ -274,7 +278,15 @@ selects `[data-r][data-c][data-g="G"]` when the reply carries `g`, else
 ### 7. Editor
 
 - `_edit_filltable.html`: static cells render `author_cell_html(cell)` instead of
-  `cell.html` — the author sees and edits `{{9|9,0}} \(\pi\)`.
+  `cell.html` — the author sees and edits `{{9|9,0}} \(\pi\)`. **Mechanism:**
+  `FillTableElementForm.resolved_grid_cells` adds an `author_html` key to every
+  static cell (`author_cell_html(cell)`); BOTH static branches of the template — the
+  `<td>` and the `<th>` twin — output `cell.author_html|safe` instead of
+  `cell.html|safe`. No template filter.
+- **Why this is load-bearing:** if the editor rendered the stored token html,
+  `serialize()` would post `\uffff0\uffff` back, the form's `strip_sentinel` would
+  turn it into a literal `0`, and every box in the table would vanish on the next
+  save of ANY cell — silently, whenever the table also has an answer cell.
 - A rejected save re-renders the SUBMITTED grid (`grid_data` re-reads POST, which
   still holds raw `{{…}}`), so nothing typed is lost. `author_cell_html` is the
   identity on a cell without `gaps`.
@@ -367,9 +379,19 @@ Unit (no browser):
   message; a posted `gaps` key is ignored.
 - **Gate through the FORM:** a POST whose only answers are `{{9}}` with `gate: true`
   stores `gate: True` (a model-level test would not catch the ordering bug in §3).
-- `reconcile_gaps`: each rule in §4 (non-list entry, mixed blank/non-blank
-  alternatives, untrimmed alternatives, duplicate token, orphan token, orphan entry,
-  renumbering, all-removed → no `gaps` key), plus idempotence.
+- `reconcile_gaps`: each rule in §4 (non-list entry, non-string alternative dropped,
+  mixed blank/non-blank alternatives, untrimmed alternatives, duplicate token, orphan
+  token, orphan entry, renumbering, more than 10 surviving tokens → truncated to 10
+  with their entries, all-removed → returns `[]` and `_cell` omits the key), plus
+  idempotence.
+- **No `gaps` = unchanged (§1's promise for the live course):** `_cell` /
+  `normalize_data` output for a static cell without `gaps` equals today's dict
+  exactly (no `gaps` key), including when its html contains a literal
+  `\uffff0\uffff`; such a cell renders with no `data-g` input.
+- **Editor round-trip:** the editor partial for a stored cell with `gaps` shows
+  `{{9|9,0}}` (escaped per `author_cell_html`) in both `<td>` and `<th>` cells and
+  contains no U+FFFF; reopening a saved table and re-saving it unchanged leaves
+  `gaps` identical.
 - Check view: per-gap verdicts with `g`; answer cells unchanged; `all_correct` needs
   both kinds; case sensitivity honoured for gaps.
 - **Leak test:** the rendered student page for a table with gaps contains none of the
@@ -384,12 +406,18 @@ e2e (one, driving the real editor): author types `{{9}} \(\pi\)` into one cell a
 `\((x+2)^2+(y\) {{-1}} \()^2=\) {{16}}` (TWO gaps) into another, saves; the student
 page shows inline boxes beside rendered maths; the student answers the first gap of
 the two-gap cell WRONG and the second RIGHT, + Check → each box gets its OWN
-verdict (first red, second green); correcting it turns both green.
+verdict (first red, second green); correcting it turns both green, and after that
+all-correct Check every inline box keeps its width (the live `lock()` path).
+
+Screenshots (light AND dark, each judged separately): a box between two maths spans;
+`{{9}} \(\pi\)`; the done state with a long first alternative.
 
 Falsify: the leak test, the `data-g` term of the paint selector (drop it → the
 two-gap e2e must go RED), and the gate-counts-gaps rule through the form (parse
-after `normalize_data` → the form gate test must go RED) each get a deliberate
-mutant.
+after `normalize_data` → the form gate test must go RED), the editor rendering
+(`cell.html` instead of `cell.author_html` → the editor round-trip test must go
+RED), and the width release (`[readonly]` → `:read-only` → the width-after-lock
+e2e assertion must go RED) each get a deliberate mutant.
 
 ## Out of scope
 
