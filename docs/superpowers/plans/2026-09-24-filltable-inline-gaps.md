@@ -859,6 +859,8 @@ Replace the no-answer check:
 
 (The blank-answer check below it stays as-is.)
 
+Also update the comment in `FillTableElementForm.grid_data` that says the no-answer and blank-answer grids "are ALSO two of clean_data's five rejection reasons" and "A no-op for the other three rejection paths": there are now eight rejection paths, and `preserve` is a no-op for the six that do not suppress `gate` (spans, caps, image scope, and the three new marker errors — empty/unclosed, maths, cap). Reword to name them rather than count. In `FillTableElement.normalize_data`, check the "TWO grid shapes do that" intro still reads true after Task 2 (it does — the two shapes are now "no answer cell and no gap" and "blank answer cell"); adjust the wording if not.
+
 - [ ] **Step 4: Implement `resolved_grid_cells`**
 
 Replace the body of `FillTableElementForm.resolved_grid_cells` (keep its docstring, append one paragraph):
@@ -1472,11 +1474,12 @@ Change it to:
 
 ```
     literal, a template string, and a comment. The first three must never carry
-    a literal brace in either editor -- write one as \x7b / \x7d, as
-    filltable_editor.js onSubmit does; the fourth does (`{% trans %}`,
-    `LAYOUT {r, c}`) but every
+    a literal brace in either editor -- use the JS hex escape for the brace
+    instead, as filltable_editor.js onSubmit does; the fourth does
+    (`{% trans %}`, `LAYOUT {r, c}`) but every
 ```
-(re-wrap the rest of the paragraph so lines stay under 88 characters). In `tests/test_filltable_editor_partial.py`, update the two comments quoting "Mark at least one answer cell …" to quote the new message (comment-only change).
+(Words, not `\x7b`: this docstring is a normal Python string, where `\x7b` would itself become a brace.)
+(re-wrap the rest of the paragraph so lines stay under 88 characters). Then `git grep -n -i "at least one answer cell" -- tests courses/tests` and update EVERY hit to the new rule/message (comment/docstring-only changes) — known: `tests/test_filltable_editor_partial.py` ~179, ~339, ~497 and `tests/test_e2e_table_cell_images.py` ~623. Add any extra files touched to the Step 8 `git add`.
 
 - [ ] **Step 6: Run tests**
 
@@ -1577,7 +1580,7 @@ Check the top of the file imports `TransferError` (`from courses.transfer.schema
 - [ ] **Step 2: Run to verify failures**
 
 Run: `uv run pytest tests/test_filltable_transfer.py -v`
-Expected: `test_validator_rejects_non_list_gaps` FAILS (no raise). The round-trip test should already PASS (export copies `dict(c)`, Task 2 keeps `gaps`) — it is the guard for that free behaviour.
+Expected: exactly ONE failure — `test_validator_rejects_non_list_gaps` (no raise). Three PASS already, by design: `test_gaps_round_trip_through_export_and_import` (export copies `dict(c)`, Task 2 keeps `gaps` — the guard for that free behaviour), `test_v15_payload_without_gaps_imports_unchanged` (no gaps anywhere), `test_validator_leaves_entry_level_gap_damage_to_reconcile` (the validator is lenient by design).
 
 - [ ] **Step 3: Implement the validator**
 
@@ -1597,7 +1600,7 @@ In `_val_fill_table`, inside the `for cell in row:` loop after the non-dict chec
 
 - [ ] **Step 4: Bump the format version**
 
-`courses/transfer/schema.py`: `FORMAT_VERSION = 16`. Add a one-line comment above it if the file has a version-history comment style elsewhere (grep `FORMAT_VERSION` comments in `payloads.py`, e.g. "added in FORMAT_VERSION 14"); otherwise none. Change the seven `assert FORMAT_VERSION == 15` lines to `== 16`, AND the eighth pin spelled differently: `tests/test_transfer_export.py:222` `assert manifest["format_version"] == 15` → `== 16`. Then confirm no other pin, both spellings: `git grep -nE 'FORMAT_VERSION == 15|format_version"\] == 15'` → no output.
+`courses/transfer/schema.py`: `FORMAT_VERSION = 16`. Add a one-line comment above it if the file has a version-history comment style elsewhere (grep `FORMAT_VERSION` comments in `payloads.py`, e.g. "added in FORMAT_VERSION 14"); otherwise none. Change the seven `assert FORMAT_VERSION == 15` lines to `== 16`, AND the eighth pin spelled differently: `tests/test_transfer_export.py:222` `assert manifest["format_version"] == 15` → `== 16`. Then confirm no other pin, both spellings, excluding the docs that quote them: `git grep -nE 'FORMAT_VERSION == 15|format_version"\] == 15' -- ':!docs'` → no output.
 
 - [ ] **Step 5: Run tests**
 
@@ -1789,8 +1792,18 @@ for msgid, want in EXPECTED.items():
     elif e.msgstr != want:
         bad.append(("WRONG", msgid, e.msgstr))
 print(bad or "OK")
+
+# The en catalog: present, not obsolete, not fuzzy (msgstr empty or per the
+# neighbouring entries' convention -- makemessages fuzzy-prefills here too).
+en = polib.pofile("locale/en/LC_MESSAGES/django.po")
+en_bad = [
+    m
+    for m in EXPECTED
+    if (e := en.find(m)) is None or e.obsolete or "fuzzy" in e.flags
+]
+print(en_bad or "EN OK")
 ```
-Expected: `OK`. Then confirm the compiled catalog renders single backslashes:
+Expected: `OK` then `EN OK`. Then confirm the compiled catalog renders single backslashes:
 
 ```bash
 uv run python manage.py shell -c "from django.utils import translation; from django.utils.translation import gettext as g; translation.activate('pl'); print(g('Row %(r)d, column %(c)d: an answer box cannot contain maths — put the maths outside the braces, e.g. {{9}} \\\\(\\\\pi\\\\).') % {'r': 1, 'c': 1})"
