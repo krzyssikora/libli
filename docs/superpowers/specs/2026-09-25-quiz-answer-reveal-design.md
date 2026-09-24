@@ -42,6 +42,7 @@ problem.
 | D9 | Multiple choice stays **all-or-nothing**. Partial-credit scoring is a separate later idea (owner floated 1/n per option state; its "blank answer scores 0.6" flaw was discussed). | 1/n per option; right-minus-wrong. |
 | D10 | The **results page shows each question as it ended** (read-only, same renderer, switch). | Keeping the list page; a summary table with expandable questions. |
 | D11 | **Lessons unchanged**: no answers in lessons (PR #346 stands; an author can add a spoiler). | Show answer in lessons; a per-question author setting. |
+| D12 | **Rendering approach 1**: the server draws the question a second time from a per-type `key_answer()` through the existing renderer. | Client-side JS filling in the key; a per-type correct-answer template. |
 
 > **D11 premise correction (spec-review round 3) — OWNER TO CONFIRM.** D11 was chosen on
 > the author's statement that lessons show no answers since #346. That is true only for
@@ -51,7 +52,6 @@ problem.
 > keeps lessons **exactly as they are today** (the operative meaning of "unchanged") and
 > the `_reveal_*` templates that lessons use survive (§8). Whether lessons should lose
 > those lists too is an open owner question, not decided here.
-| D12 | **Rendering approach 1**: the server draws the question a second time from a per-type `key_answer()` through the existing renderer. | Client-side JS filling in the key; a per-type correct-answer template. |
 
 ## 1. Student experience in a quiz
 
@@ -97,9 +97,22 @@ All server-side; no per-type JS; works without JS.
 
 `QuestionElement.part_verdicts(mark_result) -> list[bool] | None` — the right/wrong
 flag per part, in the order the type's template draws its parts. Every multi-part type
-already computes these in `mark()` (`reveal` items carry `correct`); `part_verdicts`
-extracts **only the booleans**. Short text / number: one part. Base class: `None`
-(= not converted; the type keeps today's list, §8).
+already computes these in `mark()`, under a **per-type key**: `correct` for fill in the
+blanks and the dnd types (`dnd.mark_slots`), `is_correct` for choice grid and multi
+grid — each type's `part_verdicts` reads its own key (no shared base implementation).
+`part_verdicts` extracts **only the booleans**. Short text / number: one part, whose
+verdict is the **fresh** correctness (see §2.6 — their `reveal` is a string / a
+`{value, tolerance}` dict with no boolean, so it cannot come from `reveal`). Base class:
+`None` (= not converted).
+
+**One "converted" predicate:** `question.converted_quiz_reveal` (true iff the type
+implements `part_verdicts`). It alone drives all four branches: the whole-element
+response in `_quiz_render_feedback` / `element_try`; `quiz_feedback_context` setting
+`reveal_template = None` (so the old `_reveal_*` list is never printed beside the key
+copy); the template's `data-question-inline` in quiz mode; and the results-page render
+(§4). Choice keeps `INLINE_QUIZ_REVEAL` for its own inline-marks path until PR 3 folds it
+in. Test: a locked converted question renders no `_reveal_*` markup, in the quiz and on
+the results page.
 
 Each converted type's template/tag paints its controls from a **`verdicts`** render
 argument — the `fillblank.render_inputs(verdicts=...)` pattern from PR #346, extended.
@@ -193,7 +206,10 @@ matching the checked radio is scoped to a **`[data-answer-scope]`** container
 question `<form>`; on the results page (§4), which has **no forms**, it sits on a plain
 `<div>` wrapping the read-only question. So the results page gains no form, no buttons
 and no submit target (question.js, which it loads, binds only to forms), and Enter on a
-switch radio there cannot submit anything. "Your answer" is checked by default (D3). Keyboard-operable, no JS. Test: no switch radio has a `disabled`
+switch radio there cannot submit anything. "Your answer" is checked by default (D3). Keyboard-operable, no JS. **The key copy is hidden by default** and shown only
+by the `:has()` rule, so a browser without `:has()` degrades to "Your answer" only (D3).
+The radios carry **`autocomplete="off"`** so reload / back-forward form restoration can
+never reopen a question on "Correct answer" (e2e covers a reload). Test: no switch radio has a `disabled`
 ancestor `fieldset`, in the server render and after each script's freeze.
 
 - `answer_view_*` joins the reserved POST names documented on
@@ -230,9 +246,19 @@ both the enrolled and the ephemeral path, for every type. The student's current
 clear the inputs, Check → the validation message appears and the inputs stay empty, on
 both paths.
 
-**Per-type enhancers after a swap.** `form.innerHTML = …` replaces controls that
-dnd.js enhanced at DOMContentLoaded. quiz.js must call dnd.js's existing idempotent
-global **`window.libliEnhanceDnd(form)`** after its swap (editor.js already calls it).
+**Per-type enhancers after a swap (drag types, PR 2).** Today `data-dnd` sits on the
+outer `<div … data-question data-dnd>`, outside the form, and `enhance()` is guarded by
+`block.dataset.dndReady`. So a form-body swap leaves the outer block marked ready while
+replacing its pool with an empty one — the chips vanish — and `libliEnhanceDnd(form)`
+finds no `[data-dnd]` descendant at all. Both copies would also share one block and one
+pool (for drag onto image, `selects[zoneIdx]` would pair the key copy's selects with the
+student's badges). Therefore: **`data-dnd`, its `[data-dnd-pool]` and
+`[data-dragimage-stage]` move INTO the per-type controls include**, rendered once per
+copy, and are dropped from the outer div. Each copy is its own dnd root, and after a swap
+those roots are new nodes with no `dndReady`, so quiz.js's call to
+**`window.libliEnhanceDnd(form)`** (editor.js already calls it) enhances them. Test that
+fails on today's markup: after a fetch Check on each drag type, `.dnd__chip` exists in
+the live copy, and each copy's selects are driven only by its own pool / targets.
 blank_autosize.js needs no change: its document-wide `MutationObserver` already re-fits
 after any swap, and it is a no-op where `field-sizing: content` is supported (so a
 Chromium e2e cannot test it anyway). Test (PR 2 e2e): after a Check and after a reveal,
@@ -276,7 +302,11 @@ This split **already exists**: `views._stored_result(question, response)` builds
 `MarkResult` from the stored fraction/correctness plus a fresh `reveal` / `annotated`,
 and `build_quiz_context` uses it. It is the **single source** for every stored-answer
 path (reveal response, resume, no-JS, results page); `part_verdicts` reads its fresh
-`reveal`. No second implementation.
+`reveal`. No second implementation. `_stored_result` today copies only `reveal` /
+`annotated` from the fresh mark and takes `correct` from the stored fraction; it gains a
+**`fresh_correct`** field (the fresh `mark().correct`), which the single-part types'
+`part_verdicts` use. The key-edit test covers a short-text question as well as a
+multi-part one.
 
 The disagreement after a key edit is accepted — the marks are what was awarded; the
 colours and key show the key as it is now — and is written down so nobody "fixes" one to
@@ -298,8 +328,11 @@ student and previewer; `courses:manage_element_try` in the editor). No new URL.
   in a short-text / blank input performs a Check, not a reveal.
 - **quiz.js must send the submitter.** Today it builds `new FormData(form)`, which drops
   the clicked button, so Show answer would silently post a Check and use an attempt.
-  It must use `new FormData(form, e.submitter)` (editor.js already appends
-  `e.submitter`'s name/value). When the submitter is the reveal button, quiz.js and
+  It must append the submitter the way editor.js already does —
+  `if (e.submitter && e.submitter.name) body.append(e.submitter.name,
+  e.submitter.value)` — **not** `new FormData(form, e.submitter)`, whose second
+  argument older engines (pre-2023 Chrome/Firefox/Safari, common on school devices)
+  silently ignore. When the submitter is the reveal button, quiz.js and
   editor.js run the `confirm()` first, **do not** increment `data-attempts-made`, and
   send `attempt` = the current `made` count (not `made + 1`) so the ephemeral path
   sees no new attempt. Mutant: drop the submitter → a test must go RED.
@@ -332,6 +365,11 @@ attempt (the unlocked element, no reveal).
 
 - Previewer: `quiz_answer`'s non-enrolled branch → `ephemeral_quiz_feedback(...,
   reveal=True)` → a locked stand-in → the same whole-element render.
+- The stand-in (today a `SimpleNamespace(locked, attempt_count, latest_answer)`) gains
+  **`revealed_at`** on **every** branch — a timestamp on a reveal, `None` otherwise,
+  including the validation branch — and `quiz_feedback_context` passes a `revealed`
+  flag (from `response.revealed_at`) to the result-line template, so "· answer shown"
+  renders on the enrolled and both ephemeral paths alike.
 - Editor: `views_manage.element_try`'s quiz branch does the same with its own context
   builder, and returns the whole element for converted types (§2.4).
 - **Accepted divergence (pinned by a test):** the ephemeral reveal marks **whatever the
@@ -371,7 +409,14 @@ the time it is written (currently `0066_blank_answers_unescape`).
 ## 4. Results page (D10)
 
 `views._results_row` / `quiz_results.html` render each question **read-only through
-the same renderer**, from the stored `latest_answer`, locked.
+the same renderer**, from the stored `latest_answer`, locked, via a new render mode
+**`render(mode="results")`**: each converted template gains that branch, which emits a
+`<div data-answer-scope>` in place of the `<form>`, **no** Check / Show answer button,
+the controls include(s) with values + verdicts, the key copy, the switch, and the result
+line + explanation in the same `[data-question-feedback]` box. (Today's templates have
+only an `{% if element %}` form branch and a bare `{% else %}` branch; neither fits.)
+Each PR lists this branch in its per-type template work. Test: the results page contains
+no `<form>` and no submit button inside any question.
 
 Values follow §2.6 (stored marks / fresh colours). **Unanswered** rows (no
 `QuestionResponse`, or `latest_answer` None) get `verdicts = None` — neutral controls —
