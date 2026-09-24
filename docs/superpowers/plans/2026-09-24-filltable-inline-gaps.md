@@ -1495,9 +1495,9 @@ Mutant: change the `<td>` static branch back to `{{ cell.html|safe }}`. Run `uv 
 - [ ] **Step 8: Commit**
 
 ```bash
-uv run ruff format tests/test_filltable_gaps_editor.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py
-uv run ruff check tests/test_filltable_gaps_editor.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py
-git add templates/courses/manage/editor/_edit_filltable.html courses/static/courses/js/filltable_editor.js tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_filltable_gaps_editor.py
+uv run ruff format tests/test_filltable_gaps_editor.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_e2e_table_cell_images.py
+uv run ruff check tests/test_filltable_gaps_editor.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_e2e_table_cell_images.py
+git add tests/test_e2e_table_cell_images.py templates/courses/manage/editor/_edit_filltable.html courses/static/courses/js/filltable_editor.js tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_filltable_gaps_editor.py
 git commit -m "feat(filltable): editor shows {{answer}} boxes, hints, accepts gaps-only tables
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -1663,6 +1663,8 @@ def test_a_filltable_cell_with_gaps_is_never_matched():
         data={"cells": [[{"kind": "static", "html": "a", "gaps": [["x"]]}]]}
     )
     Element.objects.create(unit=unit, content_object=ft)
+    ft.refresh_from_db()
+    assert ft.data["cells"][0][0]["gaps"]  # precondition: stored row keeps gaps
     matches = find_matches(course, {"a": '<span class="tc-red">a</span>'}, set())
     assert [m for m in matches if m.model is FillTableElement] == []
 ```
@@ -1680,11 +1682,13 @@ def test_a_real_gapped_cell_is_not_matched_by_its_text():
         data={"cells": [[{"kind": "static", "html": "a" + tok, "gaps": [["x"]]}]]}
     )
     Element.objects.create(unit=unit, content_object=ft)
+    ft.refresh_from_db()
+    assert ft.data["cells"][0][0]["gaps"]  # precondition: stored row keeps gaps
     matches = find_matches(course, {"a": '<span class="tc-red">a</span>'}, set())
     assert [m for m in matches if m.model is FillTableElement] == []
 ```
 
-(`FillTableElement.objects.create` does not run the form, and `_cell` drops tokenless gaps only on read — the stored row keeps `gaps` here, which is the shape the guard is for. Confirm with `ft.refresh_from_db(); assert ft.data["cells"][0][0]["gaps"]` as a precondition line.)
+(`FillTableElement.objects.create` does not run the form, and `_cell` drops tokenless gaps only on read — the stored row keeps `gaps` here, which is the shape the guard is for. Both tests assert that as an inline precondition.)
 
 - [ ] **Step 2: Run to verify failures**
 
@@ -1760,7 +1764,7 @@ The `en` catalog: leave msgstr empty (English falls back to msgid) unless the en
 
 - [ ] **Step 3: Compile and verify**
 
-Run `uv run python manage.py compilemessages -l pl -l en`, then verify per ENTRY (a line grep cannot: `msgmerge --previous` puts `#, fuzzy` and `#| msgid` lines above a wrapped `msgid ""`). Save as a scratch script (NOT a heredoc — bash heredocs eat backslashes) and run with `uv run python <script>`:
+Run `uv run python manage.py compilemessages -l pl -l en`, then verify per ENTRY (a line grep cannot: `msgmerge --previous` puts `#, fuzzy` and `#| msgid` lines above a wrapped `msgid ""`). Save as a scratch script (NOT a heredoc — bash heredocs eat backslashes) and run it FROM THE REPO ROOT with `uv run python <script>` (its catalog paths are repo-relative; a file-not-found means wrong cwd, not a catalog problem):
 
 ```python
 import polib  # if missing: uv run --with polib python <script>
@@ -2071,8 +2075,9 @@ If `locale/*/LC_MESSAGES/django.po` or `.mo` conflict: take master's copies (`gi
 Tasks 2, 4 and 5 insert lines into `courses/models.py` and `courses/views.py`; comments elsewhere cite line numbers below those insertions (known: `courses/tests/test_preview_nested_markers.py`, `demo/builders.py`, `courses/rollups.py`, `courses/templatetags/courses_extras.py`, `demo/generator.py`). No test catches a stale `.py` citation. Run:
 
 ```bash
-git grep -nE "(models|views)\.py:[0-9]+" -- ':!docs'
+git grep -nE "(models|views)\.py:[0-9]+" -- ':!docs' ':!locale'
 ```
+(`locale/` is excluded: its `#:` location lines are owned by `makemessages`, which Step 0 just regenerated. Never hand-edit them.)
 For each hit whose cited line now points at different code than on `origin/master` (compare `git show origin/master:courses/models.py | sed -n '<N>p'` with the current line), replace the number with the symbol name (e.g. `models.py FillTableElement.render`) — never just bump the number. Commit as `docs(comments): cite symbols, not lines, where this branch moved them`.
 
 - [ ] **Step 1: Lint gates**
