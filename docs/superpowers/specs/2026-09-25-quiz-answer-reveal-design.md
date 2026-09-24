@@ -50,7 +50,7 @@ Applies to **auto-marked** (`marking_mode = A`) questions. Not-marked (N) and
 requires-review (R) questions are unchanged: they lock on first submission, show
 "Answer recorded" / "Submitted for review", and never reveal a key.
 
-1. **Before any Check** — unchanged.
+1. **Before any Check** — unchanged. **No Show answer button** is rendered yet.
 2. **After a Check with attempts remaining** (not locked):
    - every part is coloured green/red (D6) — blank, box, slot, zone, pair, grid row;
      for multiple choice the **ticked** options get ✓/✗, but the ＋ (a missed correct
@@ -58,11 +58,14 @@ requires-review (R) questions are unchanged: they lock on first submission, show
    - result line: "✓ Correct · 1 / 1", "◐ Partly correct · 0.25 / 1 · 2 attempts
      left", "✗ Incorrect · 0 / 1 · 2 attempts left" (D4). The marks are
      `earned_marks(fraction, max_marks)` of this attempt;
-   - a **Show answer** button next to Check;
+   - a **Show answer** button after Check (§3.1 fixes its position);
    - explanation still hidden (unchanged).
+
+   The same state is drawn on a page reload (resume) and on the no-JS re-render (§2.4).
 3. **Show answer**: `confirm()` — "Show the answer? This ends the question: you won't
-   be able to try again, and you keep the marks you have now (0.25 of 1)." Confirm →
-   locked at the latest attempt's marks (D5), `revealed_at` set (§3). Cancel → nothing.
+   be able to try again, and you keep the marks you have now (0.25 of 1)." (text and
+   marks come from the server, §3.4). Confirm → locked at the latest attempt's marks
+   (D5), `revealed_at` set (§3). Cancel → nothing.
 4. **Locked** (correct / last attempt used / Show answer):
    - inputs frozen (as today);
    - if the answer is **not fully correct**: the **switch** appears, opening on
@@ -88,79 +91,167 @@ already computes these in `mark()` (`reveal` items carry `correct`); `part_verdi
 extracts **only the booleans**. Short text / number: one part. Base class: `None`
 (= not converted; the type keeps today's list, §8).
 
-Each converted type's template/tag paints its controls from the verdicts — the
-`fillblank.render_inputs(verdicts=...)` pattern from PR #346, extended. Because only
-booleans reach the page, D6 leaks no key.
+Each converted type's template/tag paints its controls from a **`verdicts`** render
+argument — the `fillblank.render_inputs(verdicts=...)` pattern from PR #346, extended.
+`verdicts` is passed **whenever an auto-marked answer exists**, locked or not;
+`mark_result` (which carries key material in `reveal`) is still passed to the template
+**only when locked**, as today. Because only booleans reach the page before the lock,
+D6 leaks no key.
 
 Multiple choice: `choice_marks` gains the unlocked-quiz case — ✓/✗ on **picked**
 options only, never ＋ until locked.
 
 ### 2.2 The correct-answer copy
 
-`QuestionElement.key_answer()` returns the correct answer **in the shape that type's
-`build_answer()` returns**, so the existing render/rehydrate path can draw it:
+`QuestionElement.key_answer()` returns the correct answer **in exactly the shape that
+type's `build_answer()` returns** — the same identifiers, not display text (for drag the
+words, match pairs and drag onto image: the `slot` values `build_answer` reads with
+`post.getlist("slot")`; for grids: the per-row column pks) — so the existing
+render/rehydrate path draws both copies identically:
 
 | Type | `key_answer()` |
 |---|---|
 | Fill in the blanks | first accepted line per blank (list) |
 | Short text | first accepted line |
 | Short number | the value (the copy renders "± tolerance" beside it when tolerance > 0) |
-| Drag the words | the correct token per slot |
-| Match pairs | the correct partner per left item |
-| Choice grid / multi grid | the correct cell(s) per row |
-| Drag onto image | the correct label per zone |
+| Drag the words | the correct `slot` value per gap |
+| Match pairs | the correct `slot` value per left item |
+| Choice grid / multi grid | the correct column pk(s) per row |
+| Drag onto image | the correct `slot` value per zone |
 | Multiple choice, extended response | `None` (own view, D8 / D7) |
 
-When a question is **locked and not fully correct**, the renderer draws a second copy
-from `key_answer()`: all parts painted correct, every control read-only, and **no
-control carries a `name` attribute** — so quiz.js's Finish re-post (which serialises the
-question's form) can never send the key as the student's answer. **The copy is rendered
-only when locked**; it never appears in the page, the Check fragment, or the resume
-render before that.
+When a question is **locked and not fully correct** (§4 defines the source of "fully
+correct" on the results page), the renderer draws a second copy from `key_answer()`:
+
+- all parts painted correct;
+- every control **`disabled`** (not `readonly`, which has no effect on radios,
+  checkboxes, selects or draggables) and **without a `name` attribute** — disabled
+  controls are never serialised by `FormData`, and the missing `name` is defence in
+  depth, so no re-post can ever send the key as the student's answer;
+- **every `id` in the copy gets a `-key` suffix**, and every `for=` / `aria-*` reference
+  in the copy is rewritten to match, so ids stay unique and labels point at their own
+  copy's controls.
+
+**The copy is rendered only when locked**; it never appears in the page, the Check
+response, or the resume render before that.
 
 ### 2.3 The switch
 
 `templates/courses/elements/_answer_switch.html` — a two-option segmented control
-("Your answer" / "Correct answer") built from two radio inputs with a per-element
-unique name, placed **outside the question `<form>`** (inside `[data-question]`) so
-they are never serialised; a `[data-question]:has(...)` CSS rule shows the copy matching
-the checked radio, "Your answer" checked by default (D3). Keyboard-operable, no JS.
+("Your answer" / "Correct answer") built from two radio inputs named
+`answer_view_<element.pk>`, placed **inside the question `<form>`** (so the fetch path's
+form-body swap carries it, §2.4), wrapped in `[data-answer-switch]`. A
+`[data-question]:has(...)` CSS rule shows the copy matching the checked radio, "Your
+answer" checked by default (D3). Keyboard-operable, no JS.
 
-- quiz.js and editor.js freeze **every** input inside `[data-question]` once
-  `[data-quiz-locked]` appears; the freeze selector must exclude the switch
-  (`[data-answer-switch]`). Pinned by an e2e test.
-- Locked answers already come back as the whole re-rendered element on the fetch path
-  (`_quiz_render_feedback`'s INLINE branch). Converted types join that branch, so the
-  switch and both copies land via the existing `data-question-inline` form-body swap.
+- `answer_view_*` joins the reserved POST names documented on
+  `courses.quiz.parse_attempt`: no `build_answer` may read it. It only exists on a
+  locked question, whose form is never posted again (its Check is disabled, and
+  Finish re-posts only open questions).
+- **Freeze exclusion, both scripts.** quiz.js freezes
+  `form.querySelectorAll("input, button, select, textarea, fieldset")` (root: the
+  form); editor.js freezes `qEl.querySelectorAll(...)` (root: the whole
+  `[data-question]`). Both roots now contain the switch, so **both** selectors must
+  skip `[data-answer-switch]` and its descendants. One e2e test per script.
 
-### 2.4 Result line
+### 2.4 Which response carries what
+
+Today only `INLINE_QUIZ_REVEAL` types (choice) get the whole element back on the fetch
+path, and only with `mark_result` when locked (`views._quiz_render_feedback`); every
+other type gets just the feedback box. After this change, **every converted type
+answers every fetch-path Check and Show answer with the whole re-rendered element**
+(`verdicts` always, `mark_result` + key copy + switch only when locked, the Show answer
+button when eligible), swapped in via the existing `data-question-inline` form-body swap.
+The converted type's form gains `data-question-inline` in quiz mode. Unconverted types
+keep today's fragment until their PR.
+
+The other render paths must draw §1 state 2 or 4 identically:
+
+- **resume** (`build_quiz_context`, page load mid-quiz) and the **no-JS** re-render
+  compute `verdicts = part_verdicts(mark(latest_answer))` for an unlocked answered
+  question (today they pass nothing until locked);
+- **editor try-it** (`views_manage.element_try`, quiz branch, §3.3);
+- **previewer** (`quiz_answer`'s non-enrolled branch).
+
+### 2.5 Result line
 
 `_quiz_question_feedback.html` gains the **partial** state (0 < fraction < 1) and the
 marks, per §1. One template for all types.
 
 ## 3. Show answer — server
 
-- **Transport**: a second submit button `name="reveal" value="1"` in the question's
-  form, posting to the existing `courses:quiz_answer`. No new URL.
-- **Enrolled student** (inside the existing transaction + `select_for_update`):
-  accepted only if marking_mode is AUTO, `attempt_count >= 1`, not locked, and the
-  submission is not SUBMITTED. Then `locked = True`, `revealed_at = now()`. It
-  **ignores the posted answer** — "Your answer" and the marks come from the stored
-  latest attempt, so a student cannot slip in an unchecked answer. It does **not**
-  increment `attempt_count` and creates **no** `Attempt` row. Any other state → 409
-  (quiz.js already reloads on 409).
-- **Non-enrolled previewer + editor try-it**: ephemeral as today. The client-supplied
-  attempt count (`parse_attempt`) plus `reveal` feed `ephemeral_quiz_feedback`; the
-  answer is whatever the form holds. Nothing persisted.
-- **Reveal-rule parity**: one helper, `courses.quiz.can_reveal(question, attempt_count,
-  locked)`, decides eligibility for BOTH the saved and the ephemeral path;
-  `tests/test_quiz_lock_rule_parity.py` gains a case per condition so the paths cannot
-  drift.
-- **Confirmation**: `confirm()` in quiz.js / editor.js, like Finish. No-JS proceeds
-  without a prompt, like Finish. e2e must register a dialog handler (Playwright
-  auto-dismisses confirm → the reveal would silently not happen).
+### 3.1 Transport
 
-### 3.1 Migration
+A second submit button `<button type="submit" name="reveal" value="1">` in the
+question's form, posting to the form's existing action (`courses:quiz_answer` for the
+student and previewer; `courses:manage_element_try` in the editor). No new URL.
+
+- **Check must be the first submit button in the form's tree order.** Implicit
+  submission (Enter in a text input) uses the first submit button; if Show answer came
+  first, Enter would end the question — without a prompt on the no-JS path. Test: Enter
+  in a short-text / blank input performs a Check, not a reveal.
+- **quiz.js must send the submitter.** Today it builds `new FormData(form)`, which drops
+  the clicked button, so Show answer would silently post a Check and use an attempt.
+  It must use `new FormData(form, e.submitter)` (editor.js already appends
+  `e.submitter`'s name/value). When the submitter is the reveal button, quiz.js and
+  editor.js run the `confirm()` first, **do not** increment `data-attempts-made`, and
+  send `attempt` = the current `made` count (not `made + 1`) so the ephemeral path
+  sees no new attempt. Mutant: drop the submitter → a test must go RED.
+
+### 3.2 Enrolled student (`quiz_answer`)
+
+Inside the existing transaction + `select_for_update`, after the existing
+SUBMITTED / locked / exhausted gates (which already return 409 on fetch and redirect
+to results otherwise, via `_quiz_locked_response`):
+
+- eligible iff `can_reveal(question, attempts_made=response.attempt_count,
+  locked=response.locked)` (§3.5);
+- then `locked = True`, `revealed_at = now()`. It **ignores the posted answer** —
+  "Your answer", the verdicts and the marks come from the stored latest attempt, so a
+  student cannot slip in an unchecked answer. It does **not** increment
+  `attempt_count` and creates **no** `Attempt` row;
+- ineligible (no attempt yet, or N/R) → fetch: 409 (quiz.js reloads); no-JS: redirect
+  back to the quiz unit page (the question renders its current state).
+
+### 3.3 Previewer and editor try-it (ephemeral)
+
+Stateless, persists nothing, as today. When the POST carries `reveal`,
+`attempts_made = parse_attempt(POST)` (the client sent its `made` count, §3.1 — note
+`parse_attempt` floors at 1, so a reveal sent with `made = 0` reads as 1; the client
+never offers the button before a Check, and the server-side check is advisory on this
+path), and `locked = False` — a previously locked state is **not** modelled server-side
+(the client has already frozen the question, so its reveal button no longer exists).
+`can_reveal` decides; ineligible → the same response as an ephemeral Check with no
+attempt (the unlocked element, no reveal).
+
+- Previewer: `quiz_answer`'s non-enrolled branch → `ephemeral_quiz_feedback(...,
+  reveal=True)` → a locked stand-in → the same whole-element render.
+- Editor: `views_manage.element_try`'s quiz branch does the same with its own context
+  builder, and returns the whole element for converted types (§2.4).
+- **Accepted divergence (pinned by a test):** the ephemeral reveal marks **whatever the
+  form holds** at the moment of the reveal, which may differ from the last Checked
+  answer. The enrolled path uses the stored answer. This is acceptable because nothing
+  is persisted and only authors/previewers reach this path.
+
+### 3.4 Confirmation text
+
+The reveal button carries a server-rendered `data-confirm`, built with the latest
+attempt's marks, e.g. msgid `"Show the answer? This ends the question: you won't be
+able to try again, and you keep the marks you have now (%(earned)s of %(max)s)."`. It is
+re-rendered with every whole-element response, so it always matches the latest Check.
+quiz.js / editor.js pass it to `confirm()`. No-JS proceeds without a prompt, like Finish.
+e2e must register a dialog handler (Playwright auto-dismisses `confirm` → the reveal
+would silently not happen).
+
+### 3.5 Reveal-rule parity
+
+`courses.quiz.can_reveal(question, *, attempts_made, locked) -> bool`:
+AUTO marking mode, `attempts_made >= 1`, not `locked`. The SUBMITTED check stays in
+`quiz_answer`'s existing gate (the ephemeral path has no submission). Both the saved
+path (§3.2) and both ephemeral paths (§3.3) call it; `tests/test_quiz_lock_rule_parity.py`
+gains a case per condition.
+
+### 3.6 Migration
 
 `courses/migrations/0067_questionresponse_revealed_at.py` — nullable
 `DateTimeField`, reversible (plain AddField). Its dependency must be the graph head at
@@ -169,15 +260,27 @@ the time it is written (currently `0066_blank_answers_unescape`).
 ## 4. Results page (D10)
 
 `views._results_row` / `quiz_results.html` render each question **read-only through
-the same renderer**, from the stored `latest_answer`, `mark_result = mark(latest)`,
-locked:
+the same renderer**, from the stored `latest_answer`, locked.
 
-- **auto-marked**: result line (correct / partial / incorrect, marks; "· answer shown"
-  if `revealed_at`), the switch (or ✓ ✗ ＋ for choice), the explanation;
-- **unanswered**: empty controls, "Not answered · 0 / 1", and the switch so the answer
-  is still viewable;
-- **N / R**: the student's answer read-only + "Answer recorded" / "Submitted for
-  review" / the teacher's `review_feedback`; never a key (as today);
+**One source per value:**
+
+- the **result line** (correct / partial / incorrect) and the **marks** come from the
+  stored `response.fraction` / `earned_marks`, as today;
+- the **switch is shown iff the stored outcome is not "correct"**;
+- the **part colours** come from a fresh `part_verdicts(mark(latest_answer))`. If the
+  author changed the key after the student answered, colours and the stored marks can
+  disagree; this is accepted (the marks are what was awarded; the colours show the key
+  as it is now) and is noted here so nobody "fixes" one to match the other.
+
+Rows:
+
+- **auto-marked, answered**: result line ("· answer shown" if `revealed_at`), the switch
+  (or ✓ ✗ ＋ for choice), the explanation;
+- **auto-marked, unanswered**: empty controls, "Not answered · 0 / 1", and the switch so
+  the answer is still viewable;
+- **N / R, answered**: the student's answer read-only + "Answer recorded" / "Submitted
+  for review" / the teacher's `review_feedback`; never a key (as today);
+- **N / R, unanswered**: empty controls + "Not answered"; no marks, no switch, no key;
 - score badges and the total stay.
 
 Unconverted types (during PR 1–2) keep today's list rows.
@@ -197,27 +300,46 @@ review queue; any per-quiz "allow Show answer" setting.
 
 Per PR, for its types:
 
-- **No leak before lock**: no correct-answer copy, no key text in the page, the Check
-  fragment, or the resume render — only the booleans. Existing no-leak tests
+- **No leak before lock**: no correct-answer copy and no key text in the page, the
+  Check response, or the resume render. The existing no-leak tests
   (`test_quiz_noleak.py`, `test_questions_2d_quiz_noleak.py`, `test_quiz_resume.py`)
-  must stay at least as strict.
-- **Key copy**: correct values; no `name` on any control; Finish re-post cannot carry it.
-- **Show answer state machine**: 409 when no attempt yet / locked / submitted / N or R;
-  no attempt consumed; posted answer ignored; `revealed_at` set; lock-rule parity.
-- **Results rows**: correct, partial, incorrect, unanswered, revealed, N, R.
-- **e2e**: the flow incl. confirm handler; the switch still works after the freeze;
-  per-part colours measured as computed styles; light + dark screenshots.
-- **Mutants**: break each key behaviour (leak the copy before lock, drop `name`
-  stripping, freeze the switch, count the reveal as an attempt) and require RED.
+  **keep every assertion about key text**; the only assertions that change are those
+  forbidding correctness markers on controls before the lock, which D6 now requires
+  (each such rewrite names the assertion it replaces).
+- **Verdicts on every path**: fetch Check, resume, no-JS, previewer, editor try-it all
+  paint the same parts for the same answer.
+- **Key copy**: correct values; every control `disabled` and nameless; **no `id` occurs
+  twice** in a rendered question; the Finish re-post cannot carry it.
+- **Show answer state machine**: 409/redirect when no attempt yet / locked / submitted
+  / N or R; no attempt consumed; posted answer ignored (enrolled); ephemeral divergence
+  pinned (§3.3); `revealed_at` set; `can_reveal` parity.
+- **Transport**: Enter in a text input does a Check, not a reveal; quiz.js sends the
+  submitter (mutant); the client counter does not move on a reveal.
+- **Results rows**: correct, partial, incorrect, unanswered, revealed, N, R, N/R
+  unanswered; stored-vs-fresh sources (§4).
+- **e2e**: the flow incl. the confirm handler; the switch arrives without a reload and
+  still works after the freeze (quiz.js and editor.js); per-part colours measured as
+  computed styles; light + dark screenshots.
+- **Mutants**: leak the copy before lock, drop `name` stripping / `disabled`, freeze the
+  switch, drop the submitter, count the reveal as an attempt → each must go RED.
 - Rewritten existing tests say which old assertion each replaces; none is loosened.
 
 ## 8. Delivery — three PRs (D7)
 
-1. **Shared + fill in the blanks, short text, number.** Migration; reveal branch
-   (saved + ephemeral); Show answer button + confirm; result line; `_answer_switch.html`;
-   `part_verdicts` / `key_answer` hooks with base-class `None`; results page through the
-   renderer; analytics tag. **Unconverted types keep today's lists** live and on results.
-   Help (`docs/help/course-admin/quiz-editors.md` + `.pl.md`) updated.
+Every PR: new strings extracted (`makemessages`), Polish translations written (clear any
+fuzzy pre-fill — `makemessages` can pre-fill a wrong translation), `.mo` compiled.
+Strings include "Show answer", "Your answer", "Correct answer", "Partly correct",
+"answer shown", "Not answered" and the confirm text. There is no student-facing help
+section; author help is below.
+
+1. **Shared + fill in the blanks, short text, number.** Migration; reveal branch in
+   `quiz_answer` (saved + previewer) and `element_try`; `can_reveal`; Show answer button,
+   `data-confirm`, submitter handling in quiz.js/editor.js; result line;
+   `_answer_switch.html` + freeze exclusion; `verdicts` / `part_verdicts` / `key_answer`
+   hooks with base-class `None`; whole-element responses for converted types; resume and
+   no-JS verdicts; results page through the renderer; analytics tag. **Unconverted types
+   keep today's lists** live and on results. Help (`docs/help/course-admin/quiz-editors.md`
+   + `.pl.md`) updated.
 2. **Drag the words, match pairs, drag onto image, choice grid, multi grid.**
 3. **Multiple choice + extended response.** Choice: ✓/✗ on picks from the first Check
    (＋ only when locked), Show answer, results. Extended response: Show answer reveals
