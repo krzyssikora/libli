@@ -45,7 +45,7 @@ def _text(body="x"):
 
 
 def _fixed_tabs_data():
-    """default_data() mints ids with secrets.token_hex(3) (models.py:1785), which are
+    """default_data() mints ids with secrets.token_hex(3) (models.py TabsElement.default_data), which are
     rendered into data-tab-id, id="tabs-{eid}-{tid}-panel", the matching -label id and
     aria-labelledby. Two renders of the SAME tree would therefore differ every time,
     which would make Task 11's master-vs-master control diff impossible to satisfy.
@@ -59,7 +59,7 @@ def _fixed_tabs_data():
 
 def _fixed_columns_data():
     """Same, for TwoColumnElement -- ids are minted with secrets.token_hex(3)
-    (models.py:1971) and rendered into data-column-id."""
+    (models.py TwoColumnElement.default_data) and rendered into data-column-id."""
     d = TwoColumnElement.default_data()
     for i, c in enumerate(d["columns"], start=1):
         c["id"] = f"c{i:06d}"

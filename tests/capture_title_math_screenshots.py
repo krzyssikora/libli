@@ -171,7 +171,7 @@ def _build_course():
     # order 0/1 deliberately swapped from "quiz then lesson": lesson_plain's
     # course-order NEXT must be the inline-only title (row 1), and a SUBMITTED
     # quiz redirects its own unit page straight to quiz_results (courses/
-    # views.py:1471-1477), so quiz_b can never be the page a nav-button shot
+    # views.py quiz_unit), so quiz_b can never be the page a nav-button shot
     # is taken FROM. Putting it last avoids that dead end.
     lesson_b = ContentNodeFactory(
         course=course,

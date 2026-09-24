@@ -206,7 +206,7 @@ def test_draft_quiz_unit_get_renders_the_banner_for_its_author(client):
     """Fix round 1, IMPORTANT 1: the extended E2E3 only drives the
     `lesson_unit` GET path -- nothing anywhere renders a draft QUIZ for its
     author and checks for the banner. This pins the banner's presence on
-    `quiz_unit`'s own render (`courses/views.py:1485`) specifically.
+    `quiz_unit`'s own render (`courses/views.py quiz_unit`) specifically.
 
     NOT an `is_author`-isolation test: `is_author` is currently redundant
     with `not unit.published` on every reachable path, because
@@ -228,7 +228,7 @@ def test_draft_quiz_unit_get_renders_the_banner_for_its_author(client):
 @pytest.mark.django_db
 def test_draft_quiz_no_js_answer_rerender_renders_the_banner_for_its_author(client):
     """Fix round 1, IMPORTANT 1: the no-JS `quiz_answer` re-render
-    (`_quiz_render_feedback`, `courses/views.py:1500`) is the path the
+    (`_quiz_render_feedback`, `courses/views.py _quiz_render_feedback`) is the path the
     brief specifically flagged as easy to miss, because it builds its own
     context from `request` rather than reusing a shared helper. Nothing
     exercised it before this test.

@@ -1273,7 +1273,7 @@ def build_resume(course, user, tree):
         .first()
     )
     # B -- WHEN THE QUIZ WAS OPENED, and nothing more. QuizSubmission.updated is
-    # auto_now (models.py:3008) and the answer path (views.py::quiz_answer) saves the
+    # auto_now (models.py QuizSubmission.updated) and the answer path (views.py::quiz_answer) saves the
     # QuestionResponse and creates an Attempt but NEVER saves the submission, so for
     # an IN_PROGRESS row updated == created in practice.
     # status=IN_PROGRESS here IS load-bearing and IS tested: nothing else in this
