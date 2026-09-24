@@ -98,7 +98,15 @@ def reconcile_gaps(cell_html, gaps):
     kept = []
 
     def _swap(m):
-        n = int(m.group(1))
+        digits = m.group(1)
+        # MAX_GAPS_PER_CELL is 10, so no legitimate token needs more than 1-2
+        # digits. A damaged import archive or hand DB edit could otherwise leave
+        # a token whose digit run exceeds CPython's int->str conversion limit
+        # (sys.int_info.default_max_str_digits); int() on that raises ValueError.
+        # Drop it like any other invalid token instead -- this helper never raises.
+        if len(digits) > 4:
+            return ""
+        n = int(digits)
         if (
             n in seen
             or n >= len(entries)

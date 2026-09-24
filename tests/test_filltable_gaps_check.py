@@ -79,3 +79,26 @@ def test_gaps_only_table(client_and_element):
         "cells": [{"r": 0, "c": 0, "g": 0, "correct": True}],
         "all_correct": True,
     }
+
+
+# A spanning (merged-cell) table keeps its ragged rows verbatim (normalize_data);
+# row 0 has one header cell spanning both columns, row 1 has the two data cells.
+# So the gapped static cell is at raw index r=1, c=0, and the inline box at that
+# cell is g=0 -- the SAME r/c/g addressing a non-spanning table uses.
+SPANNING_CELLS = [
+    [{"kind": "static", "html": "head", "colspan": 2}],
+    [
+        {"kind": "static", "html": f"{S}0{S}", "gaps": [["7"]]},
+        {"kind": "answer", "answer": "4"},
+    ],
+]
+
+
+def test_inline_gap_in_a_spanning_table(client_and_element):
+    client, element = client_and_element(SPANNING_CELLS)
+    html = element.content_object.render(element=None, state=None)
+    assert 'data-r="1" data-c="0" data-g="0"' in html
+    data = _check(client, element, {"r1c0g0": "7", "r1c1": "4"})
+    by_key = {(d["r"], d["c"], d.get("g")): d["correct"] for d in data["cells"]}
+    assert by_key == {(1, 0, 0): True, (1, 1, None): True}
+    assert data["all_correct"] is True

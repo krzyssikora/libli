@@ -191,6 +191,22 @@ def test_reconcile_is_idempotent():
     assert reconcile_gaps(*once) == once
 
 
+def test_reconcile_drops_a_token_over_cpython_digit_limit_without_raising():
+    # A damaged import archive or hand DB edit can leave a token whose digit run
+    # exceeds CPython's default int->str conversion limit (4,300 digits, see
+    # sys.int_info.default_max_str_digits): int() on it raises ValueError. Spec
+    # §4 says reconcile_gaps never raises -- the oversized token is dropped like
+    # any other invalid token, never crashing normalize_data.
+    huge = "9" * 5000
+    assert reconcile_gaps("x" + tok(huge) + "y", [["a"]]) == ("xy", [])
+
+
+def test_reconcile_drops_a_five_digit_token():
+    # MAX_GAPS_PER_CELL is 10, so no legitimate token needs more than 1-2
+    # digits; a 5-digit token is already nonsense and gets dropped.
+    assert reconcile_gaps("x" + tok(10000) + "y", [["a"]]) == ("xy", [])
+
+
 # --- gap_cells ---------------------------------------------------------------
 
 
