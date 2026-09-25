@@ -43,15 +43,14 @@ problem.
 | D10 | The **results page shows each question as it ended** (read-only, same renderer, switch). | Keeping the list page; a summary table with expandable questions. |
 | D11 | **Lessons unchanged**: no answers in lessons (PR #346 stands; an author can add a spoiler). | Show answer in lessons; a per-question author setting. |
 | D12 | **Rendering approach 1**: the server draws the question a second time from a per-type `key_answer()` through the existing renderer. | Client-side JS filling in the key; a per-type correct-answer template. |
+| D13 | **Lessons, the other types: treat them like fill in the blanks** — each part coloured green/red in place after a lesson Check and the answer list dropped (no answers in lessons), for short text, number, drag the words, match pairs, both grids and drag onto image; each type's lesson change ships in that type's quiz PR. Extended response keeps its keyword view (nothing to colour); multiple choice already marks in place. Chosen after the D11 premise correction. | Leaving the eight types' lesson lists as they are; Show answer in lessons (reverses D11). |
 
-> **D11 premise correction (spec-review round 3) — OWNER TO CONFIRM.** D11 was chosen on
-> the author's statement that lessons show no answers since #346. That is true only for
-> fill in the blanks and multiple choice (`INLINE_LESSON_FEEDBACK = True`). The other
-> **eight** types still show today's `_reveal_*` answer list after a wrong lesson Check
-> (`views.check_answer` → `_question_feedback.html` → `reveal_template`). This spec
-> keeps lessons **exactly as they are today** (the operative meaning of "unchanged") and
-> the `_reveal_*` templates that lessons use survive (§8). Whether lessons should lose
-> those lists too is an open owner question, not decided here.
+> **D11 premise correction (spec-review round 3) — RESOLVED BY D13.** D11 was chosen on
+> the author's statement that lessons show no answers since #346. That was true only for
+> fill in the blanks and multiple choice (`INLINE_LESSON_FEEDBACK = True`); the other
+> eight types still showed their `_reveal_*` list after a wrong lesson Check. Told this,
+> the owner chose D13: those types move to in-place colouring too (§5a). D11 ("no answers
+> in lessons", no Show answer in lessons) stands.
 
 ## 1. Student experience in a quiz
 
@@ -518,9 +517,31 @@ used only by `quiz_results.html`, and the §4 "`mark()` is not called for unansw
 rule applies to that helper only. Test: the analytics student-quiz page still shows the
 expected answer for an answered and an unanswered row of each `SUPPORTS_REVEAL` type.
 
+## 5a. Lessons (D13)
+
+Each type converted by PR 1 / PR 2 also becomes an in-place type **in lessons**, with
+exactly the #346 mechanism fill in the blanks uses:
+
+- the type sets **`INLINE_LESSON_FEEDBACK = True`**, so `check_answer` and
+  `element_try`'s lesson branch return the whole re-rendered element (lesson mode) and
+  the lesson render drops `reveal_template` — **no answer list, no key copy, no switch,
+  no Show answer** in lessons (D11);
+- the lesson template paints each part from `verdicts = part_verdicts(result)` (a lesson
+  Check has one fresh result); the no-JS lesson re-render and the practice-state
+  **restore** path (types with `RESTORABLE_IN_LESSON`) paint the same way;
+- the lesson form carries `data-question-inline` in lesson mode (question.js and
+  editor.js already swap the form body for it). For drag types, the per-copy `data-dnd`
+  root (§2.4) applies in lessons too, and **question.js** must call
+  `window.libliEnhanceDnd(form)` after its swap, like quiz.js;
+- the verdict line and the explanation stay, as for fill in the blanks today.
+
+Extended response and multiple choice are unchanged in lessons. Tests per converted
+type: a wrong lesson Check (fetch, no-JS, restore, editor try-it) paints each part and
+contains no `_reveal_*` markup and no "Correct answer" text; a correct one locks as today.
+
 ## 6. Out of scope
 
-Lessons (D11); multiple-choice partial credit (D9); latest-vs-best (D5); the teacher
+Show answer / answers in lessons (D11); multiple-choice partial credit (D9); latest-vs-best (D5); the teacher
 review queue; any per-quiz "allow Show answer" setting.
 
 ## 7. Testing
@@ -559,7 +580,8 @@ Strings include "Show answer", "Your answer", "Correct answer", "Partly correct"
 "answer shown", "Not answered" and the confirm text. There is no student-facing help
 section; author help is below.
 
-1. **Shared + fill in the blanks, short text, number.** Migration; reveal branch in
+1. **Shared + fill in the blanks, short text, number** (+ short text and number in
+   lessons, §5a). Migration; reveal branch in
    `quiz_answer` (saved + previewer) and `element_try`; `can_reveal`; Show answer button,
    `data-confirm`, submitter handling in quiz.js/editor.js; result line;
    `_answer_switch.html` + freeze exclusion; `verdicts` / `part_verdicts` / `key_answer`
@@ -567,12 +589,14 @@ section; author help is below.
    no-JS verdicts; results page through the renderer; analytics tag. **Unconverted types
    keep today's lists** live and on results. Help (`docs/help/course-admin/quiz-editors.md`
    + `.pl.md`) updated.
-2. **Drag the words, match pairs, drag onto image, choice grid, multi grid.**
+2. **Drag the words, match pairs, drag onto image, choice grid, multi grid** — in quizzes
+   and in lessons (§5a).
 3. **Multiple choice + extended response.** Choice: ✓/✗ on picks from the first Check
    (＋ only when locked), Show answer, results. Extended response: Show answer reveals
-   its keyword list. **Do not delete the `_reveal_*.html` templates**: lessons still
-   render them for the eight types without `INLINE_LESSON_FEEDBACK` (D11 premise
-   correction). Only a template that no lesson or quiz path can reach any more may be
-   deleted, and each deletion needs a grep of every `REVEAL_TEMPLATE` / `reveal_template`
-   consumer. Test (PR 3): a wrong **lesson** Check renders without error for every
-   question type. Help updated again.
+   its keyword list. **Template clean-up**: after D13 no lesson or quiz path reaches
+   the `_reveal_*.html` lists of the converted types; each may be deleted only after a
+   grep of every `REVEAL_TEMPLATE` / `reveal_template` / `_reveal_` consumer (quiz,
+   lesson, results, analytics, editor) comes back empty for it.
+   `_reveal_extendedresponse.html` stays — it is extended response's view (D7). Test
+   (PR 3): a wrong **lesson** Check and a wrong locked **quiz** Check render without error
+   for every question type. Help updated again.
