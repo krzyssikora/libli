@@ -15,6 +15,7 @@ from django.db import models
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
@@ -2302,6 +2303,11 @@ class QuestionElement(ElementBase):
         locked=False,
         attempts_left=None,
         feedback_html="",
+        verdicts=None,
+        key_values=None,
+        can_reveal=False,
+        reveal_earned=None,
+        revealed=False,
     ):
         name = self._meta.model_name
         unit = element.unit if element is not None else None
@@ -2315,6 +2321,33 @@ class QuestionElement(ElementBase):
                     "element_pk": element.pk,
                 },
             )
+        # An unresolvable template variable (a quiz row with no st.verdicts) arrives
+        # as ''. Normalise so templates only ever see None or a real value.
+        verdicts = verdicts or None
+        if key_values == "":
+            key_values = None
+        if (
+            verdicts is None
+            and mode == "lesson"
+            and self.INLINE_LESSON_FEEDBACK
+            and mark_result is not None
+            and element is not None
+            and element.pk == feedback_for_pk
+        ):
+            # Lesson verdicts are computed HERE (spec §5a) so every lesson path --
+            # fetch, no-JS, restore, editor try-it, nested in a container -- paints
+            # without new plumbing. The feedback_for_pk guard is load-bearing: the
+            # no-JS lesson re-render hands ONE page-level mark_result to every
+            # question on the unit.
+            answer = (
+                submitted_values
+                if submitted_values is not None
+                else set(selected_ids or ())
+            )
+            verdicts = self.part_verdicts(mark_result, answer)
+        key_copy_html = ""
+        if key_values is not None and mode in ("quiz", "results"):
+            key_copy_html = self.render_key_copy(key_values)
         return render_to_string(
             f"courses/elements/{name}.html",
             {
@@ -2338,8 +2371,31 @@ class QuestionElement(ElementBase):
                 "locked": locked,
                 "attempts_left": attempts_left,
                 "feedback_html": feedback_html,
+                "verdicts": verdicts,
+                "key_copy_html": key_copy_html,
+                "can_reveal": can_reveal,
+                "reveal_earned": reveal_earned,
+                "revealed": revealed,
             },
         )
+
+    def render_key_copy(self, key_values):
+        """The correct-answer copy: this type's own controls include rendered from
+        key_values, then neutralised (names stripped, disabled, ids suffixed,
+        embeds dropped) by the one bs4 pass (spec §2.2)."""
+        from courses.keycopy import neutralise_key_copy
+
+        html = render_to_string(
+            self.CONTROLS_TEMPLATE,
+            {
+                "el": self,
+                "values": key_values,
+                "verdicts": None,
+                "copy": "key",
+                "locked": True,
+            },
+        )
+        return mark_safe(neutralise_key_copy(html))  # noqa: S308 — escaped by the include
 
     def feedback_context(self, mark_result):
         # The dict the JS-fragment check_answer feeds to _question_feedback.html.
@@ -2494,10 +2550,18 @@ class ChoiceQuestionElement(QuestionElement):
         locked=False,
         attempts_left=None,
         feedback_html="",
+        verdicts=None,
+        key_values=None,
+        can_reveal=False,
+        reveal_earned=None,
+        revealed=False,
     ):
         # `element` is the Element join-row (carries the unit + pk for the form
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
+        # `verdicts` / `key_values` / `can_reveal` / `reveal_earned` / `revealed` are
+        # accepted for signature uniformity with QuestionElement.render (quiz answer
+        # reveal PR 1); choice consumes them in PR 3.
         choices = list(self.choices.all())
         selected = set(selected_ids or ())
         marks = self.choice_marks(choices, selected, mark_result, mode, locked)
@@ -2711,6 +2775,9 @@ class FillBlankQuestionElement(QuestionElement):
     INLINE_LESSON_FEEDBACK = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_fillblankquestionelement_controls.html"
 
     elements = GenericRelation(Element)
 

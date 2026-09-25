@@ -395,6 +395,23 @@ input.question__blank-input[type="text"] {
   width: auto;
   min-width: 8ch;
 }
+/* Quiz answer reveal (spec 2026-09-25 §2.3): the key copy is hidden by default and
+   shown only by :has(), so a browser without :has() degrades to "Your answer" (D3). */
+[data-answer-key] { display: none; }
+[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: block; }
+[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-yours] { display: none; }
+.answer-switch {
+  display: inline-flex;
+  margin: 0 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: .9rem;
+}
+.answer-switch__opt { position: relative; padding: var(--space-1) var(--space-3); cursor: pointer; }
+.answer-switch__opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.answer-switch__opt:has(input:checked) { background: var(--accent); color: var(--text-inverse); }
+.answer-switch__opt:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 .question__reveal--blanks { margin: var(--space-2) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--danger); }
 /* Per-option outcome marker in the choice reveal (results page). Separate from

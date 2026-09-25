@@ -46,6 +46,11 @@ def render_element(
     locked=False,
     attempts_left=None,
     feedback_html="",
+    verdicts=None,
+    key_values=None,
+    can_reveal=False,
+    reveal_earned=None,
+    revealed=False,
     editor_preview=None,
 ):
     obj = element.content_object
@@ -151,6 +156,11 @@ def render_element(
                 locked=locked,
                 attempts_left=attempts_left,
                 feedback_html=feedback_html,
+                verdicts=verdicts,
+                key_values=key_values,
+                can_reveal=can_reveal,
+                reveal_earned=reveal_earned,
+                revealed=revealed,
             )
         )
     # Function-local import, matching builder's own transfer-import convention:
@@ -195,18 +205,23 @@ def sanitize(value):
 
 
 @register.simple_tag
-def render_fill_blanks(el, submitted_values=None, locked=False, mark_result=None):
+def render_fill_blanks(
+    el, submitted_values=None, locked=False, verdicts=None, sr_verdict=False
+):
     """Render a fill-blank stem: text segments (sanitized HTML) interleaved with
     server-built <input name="blank"> elements (escaped values). `locked=True`
-    renders the read-only answered state (restore path); `mark_result` paints each
-    blank with its own verdict (lesson feedback). See courses.fillblank."""
+    renders the read-only answered state; `verdicts` (one bool / None per blank,
+    from QuestionElement.render) paints each blank in place; `sr_verdict` adds the
+    screen-reader "correct" to a LOCKED blank (questions only -- never fill gates).
+    See courses.fillblank."""
     from courses import fillblank
 
-    verdicts = None
-    if mark_result is not None:
-        verdicts = [item["correct"] for item in mark_result.reveal]
     return fillblank.render_inputs(
-        el.stem, submitted_values, locked=locked, verdicts=verdicts
+        el.stem,
+        submitted_values,
+        locked=locked,
+        verdicts=verdicts or None,
+        sr_verdict=sr_verdict,
     )
 
 

@@ -1,0 +1,9 @@
+{% load i18n %}
+{% comment %}The Your / Correct answer switch (spec 2026-09-25 §2.3). A direct child of
+the answer scope, OUTSIDE every fieldset (a disabled fieldset would kill it) and
+skipped by both freeze scripts. autocomplete="off": reload must never reopen on
+"Correct answer" (D3). No JS: the CSS :has() rule in courses.css does the showing.{% endcomment %}
+<div class="answer-switch" data-answer-switch role="radiogroup" aria-label="{% trans 'Answer view' %}">
+  <label class="answer-switch__opt"><input type="radio" name="answer_view_{{ element.pk }}" value="yours" data-answer-view="yours" autocomplete="off" checked> {% trans "Your answer" %}</label>
+  <label class="answer-switch__opt"><input type="radio" name="answer_view_{{ element.pk }}" value="key" data-answer-view="key" autocomplete="off"> {% trans "Correct answer" %}</label>
+</div>
