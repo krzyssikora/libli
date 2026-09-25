@@ -264,8 +264,10 @@ The key copy's controls:
   `data-slot`, **removes `name`**, and adds **`disabled`**. The names are gone before the
   HTML reaches the browser, which matters beyond leaks: a key-copy grid radio still named
   `row_<pk>` would join the student copy's radio group in the same form, and its `checked`
-  would uncheck the student's pick. The student's locked copy keeps `name` and is disabled
-  **only through its fieldset** (as today). Test: on a locked, wrong choice-grid question
+  would uncheck the student's pick. The student's locked copy keeps `name` and stays
+  disabled **the way each type does it today**: through its controls fieldset for the
+  multi-part types, and through `disabled` on the `<input>` itself for short text and
+  number (they have no fieldset) — the direct `disabled` is not dropped. Test: on a locked, wrong choice-grid question
   the student copy's picked radio stays `checked` in the rendered HTML and in the DOM
   (e2e), beside the key copy; no control in any key copy has a `name`;
 - **the drag UI is inert when its controls are disabled** — dnd.js's `enhance` today
@@ -334,11 +336,18 @@ the only whole-element type, and the fill-blank / short-text templates show valu
 when `element.pk == feedback_for_pk`. The key copy uses the same pairing with
 `key_answer()` as its values.
 
-**Validation (empty answer) responses stay the feedback fragment only** — no swap — on
-both the enrolled and the ephemeral path, for every type. The student's current
-(empty) inputs stay as they are; nothing is rehydrated from the stored answer. Test:
-clear the inputs, Check → the validation message appears and the inputs stay empty, on
-both paths.
+**Validation (empty answer) responses are the feedback fragment only** — no swap — on
+both the enrolled and the ephemeral path, for every type: the whole-element gate
+(`SUPPORTS_REVEAL or INLINE_QUIZ_REVEAL`) **excludes `validation=True`**. For converted
+types that is today's behaviour; for **multiple choice it is a change** (today
+`_quiz_render_feedback` checks `INLINE_QUIZ_REVEAL` before `validation` and re-renders the
+whole element from the prior `latest_answer`). On the **fetch** path the student's current
+(empty) inputs stay as they are. Test (fetch path, enrolled and ephemeral, incl. choice):
+clear the inputs, Check → the validation message appears and the inputs stay empty. The
+**no-JS** validation response is the full `quiz_unit.html` re-render, which by design
+(the comment in `quiz_answer`) shows the question's prior stored answer — now with its
+colours through the resume path — or empty controls on a first attempt; a no-JS test pins
+that.
 
 **Per-type enhancers after a swap (drag types, PR 2).** Today `data-dnd` sits on the
 outer `<div … data-question data-dnd>`, outside the form, and `enhance()` is guarded by
@@ -404,10 +413,12 @@ part is simply not painted), so a resume test asserts painted parts — it fails
 `mode == "quiz" and can_reveal(...) and not quiz_submitted` (`can_reveal` includes the
 `SUPPORTS_REVEAL` check, §3.5; the
 results mode has no buttons at all; lessons never show it, D11). `can_reveal` leaves
-SUBMITTED out on purpose (§3.5), but `build_quiz_context` still renders a submitted quiz
-with `quiz_submitted=True`, so without the extra term an answered-but-unlocked question
-on a submitted quiz would show a live button whose POST 409s and reloads forever. Test:
-a submitted quiz page has no enabled Show answer button.
+SUBMITTED out on purpose (§3.5). The `not quiz_submitted` term is defence in depth: no
+view renders the quiz page for a submitted quiz today (`quiz_unit` redirects to results,
+`quiz_answer` returns `_quiz_locked_response`, and `finalize_submission` locks every
+response), but the templates still take `quiz_submitted`. Test at render level:
+`render(..., quiz_submitted=True)` for an unlocked answered AUTO question emits no enabled
+Show answer button.
 
 ### 2.5 Result line
 
@@ -455,7 +466,13 @@ live Check (from `correct`) and on a stored path (from the fresh mark). The key-
 covers a short-text question as well as a multi-part one, and a live-Check test asserts
 the green / red part for short text and for number.
 
-The disagreement after a key edit is accepted — the marks are what was awarded; the
+**The reverse case is pinned differently:** when the stored answer is fully correct
+(`_stored_result(...).correct`) but a later key edit makes the fresh mark find wrong parts,
+the parts are **painted all correct** (`verdicts` = all True) — a "✓ Correct" line over red
+parts with no switch and no key would be unexplainable. Test: stored correct, key edited,
+resume and results show every part green.
+
+Otherwise the disagreement after a key edit is accepted — the marks are what was awarded; the
 colours and key show the key as it is now — and is written down so nobody "fixes" one to
 match the other. A fresh Check (live or ephemeral) has only one result, so the question
 does not arise there. Test: edit the key after an attempt, then reveal; the line keeps
@@ -605,8 +622,13 @@ a new **`_results_question_feedback.html`**, built by the results helper from to
 `review_feedback`, "· answer shown", and the explanation. `_quiz_question_feedback.html`
 (the live quiz) gains none of these results-only states. (Today's templates have
 only an `{% if element %}` form branch and a bare `{% else %}` branch; neither fits.)
-Each PR lists this branch in its per-type template work. Test: the results page contains
-no `<form>` and no submit button inside any question.
+Each PR lists this branch in its per-type template work. **The student's copy is frozen
+in results mode by the same mechanism the quiz uses for that type** — the results branch
+keeps the disabled wrapping fieldset around the multi-part types' controls include, and
+renders `disabled` on the short-text / number input — so its inputs are never editable and
+dnd.js (which PR 2 adds to this page) builds the inert UI for it. Tests: the results page
+contains no `<form>` and no submit button inside any question; every control in both
+copies is disabled; dragging or tapping a chip on the results page changes no select.
 
 Values follow §2.6 (stored marks / fresh colours). **Unanswered** rows (no
 `QuestionResponse`, or `latest_answer` None) get `verdicts = None` — neutral controls —
