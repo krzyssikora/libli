@@ -1322,7 +1322,7 @@ Expected RED, and the ONLY allowed rewrites (each with the `# PR 2 (spec …): r
 
 | Test | Old assertion | Rule → rewrite to |
 |---|---|---|
-| `tests/test_quiz_reveal_result_line.py::test_incorrect_unconverted_non_inline_type_gets_new_line_too` | builds a DragFill; `"data-question-inline" not in body` | (g) → build an `ExtendedResponseQuestionElementFactory(required_keywords="alpha", max_attempts=3)` answered `"beta"`; keep every assertion (the fragment, "Incorrect", "0 / 1", "2 attempts left") |
+| `tests/test_quiz_reveal_result_line.py::test_incorrect_unconverted_non_inline_type_gets_new_line_too` | builds a DragFill; `"data-question-inline" not in body` | (g) → build an `ExtendedResponseQuestionElementFactory(required_keywords="alpha", max_attempts=3)` answered with POST `{"answer": "beta"}` (`ExtendedResponseQuestionElement.build_answer` reads `answer`); keep every assertion (the fragment, "Incorrect", "0 / 1", "2 attempts left") |
 | `tests/test_questions_2d_quiz_noleak.py::test_dragfill_quiz_withholds_reveal_then_reveals_on_last_attempt` | `"Correct token:" in body2 and "Paris" in body2` | (c) → `"data-answer-key" in body2` and the key copy has `value="Paris" selected` (`"Paris" in body` alone is vacuous: every select lists the whole pool) |
 | `tests/test_questions_2d_quiz_noleak.py::test_matchpair_quiz_withholds_then_reveals` | `"Correct match:" in body2 and "Paris" in body2` | (c) → the same key-copy form |
 | `tests/test_questions_2d_results.py::test_results_reveals_dragfill_tokens_including_unanswered` | `"Paris" not in body` (plus the vacuous `"Madrid" in body and "Lisbon" in body`) | (d) → the fully-correct row has no `data-answer-switch`; the unanswered row's key copy has `value="Madrid" selected` / `value="Lisbon" selected` |
@@ -1769,6 +1769,11 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
     assert "is-incorrect" in targets.nth(1).get_attribute("class")
     paint = "el => getComputedStyle(el).backgroundColor"
     assert targets.nth(0).evaluate(paint) != targets.nth(1).evaluate(paint)
+    # Spec §1.2: the colour stays until the NEXT Check -- re-filling the green part
+    # (here with the wrong chip, then back) does not repaint it.
+    _drag(q, "gammadis", 0)
+    assert "is-correct" in targets.nth(0).get_attribute("class")
+    _drag(q, "alphakey", 0)
     if kind == "dragimage":
         # dnd.js hides the zone rows (and their .sr-only verdicts): each painted
         # overlay target must carry its own non-colour cue (spec §2.1).
@@ -1842,29 +1847,37 @@ def test_grid_lock_keeps_the_students_pick_and_paints_rows(browser, live_server,
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("kind", ["matchpair", "choicegrid"])
+@pytest.mark.parametrize("kind", ["dragfill", "matchpair", "dragimage", "choicegrid"])
 def test_lesson_check_repaints_and_rebuilds(browser, live_server, kind):
+    # Spec §2.4 / §5a: question.js re-enhances every drag type after its swap
+    # (drag onto image goes through the separate overlay builder).
     _student(f"l_{kind}")
     course, unit, _ = _seed(f"l_{kind}", f"e2e-l-{kind}", [kind], unit_type="lesson")
     page = browser.new_context().new_page()
     _login(page, live_server, f"l_{kind}")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    if kind == "dragimage":
+        _size_stages(page)
     q = page.locator("[data-question]").first
-    if kind == "matchpair":
-        _drag(q, "alphakey", 0)
-        _drag(q, "gammadis", 1)
-    else:
+    if kind == "choicegrid":
         q.locator("tbody tr").nth(0).locator("input").nth(0).check()
         q.locator("tbody tr").nth(1).locator("input").nth(0).check()
+    else:
+        _drag(q, "alphakey", 0)
+        _drag(q, "gammadis", 1)
     _check(q)
     q.locator(".question__verdict").wait_for(timeout=6000)
-    if kind == "matchpair":
-        assert q.locator(".dnd__chip").count() >= 3  # question.js re-enhanced
-        assert "is-incorrect" in q.locator(".dnd__slot").nth(1).get_attribute("class")
-    else:
+    if kind == "choicegrid":
         assert "is-incorrect" in q.locator("tbody tr").nth(1).get_attribute("class")
         # question.js re-wired the swapped-in scroll wrapper.
         assert q.locator("[data-scroll-x]").get_attribute("data-scroll-x-ready") == "1"
+    else:
+        assert q.locator(".dnd__chip").count() >= 3  # question.js re-enhanced
+        targets = q.locator(".dnd__slot, .dragimage__target")
+        assert "is-incorrect" in targets.nth(1).get_attribute("class")
+        if kind == "dragimage":
+            after = "t => (t.nextElementSibling || {}).textContent"
+            assert targets.nth(1).evaluate(after) == "incorrect"
     assert q.locator("[data-answer-key], [data-answer-switch], [data-reveal-btn]").count() == 0
 
 
@@ -1898,7 +1911,10 @@ def test_results_page_drag_ui_is_inert(browser, live_server):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("unit_type", ["quiz", "lesson"])
-def test_editor_try_it_rebuilds_drag_ui(browser, live_server, unit_type):
+@pytest.mark.parametrize("kind", ["dragfill", "matchpair", "dragimage", "choicegrid"])
+def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_type):
+    # Spec §2.4: editor.js's try-it branch re-enhances drag roots and re-wires grid
+    # scroll wrappers after its swap, in quiz and lesson mode.
     from courses.models import Element
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
@@ -1906,28 +1922,48 @@ def test_editor_try_it_rebuilds_drag_ui(browser, live_server, unit_type):
     from tests.test_e2e_questions import _editor_url
     from tests.test_e2e_questions import _make_pa_user
 
-    owner = _make_pa_user(f"pa_{unit_type}")
-    course = CourseFactory(owner=owner, slug=f"e2e-ed-{unit_type}")
+    user = f"pa_{kind}_{unit_type}"
+    owner = _make_pa_user(user)
+    course = CourseFactory(owner=owner, slug=f"e2e-ed-{kind}-{unit_type}")
     unit = ContentNodeFactory(course=course, kind="unit", unit_type=unit_type, parent=None, title="E")
-    kit = build("dragfill", max_attempts=2)
+    kit = build(kind, max_attempts=2)
     Element.objects.create(unit=unit, content_object=kit.question)
     page = browser.new_context().new_page()
-    _login(page, live_server, f"pa_{unit_type}")
+    _login(page, live_server, user)
     page.goto(_editor_url(live_server, unit))
+    if kind == "dragimage":
+        _size_stages(page)
     q = page.locator("[data-scope='preview'] [data-question]").first
-    _drag(q, "alphakey", 0)
-    _drag(q, "gammadis", 1)
+    if kind == "choicegrid":
+        q.locator("tbody tr").nth(0).locator("input").nth(0).check()
+        q.locator("tbody tr").nth(1).locator("input").nth(0).check()
+    else:
+        _drag(q, "alphakey", 0)
+        _drag(q, "gammadis", 1)
     _check(q)
     q.locator(".question__verdict").wait_for(timeout=6000)
-    assert q.locator("[data-answer-yours] .dnd__chip").count() >= 3  # editor.js re-enhanced
+    if kind == "choicegrid":
+        wrap = q.locator("[data-answer-yours] [data-scroll-x]")
+        assert wrap.get_attribute("data-scroll-x-ready") == "1"  # editor.js re-wired
+        assert "is-incorrect" in q.locator("[data-answer-yours] tbody tr").nth(1).get_attribute("class")
+    else:
+        assert q.locator("[data-answer-yours] .dnd__chip").count() >= 3  # re-enhanced
+        targets = q.locator("[data-answer-yours] .dnd__slot, [data-answer-yours] .dragimage__target")
+        assert "is-incorrect" in targets.nth(1).get_attribute("class")
+        if kind == "dragimage":
+            after = "t => (t.nextElementSibling || {}).textContent"
+            assert targets.nth(1).evaluate(after) == "incorrect"
     if unit_type == "quiz":
         page.once("dialog", lambda d: d.accept())
         q.locator("[data-reveal-btn]").click()
         q.locator("[data-answer-switch]").wait_for(timeout=6000)
-        before = _select_values(q, "[data-answer-yours]")
-        q.locator("[data-answer-yours] .dnd__slot").nth(0).click(force=True)
-        assert _select_values(q, "[data-answer-yours]") == before
         assert q.locator("[data-answer-view='key']").is_enabled()
+        if kind != "choicegrid":
+            before = _select_values(q, "[data-answer-yours]")
+            targets = q.locator("[data-answer-yours] .dnd__slot, [data-answer-yours] .dragimage__target")
+            targets.nth(0).click(force=True)
+            _drop(targets.nth(0))
+            assert _select_values(q, "[data-answer-yours]") == before
 ```
 
 **Step 1 notes for the executor.** Every drag-onto-image e2e calls `_size_stages(page)` right after `page.goto` — without it the unserved factory image collapses the stage and the target taps time out on a CORRECT build; do not read that timeout as a product bug. The editor test reuses PR 1's author helpers (`tests/test_e2e_questions.py::_make_pa_user`, `_editor_url`), exactly as `tests/test_e2e_quiz_reveal.py::test_editor_try_it_reveal_switch_survives_freeze` does. The lesson URL is `courses:lesson_unit` = `/courses/<slug>/u/<pk>/`. `_drag` taps the chip then the target (dnd.js's tap-assign path) — no pointer drag, see memory `playwright-pointer-event-traps`. The quiz test's dialog handler is registered BEFORE the click (Playwright auto-dismisses a `confirm`, memory `playwright-auto-dismisses-confirm`).
@@ -1988,9 +2024,10 @@ Update the file's closing comment above `window.libliEnhanceDnd = init;`: "Expos
 `quiz.js`, inside `if (newForm) { … }` right after `form.innerHTML = newForm.innerHTML;`:
 
 ```js
-          // The swap brought NEW dnd roots (spec §2.4); build their chips before the
-          // freeze below, so a locked root is enhanced inert, not live. The grids'
-          // new .scroll-x wrappers need their edge affordance wired again too.
+          // The swap brought NEW dnd roots (spec §2.4). A locked root is inert
+          // because the SERVER rendered its fieldset disabled; enhancing before the
+          // freeze below means dnd.js's :disabled test reads that server markup, not
+          // the freeze's. The grids' new .scroll-x wrappers are wired again too.
           if (window.libliEnhanceDnd) window.libliEnhanceDnd(form);
           if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(form);
 ```
@@ -2063,6 +2100,8 @@ Expected: PASS after these known rewrites (Task 3 Step 5's rules, with the comme
 | `test_e2e_choicegrid.py::test_matrix_quiz_withhold_then_results` | results `.question__reveal--grid`, `"True"` / `"False"`, 2 × `.answer-wrong` | (d) → the results row has `[data-answer-switch]`; both `tbody tr` of `[data-answer-yours]` are `is-incorrect`; the key copy's checked radios are the correct columns |
 | `test_e2e_multigrid.py::test_multigrid_lesson_immediate_feedback` | `.question__reveal--grid` counts, `"B" in reveal` | (b) → row classes as for the matrix |
 
+Then the non-e2e CSS guards over this task's `courses.css` edit (a stray `*/` in a comment silently eats the next rule): `uv run pytest tests/test_css_comments_are_terminated_once.py tests/test_css_citations_are_durable.py tests/test_choicegrid_styles.py tests/test_text_colour_css.py tests/test_border_contrast_css.py -p no:randomly` — PASS.
+
 Also — still GREEN but now vacuous, because a painted select / slot / target also carries `is-correct` (P2): `tests/test_e2e_questions_2d.py` lines ~112, 132, 292, 309 and `tests/test_e2e_questions_2dii.py` lines ~205, 280, 359 assert `page.locator(".is-correct").count() >= 1` (or `result_page.…`). Scope each to `.question__verdict.is-correct` (find them with `grep -n '"\.is-correct"' tests/test_e2e_questions_2d*.py`), with the replaces-comment.
 
 Update the stale module / helper docstrings of `test_e2e_choicegrid.py` and `test_e2e_multigrid.py` that describe the list. `test_e2e_widget_restore.py`'s `to_have_text("Heart")` etc. must stay green unedited (the `.sr-only` verdict sits AFTER the select, never inside a slot / target). If a Playwright test fails as a TIMEOUT, first rule out a stale service worker and parallel load (memory: `stale-service-worker-serves-old-static`, `e2e-flakes-under-parallel-load`).
@@ -2130,12 +2169,12 @@ git commit -m "docs(quiz-reveal): lesson in-place feedback for drag, match, imag
 | Mutant | Must fail |
 |---|---|
 | `dnd.js`: selector back to `select[name="slot"]` only | `test_drag_quiz_check_reveal_inert_copies` (key copy has no slots), `test_results_page_drag_ui_is_inert` |
-| `dnd.js`: `inert = false` always | `test_drag_quiz_check_reveal_inert_copies` (locked tap clears a select), `test_results_page_drag_ui_is_inert`, `test_editor_try_it_rebuilds_drag_ui[quiz]` |
+| `dnd.js`: `inert = false` always | `test_drag_quiz_check_reveal_inert_copies` (locked tap clears a select), `test_results_page_drag_ui_is_inert`, `test_editor_try_it_rebuilds_the_controls` (every drag kind, quiz) |
 | `dnd.js`: inert test `s.disabled` instead of `s.matches(":disabled")` | `test_drag_quiz_check_reveal_inert_copies` (the fieldset-disabled "Your answer" goes live) |
 | `dnd.js`: drop the verdict-class copy | `test_drag_quiz_check_reveal_inert_copies`, `test_lesson_check_repaints_and_rebuilds[matchpair]` |
 | `quiz.js`: drop the `libliEnhanceDnd(form)` call | `test_drag_quiz_check_reveal_inert_copies` |
-| `question.js`: drop the `libliEnhanceDnd(form)` call | `test_lesson_check_repaints_and_rebuilds[matchpair]` |
-| `editor.js`: drop the try-it `libliEnhanceDnd(tryForm)` call | `test_editor_try_it_rebuilds_drag_ui` |
+| `question.js`: drop the `libliEnhanceDnd(form)` call | `test_lesson_check_repaints_and_rebuilds` (every drag kind) |
+| `editor.js`: drop the try-it `libliEnhanceDnd(tryForm)` call | `test_editor_try_it_rebuilds_the_controls` |
 | `quiz.js`: drop the `libliInitScrollAffordance(form)` call | `test_grid_lock_keeps_the_students_pick_and_paints_rows` |
 | `dnd.js`: drop the overlay target's `.sr-only` clone | `test_drag_quiz_check_reveal_inert_copies[dragimage]` |
 | COMBINED: `quiz.js` calls `window.libliEnhanceDnd()` (whole document) AND `enhance()` loses its `dndReady` guard | `test_check_on_one_drag_question_leaves_the_other_alone` (the second question's chips double); either change alone is masked by the other |
@@ -2146,6 +2185,7 @@ git commit -m "docs(quiz-reveal): lesson in-place feedback for drag, match, imag
 | `_grid_row_cells`: drop the `invalid` placeholder (grid inputs lose aria-invalid) | `test_grid_rows_paint_with_both_cues[choicegrid]` |
 | `_multigrid_row_cells`: drop the `invalid` placeholder | `test_grid_rows_paint_with_both_cues[multigrid]` |
 | `dnd.js`: inert builders keep the `drop` listener (only `click` skipped) | `test_drag_quiz_check_reveal_inert_copies`, `test_results_page_drag_ui_is_inert` |
+| `editor.js`: drop the try-it `libliInitScrollAffordance(tryForm)` call | `test_editor_try_it_rebuilds_the_controls` (choicegrid, both unit types) |
 | `question.js`: drop the `libliInitScrollAffordance(form)` call | `test_lesson_check_repaints_and_rebuilds[choicegrid]` |
 | `MatchPairQuestionElement`: `SUPPORTS_REVEAL = False` | `test_check_answers_whole_element_painted_no_key[matchpair]`, `test_locked_wrong_shows_a_neutralised_painted_key_copy[matchpair]` |
 | `ChoiceGridQuestionElement`: `INLINE_LESSON_FEEDBACK = False` | `test_lesson_fetch_check_paints_in_place_no_list[choicegrid]` |
