@@ -107,13 +107,18 @@ verdict is the **fresh** correctness (see §2.6 — their `reveal` is a string /
 
 **Two explicit per-type switches, set PR by PR:**
 
-1. **`SUPPORTS_REVEAL`** (class flag, base `False`). It alone drives: the Show answer
-   button's render, `can_reveal` (§3.5), the whole-element response in
-   `_quiz_render_feedback` / `element_try`, the template's `data-question-inline` in quiz
-   mode, and the `render(mode="results")` path (§4). Set in PR 1 on fill in the blanks,
-   short text and number; PR 2 on its five types; PR 3 on multiple choice and extended
-   response. An unset type behaves exactly as today (no button, fragment responses, old
-   results row), and a reveal POST for it gets the ineligible response (test).
+1. **`SUPPORTS_REVEAL`** (class flag, base `False`). It drives: the Show answer button's
+   render and `can_reveal` (§3.5) — **alone**; and the `render(mode="results")` path (§4).
+   The whole-element response in `_quiz_render_feedback` / `element_try` and the
+   template's `data-question-inline` in quiz mode are gated by
+   **`SUPPORTS_REVEAL or INLINE_QUIZ_REVEAL`**: multiple choice already takes that path
+   today via `INLINE_QUIZ_REVEAL` (views.py `_quiz_render_feedback`, views_manage
+   `element_try`) and must keep it through PR 1–2 (test, PR 1: a locked choice question
+   still returns the whole element with its ✓ ✗ ＋ marks). Set in PR 1 on fill in the
+   blanks, short text and number; PR 2 on its five types; PR 3 on multiple choice and
+   extended response. An unset type behaves exactly as it does today (its current
+   response shape, no button, its old results row), and a reveal POST for it gets the
+   ineligible response (test).
 2. **The in-place view**, which decides what a locked, not-fully-correct question shows:
    - `key_answer()` is not None → key copy + switch (every PR 1–2 type);
    - multiple choice → its inline ✓ ✗ ＋ marks (`INLINE_QUIZ_REVEAL`, D8), no switch;
@@ -135,7 +140,12 @@ argument — the `fillblank.render_inputs(verdicts=...)` pattern from PR #346, e
 `verdicts` is passed **whenever an auto-marked answer exists**, locked or not;
 `mark_result` (which carries key material in `reveal`) is still passed to the template
 **only when locked**, as today. Because only booleans reach the page before the lock,
-D6 leaks no key.
+D6 leaks no key — for every type except choice, where a per-option boolean **is** the key.
+So **choice's `part_verdicts` is pinned as one entry per option, in option order: True /
+False for a picked option, `None` for an unpicked one** — the correctness of an unpicked
+option never leaves the server before the lock (after it, `choice_marks` shows ＋ as
+today). No-leak test (PR 3): an unlocked, wrong choice question's HTML carries no marker,
+class or attribute on any unpicked option.
 
 Multiple choice: `choice_marks` gains the unlocked-quiz case — ✓/✗ on **picked**
 options only, never ＋ until locked.
@@ -152,7 +162,7 @@ render/rehydrate path draws both copies identically:
 |---|---|
 | Fill in the blanks | first accepted line per blank (list) |
 | Short text | first accepted line |
-| Short number | the value (the copy renders "± tolerance" beside it when tolerance > 0) |
+| Short number | the value (the copy renders "± tolerance" beside it when tolerance > 0), both formatted **exactly as today's `_reveal_shortnumeric.html` formats them** (no display change; test in the pl locale compares the two) |
 | Drag the words | the correct `slot` value per gap |
 | Match pairs | the correct `slot` value per left item |
 | Choice grid / multi grid | the correct column pk(s) per row |
@@ -469,8 +479,11 @@ Check** of the posted answer — whatever response that type gives a Check today
 - **Edge cases of that divergence, defined:** a reveal **bypasses the empty-answer
   validation branch** — an emptied form is marked as-is (every part wrong, 0 marks),
   locked, with an empty "Your answer" and the switch. A form that happens to be fully
-  correct locks as "✓ Correct · 1 / 1 · answer shown" with no switch. Both are in the
-  ephemeral-divergence tests.
+  correct locks as "✓ Correct · 1 / 1 · answer shown" with no switch. If the form was
+  edited after the last Check, the confirm text's marks (§3.4, from the last Check)
+  differ from the locked marks (from the form) — accepted on this path only; §3.4's
+  "always matches" holds on the enrolled path. All three are in the ephemeral-divergence
+  tests, and no test asserts confirm-vs-locked equality on the ephemeral path.
 
 ### 3.4 Confirmation text
 
@@ -653,7 +666,9 @@ section; author help is below.
    keep today's lists** live and on results. Help (`docs/help/course-admin/quiz-editors.md`
    + `.pl.md`) updated.
 2. **Drag the words, match pairs, drag onto image, choice grid, multi grid** — in quizzes
-   and in lessons (§5a).
+   and in lessons (§5a). New strings through the "every PR" i18n step above. Help updated
+   for the lesson behaviour change of these types (the PR 1 Show answer text is written
+   type-agnostically, so it needs no change).
 3. **Multiple choice + extended response.** Choice: ✓/✗ on picks from the first Check
    (＋ only when locked), Show answer, results. Extended response: Show answer reveals
    its keyword list. **Template clean-up**: after D13 no lesson or quiz path reaches
