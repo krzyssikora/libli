@@ -131,7 +131,8 @@ def test_quiz_answer_finish_results_js(browser, live_server):
 
     # ── Correct answer on 2nd attempt: reveal + lock ──────────────────────────
     q.locator("input[name='answer']").fill("Paris")
-    q.locator("button[type='submit']").click()
+    # Was button[type='submit']: Show answer now also matches after the first Check.
+    q.locator("button[type='submit']:not([name='reveal'])").click()
     feedback.locator(".is-correct").wait_for(timeout=6000)
     assert feedback.locator(".is-correct").count() >= 1, (
         "Expected .is-correct after correct short-text answer"

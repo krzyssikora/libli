@@ -348,17 +348,40 @@ def test_student_numeric_input_offers_a_full_keyboard(browser, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(browser, live_server):
-    _make_pa_user("reveal_student")
-    course, unit, _st, _sn, _fb = _seed_all_types("reveal_student", "reveal-unit")
+    # Was: the LESSON's .question__reveal-text contains "1/3" and no "±". A lesson
+    # number no longer reveals the answer (D13), so the same substance moves to the
+    # QUIZ key copy: the value shown as authored, no "±" at zero tolerance.
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import ShortNumericQuestionElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="reveal_student",
+        email="reveal_student@t.example.com",
+        password=TEST_PASSWORD,
+    )
+    course = CourseFactory(slug="reveal-unit")
+    Enrollment.objects.get_or_create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
+    )
+    third_sn = ShortNumericQuestionElement.objects.create(
+        stem="<p>Third?</p>", value="1/3", tolerance="", max_attempts=1
+    )
+    Element.objects.create(unit=unit, content_object=third_sn)
     context = browser.new_context()
     page = context.new_page()
     _login(page, live_server, "reveal_student")
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
     page.wait_for_selector("[data-question]")
-    q = page.locator("[data-question]").nth(4)  # the value="1/3" element
-    q.locator("input[name='answer']").fill("9")  # wrong, so the reveal renders
-    q.locator("button[type='submit']").click()
-    reveal = q.locator(".question__reveal-text")
-    expect(reveal).to_contain_text("1/3")
-    expect(reveal).not_to_contain_text("±")
+    q = page.locator("[data-question]").first
+    q.locator("input[name='answer']").fill("9")  # wrong on the only attempt: locks
+    q.locator("button[type='submit']:not([name='reveal'])").click()
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)
+    q.locator("label:has([data-answer-view='key'])").click()
+    key = q.locator("[data-answer-key]")
+    expect(key.locator("input")).to_have_value("1/3")
+    expect(key).not_to_contain_text("±")
     context.close()

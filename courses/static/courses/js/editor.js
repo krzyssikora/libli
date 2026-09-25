@@ -401,6 +401,16 @@
     }).then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); });
   }
 
+  // SubmitEvent.submitter fallback for old engines -- see quiz.js.
+  root.addEventListener(
+    "click",
+    function (e) {
+      var b = e.target.closest && e.target.closest('[data-scope="preview"] button[type="submit"]');
+      if (b && b.form) b.form._libliSubmitter = b;
+    },
+    true
+  );
+
   // Intercept editor forms (save/move/delete) -> swap both fragments.
   root.addEventListener("submit", function (e) {
     // "Try it" in the live preview: a question's answer form. Post to its
@@ -410,11 +420,15 @@
     var tryForm = e.target.closest('[data-scope="preview"] form.question__form');
     if (tryForm) {
       e.preventDefault();
+      var submitter = e.submitter || tryForm._libliSubmitter || null;
+      tryForm._libliSubmitter = null;
+      var isReveal = !!(submitter && submitter.name === "reveal");
+      if (isReveal && !window.confirm(submitter.getAttribute("data-confirm") || "")) return;
       var qEl = tryForm.closest("[data-question]");
       var made = qEl ? parseInt(qEl.getAttribute("data-attempts-made") || "0", 10) : 0;
       var body = new FormData(tryForm);
-      if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
-      body.append("attempt", String(made + 1));  // quiz gating; ignored by lessons
+      if (submitter && submitter.name) body.append(submitter.name, submitter.value);
+      body.append("attempt", String(isReveal ? made : made + 1));  // reveal: no attempt
       // Attribute, not property — same shadowing trap as post() above. No question
       // form carries a control named "action" today, so this is prophylactic; it is
       // also what lets the invariant be a simple blanket rule for this file.
@@ -454,7 +468,7 @@
         }
         if (!qEl) return;
         // An empty-answer validation doesn't consume an attempt; everything else does.
-        if (!slot.querySelector(".is-validation")) {
+        if (!isReveal && !slot.querySelector(".is-validation")) {
           qEl.setAttribute("data-attempts-made", String(made + 1));
         }
         // Terminal quiz state (correct / out of attempts / [N]/[R]) -> freeze inputs,
@@ -467,7 +481,7 @@
           qEl
             .querySelectorAll("input, button[type=submit], select, textarea, fieldset")
             .forEach(function (n) {
-              n.disabled = true;
+              if (!n.closest("[data-answer-switch]")) n.disabled = true;
             });
         }
       });

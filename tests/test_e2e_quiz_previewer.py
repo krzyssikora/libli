@@ -113,8 +113,10 @@ def test_previewer_client_attempt_counter_reaches_terminal_reveal(live_server, p
     page.fill('input[name="answer"]', "London")
     page.click('form.question__form button[type="submit"]')
     page.wait_for_selector('[data-question][data-attempts-made="2"]')
-    assert page.locator(".question__reveal-text").is_visible()
-    assert "Paris" in page.locator(".question__reveal-text").inner_text()
+    # Was: .question__reveal-text visible and containing "Paris" -- the locked
+    # answer now lives in the key copy behind the Your/Correct switch.
+    page.click("label:has([data-answer-view='key'])")
+    assert page.locator("[data-answer-key] input").input_value() == "Paris"
 
     assert QuizSubmission.objects.count() == 0
     assert QuestionResponse.objects.count() == 0
