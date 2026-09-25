@@ -105,7 +105,10 @@ def test_previewer_client_attempt_counter_reaches_terminal_reveal(live_server, p
     page.click('form.question__form button[type="submit"]')
     page.wait_for_selector('[data-question][data-attempts-made="1"]')
     assert page.locator("[data-question-feedback] .is-incorrect").is_visible()
-    assert page.locator(".question__reveal-text").count() == 0
+    # Was: .question__reveal-text count == 0 -- vacuous, that class is gone. No
+    # key copy and no key text anywhere before the lock (spec §7 no-leak).
+    assert page.locator("[data-answer-key]").count() == 0
+    assert "Paris" not in page.content()
     assert page.locator("[data-question]").get_attribute("data-attempts-made") == "1"
 
     # Second wrong answer: terminal state -- only reached if attempt=2 made it
@@ -116,6 +119,7 @@ def test_previewer_client_attempt_counter_reaches_terminal_reveal(live_server, p
     # Was: .question__reveal-text visible and containing "Paris" -- the locked
     # answer now lives in the key copy behind the Your/Correct switch.
     page.click("label:has([data-answer-view='key'])")
+    assert page.locator("[data-answer-key]").is_visible()
     assert page.locator("[data-answer-key] input").input_value() == "Paris"
 
     assert QuizSubmission.objects.count() == 0
