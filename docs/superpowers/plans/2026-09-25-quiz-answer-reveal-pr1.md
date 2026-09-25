@@ -1155,7 +1155,7 @@ def test_lesson_mode_never_draws_key_or_button(fb):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_fillblank_render.py -p no:randomly`
-Expected: FAIL — `TypeError: render() got an unexpected keyword argument 'verdicts'` — EXCEPT the two regression guards `test_fill_gate_render_is_unchanged` and `test_quiz_page_with_a_choice_question_still_renders`, which pass no new kwarg and are expected to PASS already.
+Expected: FAIL — `TypeError: render() got an unexpected keyword argument 'verdicts'` — EXCEPT the two regression guards `test_fill_gate_render_is_unchanged` and `test_quiz_page_with_a_choice_question_still_renders`, which pass no new kwarg and are expected to PASS already, and `test_lesson_mode_paints_with_sr_text`, which passes no new kwarg either and fails with an AssertionError (no `.sr-only` span yet).
 
 - [ ] **Step 3: Implement the plumbing**
 
@@ -1403,7 +1403,7 @@ Every token above is defined in `core/static/core/css/tokens.css` (`--accent`, `
 - [ ] **Step 5: Run to verify the new tests pass and nothing regressed**
 
 Run: `uv run pytest tests/test_quiz_reveal_fillblank_render.py courses/tests/test_fillblank_inline_verdicts.py courses/tests/test_fillblank_lock_on_correct.py tests/test_questions_2b_fillblank_parse.py tests/test_quiz_render.py courses/tests/test_fillblank_locked.py courses/tests/test_fillgate_template.py courses/tests/test_question_restore.py -p no:randomly` and `uv run pytest tests/test_e2e_fillgate.py -m e2e -p no:randomly` (fill gates must be byte-for-byte unchanged: no `sr-only` in any fill-gate render).
-Expected: PASS. `test_questions_2b_fillblank_parse.py` and `courses/tests/test_fillblank_inline_verdicts.py` pin `render_inputs` / the painted blanks; if one fails only because a painted input is now followed by a `.sr-only` span (e.g. a regex that assumed the input tag ends the match, or a count of `<span`), update that assertion and say so in a comment.
+Expected: PASS, EXCEPT `courses/tests/test_fillblank_inline_verdicts.py::test_quiz_fillblank_still_lists_the_correct_answers`, an expected interim RED (setting `SUPPORTS_REVEAL` drops the quiz list via Task 5; the key copy arrives in Task 8, which rewrites it). `test_questions_2b_fillblank_parse.py` and `courses/tests/test_fillblank_inline_verdicts.py` pin `render_inputs` / the painted blanks; if one fails only because a painted input is now followed by a `.sr-only` span (e.g. a regex that assumed the input tag ends the match, or a count of `<span`), update that assertion and say so in a comment.
 
 - [ ] **Step 6: Commit**
 
@@ -1723,7 +1723,7 @@ def test_lesson_correct_keeps_input_editable(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_single_part.py -p no:randomly`
-Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards): `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (falsified by Task 12's `feedback_for_pk` mutant — a 500) and `test_nojs_lesson_check_leaves_sibling_unpainted` (a TEMPLATE-branch guard: falsified by Task 12's "drop `verdicts=None` from the short-text `{% else %}` include" mutant, not by the `feedback_for_pk` one).
+Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards): `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (falsified by Task 12's `feedback_for_pk` mutant — a 500) and `test_nojs_lesson_check_leaves_sibling_unpainted` (defence in depth: two layers guard it — the `render()` guard and the short-text `{% else %}` include's `verdicts=None` — so only Task 12's COMBINED mutant, removing both, falsifies it).
 
 - [ ] **Step 3: Implement**
 
@@ -2463,7 +2463,9 @@ def _quiz_reveal_refused(request, slug, node_pk):
 
 Run: `uv run pytest tests/test_quiz_reveal_flow.py tests/test_quiz_lock_rule_parity.py -p no:randomly` → PASS.
 
-Then: `uv run pytest tests/test_quiz_answer.py tests/test_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_choice_inline_marking.py tests/test_element_try.py tests/test_ux_roster_and_feedback.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_quiz_render.py tests/test_ephemeral_quiz_feedback.py -p no:randomly`
+Then: `uv run pytest tests/test_quiz_answer.py tests/test_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_choice_inline_marking.py tests/test_element_try.py tests/test_ux_roster_and_feedback.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_quiz_render.py tests/test_ephemeral_quiz_feedback.py courses/tests/test_fillblank_inline_verdicts.py tests/test_questions_2d_quiz_noleak.py tests/test_questions_2diii_quiz.py tests/test_quiz_previewer_render.py tests/test_quiz_views.py tests/test_choice_nudge_paths.py -p no:randomly`
+
+`courses/tests/test_fillblank_inline_verdicts.py::test_quiz_fillblank_still_lists_the_correct_answers` (RED since Task 6) is rewritten here: keep its substance "the quiz reveals the answer where the lesson does not" — assert the locked-wrong quiz response contains `data-answer-key` with the accepted value and NO "Correct answer:" list, and rename it `test_quiz_fillblank_reveals_the_answer_via_key_copy`.
 
 Allowed rewrites (each with a comment naming the replaced assertion):
 - a locked wrong fill-blank / short-text / number quiz response no longer contains "Correct answer:" / "Expected:" — assert the key copy instead (`data-answer-key` + `value="<key>"`);
@@ -2724,7 +2726,7 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py -m e2e -p no:randomly`
-Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` is a regression guard and is expected to PASS already. Its falsification belongs in Step 5 (it cannot go RED before quiz.js sends the submitter).
+Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` and `test_short_text_verdict_colours_are_computed` (needs only the Task 7 CSS + Task 8 responses) are regression guards expected to PASS already. The Enter guard's falsification belongs in Step 5 (it cannot go RED before quiz.js sends the submitter).
 
 - [ ] **Step 3: Implement quiz.js**
 
@@ -2829,6 +2831,7 @@ Enter-guard falsification (only now, with the submitter sent): move `{% include 
 Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
 - a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
 - a converted type's Check now swaps the whole form, so a locator held across a Check must be re-queried;
+- a strict `button[type='submit']` Locator on a converted QUIZ question that now also matches Show answer (a strict-mode violation after the first Check — e.g. `tests/test_e2e_quiz.py` ~line 134) becomes `button[type='submit']:not([name='reveal'])`; legacy non-strict `page.click(...)` calls need no change;
 - QUIZ: an assertion that `.question__reveal-text` shows the answer for a locked short-text / number / fill-blank question (e.g. `tests/test_e2e_quiz_previewer.py` ~108–117) becomes: click `label:has([data-answer-view='key'])`, then read `[data-answer-key] input` `input_value()`;
 - LESSON (D13): an assertion on a number/short-text lesson `.question__reveal-text` (e.g. `tests/test_e2e_questions_2b.py::test_reveal_shows_the_fraction_and_hides_a_zero_tolerance`) moves to the QUIZ key copy — keep its substance: the key copy shows the value as authored (e.g. `1/3`), and prints no "±" when the tolerance is zero. Never simply delete such an assertion. Mutant check (required): comment out the `if (submitter && submitter.name) body.append(...)` line in quiz.js → `test_show_answer_flow_and_switch` must go RED; restore it by hand (never `git checkout`).
 
@@ -3169,6 +3172,8 @@ def _results_question_html(element, question, response, row):
 </div>
 ```
 
+Note: `question__feedback-panel--{{ row.outcome }}` yields `--recorded` / `--review` / `--reviewed` for N/R rows, which have no CSS — exactly as today's `quiz_results.html` rows already do (same markup); parity, not a new gap. Include an N and an R row in the Task 12 screenshots to confirm they look as today.
+
 `quiz_results.html` — inside `{% for row in rows %}`, make the existing `<li …>…</li>` the `{% else %}` branch of:
 
 ```django
@@ -3321,7 +3326,7 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | `neutralise_key_copy`: skip `attrs.pop("name")` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
 | quiz.js: freeze without the `[data-answer-switch]` skip | `test_show_answer_flow_and_switch` |
 | fill-blank template: `_reveal_button.html` include moved above Check | `test_enter_in_a_blank_checks_not_reveals` (as an `expect_request` timeout) |
-| short-text template: drop `verdicts=None` from the `{% else %}` controls include | `test_nojs_lesson_check_leaves_sibling_unpainted` |
+| COMBINED (defence in depth — two layers guard it): drop `render()`'s `element.pk == feedback_for_pk` guard AND the short-text `{% else %}` include's `verdicts=None` | `test_nojs_lesson_check_leaves_sibling_unpainted` (either change alone is masked by the other) |
 | editor.js: freeze without the `[data-answer-switch]` skip | `test_editor_try_it_reveal_switch_survives_freeze` |
 | quiz.js: counter guard without `!isReveal` | `test_previewer_reveal_keeps_client_counter` |
 | `quiz_answer` reveal branch: `response.attempt_count += 1` AND add `"attempt_count"` to its `update_fields` (otherwise the increment never persists and the mutant is vacuous) | `test_reveal_locks_at_current_marks_without_an_attempt` |
