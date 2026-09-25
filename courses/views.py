@@ -1333,6 +1333,7 @@ def _stored_result(question, response):
         fraction=float(response.fraction or 0),
         reveal=m.reveal,
         annotated=m.annotated,
+        fresh_correct=m.correct,
     )
 
 
