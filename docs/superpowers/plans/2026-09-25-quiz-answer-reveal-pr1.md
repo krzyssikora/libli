@@ -891,7 +891,7 @@ def test_incorrect_unconverted_type_gets_new_line_too(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_result_line.py -p no:randomly`
-Expected: FAIL — "Partly correct" / "0.25 / 1" not in body.
+Expected: FAIL — "Partly correct" / "0.25 / 1" not in body. Expected to PASS already: `test_resume_survives_auto_answer_switched_to_not_marked` (a regression guard — today's code survives that path; Task 12's "drop the `if result is not None:` guard" mutant falsifies it with a 500).
 
 - [ ] **Step 3: Implement**
 
@@ -1732,7 +1732,7 @@ def test_lesson_correct_keeps_input_editable(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_single_part.py -p no:randomly`
-Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards): `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (falsified by Task 12's `feedback_for_pk` mutant — a 500) and `test_nojs_lesson_check_leaves_sibling_unpainted` (defence in depth: two layers guard it — the `render()` guard and the short-text `{% else %}` include's `verdicts=None` — so only Task 12's COMBINED mutant, removing both, falsifies it).
+Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards): `test_fillblank_key_copy_keeps_latex_backslashes` (fill-blank's key copy works since Task 6; the bs4 round trip under it is pinned by Task 4's `test_latex_and_entities_round_trip`), `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (falsified by Task 12's `feedback_for_pk` mutant — a 500) and `test_nojs_lesson_check_leaves_sibling_unpainted` (defence in depth: two layers guard it — the `render()` guard and the short-text `{% else %}` include's `verdicts=None` — so only Task 12's COMBINED mutant, removing both, falsifies it).
 
 - [ ] **Step 3: Implement**
 
@@ -2313,7 +2313,7 @@ def test_reveal_parity_no_attempt_yet(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_flow.py -p no:randomly`
-Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed). Expected to PASS already (regression guards on today's behaviour): `test_locked_choice_still_whole_element_with_marks` (choice already takes the whole-element path), `test_nojs_previewer_validation_keeps_empty_form`, `test_key_edit_after_stored_correct_paints_all_green` (resume's locked `mark_result.correct` already renders every blank is-correct — it guards resume only), and in the parity file `test_reveal_rule_parity[fillblank-N-False]` (N already locks → 409; the ephemeral reveal already runs as a plain Check). The parity file is only partly RED here (the fillblank-A and choice cases).
+Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed). Expected to PASS already (regression guards on today's behaviour): `test_locked_choice_still_whole_element_with_marks` (choice already takes the whole-element path), `test_nojs_previewer_validation_keeps_empty_form`, `test_key_edit_after_stored_correct_paints_all_green` (resume's locked `mark_result.correct` already renders every blank is-correct — it guards resume only), all six `test_not_marked_and_review_never_show_the_key[...]` cases (no view passes `key_values` yet — falsified by Task 12's "bypass key_view" mutant), and in the parity file `test_reveal_rule_parity[fillblank-N-False]` (N already locks → 409; the ephemeral reveal already runs as a plain Check). The parity file is only partly RED here (the fillblank-A and choice cases).
 
 - [ ] **Step 3: Implement**
 
@@ -3182,7 +3182,7 @@ def test_analytics_keeps_expected_answers_and_tags_reveal(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_results.py -p no:randomly`
-Expected: FAIL — the results page still prints the old list rows. Expected to PASS already (regression guards — a RED here is a real problem): all six `test_analytics_expected_answer_per_type` cases (analytics unchanged by design), `test_results_reviewed_row_shows_teacher_marks`, and the `test_results_row_matrix` N / R cases (badge text and explanation rules unchanged; no switch / key before or after).
+Expected: FAIL — the results page still prints the old list rows. Expected to PASS already (regression guards — a RED here is a real problem): all six `test_analytics_expected_answer_per_type` cases (analytics unchanged by design), `test_results_reviewed_row_shows_teacher_marks`, the `test_results_row_matrix` N / R cases and its `A-Paris-Correct (1/1)` case (badge text and explanation rules unchanged; no switch / key before or after), and all eight `test_results_nr_rows_never_show_the_key[...]` cases (old rows never emit a key or switch).
 
 - [ ] **Step 3: Implement**
 
@@ -3410,7 +3410,8 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 
 | Mutant | Must fail |
 |---|---|
-| `key_view`: drop the `marking_mode != AUTO` return | `test_key_view_matrix`, `test_results_render_questions_as_they_ended` (Oslo) |
+| `key_view`: drop the `marking_mode != AUTO` return | `test_key_view_matrix`, `test_results_render_questions_as_they_ended` (Oslo), `test_results_nr_rows_never_show_the_key` |
+| `quiz_feedback_context`: drop the `if result is not None:` guard around the result-line block | `test_resume_survives_auto_answer_switched_to_not_marked` (500) |
 | `quiz_render_state`: `"key_values": question.key_answer() if locked else None` (bypass `key_view`) | `test_not_marked_and_review_never_show_the_key` |
 | `quiz_feedback_context`: drop `or question.SUPPORTS_REVEAL` (old list comes back beside the key copy) | `test_locked_wrong_has_key_copy_and_no_old_list` |
 | `key_view`: drop the `not locked` condition (copy before the lock) | `test_key_view_matrix`, `test_check_returns_whole_element_painted_no_key` |
