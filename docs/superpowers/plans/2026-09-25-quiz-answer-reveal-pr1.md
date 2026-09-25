@@ -1079,6 +1079,10 @@ def test_locked_key_copy_is_nameless_disabled_unique_ids(fb):
     assert "name=" not in key
     assert key.count("disabled") >= 2
     assert "data-answer-switch" in html
+    # With the copy drawn: still ONE feedback box, ONE Check, no Show answer (locked).
+    assert html.count("data-question-feedback") == 1
+    assert len(re.findall(r'<button[^>]*type="submit"(?![^>]*name="reveal")[^>]*>', html)) == 1
+    assert 'name="reveal"' not in html
     yours_radio = re.search(r'<input[^>]*value="yours"[^>]*>', html).group(0)
     assert "checked" in yours_radio
     ids = re.findall(r'\sid="([^"]+)"', html)
@@ -1473,6 +1477,24 @@ def test_check_is_the_first_submit_button_single_part(db, model):
                     submitted_values="x", can_reveal=True)
     buttons = re.findall(r'<button[^>]*type="submit"[^>]*>', html)
     assert 'name="reveal"' not in buttons[0] and 'name="reveal"' in buttons[1]
+
+
+@pytest.mark.parametrize("model", [ShortTextQuestionElement, ShortNumericQuestionElement])
+@pytest.mark.parametrize("verdict", [True, False])
+def test_quiz_part_cues_per_single_part_type(db, model, verdict):
+    unit = make_quiz_unit()
+    q = model.objects.create(stem="?", **({"accepted": "a"} if model is ShortTextQuestionElement else {"value": "1"}))
+    el = Element.objects.create(unit=unit, content_object=q)
+    html = q.render(element=el, mode="quiz", action_url="/x/", feedback_for_pk=el.pk,
+                    submitted_values="x", verdicts=[verdict])
+    (inp,) = _INPUT.findall(html)
+    if verdict:
+        assert "is-correct" in inp and "aria-invalid" not in inp
+        assert '<span class="sr-only">correct</span>' in html
+        assert '<span class="sr-only">incorrect</span>' not in html
+    else:
+        assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
+        assert '<span class="sr-only">incorrect</span>' in html
 
 
 def test_numeric_key_copy_prints_tolerance_unfiltered(db):
@@ -1919,6 +1941,46 @@ def test_exhausted_but_unlocked_can_still_reveal(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["fillblank", "text", "number"])
+def test_locked_wrong_has_key_copy_and_no_old_list(client, kind):
+    # Spec §2.1: a converted type's locked question shows the key copy and NEVER the
+    # old _reveal_* list beside it -- in the fetch response and on resume.
+    from courses.models import ShortNumericQuestionElement
+
+    _u, unit = _quiz(client)
+    if kind == "fillblank":
+        el, data = _fb(unit, max_attempts=1), {"blank": ["11", "5"]}
+    elif kind == "text":
+        el = add_element(unit, ShortTextQuestionElement.objects.create(
+            stem="?", accepted="Paris", max_attempts=1))
+        data = {"answer": "Rome"}
+    else:
+        el = add_element(unit, ShortNumericQuestionElement.objects.create(
+            stem="?", value="3.14", tolerance="0.01", max_attempts=1))
+        data = {"answer": "9"}
+    body = _fetch(client, unit, el, data).content.decode()
+    page = client.get(reverse("courses:quiz_unit",
+                              kwargs={"slug": unit.course.slug, "node_pk": unit.pk})).content.decode()
+    for html in (body, page):
+        assert "data-answer-key" in html
+        assert "question__reveal" not in html
+        assert "Correct answer:" not in html and "Expected:" not in html
+
+
+@pytest.mark.django_db
+def test_nojs_enrolled_validation_keeps_prior_answer_painted(client):
+    _u, unit = _quiz(client)
+    el = _fb(unit)
+    client.post(_url(unit, el), {"blank": ["11", "5"]})
+    page = client.post(_url(unit, el), {"blank": ["", ""]}).content.decode()
+    assert "is-validation" in page
+    right, wrong = _BLANK.findall(page)[:2]
+    assert 'value="11"' in right and "is-correct" in right
+    assert 'value="5"' in wrong and "is-incorrect" in wrong
+    assert "data-answer-key" not in page
+
+
+@pytest.mark.django_db
 def test_unlimited_attempts_partial_offers_reveal(client):
     _u, unit = _quiz(client)
     el = _fb(unit, max_attempts=None)
@@ -2092,11 +2154,13 @@ def test_locked_choice_still_whole_element_with_marks(client):
     from courses.models import Choice
 
     q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=1)
-    a = Choice.objects.create(question=q, text="A", is_correct=True)
-    Choice.objects.create(question=q, text="B", is_correct=False)
+    Choice.objects.create(question=q, text="A", is_correct=True)
+    b = Choice.objects.create(question=q, text="B", is_correct=False)
     el = add_element(unit, q)
-    body = _fetch(client, unit, el, {"choice": str(a.pk)}).content.decode()
+    body = _fetch(client, unit, el, {"choice": str(b.pk)}).content.decode()  # WRONG, locks
     assert "<form" in body and "question__choice-marker" in body
+    # Spec §2.2: a wrong locked choice keeps its inline marks -- no switch, no copy.
+    assert "data-answer-switch" not in body and "data-answer-key" not in body
 
 
 @pytest.mark.django_db
@@ -2114,6 +2178,8 @@ def test_editor_try_quiz_reveal(client):
     body = client.post(url, {"blank": ["11", "5"], "reveal": "1", "attempt": "1"},
                        HTTP_X_REQUESTED_WITH="fetch").content.decode()
     assert "data-answer-key" in body and "answer shown" in body
+    assert body.count("data-question-feedback") == 1
+    assert body.count('name="reveal"') == 0  # locked: no second Show answer
     assert QuestionResponse.objects.count() == 0
 ```
 
@@ -3203,6 +3269,7 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | Mutant | Must fail |
 |---|---|
 | `key_view`: drop the `marking_mode != AUTO` return | `test_key_view_matrix`, `test_results_render_questions_as_they_ended` (Oslo) |
+| `quiz_feedback_context`: drop `or question.SUPPORTS_REVEAL` (old list comes back beside the key copy) | `test_locked_wrong_has_key_copy_and_no_old_list` |
 | `key_view`: drop the `not locked` condition (copy before the lock) | `test_key_view_matrix`, `test_check_returns_whole_element_painted_no_key` |
 | `neutralise_key_copy`: skip `tag["disabled"] = ""` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
 | `quiz_render_state`: `"mark_result": result` (not locked-gated) | `test_quiz_render_state_unlocked_partial_paints_without_key` (asserts `mark_result is None` unlocked) |
