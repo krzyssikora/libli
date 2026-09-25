@@ -133,11 +133,13 @@ def _short_numeric():
 # short_text/short_numeric -> post.get("answer", ""), so {"answer": ""}.
 #
 # The discriminators prove the right WIDGET rendered -- without them the three
-# parametrized cases are indistinguishable from one another, because choice,
-# short_text and short_numeric all render the byte-identical wrapper
-# `<div class="el el--question" data-question>` and only fill_blank has a type class.
-# shortnumericquestionelement.html:8 renders inputmode="text";
-# shorttextquestionelement.html:8 renders no inputmode at all -- hence one
+# parametrized cases are indistinguishable from one another. choice still renders
+# the bare wrapper `<div class="el el--question" data-question>` with no type class
+# (unchanged); short_text and short_numeric now carry `el--shorttext` /
+# `el--shortnumeric` (spec 2026-09-25 §5a, D13), but choice remains classless, so the
+# substring discriminators below still do the real work.
+# _shortnumericquestionelement_controls.html:1 renders inputmode="text";
+# _shorttextquestionelement_controls.html:1 renders no inputmode at all -- hence one
 # present-assertion and one absent-assertion.
 TYPES = [
     pytest.param(_choice, {}, ['name="choice"', "VALUE_PK"], [], id="choice"),
@@ -164,9 +166,11 @@ def _check_url(unit, element_pk):
 def _child_slice(body, wrapper_class, index=0):
     """The markup inside ONE container child wrapper, tag-depth matched.
 
-    The three widened types render byte-identical markup
-    (`<div class="el el--question" data-question>`) -- only fill_blank has a type
-    class -- so the nested render is identified by POSITION, not by class.
+    choice still renders the bare `<div class="el el--question" data-question>` with
+    no type class (short_text / short_numeric now carry `el--shorttext` /
+    `el--shortnumeric`, spec 2026-09-25 §5a, D13, but this helper does not key on
+    that) -- so the nested render is identified by POSITION within the container's
+    own child-slot class, not by the question's class.
 
     A naive `body.index("</div>", start)` is WRONG and silently guts every
     assertion built on it: each question template opens

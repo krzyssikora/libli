@@ -51,8 +51,12 @@
         </div>
       {% endif %}
       <div class="answers__verdict">
-        {% comment %}A deliberate copy of quiz_results.html's badge markup and msgids
-        (spec §5.1), outcome modifiers included: extracting a partial would change the pupil's page.{% endcomment %}
+        {% comment %}One of THREE copies of this badge markup and msgids (spec §5.1):
+        quiz_results.html's old-style rows, _results_question_feedback.html (converted
+        rows) and this file; change all three. Outcome modifiers included: extracting a
+        partial would change the pupil's page. The one intended difference: the converted
+        rows' Not answered badge carries (0/N) for auto-marked (spec §4); this copy does
+        not, because the analytics page was not asked to change (spec §5).{% endcomment %}
         {% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
         {% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
         {% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
@@ -60,6 +64,7 @@
         {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
         {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
         {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% if row.possible == 1 %}{% trans "up to 1 mark" %}{% else %}{% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %}{% endif %})</span>{% endif %}
+        {% if row.revealed %}<span class="badge badge--muted">{% trans "answer shown" %}</span>{% endif %}
         {% if row.outcome == "review" %}
           <a class="answers__row-review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">{% trans "Review" %}<span class="sr-only"> — {% blocktrans with n=row.qnum %}question {{ n }}{% endblocktrans %}</span></a>
         {% endif %}

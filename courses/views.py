@@ -20,6 +20,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -69,13 +70,17 @@ from courses.models import SwitchGridElement
 from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.numbering import callout_numbers
+from courses.quiz import BLANK_QUIZ_STATE
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
+from courses.quiz import can_reveal
 from courses.quiz import ephemeral_quiz_feedback
+from courses.quiz import key_view
 from courses.quiz import locked_after
 from courses.quiz import parse_attempt
 from courses.quiz import quiz_feedback_context
+from courses.quiz import quiz_render_state
 from courses.quiz import rehydrate  # noqa: F401
 from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
@@ -87,6 +92,7 @@ from courses.rollups import tree_titles_have_math
 from courses.rollups import units_in_order
 from courses.rollups import units_under
 from courses.scoring import earned_marks
+from courses.scoring import outcome
 from courses.scoring import to_stored_fraction
 from courses.slideshow import partition_into_slides
 
@@ -1333,6 +1339,7 @@ def _stored_result(question, response):
         fraction=float(response.fraction or 0),
         reveal=m.reveal,
         annotated=m.annotated,
+        fresh_correct=m.correct,
     )
 
 
@@ -1387,28 +1394,20 @@ def build_quiz_context(node, user):
         r = responses.get(el.pk)
         state = {
             "qnum": qnum,
-            "selected_ids": frozenset(),
-            "submitted_values": None,
-            "locked": bool(r.locked) if r else False,
+            **BLANK_QUIZ_STATE,
             "attempts_left": None,
             "feedback_html": "",
-            "mark_result": None,
         }
+        state["locked"] = bool(r.locked) if r else False
         if r is not None and r.attempt_count > 0:
-            selected, submitted = rehydrate(q, r.latest_answer)
-            state["selected_ids"] = selected
-            state["submitted_values"] = submitted
             result = (
                 _stored_result(q, r)
                 if q.marking_mode == QuestionElement.MarkingMode.AUTO
                 else None  # [N]/[R] -> neutral branch in quiz_feedback_context
             )
-            # Only a LOCKED question hands its result to the element render: the
-            # types that mark their options inline key the reveal off it, and while
-            # attempts remain the answer key must stay withheld. Same gate
-            # quiz_feedback_context applies to reveal_template.
-            if r.locked:
-                state["mark_result"] = result
+            # One helper for every quiz render path (spec §2.4): verdicts on both
+            # branches, mark_result / key copy only once locked.
+            state.update(quiz_render_state(q, r, result))
             fb_ctx = quiz_feedback_context(q, r, result=result)
             state["attempts_left"] = fb_ctx.get("attempts_left")
             state["feedback_html"] = render_to_string(
@@ -1507,20 +1506,31 @@ def _quiz_locked_response(request, slug, node_pk):
     return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
 
 
+def _quiz_reveal_refused(request, slug, node_pk):
+    # Show answer on an ineligible question (no attempt yet / N-R / not converted):
+    # fetch -> 409 (quiz.js reloads); no-JS -> back to the quiz page (spec §3.2).
+    if _wants_fragment(request):
+        return HttpResponse(
+            _("Show answer is not available for this question."), status=409
+        )
+    return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
+
+
 def _quiz_render_feedback(
     request, node, element, question, response, *, result=None, validation=False
 ):
     fb_ctx = quiz_feedback_context(
         question, response, result=result, validation=validation
     )
+    # Validation keeps the bare fragment for every type (spec §2.4): the student's
+    # (empty) inputs stay as they are. A change for choice, which used to re-render.
+    state = None if validation else quiz_render_state(question, response, result)
     if _wants_fragment(request):
-        if question.INLINE_QUIZ_REVEAL:
-            # The marking lives IN the options list, which sits outside the feedback
-            # box — so returning the box alone would swap in "Correct" while leaving
-            # the options unmarked. Return the whole element and let quiz.js swap the
-            # live form's body (the data-question-inline contract question.js already
-            # implements for the lesson path).
-            selected, _submitted = rehydrate(question, response.latest_answer)
+        if state is not None and (
+            question.SUPPORTS_REVEAL or question.INLINE_QUIZ_REVEAL
+        ):
+            # Verdicts / key copy / switch / Show answer live on the controls, outside
+            # the feedback box: return the whole element; quiz.js swaps the form body.
             return HttpResponse(
                 question.render(
                     element=element,
@@ -1534,13 +1544,11 @@ def _quiz_render_feedback(
                             "element_pk": element.pk,
                         },
                     ),
-                    selected_ids=selected,
-                    mark_result=result if response.locked else None,
-                    locked=response.locked,
                     attempts_left=fb_ctx.get("attempts_left"),
                     feedback_html=render_to_string(
                         "courses/elements/_quiz_question_feedback.html", fb_ctx
                     ),
+                    **state,
                 )
             )
         return render(request, "courses/elements/_quiz_question_feedback.html", fb_ctx)
@@ -1566,18 +1574,17 @@ def _quiz_render_feedback(
     st = ctx["render_states"].get(element.pk)
     if st is not None:
         st["feedback_html"] = fragment
-        # A previewer has responses == {}, so build_quiz_context derives locked=False
-        # for every question while the injected fragment still emits data-quiz-locked
-        # -- "Answer recorded" beside a live Check button. True no-op for a student:
-        # writes the value build_quiz_context already derived from the saved response.
-        st["locked"] = response.locked
-        selected, submitted = rehydrate(question, response.latest_answer)
-        st["selected_ids"] = selected
-        st["submitted_values"] = submitted
-        # Same locked-only gate build_quiz_context applies. Needed here for the
-        # PREVIEWER, whose responses map is empty, so build_quiz_context derived
-        # nothing to mark this question's options with.
-        st["mark_result"] = result if response.locked else None
+        if state is not None:
+            # Every new render key, set by hand: a PREVIEWER has responses == {}, so
+            # build_quiz_context derived nothing for this question (spec §2.4).
+            st.update(state)
+        else:
+            # Validation: keep the prior stored answer (student) or the empty form
+            # (previewer), exactly as before.
+            st["locked"] = response.locked
+            selected, submitted = rehydrate(question, response.latest_answer)
+            st["selected_ids"] = selected
+            st["submitted_values"] = submitted
     return render(request, "courses/quiz_unit.html", ctx)
 
 
@@ -1614,8 +1621,16 @@ def quiz_answer(request, slug, node_pk, element_pk):
         # Resolution now precedes this branch, so a previewer gets the student's 404
         # rules instead of a blanket 403. Deliberate.
         attempt = parse_attempt(request.POST)
+        # An ineligible reveal is ignored and processed as a normal Check (spec §3.3).
+        # Spec §3.3: attempts_made = parse_attempt(POST), floored at 1 -- the
+        # server-side check is ADVISORY on this stateless path (the client never
+        # offers the button before a Check; a no-JS previewer posts no `attempt`
+        # and still reveals).
+        reveal = bool(request.POST.get("reveal")) and can_reveal(
+            question, attempts_made=attempt, locked=False
+        )
         stand_in, result, validation = ephemeral_quiz_feedback(
-            question, question.build_answer(request.POST), attempt
+            question, question.build_answer(request.POST), attempt, reveal=reveal
         )
         return _quiz_render_feedback(
             request,
@@ -1627,6 +1642,7 @@ def quiz_answer(request, slug, node_pk, element_pk):
             validation=validation,
         )
 
+    result = None
     with transaction.atomic():
         submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
             student=request.user, unit=node
@@ -1637,51 +1653,75 @@ def quiz_answer(request, slug, node_pk, element_pk):
         response, _ = QuestionResponse.objects.select_for_update().get_or_create(
             submission=submission, element=element
         )
-        if response.locked or (
-            question.max_attempts is not None
-            and response.attempt_count >= question.max_attempts
-        ):
-            return _quiz_locked_response(request, slug, node_pk)
+        if request.POST.get("reveal"):
+            # Show answer (spec §3.2). Runs BEFORE the exhausted gate (an author
+            # may lower max_attempts below the student's count -- Show answer is the
+            # way out) and before build_answer / validation (an emptied form must
+            # not block it). Ignores the posted answer: the stored latest attempt is
+            # what is marked and shown. Consumes no attempt, writes no Attempt row.
+            if response.locked:
+                return _quiz_locked_response(request, slug, node_pk)
+            if not can_reveal(
+                question, attempts_made=response.attempt_count, locked=False
+            ):
+                return _quiz_reveal_refused(request, slug, node_pk)
+            response.locked = True
+            response.revealed_at = timezone.now()
+            response.save(update_fields=["locked", "revealed_at"])
+            revealed_result = _stored_result(question, response)
+        else:
+            revealed_result = None
+        if revealed_result is None:
+            if response.locked or (
+                question.max_attempts is not None
+                and response.attempt_count >= question.max_attempts
+            ):
+                return _quiz_locked_response(request, slug, node_pk)
 
-        answer = question.build_answer(request.POST)
-        if answer_is_empty(answer):
-            # No attempt recorded. On the no-JS validation re-render the offending
-            # question's inputs show its PRIOR latest_answer (if any) or blank on a
-            # first attempt — there is nothing new to rehydrate. Intentional boundary.
-            return _quiz_render_feedback(
-                request, node, element, question, response, validation=True
+            answer = question.build_answer(request.POST)
+            if answer_is_empty(answer):
+                # No attempt recorded. On the no-JS validation re-render the
+                # offending question's inputs show its PRIOR latest_answer (if any)
+                # or blank on a first attempt — there is nothing new to rehydrate.
+                # Intentional boundary.
+                return _quiz_render_feedback(
+                    request, node, element, question, response, validation=True
+                )
+
+            is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+            if is_auto:
+                result = question.mark(answer)
+                f = to_stored_fraction(result.fraction)
+                response.fraction = f
+                response.earned_marks = earned_marks(f, question.max_marks)
+                attempt_fraction = f
+                attempt_correct = result.correct
+            else:
+                attempt_fraction = None
+                attempt_correct = None
+
+            response.attempt_count += 1
+            response.latest_answer = answer_to_json(answer)
+            response.last_attempt_at = timezone.now()
+            # ONE lock rule, shared with the ephemeral previewer path -- see
+            # courses.quiz.locked_after and tests/test_quiz_lock_rule_parity.py.
+            response.locked = locked_after(question, result, response.attempt_count)
+            response.save()
+            Attempt.objects.create(
+                response=response,
+                n=response.attempt_count,
+                answer=response.latest_answer,
+                fraction=attempt_fraction,
+                correct=attempt_correct,
             )
 
-        is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
-        result = None
-        if is_auto:
-            result = question.mark(answer)
-            f = to_stored_fraction(result.fraction)
-            response.fraction = f
-            response.earned_marks = earned_marks(f, question.max_marks)
-            attempt_fraction = f
-            attempt_correct = result.correct
-        else:
-            attempt_fraction = None
-            attempt_correct = None
-
-        response.attempt_count += 1
-        response.latest_answer = answer_to_json(answer)
-        response.last_attempt_at = timezone.now()
-        # ONE lock rule, shared with the ephemeral previewer path -- see
-        # courses.quiz.locked_after and tests/test_quiz_lock_rule_parity.py.
-        response.locked = locked_after(question, result, response.attempt_count)
-        response.save()
-        Attempt.objects.create(
-            response=response,
-            n=response.attempt_count,
-            answer=response.latest_answer,
-            fraction=attempt_fraction,
-            correct=attempt_correct,
-        )
-
     return _quiz_render_feedback(
-        request, node, element, question, response, result=result
+        request,
+        node,
+        element,
+        question,
+        response,
+        result=revealed_result if revealed_result is not None else result,
     )
 
 
@@ -1748,7 +1788,11 @@ def quiz_results(request, slug, node_pk):
         if not has_math:
             has_math = _question_has_math(q)
         r = responses.get(el.pk)
-        rows.append(_results_row(q, r))
+        row = _results_row(q, r)
+        row["rendered"] = (
+            _results_question_html(el, q, r, row) if q.SUPPORTS_REVEAL else ""
+        )
+        rows.append(row)
     has_math = has_math or titles_have_math([node.title])
     ctx = {
         "course": course,
@@ -1790,6 +1834,7 @@ def _results_row(question, response):
         "answered": response is not None and response.latest_answer is not None,
         "review_feedback": (response.review_feedback if response else ""),
         "review_earned": (response.earned_marks if response else None),
+        "revealed": bool(response is not None and response.revealed_at),
     }
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
@@ -1806,12 +1851,7 @@ def _results_row(question, response):
         else:
             earned = earned_marks(response.fraction, question.max_marks)
             row["earned"] = earned
-            if earned == question.max_marks:
-                row["outcome"] = "correct"
-            elif earned > 0:
-                row["outcome"] = "partial"
-            else:
-                row["outcome"] = "incorrect"
+            row["outcome"] = outcome(earned, question.max_marks)
         # `reveal` is the correct-answer payload. Mark the STUDENT'S answer when one
         # exists so the per-blank ✓/✗ in _reveal_fillblank reflects what they entered
         # (marking an empty answer would show every blank wrong even when correct);
@@ -1853,6 +1893,45 @@ def _results_row(question, response):
         row["outcome"] != "correct" or bool(row["marks"])
     )
     return row
+
+
+def _results_question_html(element, question, response, row):
+    """A converted question rendered read-only as it ended (spec §4), via
+    render(mode="results"). Separate from _results_row on purpose: analytics
+    consumes _results_row's keys and must not change (spec §5)."""
+    answered = row["answered"]
+    auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+    if answered and auto and response.fraction is not None:
+        result = _stored_result(question, response)
+        state = quiz_render_state(question, response, result)
+        fully_correct = bool(result.correct)
+    elif answered:
+        state = quiz_render_state(question, response, None)  # N/R: no verdicts
+        fully_correct = False
+    else:
+        # Unanswered: neutral controls, mark() NOT called (spec §4).
+        state = dict(BLANK_QUIZ_STATE)
+        fully_correct = False
+    # Every results row is locked (finalize_submission locks every response).
+    key_values = key_view(
+        question, mode="results", locked=True, fully_correct=fully_correct
+    )
+    feedback_html = render_to_string(
+        "courses/elements/_results_question_feedback.html", {"row": row}
+    )
+    return mark_safe(  # noqa: S308 — the element template escapes its own fields
+        question.render(
+            element=element,
+            mode="results",
+            feedback_for_pk=element.pk,
+            selected_ids=state["selected_ids"],
+            submitted_values=state["submitted_values"],
+            verdicts=state["verdicts"],
+            key_values=key_values,
+            locked=True,
+            feedback_html=feedback_html,
+        )
+    )
 
 
 @login_required

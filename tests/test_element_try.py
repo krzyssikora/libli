@@ -287,3 +287,38 @@ def test_try_quiz_neutral_modes_lock_without_marking(client, mode):
     assert "is-recorded" in body
     assert "data-quiz-locked" in body
     assert "is-incorrect" not in body
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["choice", "not_marked"])
+def test_try_quiz_ineligible_reveal_is_a_plain_check(client, kind):
+    """Spec §3.5: reveal=1 on a question that cannot reveal (unconverted type, or a
+    converted type that is not AUTO) is graded as a normal Check: nothing locks on
+    the reveal, no "answer shown", no key copy, nothing persisted."""
+    from courses.models import ShortTextQuestionElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    if kind == "choice":
+        el, _a, b = _question(unit, max_attempts=3)
+        data = {"choice": str(b.pk), "attempt": "1", "reveal": "1"}
+    else:
+        el = add_element(
+            unit,
+            ShortTextQuestionElement.objects.create(
+                stem="?", accepted="Paris", max_attempts=3, marking_mode="N"
+            ),
+        )
+        data = {"answer": "Rome", "attempt": "1", "reveal": "1"}
+    resp = client.post(_url(course, el), data, HTTP_X_REQUESTED_WITH="fetch")
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert "answer shown" not in body
+    assert "data-answer-key" not in body and "Paris" not in body
+    if kind == "choice":  # the ordinary wrong-with-attempts-left Check response
+        assert "is-incorrect" in body and "2 attempts left" in body
+        assert "data-quiz-locked" not in body
+    else:  # the ordinary not-marked Check response
+        assert "is-recorded" in body
+    assert QuestionResponse.objects.count() == 0

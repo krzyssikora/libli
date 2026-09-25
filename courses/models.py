@@ -15,6 +15,7 @@ from django.db import models
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
@@ -2249,6 +2250,15 @@ class QuestionElement(ElementBase):
     # bottom reveal list in a lesson. Quiz feedback is unaffected.
     INLINE_LESSON_FEEDBACK = False
 
+    # Quiz answer reveal (spec 2026-09-25 §2.1): may a student press Show answer, do
+    # quiz Checks answer with the whole element, and does the results page render
+    # the question itself? Set per type, PR by PR; base off.
+    SUPPORTS_REVEAL = False
+
+    # The type's answer-controls include, rendered once for "Your answer" and once
+    # (via render_key_copy) for the correct answer. Set by each converted type.
+    CONTROLS_TEMPLATE = None
+
     class MarkingMode(models.TextChoices):
         AUTO = "A", _("Auto-marked")
         NOT_MARKED = "N", _("Not marked")
@@ -2293,6 +2303,11 @@ class QuestionElement(ElementBase):
         locked=False,
         attempts_left=None,
         feedback_html="",
+        verdicts=None,
+        key_values=None,
+        can_reveal=False,
+        reveal_earned=None,
+        revealed=False,
     ):
         name = self._meta.model_name
         unit = element.unit if element is not None else None
@@ -2306,6 +2321,33 @@ class QuestionElement(ElementBase):
                     "element_pk": element.pk,
                 },
             )
+        # An unresolvable template variable (a quiz row with no st.verdicts) arrives
+        # as ''. Normalise so templates only ever see None or a real value.
+        verdicts = verdicts or None
+        if key_values == "":
+            key_values = None
+        if (
+            verdicts is None
+            and mode == "lesson"
+            and self.INLINE_LESSON_FEEDBACK
+            and mark_result is not None
+            and element is not None
+            and element.pk == feedback_for_pk
+        ):
+            # Lesson verdicts are computed HERE (spec §5a) so every lesson path --
+            # fetch, no-JS, restore, editor try-it, nested in a container -- paints
+            # without new plumbing. The feedback_for_pk guard is load-bearing: the
+            # no-JS lesson re-render hands ONE page-level mark_result to every
+            # question on the unit.
+            answer = (
+                submitted_values
+                if submitted_values is not None
+                else set(selected_ids or ())
+            )
+            verdicts = self.part_verdicts(mark_result, answer)
+        key_copy_html = ""
+        if key_values is not None and mode in ("quiz", "results"):
+            key_copy_html = self.render_key_copy(key_values)
         return render_to_string(
             f"courses/elements/{name}.html",
             {
@@ -2329,8 +2371,31 @@ class QuestionElement(ElementBase):
                 "locked": locked,
                 "attempts_left": attempts_left,
                 "feedback_html": feedback_html,
+                "verdicts": verdicts,
+                "key_copy_html": key_copy_html,
+                "can_reveal": can_reveal,
+                "reveal_earned": reveal_earned,
+                "revealed": revealed,
             },
         )
+
+    def render_key_copy(self, key_values):
+        """The correct-answer copy: this type's own controls include rendered from
+        key_values, then neutralised (names stripped, disabled, ids suffixed,
+        embeds dropped) by the one bs4 pass (spec §2.2)."""
+        from courses.keycopy import neutralise_key_copy
+
+        html = render_to_string(
+            self.CONTROLS_TEMPLATE,
+            {
+                "el": self,
+                "values": key_values,
+                "verdicts": None,
+                "copy": "key",
+                "locked": True,
+            },
+        )
+        return mark_safe(neutralise_key_copy(html))  # noqa: S308 — escaped by the include
 
     def feedback_context(self, mark_result):
         # The dict the JS-fragment check_answer feeds to _question_feedback.html.
@@ -2340,6 +2405,16 @@ class QuestionElement(ElementBase):
             "mark_result": mark_result,
             "reveal_template": self.REVEAL_TEMPLATE,
         }
+
+    def part_verdicts(self, mark_result, answer):
+        """Right/wrong per answer part in draw order: True / False, None = paint
+        nothing. Returns None when the type paints no parts (spec §2.1)."""
+        return None
+
+    def key_answer(self):
+        """The correct answer in exactly build_answer()'s shape, or None when there
+        is no key to show (spec §2.2)."""
+        return None
 
     def mark(self, answer):
         raise NotImplementedError
@@ -2475,10 +2550,18 @@ class ChoiceQuestionElement(QuestionElement):
         locked=False,
         attempts_left=None,
         feedback_html="",
+        verdicts=None,
+        key_values=None,
+        can_reveal=False,
+        reveal_earned=None,
+        revealed=False,
     ):
         # `element` is the Element join-row (carries the unit + pk for the form
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
+        # `verdicts` / `key_values` / `can_reveal` / `reveal_earned` / `revealed` are
+        # accepted for signature uniformity with QuestionElement.render (quiz answer
+        # reveal PR 1); choice consumes them in PR 3.
         choices = list(self.choices.all())
         selected = set(selected_ids or ())
         marks = self.choice_marks(choices, selected, mark_result, mode, locked)
@@ -2548,10 +2631,23 @@ def _accepted_lines(blob):
     return [ln for ln in (blob or "").splitlines() if ln.strip()]
 
 
+def _single_part_verdict(mark_result):
+    """One-part types: a stored path's fresh correctness wins over the stored one
+    (spec §2.6); a live mark() leaves fresh_correct None."""
+    fresh = mark_result.fresh_correct
+    return bool(mark_result.correct if fresh is None else fresh)
+
+
 class ShortTextQuestionElement(QuestionElement):
     """Free-text answer marked by normalized comparison against >=1 accepted lines."""
 
     RESTORABLE_IN_LESSON = True
+
+    # Lesson (spec §5a, D13): the box turns green/red in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_shorttextquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
 
@@ -2572,6 +2668,13 @@ class ShortTextQuestionElement(QuestionElement):
             fraction=1.0 if is_correct else 0.0,
             reveal=lines[0] if lines else "",
         )
+
+    def part_verdicts(self, mark_result, answer):
+        return [_single_part_verdict(mark_result)]
+
+    def key_answer(self):
+        lines = _accepted_lines(self.accepted)
+        return lines[0] if lines else None
 
 
 EXTENDED_RESPONSE_MAX_CHARS = 10_000
@@ -2613,6 +2716,12 @@ class ShortNumericQuestionElement(QuestionElement):
     """Numeric answer marked correct iff within an absolute tolerance of value."""
 
     RESTORABLE_IN_LESSON = True
+
+    # Lesson (spec §5a, D13): the box turns green/red in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_shortnumericquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
 
@@ -2661,6 +2770,13 @@ class ShortNumericQuestionElement(QuestionElement):
             reveal={"value": self.value, "tolerance": self.tolerance},
         )
 
+    def part_verdicts(self, mark_result, answer):
+        return [_single_part_verdict(mark_result)]
+
+    def key_answer(self):
+        # A plain string: build_answer's shape (post.get("answer", "")).
+        return self.value or None
+
 
 class FillBlankQuestionElement(QuestionElement):
     """Stem with ordered blank tokens; each gap text-matched against its own answers."""
@@ -2671,6 +2787,9 @@ class FillBlankQuestionElement(QuestionElement):
     INLINE_LESSON_FEEDBACK = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_fillblankquestionelement_controls.html"
 
     elements = GenericRelation(Element)
 
@@ -2698,6 +2817,15 @@ class FillBlankQuestionElement(QuestionElement):
             fraction=fraction,
             reveal=tuple(reveal),
         )
+
+    def part_verdicts(self, mark_result, answer):
+        return [bool(item["correct"]) for item in mark_result.reveal]
+
+    def key_answer(self):
+        firsts = [(_accepted_lines(b.accepted) or [""])[0] for b in self.blanks.all()]
+        # A blank with no accepted line stays an (empty) part; only a wholly empty
+        # key hides the copy (spec §2.2 "empty keys").
+        return firsts if any(firsts) else None
 
 
 class Blank(models.Model):
@@ -3208,6 +3336,8 @@ class QuestionResponse(models.Model):
     )
     locked = models.BooleanField(default=False)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
+    # Set when the student pressed Show answer (spec 2026-09-25 §3). Null = never.
+    revealed_at = models.DateTimeField(null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -300,6 +300,12 @@ blockquote {
 }
 .question__verdict.is-correct { color: var(--success); }
 .question__verdict.is-incorrect { color: var(--danger); }
+/* --warning on the page background is ~3.2:1 -- below AA for text. The words stay
+   in the body colour; only the (aria-hidden) glyph carries the warning hue. */
+.question__verdict.is-partial { color: var(--text-primary); }
+.question__verdict.is-partial .question__glyph { color: var(--warning); }
+/* "◐ Partly correct", not "◐Partly correct" (D4); ✓ / ✗ get the same gap. */
+.question__verdict .question__glyph { margin-inline-end: .3em; }
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
 .question__nudge {
@@ -391,6 +397,39 @@ input.question__blank-input[type="text"] {
   width: auto;
   min-width: 8ch;
 }
+/* Short text / number (spec 2026-09-25 §5a, D13): same painted-input verdict as
+   fill-blank, scoped to the single-input types so a plain text[type=text] elsewhere
+   is untouched. (0,3,0) beats app.css's input[type=text] (0,1,1). */
+.el--question .question__text-input.is-correct { border-color: var(--success); background: var(--success-subtle); }
+.el--question .question__text-input.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
+/* Quiz answer reveal (spec 2026-09-25 §2.3): the key copy is hidden by default and
+   shown only by :has(), so a browser without :has() degrades to "Your answer" (D3). */
+[data-answer-key] { display: none; }
+[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: block; }
+[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-yours] { display: none; }
+/* Short text / number key copy: ONE flex line, so a number's " ± 0.01" stays beside
+   its input instead of wrapping under it (where it pushed the inline-flex switch
+   sideways). Same height + bottom margin as the "yours" block input, so the switch
+   does not move on toggle. (0,4,1) beats the display:block rule above. */
+[data-answer-scope]:has([data-answer-view="key"]:checked) span[data-answer-key] {
+  display: flex;
+  align-items: center;
+  gap: .35em;
+  margin-bottom: var(--space-2);
+}
+span[data-answer-key] .question__text-input { margin-bottom: 0; }
+.answer-switch {
+  display: inline-flex;
+  margin: 0 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: .9rem;
+}
+.answer-switch__opt { position: relative; padding: var(--space-1) var(--space-3); cursor: pointer; }
+.answer-switch__opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.answer-switch__opt:has(input:checked) { background: var(--accent); color: var(--text-inverse); }
+.answer-switch__opt:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 .question__reveal--blanks { margin: var(--space-2) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--danger); }
 /* Per-option outcome marker in the choice reveal (results page). Separate from
@@ -448,7 +487,8 @@ input.question__blank-input[type="text"] {
    default `resize: both` precisely so a full-width textarea cannot be dragged
    past its container. */
 .quiz input.question__text-input,
-.lesson input.question__text-input { max-width: 22rem; }
+.lesson input.question__text-input,
+.quiz-results__item input.question__text-input { max-width: 22rem; }
 /* Set the irreversible "Finish quiz" action apart from the last question. */
 .quiz .quiz-finish {
   margin-top: var(--space-6);
@@ -758,6 +798,9 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
 }
 .quiz-results__item .question__stem { margin-bottom: var(--space-2); }
+/* ...except a fill-blank key copy (a .question__stem <div>): it must match the
+   "yours" fieldset's inline space-3, or the switch jumps 4px on toggle. */
+.quiz-results__item .question__stem.answer-key { margin-bottom: var(--space-3); }
 
 /* ── code-field primitive (batch 1; JS enhancement in batch 4) ────────────────
    Theme-following monospace editor look: header-less gutter + textarea, no soft

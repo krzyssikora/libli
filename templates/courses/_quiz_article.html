@@ -34,7 +34,7 @@
         {% with st=render_states|dictkey:el.pk %}
         <section data-element-id="{{ el.pk }}">
           {% if st.qnum %}<span class="el__qnum" data-qnum="{{ st.qnum }}">{{ st.qnum }}.</span>{% endif %}
-          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values mark_result=st.mark_result attempts_left=st.attempts_left feedback_html=st.feedback_html %}
+          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values mark_result=st.mark_result attempts_left=st.attempts_left feedback_html=st.feedback_html verdicts=st.verdicts key_values=st.key_values can_reveal=st.can_reveal reveal_earned=st.reveal_earned revealed=st.revealed %}
         </section>
         {% endwith %}
       {% endfor %}

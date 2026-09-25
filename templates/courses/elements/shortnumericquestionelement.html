@@ -1,15 +1,20 @@
 {% load i18n %}
-<div class="el el--question" data-question>
+<div class="el el--question el--shortnumeric" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
-  {% if element %}
-  <form class="question__form" method="post"
-        action="{{ action_url }}">
+  {% if mode == "results" %}
+  <div class="question__form" data-answer-scope>
+    <span data-answer-yours>{% include "courses/elements/_shortnumericquestionelement_controls.html" with values=submitted_values copy="yours" %}</span>
+    {% if key_copy_html %}<span class="answer-key" data-answer-key>{{ key_copy_html }}</span>{% include "courses/elements/_answer_switch.html" %}{% endif %}
+    <div class="question__feedback" data-question-feedback>{{ feedback_html|safe }}</div>
+  </div>
+  {% elif element %}
+  <form class="question__form" method="post" action="{{ action_url }}" data-question-inline data-answer-scope>
     {% csrf_token %}
-    <input type="text" name="answer" inputmode="text" class="question__text-input" autocomplete="off"
-           value="{% if element.pk == feedback_for_pk %}{{ submitted_values|default_if_none:'' }}{% endif %}"
-           {% if quiz_submitted or locked %}disabled{% endif %}>
+    <span data-answer-yours>{% if element.pk == feedback_for_pk %}{% include "courses/elements/_shortnumericquestionelement_controls.html" with values=submitted_values copy="yours" %}{% else %}{% include "courses/elements/_shortnumericquestionelement_controls.html" with values=None verdicts=None copy="yours" %}{% endif %}</span>
+    {% if key_copy_html %}<span class="answer-key" data-answer-key>{{ key_copy_html }}</span>{% include "courses/elements/_answer_switch.html" %}{% endif %}
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+    {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>

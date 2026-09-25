@@ -41,6 +41,10 @@ class MarkResult:
     fraction: float
     reveal: frozenset = frozenset()
     annotated: frozenset = frozenset()
+    # Stored paths only (views._stored_result): the FRESH mark().correct, which can
+    # differ from `correct` (the stored fraction) once an author edits the key. A
+    # live mark() leaves it None; single-part part_verdicts fall back to `correct`.
+    fresh_correct: bool | None = None
 
 
 def normalize_text(s, *, case_sensitive=False):

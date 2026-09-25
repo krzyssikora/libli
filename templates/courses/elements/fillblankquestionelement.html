@@ -3,33 +3,45 @@
 read-only (locked=mark_result.correct) and the Check button is disabled. The
 `element.pk == feedback_for_pk` pairing is load-bearing: the no-JS re-render hands
 ONE page-level mark_result to EVERY element (see _lesson_article.html), so a bare
-mark_result.correct would lock every other fill-blank on the unit. mark_result is
-None in quiz mode (_quiz_article.html passes feedback_html instead), so the quiz's
-own quiz_submitted/locked gating is untouched.
+mark_result.correct would lock every other fill-blank on the unit. Every quiz
+question now gets `verdicts` too, and a LOCKED quiz question gets mark_result.
 
-Lesson feedback marks each blank in place (mark_result=... paints it green/red)
-instead of listing the correct answers: INLINE_LESSON_FEEDBACK makes check_answer
-answer with this WHOLE element, and data-question-inline is what tells question.js
-and editor.js to swap the form body rather than just the feedback slot. Lesson
-only: a quiz answer is still the bare feedback fragment.
+Lesson feedback marks each blank in place (verdicts paints it green/red) instead
+of listing the correct answers: INLINE_LESSON_FEEDBACK makes check_answer answer
+with this WHOLE element, and data-question-inline is unconditional -- it is what
+tells question.js and editor.js to swap the form body rather than just the
+feedback slot, in BOTH lesson and quiz mode (SUPPORTS_REVEAL).
 
 data-lock-on-correct is question.js's opt-in flag: after a live correct check it
 locks these inputs client-side the same way, so the fetch path and a reload agree.
-{% endcomment %}
+
+PR 1 of the quiz answer reveal: `data-answer-scope` on the form (quiz/lesson) or
+the results `<div>`; the student's controls sit in `[data-answer-yours]`, the key
+copy in `[data-answer-key]`, the switch outside the fieldset.{% endcomment %}
 <div class="el el--question el--fillblank" data-question>
-  {% if element %}
-  <form class="question__form" method="post" action="{{ action_url }}" data-lock-on-correct{% if mode == "lesson" %} data-question-inline{% endif %}>
+  {% if mode == "results" %}
+  <div class="question__form" data-answer-scope>
+    <fieldset class="question__stem" data-answer-yours disabled style="border:0;padding:0;margin:0 0 var(--space-3);">
+      {% include "courses/elements/_fillblankquestionelement_controls.html" with values=submitted_values locked=False %}
+    </fieldset>
+    {% if key_copy_html %}<div class="question__stem answer-key" data-answer-key>{{ key_copy_html }}</div>{% include "courses/elements/_answer_switch.html" %}{% endif %}
+    <div class="question__feedback" data-question-feedback>{{ feedback_html|safe }}</div>
+  </div>
+  {% elif element %}
+  <form class="question__form" method="post" action="{{ action_url }}" data-lock-on-correct data-question-inline data-answer-scope>
     {% csrf_token %}
-    <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %}
+    <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %} data-answer-yours
               style="border:0;padding:0;margin:0 0 var(--space-3);">
       {% if element.pk == feedback_for_pk %}
-        {% render_fill_blanks el submitted_values locked=mark_result.correct mark_result=mark_result %}
+        {% include "courses/elements/_fillblankquestionelement_controls.html" with values=submitted_values locked=mark_result.correct %}
       {% else %}
-        {% render_fill_blanks el %}
+        {% include "courses/elements/_fillblankquestionelement_controls.html" with values=None locked=False verdicts=None %}
       {% endif %}
     </fieldset>
+    {% if key_copy_html %}<div class="question__stem answer-key" data-answer-key>{{ key_copy_html }}</div>{% include "courses/elements/_answer_switch.html" %}{% endif %}
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% elif element.pk == feedback_for_pk and mark_result.correct %}disabled{% endif %}>{% trans "Check" %}</button>
+    {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>

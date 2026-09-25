@@ -25,6 +25,13 @@ differently.
 
 ![The quiz editor with questions](static:core/img/help/quiz-editor.en.png)
 
+In a **quiz**, an auto-marked question colours each part green or red after every
+Check, and a **Show answer** button appears after the first Check. Pressing it (after
+a confirmation) ends the question at the marks the student has, and the student can
+then switch between **Your answer** and **Correct answer** on the question itself.
+The same switch appears when a question locks on its last attempt, and on the results
+page after the quiz is finished.
+
 ## {el:choice-single}{el:choice-multi} Single / Multiple choice
 
 A list of **choices**, each flagged correct or incorrect. Single choice
@@ -56,6 +63,9 @@ A one-line free-text answer, marked by comparing the student's text against a
 list of **accepted answers** (one per line — add every spelling/phrasing
 variant you'll accept). Toggle **case sensitive** if capitalization must
 match exactly; by default matching ignores case and surrounding whitespace.
+In a **lesson**, a wrong answer turns the box red instead of showing the
+correct answer; in a **quiz** the answer is available through **Show
+answer**.
 
 ## {el:shortnumeric} Short numeric
 
@@ -65,6 +75,9 @@ or `3,14`), a fraction (`3/2`), or a mixed number (`1 1/2`) — any value equal
 to the target is accepted, so `6/4` matches a target of `3/2`. **Leave the
 tolerance blank for an exact match**; use this for calculated answers where
 you want to accept small rounding differences instead.
+In a **lesson**, a wrong answer turns the box red instead of showing the
+correct answer; in a **quiz** the answer is available through **Show
+answer**.
 
 ## {el:fillblank} Fill in the blanks
 
@@ -76,8 +89,7 @@ independently.
 
 In a **lesson**, checking an answer turns each gap green (right) or red (wrong)
 in place; the correct answers are not shown. If you want students to be able to
-look them up, put them in a Spoiler under the question. In a **quiz**, the
-correct answers are revealed once the question locks.
+look them up, put them in a Spoiler under the question.
 
 ## {el:dragwords} Drag the words
 

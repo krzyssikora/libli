@@ -52,9 +52,15 @@ def test_shorttext_check_answer_fragment(client):
     url = _check_url(course, unit, el)
     wrong = client.post(url, {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-incorrect" in wrong.content
-    assert b"Paris" in wrong.content  # reveal shown on a wrong answer
+    # D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" list assertion
+    assert b'aria-invalid="true"' in wrong.content
     ok = client.post(url, {"answer": " paris "}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-correct" in ok.content
+    # Was only: b"Paris" not in ok.content -- true merely because " paris " was
+    # typed. Lessons never render a reveal list or a key copy (D11, D13).
+    for resp in (wrong, ok):
+        assert b"question__reveal" not in resp.content
+        assert b"data-answer-key" not in resp.content
     assert b"Paris" not in ok.content  # fully-correct suppresses the reveal
 
 
@@ -84,11 +90,16 @@ def test_shortnumeric_reveal_shows_the_canonical_string(client):
     )
     el = Element.objects.create(unit=unit, content_object=q)
     url = _check_url(course, unit, el)
-    resp = client.post(url, {"answer": "9"})  # wrong, reveal renders
+    resp = client.post(url, {"answer": "9"})  # wrong, no reveal text (D13)
     html = resp.content.decode()
-    assert "1/3" in html
-    assert "0.33333333" not in html
-    assert "±" not in html  # zero tolerance renders no tolerance clause
+    # D13 (spec 2026-09-25 §5a): replaces the old "Expected:" lesson list assertion
+    (inp,) = re.findall(r'<input[^>]*name="answer"[^>]*>', html)
+    assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
+    # Was: "0.33333333" / "±" absent -- unfailable here, a lesson renders no key
+    # copy at all (D11). The number key copy's "value as authored, no ± at zero
+    # tolerance" is pinned in test_quiz_reveal_single_part.py::
+    # test_numeric_key_copy_shows_value_as_authored_no_tolerance_at_zero.
+    assert "data-answer-key" not in html
 
 
 @pytest.mark.django_db
@@ -113,8 +124,11 @@ def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot(client):
     # that the "Sprawdź" assertion below relies on.
     response = client.post(url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl")
     html = response.content.decode()
-    assert "3,14" not in html  # the pre-change rendering
-    assert "3.14" in html
+    # Was: "3,14" absent -- unfailable, a lesson renders no key copy (D11); the
+    # key copy's as-authored value is pinned in test_quiz_reveal_single_part.py.
+    # D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" list assertion
+    (inp,) = re.findall(r'<input[^>]*name="answer"[^>]*>', html)
+    assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
     # Prove the page really did render in Polish, or the assertion above is vacuous.
     assert "Sprawdź" in html  # the pl translation of the "Check" button
 
@@ -192,9 +206,11 @@ def test_post_submit_reveals_only_answered_across_types(client):
     other = ShortTextQuestionElement.objects.create(stem="<p>B?</p>", accepted="secret")
     el = Element.objects.create(unit=unit, content_object=answered)
     Element.objects.create(unit=unit, content_object=other)
-    # Answer WRONG so the reveal renders (fully-correct suppresses it now).
+    # Answer WRONG so the answered question paints in place (D13).
     resp = client.post(_check_url(course, unit, el), {"answer": "wrong"})  # no-JS
     body = resp.content.decode()
-    assert "is-incorrect" in body  # the answered question revealed
+    # D13 (spec 2026-09-25 §5a): replaces the old "exactly one reveal block" assertion
+    # -- only the answered question is marked, and the OTHER key never appears.
+    inputs = re.findall(r'<input[^>]*name="answer"[^>]*>', body)
+    assert sum("is-incorrect" in inp for inp in inputs) == 1
     assert "secret" not in body  # the OTHER question's accepted answer stays hidden
-    assert body.count("question__reveal-text") == 1  # exactly one reveal block

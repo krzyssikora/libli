@@ -26,9 +26,26 @@
   // wasn't loaded (a quiz with no math).
   document.querySelectorAll("[data-question]").forEach(typeset);
 
+  // Engines without SubmitEvent.submitter (Safari < 15.4): remember which submit
+  // button was clicked; the submit handler reads it once, then clears it. Implicit
+  // submission (Enter) fires a click on the default button, so Check is recorded too.
+  document.addEventListener(
+    "click",
+    (e) => {
+      const b = e.target.closest && e.target.closest('button[type="submit"]');
+      if (b && b.form) b.form._libliSubmitter = b;
+    },
+    true,
+  );
+
   document.querySelectorAll("form.question__form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const submitter = e.submitter || form._libliSubmitter || null;
+      form._libliSubmitter = null;
+      const isReveal = !!(submitter && submitter.name === "reveal");
+      // Show answer ends the question: confirm first (text + marks from the server).
+      if (isReveal && !window.confirm(submitter.dataset.confirm || "")) return;
       // The ephemeral (previewer) grading path is STATELESS, so the client owns the
       // attempt counter -- mirrors editor.js's authoring "try it" preview. No server
       // template emits data-attempts-made; it is created here on the first response.
@@ -39,7 +56,10 @@
         ? parseInt(qEl.getAttribute("data-attempts-made") || "0", 10)
         : 0;
       const body = new FormData(form);
-      body.append("attempt", String(made + 1));
+      // NOT new FormData(form, submitter): older engines ignore the 2nd argument.
+      if (submitter && submitter.name) body.append(submitter.name, submitter.value);
+      // A reveal consumes no attempt: send the current count, not the next one.
+      body.append("attempt", String(isReveal ? made : made + 1));
       const res = await fetch(form.action, {
         method: "POST",
         headers: { "X-Requested-With": "fetch", "X-CSRFToken": csrf() },
@@ -71,7 +91,7 @@
         box.innerHTML = html;
       }
       // An empty-answer validation doesn't consume an attempt; everything else does.
-      if (qEl && !box.querySelector(".is-validation")) {
+      if (qEl && !isReveal && !box.querySelector(".is-validation")) {
         qEl.setAttribute("data-attempts-made", String(made + 1));
       }
       // Disable inputs on ANY terminal state (correct, exhausted-incorrect, or
@@ -84,7 +104,10 @@
       if (box.querySelector("[data-quiz-locked]")) {
         form
           .querySelectorAll("input, button, select, textarea, fieldset")
-          .forEach((n) => (n.disabled = true));
+          .forEach((n) => {
+            // The Your/Correct switch stays usable after the lock (spec §2.3).
+            if (!n.closest("[data-answer-switch]")) n.disabled = true;
+          });
       }
       typeset(box);
     });

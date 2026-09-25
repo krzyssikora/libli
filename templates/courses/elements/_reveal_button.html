@@ -1,0 +1,8 @@
+{% load i18n courses_extras %}
+{% comment %}Show answer (spec §1.3, §3). Always AFTER Check in tree order: implicit
+submission (Enter) uses the first submit button. can_reveal already includes the
+SUPPORTS_REVEAL / AUTO / attempt / lock rules; quiz_submitted is defence in depth.{% endcomment %}
+{% if mode == "quiz" and can_reveal and not quiz_submitted %}
+<button type="submit" name="reveal" value="1" class="btn btn--small btn--ghost" data-reveal-btn
+        data-confirm="{% blocktrans with earned=reveal_earned|marks max=el.max_marks|marks %}Show the answer? This ends the question: you won't be able to try again, and you keep the marks you have now ({{ earned }} of {{ max }}).{% endblocktrans %}">{% trans "Show answer" %}</button>
+{% endif %}

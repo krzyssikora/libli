@@ -14,6 +14,7 @@ import re
 
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils.translation import pgettext
 
 SENTINEL = "￿"
 _TOKEN = SENTINEL + "{}" + SENTINEL
@@ -93,7 +94,9 @@ def to_author_stem(token_stem, blanks):
     return _TOKEN_RE.sub(_swap, token_stem or "")
 
 
-def render_inputs(token_stem, submitted_values=None, locked=False, verdicts=None):
+def render_inputs(
+    token_stem, submitted_values=None, locked=False, verdicts=None, *, sr_verdict=False
+):
     """Split a stored token-stem and safe-join server-built <input>s. The text
     segments are already-sanitized HTML (trusted); only the <input>s are inserted,
     with the repopulation value HTML-escaped.
@@ -106,6 +109,13 @@ def render_inputs(token_stem, submitted_values=None, locked=False, verdicts=None
     `verdicts` (lesson feedback) is one bool per blank, in blank order: True marks
     the input .is-correct, False .is-incorrect + aria-invalid, so the verdict sits
     ON the blank instead of in a separate "Correct answer" list. None marks nothing.
+    A painted blank is followed by a `.sr-only` "correct"/"incorrect" -- colour is
+    never the only cue (spec 2026-09-25 §2.1).
+
+    `sr_verdict=True` also appends the "correct" span after each LOCKED input (the
+    solved / key-copy look). It defaults to False because the locked branch is ALSO
+    reached from fillgateelement.html (a fill gate is not a question and must not
+    change); only the question controls include turns it on.
     """
     vals = list(submitted_values or [])
     marks = list(verdicts or [])
@@ -129,6 +139,15 @@ def render_inputs(token_stem, submitted_values=None, locked=False, verdicts=None
                         )
                     )
                 )
+                if sr_verdict:
+                    out.append(
+                        str(
+                            format_html(
+                                '<span class="sr-only">{}</span>',
+                                pgettext("answer part verdict", "correct"),
+                            )
+                        )
+                    )
             else:
                 verdict = marks[n] if 0 <= n < len(marks) else None
                 state = {True: " is-correct", False: " is-incorrect"}.get(verdict, "")
@@ -145,4 +164,15 @@ def render_inputs(token_stem, submitted_values=None, locked=False, verdicts=None
                         )
                     )
                 )
+                if verdict is not None:
+                    out.append(
+                        str(
+                            format_html(
+                                '<span class="sr-only">{}</span>',
+                                pgettext("answer part verdict", "correct")
+                                if verdict
+                                else pgettext("answer part verdict", "incorrect"),
+                            )
+                        )
+                    )
     return mark_safe("".join(out))  # noqa: S308 — segments sanitized; inputs escaped

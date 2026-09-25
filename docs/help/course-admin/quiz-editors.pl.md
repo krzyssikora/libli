@@ -26,6 +26,13 @@ poszczególnych rodzajów pytań.
 
 ![Edytor quizu z pytaniami](static:core/img/help/quiz-editor.pl.png)
 
+W **quizie** pytanie oceniane automatycznie po każdym sprawdzeniu koloruje każdą część
+na zielono lub czerwono, a po pierwszym sprawdzeniu pojawia się przycisk **Pokaż
+odpowiedź**. Jego naciśnięcie (po potwierdzeniu) kończy pytanie z punktami, które uczeń
+ma w tej chwili, a uczeń może wtedy przełączać się między **Twoją odpowiedzią** i
+**Poprawną odpowiedzią** w samym pytaniu. Ten sam przełącznik pojawia się, gdy pytanie
+zostanie zablokowane po ostatniej próbie, oraz na stronie wyników po zakończeniu quizu.
+
 ## {el:choice-single}{el:choice-multi} Jednokrotny wybór / Wielokrotny wybór
 
 Lista **odpowiedzi**, z których każda jest oznaczona jako poprawna lub
@@ -62,6 +69,9 @@ dodaj każdy wariant pisowni/sformułowania, który chcesz zaakceptować).
 Włącz opcję **rozróżniaj wielkość liter**, jeśli wielkość liter musi się
 zgadzać dokładnie; domyślnie porównanie ignoruje wielkość liter i skrajne
 białe znaki.
+Na **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast
+pokazywać poprawną odpowiedź; w **quizie** odpowiedź jest dostępna przez
+**Pokaż odpowiedź**.
 
 ## {el:shortnumeric} Liczba
 
@@ -73,6 +83,9 @@ mieszaną (`1 1/2`) — akceptowana jest każda wartość równa docelowej, wię
 wymagać dopasowania dokładnego**; użyj tego typu dla odpowiedzi
 obliczeniowych, gdy zamiast tego chcesz akceptować niewielkie różnice
 zaokrągleń.
+Na **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast
+pokazywać poprawną odpowiedź; w **quizie** odpowiedź jest dostępna przez
+**Pokaż odpowiedź**.
 
 ## {el:fillblank} Uzupełnij luki
 
@@ -85,8 +98,7 @@ akceptowanych odpowiedzi, a każda luka jest oceniana niezależnie.
 W **lekcji** po sprawdzeniu odpowiedzi każda luka zmienia kolor na zielony
 (dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
 uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
-pytaniem. W **quizie** poprawne odpowiedzi są pokazywane, gdy pytanie zostanie
-zablokowane.
+pytaniem.
 
 ## {el:dragwords} Przeciągnij słowa
 
