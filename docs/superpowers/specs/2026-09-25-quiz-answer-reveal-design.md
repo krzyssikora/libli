@@ -290,11 +290,27 @@ The other render paths must draw §1 state 2 or 4 identically:
 - **resume** (`build_quiz_context`, page load mid-quiz) and the **no-JS** re-render
   compute `result = _stored_result(question, response)` and
   `verdicts = question.part_verdicts(result)` for an answered question, **locked or
-  not** (today `build_quiz_context` builds `_stored_result` only on the locked branch and
-  passes nothing before). This is the one formula for every stored-answer path (§2.6);
+  not**. Today `build_quiz_context` already calls `_stored_result` for **every** answered
+  AUTO question (`attempt_count > 0`) and only limits `state["mark_result"]` to locked
+  ones; the change is to **also derive `verdicts` from that same result on both
+  branches**, keeping `mark_result` locked-only — no second `_stored_result` call. This is
+  the one formula for every stored-answer path (§2.6);
   `_stored_result` already applies `answer_from_json` before `mark()`;
 - **editor try-it** (`views_manage.element_try`, quiz branch, §3.3);
-- **previewer** (`quiz_answer`'s non-enrolled branch).
+- **previewer** (`quiz_answer`'s non-enrolled branch). Its **no-JS** re-render has no
+  stored responses (`build_quiz_context` builds no state for a previewer), so
+  `_quiz_render_feedback`'s no-JS branch patches the question's `st[...]` by hand
+  (`locked`, `selected_ids`, `submitted_values`, `mark_result` today). That patch site
+  must also set **every new render key**: `verdicts`, the Show answer eligibility and
+  its `data-confirm` marks, `revealed`, and the key-copy inputs. Test: a no-JS previewer
+  Check shows the part colours and the Show answer button.
+
+**The Show answer button's render condition**, on every path:
+`SUPPORTS_REVEAL and can_reveal(...) and not quiz_submitted`. `can_reveal` leaves
+SUBMITTED out on purpose (§3.5), but `build_quiz_context` still renders a submitted quiz
+with `quiz_submitted=True`, so without the extra term an answered-but-unlocked question
+on a submitted quiz would show a live button whose POST 409s and reloads forever. Test:
+a submitted quiz page has no enabled Show answer button.
 
 ### 2.5 Result line
 
@@ -365,9 +381,22 @@ student and previewer; `courses:manage_element_try` in the editor). No new URL.
 
 ### 3.2 Enrolled student (`quiz_answer`)
 
-Inside the existing transaction + `select_for_update`, after the existing
-SUBMITTED / locked / exhausted gates (which already return 409 on fetch and redirect
-to results otherwise, via `_quiz_locked_response`):
+Inside the existing transaction + `select_for_update`. **Order matters**: the reveal
+branch runs **right after the SUBMITTED gate** and the `get_or_create` of the response,
+and **before** today's combined locked-or-exhausted gate and before `build_answer` /
+`answer_is_empty`:
+
+1. SUBMITTED → `_quiz_locked_response` (as today);
+2. `if request.POST.get("reveal")`: locked → `_quiz_locked_response`; otherwise the
+   eligibility rule below. It never reaches the exhausted gate, so a response left
+   **exhausted but unlocked** (an author lowered `max_attempts` after the student used
+   their attempts) can still be revealed — Show answer is the way out (§1.5); and it
+   never reaches the empty-answer validation, so an emptied form cannot block it
+   (test: an enrolled reveal with emptied inputs locks the question and shows the
+   stored answer);
+3. otherwise today's locked / exhausted gate, `build_answer`, validation, marking.
+
+Within step 2:
 
 - eligible iff `can_reveal(question, attempts_made=response.attempt_count,
   locked=response.locked)` (§3.5);
