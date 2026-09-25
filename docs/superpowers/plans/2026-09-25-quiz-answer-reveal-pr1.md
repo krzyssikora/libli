@@ -345,7 +345,6 @@ git commit -m "feat(quiz-reveal): QuestionResponse.revealed_at"
 **Interfaces:**
 - Consumes: Task 1 hooks, Task 2 field.
 - Produces:
-  - `courses.quiz.reveal_attempts_made(post) -> int` (0-floored; the reveal check's attempt count on the ephemeral paths)
   - `courses.scoring.outcome(earned: Decimal, max_marks: Decimal) -> str` ∈ `{"correct","partial","incorrect"}`
   - `courses.quiz.can_reveal(question, *, attempts_made: int, locked: bool) -> bool`
   - `courses.quiz.key_view(question, *, mode: str, locked: bool, fully_correct: bool) -> object | None`
@@ -530,7 +529,7 @@ and add `from courses.scoring import outcome` next to the existing `earned_marks
 In `courses/quiz.py`:
 - change the scoring import to `from courses.scoring import earned_marks` + `from courses.scoring import to_stored_fraction`, and add `from django.utils import timezone`;
 - in `parse_attempt`'s docstring, change the reserved-names sentence to: "`attempt`, `reveal` and `answer_view_<pk>` are RESERVED answer-POST field names (spec 2026-09-25 §2.3): NO QuestionElement.build_answer implementation may read them -- all ten read only choice / answer / blank / slot / row_<pk>.";
-- add `revealed_at=None` to BOTH existing `SimpleNamespace(...)` calls in `ephemeral_quiz_feedback`, give it a keyword-only `reveal=False` parameter, and insert this as its first branch (before `if answer_is_empty(answer):`):
+- add `revealed_at=None` to BOTH existing `SimpleNamespace(...)` calls in `ephemeral_quiz_feedback`, give it a keyword-only `reveal=False` parameter, and insert this branch **directly after `latest = answer_to_json(answer)`** and before `if answer_is_empty(answer):` (it uses `latest`):
 
 ```python
     if reveal:
@@ -552,17 +551,6 @@ In `courses/quiz.py`:
 - append the new helpers (after `locked_after`):
 
 ```python
-def reveal_attempts_made(post):
-    """Checks already made, as the client reports them on a reveal POST (quiz.js /
-    editor.js send their `made` count, spec §3.1). Unlike parse_attempt this does NOT
-    floor at 1, so an ephemeral reveal before any Check is refused like the enrolled
-    one (spec §3.5 parity)."""
-    try:
-        return max(0, int(post.get("attempt", "0")))
-    except (TypeError, ValueError):
-        return 0
-
-
 def can_reveal(question, *, attempts_made, locked):
     """May Show answer be offered / accepted (spec §3.5)? THE single home of the
     SUPPORTS_REVEAL check: the button's render condition, the enrolled branch and
@@ -931,6 +919,9 @@ In `courses/quiz.py`, add `from courses.scoring import outcome`, then in `quiz_f
         if ctx["outcome"] == "correct" and not result.correct and not response.locked:
             # An unlocked question never reads "Correct" (§1): rounding (e.g. 0.5 of
             # 0.01 marks -> 0.01) can reach full marks while result.correct is False.
+            # LOCKED, the same rounding reads "Correct" while the switch still shows
+            # (fully_correct follows result.correct): accepted by spec §2.6 ("the line
+            # follows the helper, the switch follows the predicate") -- do not "fix".
             ctx["outcome"] = "partial"
 ```
 
@@ -1493,16 +1484,45 @@ def _lesson(client, q):
     return student, unit, el, url
 
 
+def _make(kind):
+    if kind == "text":
+        return ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris"), "Rome", "Paris"
+    return ShortNumericQuestionElement.objects.create(stem="pi?", value="3.14"), "9", "3.14"
+
+
 @pytest.mark.django_db
-def test_lesson_check_paints_input_no_list(client):
-    q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
+@pytest.mark.parametrize("kind", ["text", "number"])
+def test_lesson_check_paints_input_no_list(client, kind):
+    q, wrong, key = _make(kind)
     _s, _u, _el, url = _lesson(client, q)
-    body = client.post(url, {"answer": "Rome"}, HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    body = client.post(url, {"answer": wrong}, HTTP_X_REQUESTED_WITH="fetch").content.decode()
     assert "data-question-inline" in body
     (inp,) = _INPUT.findall(body)
     assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
-    assert "Correct answer:" not in body and "Paris" not in body
+    assert "Correct answer:" not in body and "Expected:" not in body and key not in body
     assert "data-answer-key" not in body and 'name="reveal"' not in body
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["text", "number"])
+def test_lesson_nojs_restore_and_try_paint_both_types(client, kind):
+    from tests.factories import ContentNodeFactory, CourseFactory, make_pa
+
+    q, wrong, _key = _make(kind)
+    student, unit, el, url = _lesson(client, q)
+    body = client.post(url, {"answer": wrong}).content.decode()  # no-JS
+    assert "is-incorrect" in _INPUT.findall(body)[0]
+    page = client.get(reverse("courses:lesson_unit",
+                              kwargs={"slug": unit.course.slug, "node_pk": unit.pk}))
+    assert "is-incorrect" in _INPUT.findall(page.content.decode())[0]  # restore
+    pa = make_pa(client, f"pa_{kind}")
+    course = CourseFactory(owner=pa)
+    lu = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    q2, wrong2, _k = _make(kind)
+    el2 = Element.objects.create(unit=lu, content_object=q2)
+    try_url = reverse("courses:manage_element_try", kwargs={"slug": course.slug, "pk": el2.pk})
+    tbody = client.post(try_url, {"answer": wrong2}, HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    assert "is-incorrect" in _INPUT.findall(tbody)[0]
 
 
 @pytest.mark.django_db
@@ -1520,7 +1540,7 @@ def test_lesson_nojs_and_restore_paint(client):
 
 
 @pytest.mark.django_db
-def test_lesson_wrong_part_has_sr_text_right_part_none(client):
+def test_lesson_sr_text_on_both_aria_invalid_only_on_wrong(client):
     q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
     _s, _u, _el, url = _lesson(client, q)
     wrong = client.post(url, {"answer": "Rome"}).content.decode()
@@ -1991,10 +2011,14 @@ def test_nojs_previewer_check_paints_and_offers_reveal(client):
     assert 'name="reveal"' in page
 
 
-# Accepted limitation (staff previewer WITHOUT JS only): no `attempt` field is
-# posted, so reveal_attempts_made() reads 0 and a no-JS previewer's Show answer is
-# refused and processed as a normal Check. The enrolled no-JS reveal works (server
-# state). Not worth a hidden field on every question form.
+@pytest.mark.django_db
+def test_nojs_previewer_reveal_works(client):
+    # No `attempt` is posted without JS: parse_attempt floors it at 1 (spec §3.3), so
+    # the previewer's Show answer still reveals.
+    unit = _staff_previewer(client)
+    el = _fb(unit)
+    page = client.post(_url(unit, el), {"blank": ["11", "5"], "reveal": "1"}).content.decode()
+    assert "answer shown" in page and "data-answer-key" in page
 
 
 @pytest.mark.django_db
@@ -2156,10 +2180,8 @@ def test_reveal_parity_no_attempt_yet(client):
     unit, el, data = _reveal_setup(client, enrolled=True, kind="fillblank", attempts=0)
     assert _reveal(client, unit, el, data, 0).status_code == 409
     assert QuestionResponse.objects.filter(element=el, revealed_at__isnull=False).count() == 0
-    client.logout()
-    unit2, el2, data2 = _reveal_setup(client, enrolled=False, kind="fillblank", attempts=0)
-    # Ephemeral: reveal_attempts_made reads 0 -> refused -> processed as a normal Check.
-    assert b"answer shown" not in _reveal(client, unit2, el2, data2, 0).content
+    # The EPHEMERAL twin is deliberately not asserted: spec §3.3 floors the client
+    # attempt count at 1 there, so its check is advisory (a pre-Check reveal passes).
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -2169,7 +2191,7 @@ Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed).
 
 - [ ] **Step 3: Implement**
 
-`courses/views.py` imports: add `BLANK_QUIZ_STATE`, `can_reveal`, `quiz_render_state`, `reveal_attempts_made` to the `courses.quiz` imports.
+`courses/views.py` imports: add `BLANK_QUIZ_STATE`, `can_reveal`, `quiz_render_state` to the `courses.quiz` imports.
 
 `build_quiz_context` — replace the `state = {...}` literal and the `if r is not None and r.attempt_count > 0:` body with:
 
@@ -2266,8 +2288,12 @@ def _quiz_reveal_refused(request, slug, node_pk):
 ```python
         attempt = parse_attempt(request.POST)
         # An ineligible reveal is ignored and processed as a normal Check (spec §3.3).
+        # Spec §3.3: attempts_made = parse_attempt(POST), floored at 1 -- the
+        # server-side check is ADVISORY on this stateless path (the client never
+        # offers the button before a Check; a no-JS previewer posts no `attempt`
+        # and still reveals).
         reveal = bool(request.POST.get("reveal")) and can_reveal(
-            question, attempts_made=reveal_attempts_made(request.POST), locked=False
+            question, attempts_made=attempt, locked=False
         )
         stand_in, result, validation = ephemeral_quiz_feedback(
             question, question.build_answer(request.POST), attempt, reveal=reveal
@@ -2317,11 +2343,11 @@ def _quiz_reveal_refused(request, slug, node_pk):
 ```python
     from courses.quiz import can_reveal
     from courses.quiz import quiz_render_state
-    from courses.quiz import reveal_attempts_made
 
     attempt = parse_attempt(request.POST)
+    # Spec §3.3: parse_attempt's floor-at-1 count; advisory on this path.
     reveal = bool(request.POST.get("reveal")) and can_reveal(
-        question, attempts_made=reveal_attempts_made(request.POST), locked=False
+        question, attempts_made=attempt, locked=False
     )
     stand_in, result, validation = ephemeral_quiz_feedback(
         question, answer, attempt, reveal=reveal
@@ -2450,6 +2476,10 @@ def test_show_answer_flow_and_switch(browser, live_server):
     # Measured, not just classed: app.css's input[type=text] (0,1,1) must not win.
     paint = "el => getComputedStyle(el).borderTopColor"
     assert blanks.nth(0).evaluate(paint) != blanks.nth(1).evaluate(paint)
+    # Colours persist until the next Check (spec §1.2): editing a green part keeps it.
+    blanks.nth(0).fill("12")
+    assert "is-correct" in blanks.nth(0).get_attribute("class")
+    blanks.nth(0).fill("11")
     # Confirm must be ACCEPTED explicitly: Playwright auto-dismisses dialogs.
     page.once("dialog", lambda d: d.accept())
     q.locator("[data-reveal-btn]").click()
@@ -2779,6 +2809,7 @@ def test_results_mirror_case_partial_line_over_green_parts(client):
     ("N", "Rome", "Answer recorded", False, False),
     ("N", None, "Not answered", False, False),
     ("R", "Rome", "Awaiting review", False, False),
+    ("R", None, "Awaiting review", False, False),
 ])
 def test_results_row_matrix(client, mode, answer, badge, switch, key_shown):
     user = make_login(client, "stu_m")
@@ -2795,8 +2826,9 @@ def test_results_row_matrix(client, mode, answer, badge, switch, key_shown):
     assert badge in row
     assert ("data-answer-switch" in row) is switch
     assert ("data-answer-key" in row) is key_shown  # N/R never show a key
-    # Explanation: hidden for recorded / review / reviewed outcomes, as today.
-    assert ("Because." in row) is (mode == "A" or answer is None)
+    # Explanation: hidden for recorded / review / reviewed outcomes, as today (an
+    # unanswered R row's outcome is "review", so it is hidden there too).
+    assert ("Because." in row) is (mode == "A" or (mode == "N" and answer is None))
 
 
 @pytest.mark.django_db
@@ -3102,7 +3134,17 @@ uv run python manage.py makemigrations --check --dry-run
 ```
 Run the non-e2e suite in ~4 chunks (one run at a time — never two concurrent runs), then the e2e suite in chunks with `-m e2e`. Grep each run's summary line; do not trust the exit code alone.
 
-- [ ] **Step 4: Commit any gate fixes, push, open the PR**
+- [ ] **Step 4: Re-sync with master before pushing**
+
+```bash
+git fetch origin && git rebase origin/master
+ls courses/migrations | grep -E "^0[0-9]+" | sort | tail -2   # 0067 must be the LAST, depending on the one before it
+grep -n "dependencies" -A3 courses/migrations/0067_questionresponse_revealed_at.py
+uv run python manage.py makemessages -l pl --no-obsolete && uv run python manage.py compilemessages -l pl
+```
+If master gained its own 0067, regenerate this migration (delete ours, `makemigrations` again) — never hand-edit numbers. Regenerate the `.mo` rather than resolving a binary conflict. Re-run the Task 8 and Task 10 test files after the rebase.
+
+- [ ] **Step 5: Commit any gate fixes, push, open the PR**
 
 PR description: summary, the owner-decision table reference (D1–D13), mutant table, screenshots note, and "Please check the Polish wording" with the table from Task 11.
 
