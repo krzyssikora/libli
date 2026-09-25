@@ -529,6 +529,7 @@ and add `from courses.scoring import outcome` next to the existing `earned_marks
 In `courses/quiz.py`:
 - change the scoring import to `from courses.scoring import earned_marks` + `from courses.scoring import to_stored_fraction`, and add `from django.utils import timezone`;
 - in `parse_attempt`'s docstring, change the reserved-names sentence to: "`attempt`, `reveal` and `answer_view_<pk>` are RESERVED answer-POST field names (spec 2026-09-25 §2.3): NO QuestionElement.build_answer implementation may read them -- all ten read only choice / answer / blank / slot / row_<pk>.";
+- update `ephemeral_quiz_feedback`'s docstring: the stand-in now has FOUR attributes (`locked`, `attempt_count`, `latest_answer`, `revealed_at`) on every branch, and there is a third branch — `reveal=True` skips the empty-answer validation, marks the form as-is, locks, and consumes no attempt;
 - add `revealed_at=None` to BOTH existing `SimpleNamespace(...)` calls in `ephemeral_quiz_feedback`, give it a keyword-only `reveal=False` parameter, and insert this branch **directly after `latest = answer_to_json(answer)`** and before `if answer_is_empty(answer):` (it uses `latest`):
 
 ```python
@@ -1543,11 +1544,17 @@ def test_lesson_nojs_restore_and_try_paint_both_types(client, kind):
 
     q, wrong, _key = _make(kind)
     student, unit, el, url = _lesson(client, q)
+    def _no_list(html):
+        assert "question__reveal" not in html
+        assert "Correct answer:" not in html and "Expected:" not in html
+
     body = client.post(url, {"answer": wrong}).content.decode()  # no-JS
     assert "is-incorrect" in _INPUT.findall(body)[0]
+    _no_list(body)
     page = client.get(reverse("courses:lesson_unit",
                               kwargs={"slug": unit.course.slug, "node_pk": unit.pk}))
     assert "is-incorrect" in _INPUT.findall(page.content.decode())[0]  # restore
+    _no_list(page.content.decode())
     pa = make_pa(client, f"pa_{kind}")
     course = CourseFactory(owner=pa)
     lu = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
@@ -1556,6 +1563,7 @@ def test_lesson_nojs_restore_and_try_paint_both_types(client, kind):
     try_url = reverse("courses:manage_element_try", kwargs={"slug": course.slug, "pk": el2.pk})
     tbody = client.post(try_url, {"answer": wrong2}, HTTP_X_REQUESTED_WITH="fetch").content.decode()
     assert "is-incorrect" in _INPUT.findall(tbody)[0]
+    _no_list(tbody)
 
 
 @pytest.mark.django_db
@@ -1715,7 +1723,7 @@ def test_lesson_correct_keeps_input_editable(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_single_part.py -p no:randomly`
-Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:".
+Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards; Task 12's `feedback_for_pk` mutant proves they can fail): `test_nojs_lesson_check_leaves_sibling_unpainted`, `test_nojs_short_text_check_beside_fillblank_sibling_is_safe`.
 
 - [ ] **Step 3: Implement**
 
@@ -2264,7 +2272,7 @@ def test_reveal_parity_no_attempt_yet(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_flow.py -p no:randomly`
-Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed).
+Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed). Expected to PASS already (regression guards on today's behaviour): `test_locked_choice_still_whole_element_with_marks` (choice already takes the whole-element path) and `test_nojs_previewer_validation_keeps_empty_form`.
 
 - [ ] **Step 3: Implement**
 
@@ -2553,6 +2561,8 @@ def test_show_answer_flow_and_switch(browser, live_server):
     # Measured, not just classed: app.css's input[type=text] (0,1,1) must not win.
     paint = "el => getComputedStyle(el).borderTopColor"
     assert blanks.nth(0).evaluate(paint) != blanks.nth(1).evaluate(paint)
+    # The key copy's input (short-text/number rule, same collision) must differ from
+    # an unpainted input too -- measured after the reveal below.
     # Colours persist until the next Check (spec §1.2): editing a green part keeps it.
     blanks.nth(0).fill("12")
     assert "is-correct" in blanks.nth(0).get_attribute("class")
@@ -2567,6 +2577,36 @@ def test_show_answer_flow_and_switch(browser, live_server):
     assert not key.is_visible()
     q.locator("label:has([data-answer-view='key'])").click()
     assert key.is_visible() and key.locator("input").nth(1).input_value() == "9"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_short_text_verdict_colours_are_computed(browser, live_server):
+    # Short text's .question__text-input.is-* rules sit on the app.css
+    # input[type=text] collision: measure, don't trust the specificity argument.
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Element, Enrollment, ShortTextQuestionElement
+    from tests.factories import ContentNodeFactory, CourseFactory
+
+    _student("rev_st")
+    user = get_user_model().objects.get(username="rev_st")
+    course = CourseFactory(slug="e2e-reveal-st")
+    Enrollment.objects.get_or_create(student=user, course=course)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=None, title="Q")
+    for accepted in ("Paris", "Oslo"):
+        Element.objects.create(unit=unit, content_object=ShortTextQuestionElement.objects.create(
+            stem="?", accepted=accepted, max_attempts=3))
+    page = browser.new_context().new_page()
+    _login(page, live_server, "rev_st")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
+    qs = page.locator("[data-question]")
+    paint = "el => getComputedStyle(el).borderTopColor"
+    plain = qs.nth(1).locator("input[name='answer']").evaluate(paint)
+    qs.nth(0).locator("input[name='answer']").fill("Rome")
+    qs.nth(0).locator("button[type='submit']:not([name='reveal'])").click()
+    qs.nth(0).locator("input.is-incorrect").wait_for(timeout=6000)
+    wrong = qs.nth(0).locator("input[name='answer']").evaluate(paint)
+    assert wrong != plain
     # Reload never reopens on "Correct answer" (autocomplete=off, D3).
     page.reload()
     assert page.locator("[data-answer-view='yours']").first.is_checked()
@@ -2781,7 +2821,7 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
-Also run `tests/test_e2e_question_restore.py tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
+Also run `tests/test_e2e_uniform_block_width.py tests/test_e2e_blank_input_width.py tests/test_e2e_unit_nav.py tests/test_e2e_slideshow.py tests/test_e2e_question_restore.py tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
 
 Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
 - a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
@@ -3138,7 +3178,7 @@ def _results_question_html(element, question, response, row):
 
 and update the existing `{# Badges: … change both. #}` comment in the old branch to `{# Badges: shared with analytics_student_quiz.html and _results_question_feedback.html, EXCEPT the converted rows' Not answered badge carries (0/N) for auto-marked (spec §4). #}`.
 
-`analytics_student_quiz.html` — directly after the badge `{% if … %}…{% endif %}` chain (line ~62):
+`analytics_student_quiz.html` — update its "A deliberate copy of quiz_results.html's badge markup" comment (~line 54) to name all three copies (`quiz_results.html`, `_results_question_feedback.html`, this file) and the one intended difference (converted rows' Not answered badge carries (0/N) for auto-marked, spec §4); then, directly after the badge `{% if … %}…{% endif %}` chain (line ~62):
 
 ```django
         {% if row.revealed %}<span class="badge badge--muted">{% trans "answer shown" %}</span>{% endif %}
@@ -3146,7 +3186,7 @@ and update the existing `{# Badges: … change both. #}` comment in the old bran
 
 - [ ] **Step 4: Run to verify, plus the results / analytics suites**
 
-Run: `uv run pytest tests/test_quiz_reveal_results.py tests/test_quiz_finish.py tests/test_quiz_results_choice_reveal.py tests/test_analytics_student_quiz.py tests/test_questions_2d_results.py tests/test_questions_2diii_results.py -p no:randomly`
+Run: `uv run pytest tests/test_quiz_reveal_results.py tests/test_quiz_results_render.py tests/test_quiz_finish.py tests/test_quiz_results_choice_reveal.py tests/test_analytics_student_quiz.py tests/test_questions_2d_results.py tests/test_questions_2diii_results.py -p no:randomly`
 Then the results / analytics e2e: `uv run pytest tests/test_e2e_results.py tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py -m e2e -p no:randomly`.
 
 Expected: PASS, except (a) a locator scoped to the OLD converted-row markup (`li.quiz-results__item > .question__feedback-panel …`) — converted rows now nest the panel inside `.el--question [data-answer-scope] .question__feedback`; re-scope the locator, keep the assertion; and (b) results-page assertions of "Correct answer:" / "Expected:" / per-blank reveal lists for the THREE converted types — rewrite those to the rendered element (switch + key copy) with a comment naming the replaced assertion. Choice and the PR 2 types keep their old rows untouched; any failure there is a regression. A lost badge surface, contrast or outcome border colour on a CONVERTED row (e.g. `test_e2e_analytics_student_pages.py::test_t33b_badge_has_its_own_opaque_surface_on_both_pages`) is a CSS regression to fix — never loosen that assertion.
@@ -3218,26 +3258,28 @@ uv run python manage.py compilemessages -l pl
 
 - [ ] **Step 4: Help text**
 
-In `docs/help/course-admin/quiz-editors.md`, in the `## {el:fillblank} Fill in the blanks` section's lesson paragraph, DELETE its last sentence ("In a **quiz**, the correct answers are revealed once the question locks." — the switch model replaces it; the `.pl.md` twin: "W **quizie** poprawne odpowiedzi są pokazywane, gdy pytanie zostanie zablokowane."), then add after that paragraph:
+In `docs/help/course-admin/quiz-editors.md`, in the `## {el:fillblank} Fill in the blanks` section's lesson paragraph, DELETE its last sentence ("In a **quiz**, the correct answers are revealed once the question locks." — the switch model replaces it; the `.pl.md` twin: "W **quizie** poprawne odpowiedzi są pokazywane, gdy pytanie zostanie zablokowane."), then, in BOTH files, add a **type-agnostic** quiz paragraph (spec §8: PR 2 relies on it needing no change) directly BEFORE the first `## {el:` question section heading (`grep -n "^## {el:" docs/help/course-admin/quiz-editors*.md | head -1`), with no list of types:
+
+EN:
 
 ```markdown
-In a **quiz**, each part turns green or red after every Check, and a **Show answer**
-button appears after the first Check. Pressing it (after a confirmation) ends the
-question at the marks the student has, and the student can switch between **Your
-answer** and **Correct answer** on the question itself. The same applies to short text
-and number questions, which now also colour their box in lessons instead of listing
-the correct answer.
+In a **quiz**, an auto-marked question colours each part green or red after every
+Check, and a **Show answer** button appears after the first Check. Pressing it (after
+a confirmation) ends the question at the marks the student has, and the student can
+then switch between **Your answer** and **Correct answer** on the question itself.
+The same switch appears when a question locks on its last attempt, and on the results
+page after the quiz is finished.
 ```
 
-And in `quiz-editors.pl.md`, in the matching place:
+PL:
 
 ```markdown
-W **quizie** po każdym sprawdzeniu każda część zmienia kolor na zielony lub czerwony, a
-po pierwszym sprawdzeniu pojawia się przycisk **Pokaż odpowiedź**. Jego naciśnięcie (po
-potwierdzeniu) kończy pytanie z punktami, które uczeń ma w tej chwili, a uczeń może
-przełączać się między **Twoją odpowiedzią** i **Poprawną odpowiedzią** w samym pytaniu.
-To samo dotyczy pytań z krótką odpowiedzią tekstową i liczbową, które na lekcji również
-kolorują pole zamiast wypisywać poprawną odpowiedź.
+W **quizie** pytanie oceniane automatycznie po każdym sprawdzeniu koloruje każdą część
+na zielono lub czerwono, a po pierwszym sprawdzeniu pojawia się przycisk **Pokaż
+odpowiedź**. Jego naciśnięcie (po potwierdzeniu) kończy pytanie z punktami, które uczeń
+ma w tej chwili, a uczeń może wtedy przełączać się między **Twoją odpowiedzią** i
+**Poprawną odpowiedzią** w samym pytaniu. Ten sam przełącznik pojawia się, gdy pytanie
+zostanie zablokowane po ostatniej próbie, oraz na stronie wyników po zakończeniu quizu.
 ```
 
 In the `## {el:shorttext} …` and `## {el:shortnumeric} …` sections of both files (EN "Short text" / "Short numeric"-style titles; PL `## {el:shorttext} Krótki tekst` and `## {el:shortnumeric} Liczba` — locate with `grep -n "^## {el:short" docs/help/course-admin/quiz-editors*.md`), add one sentence each:
