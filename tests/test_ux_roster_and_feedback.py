@@ -142,7 +142,9 @@ def test_incorrect_feedback_keeps_reveal_in_a_panel(client):
     )
     body = resp.content.decode()
     assert "question__feedback-panel--incorrect" in body
-    assert "Correct answer:" in body, "reveal still shown when wrong on last attempt"
+    # Replaces `"Correct answer:" in body`: short text now reveals via the key copy.
+    assert "data-answer-key" in body and 'value="Paris"' in body
+    assert "Correct answer:" not in body
 
 
 # ── Fix #2: results page mirrors the live feedback ───────────────────────────

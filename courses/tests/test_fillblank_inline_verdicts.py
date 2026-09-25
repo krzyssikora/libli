@@ -217,7 +217,7 @@ def test_editor_try_returns_the_element_with_painted_blanks(client):
 
 
 @pytest.mark.django_db
-def test_quiz_fillblank_still_lists_the_correct_answers(client):
+def test_quiz_fillblank_reveals_the_answer_via_key_copy(client):
     user = make_login(client, "stu")
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
@@ -231,4 +231,7 @@ def test_quiz_fillblank_still_lists_the_correct_answers(client):
         {"blank": ["paris", "thames"]},
         HTTP_X_REQUESTED_WITH="fetch",
     ).content.decode()
-    assert _REVEAL in body, "the quiz reveal is a separate redesign; keep it for now"
+    # Replaces `_REVEAL in body`: the quiz still reveals the answer (the lesson does
+    # not), now as the key copy instead of the "Correct answer:" list.
+    assert "data-answer-key" in body and 'value="seine"' in body
+    assert _REVEAL not in body

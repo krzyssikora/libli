@@ -17,6 +17,12 @@ satisfied by inlining a divergent rule at one call site.
 
 import pytest
 
+from courses.fillblank import parse
+from courses.models import Blank
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import FillBlankQuestionElement
+from courses.models import QuestionResponse
 from courses.models import ShortTextQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
@@ -144,3 +150,83 @@ def test_both_paths_agree(client, mode, max_attempts, answer, attempts, expected
         f"lock rule diverged for mode={mode} max_attempts={max_attempts} "
         f"attempts={attempts}: persisted={persisted} ephemeral={ephemeral}"
     )
+
+
+def _reveal_setup(client, *, enrolled, kind, marking_mode="A", attempts=1):
+    user = make_login(client, "rv_" + ("e" if enrolled else "p"))
+    if not enrolled:
+        user.is_staff = True
+        user.save()
+    unit = make_quiz_unit()
+    if enrolled:
+        EnrollmentFactory(student=user, course=unit.course)
+    if kind == "fillblank":
+        q = FillBlankQuestionElement.objects.create(
+            stem=parse("{{11}}")[0], marking_mode=marking_mode, max_attempts=3
+        )
+        Blank.objects.create(question=q, order=0, accepted="11")
+        data = {"blank": ["5"]}
+    else:
+        q = ChoiceQuestionElement.objects.create(
+            stem="?", marking_mode=marking_mode, max_attempts=3
+        )
+        Choice.objects.create(question=q, text="A", is_correct=True)
+        wrong = Choice.objects.create(question=q, text="B", is_correct=False)
+        data = {"choice": [str(wrong.pk)]}  # a real (wrong) attempt
+    el = add_element(unit, q)
+    for n in range(attempts):
+        client.post(
+            _url(unit, el),
+            {**data, "attempt": str(n + 1)},
+            HTTP_X_REQUESTED_WITH="fetch",
+        )
+    return unit, el, data
+
+
+def _reveal(client, unit, el, data, made):
+    return client.post(
+        _url(unit, el),
+        {**data, "reveal": "1", "attempt": str(made)},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "kind,marking_mode,accepted",
+    [
+        ("fillblank", "A", True),
+        ("fillblank", "N", False),
+        ("choice", "A", False),  # unconverted type
+    ],
+)
+def test_reveal_rule_parity(client, kind, marking_mode, accepted):
+    unit, el, data = _reveal_setup(
+        client, enrolled=True, kind=kind, marking_mode=marking_mode
+    )
+    enrolled = _reveal(client, unit, el, data, 1)
+    client.logout()
+    unit2, el2, data2 = _reveal_setup(
+        client, enrolled=False, kind=kind, marking_mode=marking_mode
+    )
+    ephemeral = _reveal(client, unit2, el2, data2, 1)
+    if accepted:
+        assert enrolled.status_code == 200 and b"answer shown" in enrolled.content
+        assert b"answer shown" in ephemeral.content
+    else:
+        # Enrolled: refused (409, or the locked response for N which locked on its
+        # first submit). Ephemeral: the reveal is ignored -> a normal Check.
+        assert enrolled.status_code == 409
+        assert b"answer shown" not in ephemeral.content
+
+
+@pytest.mark.django_db
+def test_reveal_parity_no_attempt_yet(client):
+    unit, el, data = _reveal_setup(client, enrolled=True, kind="fillblank", attempts=0)
+    assert _reveal(client, unit, el, data, 0).status_code == 409
+    assert (
+        QuestionResponse.objects.filter(element=el, revealed_at__isnull=False).count()
+        == 0
+    )
+    # The EPHEMERAL twin is deliberately not asserted: spec §3.3 floors the client
+    # attempt count at 1 there, so its check is advisory (a pre-Check reveal passes).

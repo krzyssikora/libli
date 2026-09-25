@@ -2789,36 +2789,37 @@ def element_try(request, slug, pk):
     # answer is withheld until the question locks (correct, or wrong on the last
     # attempt). The client tracks the attempt number; we synthesise the per-question
     # response state. NOTHING is persisted (no QuizSubmission/QuestionResponse).
+    from courses.quiz import can_reveal
     from courses.quiz import ephemeral_quiz_feedback
     from courses.quiz import parse_attempt
     from courses.quiz import quiz_feedback_context
+    from courses.quiz import quiz_render_state
 
     attempt = parse_attempt(request.POST)
-    stand_in, result, validation = ephemeral_quiz_feedback(question, answer, attempt)
+    # Spec §3.3: parse_attempt's floor-at-1 count; advisory on this path.
+    reveal = bool(request.POST.get("reveal")) and can_reveal(
+        question, attempts_made=attempt, locked=False
+    )
+    stand_in, result, validation = ephemeral_quiz_feedback(
+        question, answer, attempt, reveal=reveal
+    )
     ctx = quiz_feedback_context(
         question, stand_in, result=result, validation=validation
     )
-    if question.INLINE_QUIZ_REVEAL:
-        # This type's reveal is the marking ON its options list, which lives outside
-        # the feedback box — so the fragment alone would preview a verdict with no
-        # marked options. Return the whole element, exactly as the student path does
-        # (views._quiz_render_feedback); editor.js swaps the live form's body.
-        from courses.quiz import rehydrate
-
-        selected, _submitted = rehydrate(question, stand_in.latest_answer)
+    if not validation and (question.SUPPORTS_REVEAL or question.INLINE_QUIZ_REVEAL):
+        # Same whole-element contract as the student path (views._quiz_render_feedback);
+        # editor.js swaps the live form's body.
         return HttpResponse(
             question.render(
                 element=el,
                 mode="quiz",
                 feedback_for_pk=el.pk,
                 action_url=request.path,
-                selected_ids=selected,
-                mark_result=result if stand_in.locked else None,
-                locked=stand_in.locked,
                 attempts_left=ctx.get("attempts_left"),
                 feedback_html=render_to_string(
                     "courses/elements/_quiz_question_feedback.html", ctx
                 ),
+                **quiz_render_state(question, stand_in, result),
             )
         )
     return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
