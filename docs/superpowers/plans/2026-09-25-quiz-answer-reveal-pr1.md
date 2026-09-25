@@ -855,6 +855,25 @@ def test_rounding_to_full_marks_while_unlocked_reads_partial(client):
 
 
 @pytest.mark.django_db
+def test_resume_survives_auto_answer_switched_to_not_marked(client):
+    # An AUTO attempt with attempts left, then the author switches the question to
+    # N: resume reaches quiz_feedback_context with result=None and locked=False.
+    from django.urls import reverse
+
+    from courses.models import QuestionElement
+
+    unit = _enrolled_quiz(client)
+    el = _fb(unit, ["11", "9"], max_attempts=3)
+    _post(client, unit, el, {"blank": ["11", "5"]})
+    q = el.content_object
+    q.marking_mode = QuestionElement.MarkingMode.NOT_MARKED
+    q.save()
+    page = client.get(reverse("courses:quiz_unit",
+                              kwargs={"slug": unit.course.slug, "node_pk": unit.pk}))
+    assert page.status_code == 200
+
+
+@pytest.mark.django_db
 def test_incorrect_unconverted_type_gets_new_line_too(client):
     unit = _enrolled_quiz(client)
     q = ShortTextQuestionElement.objects.create(stem="?", accepted="Paris", max_attempts=3)
@@ -885,13 +904,17 @@ In `courses/quiz.py`, add `from courses.scoring import outcome`, then in `quiz_f
 
 ```python
     # The result line (spec §2.5): classified by EARNED marks via the shared helper.
-    earned = earned_marks(to_stored_fraction(result.fraction), question.max_marks)
-    ctx["earned"] = earned
-    ctx["outcome"] = outcome(earned, question.max_marks)
-    if ctx["outcome"] == "correct" and not result.correct and not response.locked:
-        # An unlocked question never reads "Correct" (§1): rounding (e.g. 0.5 of
-        # 0.01 marks -> 0.01) can reach full marks while result.correct is False.
-        ctx["outcome"] = "partial"
+    # Guarded: an AUTO answer whose question was since switched to N/R reaches here
+    # with result=None and an UNLOCKED response (the early return needs locked);
+    # today's code survives that, so the new line must too (outcome stays None).
+    if result is not None:
+        earned = earned_marks(to_stored_fraction(result.fraction), question.max_marks)
+        ctx["earned"] = earned
+        ctx["outcome"] = outcome(earned, question.max_marks)
+        if ctx["outcome"] == "correct" and not result.correct and not response.locked:
+            # An unlocked question never reads "Correct" (§1): rounding (e.g. 0.5 of
+            # 0.01 marks -> 0.01) can reach full marks while result.correct is False.
+            ctx["outcome"] = "partial"
 ```
 
 3. change `if question.INLINE_QUIZ_REVEAL:` (inside `if revealing:`) to `if question.INLINE_QUIZ_REVEAL or question.SUPPORTS_REVEAL:` and extend its comment with: "Converted types (SUPPORTS_REVEAL) show the key as a second copy of their own controls behind the Your/Correct switch (spec §2.2), so the list goes for them too."
@@ -1010,7 +1033,11 @@ def test_unlocked_paints_and_offers_reveal_no_key(fb):
                    can_reveal=True, reveal_earned="0.50")
     right, wrong = _INPUT.findall(html)[:2]
     assert "is-correct" in right and "is-incorrect" in wrong
-    assert 'aria-invalid="true"' in wrong
+    assert 'aria-invalid="true"' in wrong and "aria-invalid" not in right
+    # Colour is never the only cue (spec §2.1): each painted blank is followed by
+    # its .sr-only verdict.
+    assert re.search(r'value="5"[^>]*>\s*<span class="sr-only">incorrect</span>', html)
+    assert re.search(r'value="11"[^>]*>\s*<span class="sr-only">correct</span>', html)
     assert "data-reveal-btn" in html and 'name="reveal"' in html
     assert "data-answer-key" not in html and "data-answer-switch" not in html
     assert html.count("data-question-feedback") == 1
@@ -1039,7 +1066,8 @@ def test_locked_key_copy_is_nameless_disabled_unique_ids(fb):
     assert "name=" not in key
     assert key.count("disabled") >= 2
     assert "data-answer-switch" in html
-    assert 'value="yours"' in html and "checked" in html.split('value="yours"')[1][:40]
+    yours_radio = re.search(r'<input[^>]*value="yours"[^>]*>', html).group(0)
+    assert "checked" in yours_radio
     ids = re.findall(r'\sid="([^"]+)"', html)
     assert len(ids) == len(set(ids))
 
@@ -1061,6 +1089,13 @@ def test_results_mode_has_no_form_or_buttons(fb):
     assert "data-answer-scope" in html and "<p>line</p>" in html
     yours = html.split("data-answer-yours")[1].split("data-answer-key")[0]
     assert "disabled" in yours
+
+
+def test_lesson_mode_paints_with_sr_text(fb):
+    q, el = fb
+    html = _render(q, el, mode="lesson", action_url=None, submitted_values=["11", "5"],
+                   mark_result=q.mark(["11", "5"]))
+    assert re.search(r'value="5"[^>]*aria-invalid="true"[^>]*>\s*<span class="sr-only">incorrect</span>', html)
 
 
 def test_lesson_mode_never_draws_key_or_button(fb):
@@ -1272,7 +1307,7 @@ Rewrite `fillblankquestionelement.html`, keeping its existing `{% comment %}` he
 </div>
 ```
 
-`data-question-inline` is now unconditional on the form: lesson mode needed it since #346, and quiz mode needs it because `SUPPORTS_REVEAL` is set. Until Task 7 lands, a quiz Check still returns the bare fragment; quiz.js already falls through to the feedback-box swap when the response has no `<form>`.
+`data-question-inline` is now unconditional on the form: lesson mode needed it since #346, and quiz mode needs it because `SUPPORTS_REVEAL` is set. Until Task 8 lands, a quiz Check still returns the bare fragment; quiz.js already falls through to the feedback-box swap when the response has no `<form>`.
 
 CSS — append to `courses.css` next to the fill-blank verdict rules:
 
@@ -1288,20 +1323,20 @@ CSS — append to `courses.css` next to the fill-blank verdict rules:
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  font-size: var(--text-sm);
+  font-size: .9rem;
 }
 .answer-switch__opt { position: relative; padding: var(--space-1) var(--space-3); cursor: pointer; }
 .answer-switch__opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.answer-switch__opt:has(input:checked) { background: var(--accent); color: var(--on-accent); }
-.answer-switch__opt:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.answer-switch__opt:has(input:checked) { background: var(--accent); color: var(--text-inverse); }
+.answer-switch__opt:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 ```
 
-Before using them, confirm each token exists: `grep -n -- "--radius-sm\|--text-sm\|--accent:\|--on-accent\|--focus-ring\|--border-strong\|--space-1" core/static/core/css/app.css | head`. Substitute the nearest existing token for any missing one; do not invent tokens.
+Every token above is defined in `core/static/core/css/tokens.css` (`--accent`, `--text-inverse`, `--primary`, `--border-strong`, `--radius-sm`, `--space-1..3`, `--success(-subtle)`, `--danger(-subtle)`, `--warning`); there is no font-size token, so `.9rem` follows courses.css's own convention, and the focus ring copies app.css's `outline: 2px solid var(--primary); outline-offset: 2px`. Verify with `grep -n -- "--accent:\|--text-inverse\|--primary:\|--border-strong\|--radius-sm" core/static/core/css/tokens.css` — do not invent tokens. Judge the switch's contrast in the Task 12 screenshots (light AND dark).
 
 - [ ] **Step 5: Run to verify the new tests pass and nothing regressed**
 
 Run: `uv run pytest tests/test_quiz_reveal_fillblank_render.py courses/tests/test_fillblank_inline_verdicts.py courses/tests/test_fillblank_lock_on_correct.py tests/test_questions_2b_fillblank_parse.py tests/test_quiz_render.py -p no:randomly`
-Expected: PASS. `test_questions_2b_fillblank_parse.py` pins `render_inputs`; if it fails only because a painted input is now followed by a `.sr-only` span, update that assertion and say so in a comment.
+Expected: PASS. `test_questions_2b_fillblank_parse.py` and `courses/tests/test_fillblank_inline_verdicts.py` pin `render_inputs` / the painted blanks; if one fails only because a painted input is now followed by a `.sr-only` span (e.g. a regex that assumed the input tag ends the match, or a count of `<span`), update that assertion and say so in a comment.
 
 - [ ] **Step 6: Commit**
 
@@ -1414,6 +1449,90 @@ def test_lesson_nojs_and_restore_paint(client):
 
 
 @pytest.mark.django_db
+def test_lesson_wrong_part_has_sr_text_right_part_none(client):
+    q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
+    _s, _u, _el, url = _lesson(client, q)
+    wrong = client.post(url, {"answer": "Rome"}).content.decode()
+    assert re.search(r'aria-invalid="true"[^>]*>\s*<span class="sr-only">incorrect</span>', wrong)
+    right = client.post(url, {"answer": "Paris"}).content.decode()
+    assert '<span class="sr-only">correct</span>' in right
+    assert "aria-invalid" not in _INPUT.findall(right)[0]
+
+
+@pytest.mark.django_db
+def test_lesson_nested_in_callout_paints_on_nojs_and_restore(client):
+    from courses.models import CalloutElement
+    from tests.factories import add_element
+
+    q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
+    student = make_student(client, "st_nested")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    callout_row = add_element(unit, CalloutElement.objects.create(kind="example"))
+    nested = Element.objects.create(unit=unit, content_object=q, parent=callout_row,
+                                    tab_id=CalloutElement.SLOT_ID)
+    url = reverse("courses:check_answer",
+                  kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": nested.pk})
+    body = client.post(url, {"answer": "Rome"}).content.decode()  # no-JS
+    assert "is-incorrect" in _INPUT.findall(body)[0]
+    page = client.get(reverse("courses:lesson_unit",
+                              kwargs={"slug": course.slug, "node_pk": unit.pk})).content.decode()
+    assert "is-incorrect" in _INPUT.findall(page)[0]  # restore
+
+
+@pytest.mark.django_db
+def test_nojs_lesson_check_leaves_sibling_unpainted(client):
+    from courses.fillblank import parse
+    from courses.models import Blank, FillBlankQuestionElement
+
+    token_stem, _ = parse("{{11}}")
+    fbq = FillBlankQuestionElement.objects.create(stem=token_stem)
+    Blank.objects.create(question=fbq, order=0, accepted="11")
+    student, unit, fb_el, url = _lesson(client, fbq)
+    st = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
+    Element.objects.create(unit=unit, content_object=st)
+    body = client.post(url, {"blank": ["5"]})  # no-JS re-render of the whole unit
+    assert body.status_code == 200
+    (sibling,) = _INPUT.findall(body.content.decode())
+    assert "is-correct" not in sibling and "is-incorrect" not in sibling
+
+
+@pytest.mark.django_db
+def test_editor_try_lesson_paints_single_part(client):
+    from tests.factories import ContentNodeFactory, CourseFactory, make_pa
+
+    pa = make_pa(client, "pa_try")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    q = ShortNumericQuestionElement.objects.create(stem="pi?", value="3.14")
+    el = Element.objects.create(unit=unit, content_object=q)
+    url = reverse("courses:manage_element_try", kwargs={"slug": course.slug, "pk": el.pk})
+    body = client.post(url, {"answer": "4"}, HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    assert "is-incorrect" in _INPUT.findall(body)[0]
+    assert "Expected:" not in body
+
+
+@pytest.mark.django_db
+def test_numeric_key_copy_tolerance_matches_old_reveal_in_pl(db):
+    from django.template.loader import render_to_string
+    from django.utils import translation
+
+    from courses.marking import MarkResult
+
+    unit = make_quiz_unit()
+    q = ShortNumericQuestionElement.objects.create(stem="x?", value="3.5", tolerance="0.25")
+    el = Element.objects.create(unit=unit, content_object=q)
+    with translation.override("pl"):
+        html = q.render(element=el, mode="quiz", action_url="/x/", feedback_for_pk=el.pk,
+                        submitted_values="4", key_values="3.5", locked=True)
+        old = render_to_string("courses/elements/_reveal_shortnumeric.html", {
+            "mark_result": MarkResult(correct=False, fraction=0.0,
+                                      reveal={"value": "3.5", "tolerance": "0.25"})})
+    key = html.split("data-answer-key")[1]
+    assert 'value="3.5"' in key and "0.25" in old and "± 0.25" in key
+
+
+@pytest.mark.django_db
 def test_lesson_correct_keeps_input_editable(client):
     q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
     _s, _u, _el, url = _lesson(client, q)
@@ -1494,7 +1613,7 @@ CSS, next to the fill-blank verdict rules (specificity (0,3,0) beats app.css's `
 - [ ] **Step 4: Run to verify they pass, plus the suites that pin the old lesson list**
 
 Run: `uv run pytest tests/test_quiz_reveal_single_part.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_element_try.py tests/test_i18n_questions_2b.py -p no:randomly`
-Expected: new tests PASS. Existing lesson tests that assert "Correct answer:" / "Expected:" for a WRONG short-text / number LESSON Check are now wrong by design (D13): rewrite each to assert the painted input (`is-incorrect`, `aria-invalid`) and add a comment `# D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" lesson list assertion`. Quiz-side assertions of "Correct answer:" for these types change in Task 8, not here.
+Expected: new tests PASS. Allowed rewrites, each with a comment naming the replaced assertion: (a) a short-text / number LESSON Check or lesson editor try-it now answers with the whole element (`<form`, `data-question-inline`), not the `_question_feedback.html` fragment; (b) existing lesson tests that assert "Correct answer:" / "Expected:" for a WRONG short-text / number LESSON Check are now wrong by design (D13): rewrite each to assert the painted input (`is-incorrect`, `aria-invalid`) and add a comment `# D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" lesson list assertion`. Quiz-side assertions of "Correct answer:" for these types change in Task 8, not here.
 
 - [ ] **Step 5: Commit**
 
@@ -1723,6 +1842,56 @@ def test_previewer_reveal_divergences(client):
     assert "Correct" in body and "answer shown" in body and "data-answer-switch" not in body
 
 
+def _staff_previewer(client):
+    user = make_login(client, "prev_staff")
+    user.is_staff = True  # staff + not enrolled = the previewer path
+    user.save()
+    return make_quiz_unit()
+
+
+@pytest.mark.django_db
+def test_nojs_previewer_check_paints_and_offers_reveal(client):
+    # The previewer has no stored responses, so the no-JS re-render only shows
+    # the colours / button through _quiz_render_feedback's st.update(state).
+    unit = _staff_previewer(client)
+    el = _fb(unit)
+    page = client.post(_url(unit, el), {"blank": ["11", "5"], "attempt": "1"}).content.decode()
+    right, wrong = _BLANK.findall(page)[:2]
+    assert "is-correct" in right and "is-incorrect" in wrong
+    assert 'name="reveal"' in page
+
+
+@pytest.mark.django_db
+def test_nojs_previewer_validation_keeps_empty_form(client):
+    unit = _staff_previewer(client)
+    el = _fb(unit)
+    page = client.post(_url(unit, el), {"blank": ["", ""], "attempt": "1"}).content.decode()
+    assert "is-validation" in page
+    assert all("is-correct" not in t and "is-incorrect" not in t for t in _BLANK.findall(page))
+
+
+@pytest.mark.django_db
+def test_ephemeral_fetch_validation_is_a_fragment(client):
+    unit = _staff_previewer(client)
+    el = _fb(unit)
+    body = _fetch(client, unit, el, {"blank": ["", ""], "attempt": "1"}).content.decode()
+    assert "<form" not in body and "is-validation" in body
+    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    ch = add_element(unit, q)
+    body = _fetch(client, unit, ch, {"attempt": "1"}).content.decode()
+    assert "<form" not in body and "is-validation" in body
+
+
+@pytest.mark.django_db
+def test_key_edit_then_reveal_keeps_stored_marks(client):
+    _u, unit = _quiz(client)
+    el = _fb(unit, ["11", "9", "2", "22"])
+    _fetch(client, unit, el, {"blank": ["11", "", "", ""]})  # stored 0.25
+    Blank.objects.filter(question=el.content_object, order=1).update(accepted="")
+    body = _fetch(client, unit, el, {"reveal": "1"}).content.decode()
+    assert "0.25 / 1" in body
+
+
 @pytest.mark.django_db
 def test_confirm_marks_match_line_marks(client):
     _u, unit = _quiz(client)
@@ -1733,6 +1902,10 @@ def test_confirm_marks_match_line_marks(client):
 
 @pytest.mark.django_db
 def test_key_edit_after_stored_correct_paints_all_green(client):
+    # NOTE: on resume a stored-correct fill-blank renders render_inputs(locked=True),
+    # which is all is-correct regardless of verdicts -- this guards resume only.
+    # The override in quiz_render_state is pinned by the RESULTS-page test in
+    # Task 10 (test_results_stored_correct_key_edited_all_green).
     _u, unit = _quiz(client)
     el = _fb(unit)
     _fetch(client, unit, el, {"blank": ["11", "9"]})
@@ -1773,7 +1946,77 @@ def test_editor_try_quiz_reveal(client):
     assert QuestionResponse.objects.count() == 0
 ```
 
-Append to `tests/test_quiz_lock_rule_parity.py` a parity case: for a converted `FillBlankQuestionElement` and an unconverted `ChoiceQuestionElement`, a reveal POST after one wrong attempt is accepted/refused identically on the enrolled path (200 + `data-quiz-locked` vs 409) and the previewer path (200 + `data-quiz-locked` vs a normal Check response with no `answer shown`). Follow the file's existing `_persisted_locked` / ephemeral helper style.
+Append to `tests/test_quiz_lock_rule_parity.py` (one case per `can_reveal` condition, both paths):
+
+```python
+import pytest as _pytest
+
+from courses.fillblank import parse as _parse
+from courses.models import Blank as _Blank
+from courses.models import ChoiceQuestionElement as _Choice
+from courses.models import FillBlankQuestionElement as _FB
+from courses.models import QuestionResponse as _QR
+
+
+def _reveal_setup(client, *, enrolled, kind, marking_mode="A", attempts=1):
+    user = make_login(client, "rv_" + ("e" if enrolled else "p"))
+    if not enrolled:
+        user.is_staff = True
+        user.save()
+    unit = make_quiz_unit()
+    if enrolled:
+        EnrollmentFactory(student=user, course=unit.course)
+    if kind == "fillblank":
+        q = _FB.objects.create(stem=_parse("{{11}}")[0], marking_mode=marking_mode, max_attempts=3)
+        _Blank.objects.create(question=q, order=0, accepted="11")
+        data = {"blank": ["5"]}
+    else:
+        from courses.models import Choice as _ChoiceOpt
+
+        q = _Choice.objects.create(stem="?", marking_mode=marking_mode, max_attempts=3)
+        _ChoiceOpt.objects.create(question=q, text="A", is_correct=True)
+        wrong = _ChoiceOpt.objects.create(question=q, text="B", is_correct=False)
+        data = {"choice": [str(wrong.pk)]}  # a real (wrong) attempt
+    el = add_element(unit, q)
+    for n in range(attempts):
+        client.post(_url(unit, el), {**data, "attempt": str(n + 1)},
+                    HTTP_X_REQUESTED_WITH="fetch")
+    return unit, el, data
+
+
+def _reveal(client, unit, el, data, made):
+    return client.post(_url(unit, el), {**data, "reveal": "1", "attempt": str(made)},
+                       HTTP_X_REQUESTED_WITH="fetch")
+
+
+@_pytest.mark.django_db
+@_pytest.mark.parametrize("kind,marking_mode,accepted", [
+    ("fillblank", "A", True),
+    ("fillblank", "N", False),
+    ("choice", "A", False),  # unconverted type
+])
+def test_reveal_rule_parity(client, kind, marking_mode, accepted):
+    unit, el, data = _reveal_setup(client, enrolled=True, kind=kind, marking_mode=marking_mode)
+    enrolled = _reveal(client, unit, el, data, 1)
+    client.logout()
+    unit2, el2, data2 = _reveal_setup(client, enrolled=False, kind=kind, marking_mode=marking_mode)
+    ephemeral = _reveal(client, unit2, el2, data2, 1)
+    if accepted:
+        assert enrolled.status_code == 200 and b"answer shown" in enrolled.content
+        assert b"answer shown" in ephemeral.content
+    else:
+        # Enrolled: refused (409, or the locked response for N which locked on its
+        # first submit). Ephemeral: the reveal is ignored -> a normal Check.
+        assert enrolled.status_code == 409
+        assert b"answer shown" not in ephemeral.content
+
+
+@_pytest.mark.django_db
+def test_reveal_parity_no_attempt_yet(client):
+    unit, el, data = _reveal_setup(client, enrolled=True, kind="fillblank", attempts=0)
+    assert _reveal(client, unit, el, data, 0).status_code == 409
+    assert _QR.objects.filter(element=el, revealed_at__isnull=False).count() == 0
+```
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -2146,7 +2389,7 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py -m e2e -p no:randomly`
-Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves).
+Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` is a regression guard and is expected to PASS already (Enter uses the first submit button, Check).
 
 - [ ] **Step 3: Implement quiz.js**
 
@@ -2244,7 +2487,7 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
-Expected: PASS. Mutant check (required): comment out the `if (submitter && submitter.name) body.append(...)` line in quiz.js → `test_show_answer_flow_and_switch` must go RED; restore it by hand (never `git checkout`).
+Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion): a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5), and a converted type's Check now swaps the whole form, so a locator held across a Check must be re-queried. Mutant check (required): comment out the `if (submitter && submitter.name) body.append(...)` line in quiz.js → `test_show_answer_flow_and_switch` must go RED; restore it by hand (never `git checkout`).
 
 - [ ] **Step 6: Commit**
 
@@ -2326,9 +2569,40 @@ def test_results_render_questions_as_they_ended(client):
     assert body.count("data-answer-switch") == 2  # fb (partial) + unanswered short text
     assert "answer shown" in body
     assert 'value="Paris"' in body  # unanswered key visible
+    assert "Not answered (0/1)" in body  # spec §4: auto-marked unanswered shows 0 / 1
     assert "Oslo" not in body  # N question never shows a key
     assert "Correct answer:" not in body and "Expected:" not in body
     assert f'name="answer_view_{fb.pk}"' in body
+
+
+@pytest.mark.django_db
+def test_results_stored_correct_key_edited_all_green(client):
+    # The results branch renders the student's copy with locked=False, so THIS is
+    # where quiz_render_state's all-correct override is visible (spec §2.6).
+    import re
+
+    _u, unit, fb, _un, _nm = _setup(client)
+    _answer(client, unit, fb, {"blank": ["11", "9"]})
+    Blank.objects.filter(question=fb.content_object, order=1).update(accepted="7")
+    body = _finish_and_get_results(client, unit)
+    row = body.split("quiz-results__item")[1]
+    blanks = re.findall(r'<input[^>]*name="blank"[^>]*>', row)
+    assert blanks and all("is-correct" in b for b in blanks)
+    assert "data-answer-switch" not in row
+
+
+@pytest.mark.django_db
+def test_results_mirror_case_partial_line_over_green_parts(client):
+    import re
+
+    _u, unit, fb, _un, _nm = _setup(client)
+    _answer(client, unit, fb, {"blank": ["11", "5"]})  # stored 0.5
+    Blank.objects.filter(question=fb.content_object, order=1).update(accepted="5")
+    body = _finish_and_get_results(client, unit)
+    row = body.split("quiz-results__item")[1]
+    blanks = re.findall(r'<input[^>]*name="blank"[^>]*>', row)
+    assert all("is-correct" in b for b in blanks[:2])
+    assert "Partial" in row and "data-answer-switch" in row  # accepted as-is (§2.6)
 
 
 @pytest.mark.django_db
@@ -2437,7 +2711,7 @@ def _results_question_html(element, question, response, row):
 {% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
 {% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
 {% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
-{% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}</span>
+{% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}{% if row.question.marking_mode == "A" %} (0/{{ row.possible|marks }}){% endif %}</span>
 {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
 {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
 {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% if row.possible == 1 %}{% trans "up to 1 mark" %}{% else %}{% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %}{% endif %})</span>{% endif %}
@@ -2563,7 +2837,7 @@ Flag both Polish texts (UI strings + help paragraph) for the owner's review in t
 
 - [ ] **Step 5: Run to verify, plus the help-page and i18n suites**
 
-Run: `uv run pytest tests/test_i18n_quiz_reveal.py tests/test_i18n_questions_2b.py $(ls tests/test_*help*.py) -p no:randomly`
+Run: `uv run pytest tests/test_i18n_quiz_reveal.py tests/test_i18n_questions_2b.py tests/test_help.py tests/test_help_capture_isolation.py -p no:randomly`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -2584,11 +2858,13 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | Mutant | Must fail |
 |---|---|
 | `key_view`: drop the `marking_mode != AUTO` return | `test_key_view_matrix`, `test_results_render_questions_as_they_ended` (Oslo) |
-| `quiz_render_state`: `"mark_result": result` (not locked-gated) | a no-leak test (`test_check_returns_whole_element_painted_no_key` or `tests/test_quiz_noleak.py`) |
+| `key_view`: drop the `not locked` condition (copy before the lock) | `test_key_view_matrix`, `test_check_returns_whole_element_painted_no_key` |
+| `neutralise_key_copy`: skip `tag["disabled"] = ""` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
+| `quiz_render_state`: `"mark_result": result` (not locked-gated) | `tests/test_quiz_choice_inline_marking.py` (unpicked-option markers before the lock) — if it stays green, write a choice test that asserts no `question__choice-marker` on an unlocked wrong answer and record it |
 | `neutralise_key_copy`: skip `attrs.pop("name")` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
 | quiz.js: freeze without the `[data-answer-switch]` skip | `test_show_answer_flow_and_switch` |
 | `quiz_answer` reveal branch: `response.attempt_count += 1` | `test_reveal_locks_at_current_marks_without_an_attempt` |
-| `render()`: drop the `element.pk == feedback_for_pk` guard | a lesson sibling test — add `test_nojs_lesson_check_leaves_sibling_unpainted` to `tests/test_quiz_reveal_single_part.py` if none fails |
+| `render()`: drop the `element.pk == feedback_for_pk` guard | `test_nojs_lesson_check_leaves_sibling_unpainted` (Task 7) |
 
 Record each mutant's RED test name in the PR description.
 
