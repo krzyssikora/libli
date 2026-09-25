@@ -173,17 +173,27 @@ render/rehydrate path draws both copies identically:
 |---|---|
 | Fill in the blanks | first accepted line per blank (list) |
 | Short text | first accepted line |
-| Short number | the value (the copy renders "± tolerance" beside it when tolerance > 0), both formatted **exactly as today's `_reveal_shortnumeric.html` formats them** (no display change; test in the pl locale compares the two) |
+| Short number | the **raw** stored value (and tolerance) — not display text; the short-number key-copy **template** formats them with the same filter / markup today's `_reveal_shortnumeric.html` uses, "± tolerance" beside it when tolerance > 0 (no display change; test in the pl locale compares the two) |
 | Drag the words | the correct `slot` value per gap |
 | Match pairs | the correct `slot` value per left item |
 | Choice grid / multi grid | the correct column pk(s) per row |
 | Drag onto image | the correct `slot` value per zone |
 | Multiple choice, extended response | `None` (own view, D8 / D7) |
 
-When **`mode in ("quiz", "results")` AND** the question is **locked AND not fully correct
-AND `key_answer()` is not None** (§2.6 defines the source of "fully correct"), the
-renderer draws a second copy from
-`key_answer()` — and the switch (§2.3) is shown under exactly the same condition.
+**One decision, made in one helper, passed as one render input.** Callers compute
+`key_values = courses.quiz.key_view(question, mode=…, locked=…, fully_correct=…)`, which
+returns `question.key_answer()` iff **`mode in ("quiz", "results")` AND
+`marking_mode == AUTO` AND locked AND not fully correct AND `key_answer()` is not None**
+(§2.6 defines "fully correct"), else `None`. The renderer receives `key_values` and draws
+the second copy **and** the switch (§2.3) **iff `key_values is not None`** — it never
+re-derives the decision from `locked` / `mark_result`. Every caller that renders a quiz or
+results question calls `key_view`: fetch Check and reveal responses, resume, no-JS, the
+previewer patch site, editor try-it, and the results helper (§4). The `marking_mode ==
+AUTO` conjunct is load-bearing: a not-marked / requires-review question locks on first
+submission, is never "fully correct", and has a non-None `key_answer()`, so without it
+N/R questions would show the key (test: a locked N and a locked R question of each
+converted type render no copy and no switch — quiz, resume, results, answered and
+unanswered).
 **Lesson mode never calls `key_answer()`** and never draws the copy or the switch, whatever
 its own "locked on correct" notion says (D11). Test: a
 wrong locked multiple-choice or extended-response question renders no switch and no copy.
@@ -245,7 +255,9 @@ form-body swap carries it, §2.4) but **outside every `<fieldset>`** — a direc
 the form next to the feedback box. A locked question's templates render their
 controls fieldset `disabled` and both freeze scripts disable `fieldset`s, and a disabled
 fieldset disables every control inside it regardless of any selector exclusion. The
-switch is wrapped in `[data-answer-switch]`, and the CSS rule that shows the copy
+switch is wrapped in `[data-answer-switch]` with **`role="radiogroup"`** and an
+**`aria-label`** ("Answer view", translatable — §8), since it cannot sit in a fieldset with
+a `<legend>`, and the CSS rule that shows the copy
 matching the checked radio is scoped to a **`[data-answer-scope]`** container
 (`[data-answer-scope]:has(...)`): in the quiz and the editor that attribute sits on the
 question `<form>`; on the results page (§4), which has **no forms**, it sits on a plain
@@ -568,8 +580,9 @@ Rows:
 - **auto-marked, unanswered**: empty controls, "Not answered · 0 / 1", and the answer
   still viewable — the switch for types with a key copy; ＋ on the correct options for
   choice; the keyword block for extended response. The results helper treats an
-  unanswered row as **locked and not fully correct without calling `_stored_result`**
-  (there is no response / `latest_answer` to read);
+  unanswered **auto-marked** row as **locked and not fully correct without calling
+  `_stored_result`** (there is no response / `latest_answer` to read) and passes that to
+  `key_view` — which still returns `None` for an N/R question;
 - **N / R, answered**: the student's answer read-only + "Answer recorded" / "Submitted
   for review" / the teacher's `review_feedback`; never a key (as today);
 - **N / R, unanswered**: empty controls + "Not answered"; no marks, no switch, no key;
@@ -608,8 +621,11 @@ exactly the #346 mechanism fill in the blanks uses:
   the lesson render drops `reveal_template` — **no answer list, no key copy, no switch,
   no Show answer** in lessons (D11);
 - **where lesson verdicts come from:** in lesson mode `QuestionElement.render()` computes
-  them **itself** — `verdicts = self.part_verdicts(mark_result, submitted)` (the
-  `selected_ids` / `submitted_values` it already receives) **iff
+  them **itself** — `verdicts = self.part_verdicts(mark_result, answer)` where `answer` is
+  **`selected_ids` for set-answer types (multiple choice)** and **`submitted_values`
+  otherwise** (`check_answer` and the restore branch pass `submitted_values=None` for a set
+  answer; the picks travel only in `selected_ids`; restore's `rehydrate()` output is the
+  `build_answer` shape) **iff
   `element.pk == feedback_for_pk`**, else `None`. No caller passes lesson verdicts, so
   every lesson path gets them with no new plumbing: fetch, no-JS, practice-state
   restore (`render_element`'s restore branch), editor try-it, and questions **nested in
@@ -671,7 +687,7 @@ Per PR, for its types:
 
 Every PR: new strings extracted (`makemessages`), Polish translations written (clear any
 fuzzy pre-fill — `makemessages` can pre-fill a wrong translation), `.mo` compiled.
-Strings include "Show answer", "Your answer", "Correct answer", "Partly correct",
+Strings include "Show answer", "Your answer", "Correct answer", "Answer view", "Partly correct",
 "answer shown", "Not answered" and the confirm text. There is no student-facing help
 section; author help is below.
 
