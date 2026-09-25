@@ -213,7 +213,7 @@ def test_editor_try_returns_the_element_with_painted_blanks(client):
     assert "/check/" not in body
 
 
-# ── quiz is untouched ────────────────────────────────────────────────────────
+# ── quiz still reveals (as the key copy) ─────────────────────────────────────
 
 
 @pytest.mark.django_db

@@ -56,7 +56,7 @@
         rows) and this file; change all three. Outcome modifiers included: extracting a
         partial would change the pupil's page. The one intended difference: the converted
         rows' Not answered badge carries (0/N) for auto-marked (spec §4); this copy does
-        not (this page always shows its own possible-marks handling below).{% endcomment %}
+        not, because the analytics page was not asked to change (spec §5).{% endcomment %}
         {% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
         {% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
         {% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>

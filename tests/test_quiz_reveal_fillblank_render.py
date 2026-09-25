@@ -86,7 +86,7 @@ def test_locked_key_copy_is_nameless_disabled_unique_ids(fb):
     assert (
         len(re.findall(r'<button[^>]*type="submit"(?![^>]*name="reveal")[^>]*>', html))
         == 1
-    )  # noqa: E501
+    )
     assert 'name="reveal"' not in html
     yours_radio = re.search(r'<input[^>]*value="yours"[^>]*>', html).group(0)
     assert "checked" in yours_radio

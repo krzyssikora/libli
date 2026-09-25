@@ -138,8 +138,8 @@ def _short_numeric():
 # (unchanged); short_text and short_numeric now carry `el--shorttext` /
 # `el--shortnumeric` (spec 2026-09-25 §5a, D13), but choice remains classless, so the
 # substring discriminators below still do the real work.
-# shortnumericquestionelement.html:8 renders inputmode="text";
-# shorttextquestionelement.html:8 renders no inputmode at all -- hence one
+# _shortnumericquestionelement_controls.html:1 renders inputmode="text";
+# _shorttextquestionelement_controls.html:1 renders no inputmode at all -- hence one
 # present-assertion and one absent-assertion.
 TYPES = [
     pytest.param(_choice, {}, ['name="choice"', "VALUE_PK"], [], id="choice"),

@@ -1689,7 +1689,6 @@ def quiz_answer(request, slug, node_pk, element_pk):
                 )
 
             is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
-            result = None
             if is_auto:
                 result = question.mark(answer)
                 f = to_stored_fraction(result.fraction)
