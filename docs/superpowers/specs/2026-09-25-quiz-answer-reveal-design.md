@@ -472,6 +472,12 @@ the parts are **painted all correct** (`verdicts` = all True) — a "✓ Correct
 parts with no switch and no key would be unexplainable. Test: stored correct, key edited,
 resume and results show every part green.
 
+**The mirror case is accepted as-is:** a stored answer that is **not** fully correct, where
+a later key edit makes the fresh mark find every part correct, renders its stored line
+("◐ Partly correct" / "✗ Incorrect") over all-green parts, with the switch (whose two copies
+may then look alike). It is rare, follows the stored-marks / fresh-colours rule, and shows
+the student that the key has changed; test pins it so nobody "fixes" it.
+
 Otherwise the disagreement after a key edit is accepted — the marks are what was awarded; the
 colours and key show the key as it is now — and is written down so nobody "fixes" one to
 match the other. A fresh Check (live or ephemeral) has only one result, so the question
@@ -496,7 +502,11 @@ student and previewer; `courses:manage_element_try` in the editor). No new URL.
   `if (e.submitter && e.submitter.name) body.append(e.submitter.name,
   e.submitter.value)` — **not** `new FormData(form, e.submitter)`, whose second
   argument older engines (pre-2023 Chrome/Firefox/Safari, common on school devices)
-  silently ignore. When the submitter is the reveal button, quiz.js and
+  silently ignore. `SubmitEvent.submitter` itself is missing before Safari 15.4, so both
+  scripts also add a **fallback**: a `click` listener on `[name="reveal"]` records the
+  pending submitter on its form (e.g. `form._pendingSubmitter`), and the submit handler
+  uses `e.submitter || form._pendingSubmitter` (then clears it). A unit/e2e test drives the
+  handler with `e.submitter` undefined and asserts `reveal` is still sent. When the submitter is the reveal button, quiz.js and
   editor.js run the `confirm()` first, **do not** increment `data-attempts-made`, and
   send `attempt` = the current `made` count (not `made + 1`) so the ephemeral path
   sees no new attempt. Mutant: drop the submitter → a test must go RED.
