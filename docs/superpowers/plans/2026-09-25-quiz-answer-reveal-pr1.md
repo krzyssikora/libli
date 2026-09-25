@@ -1723,7 +1723,7 @@ def test_lesson_correct_keeps_input_editable(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_single_part.py -p no:randomly`
-Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards; Task 12's `feedback_for_pk` mutant proves they can fail): `test_nojs_lesson_check_leaves_sibling_unpainted`, `test_nojs_short_text_check_beside_fillblank_sibling_is_safe`.
+Expected: FAIL — no `data-answer-key`, lesson body still contains "Correct answer:". Expected to PASS already (regression guards): `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (falsified by Task 12's `feedback_for_pk` mutant — a 500) and `test_nojs_lesson_check_leaves_sibling_unpainted` (a TEMPLATE-branch guard: falsified by Task 12's "drop `verdicts=None` from the short-text `{% else %}` include" mutant, not by the `feedback_for_pk` one).
 
 - [ ] **Step 3: Implement**
 
@@ -2561,8 +2561,6 @@ def test_show_answer_flow_and_switch(browser, live_server):
     # Measured, not just classed: app.css's input[type=text] (0,1,1) must not win.
     paint = "el => getComputedStyle(el).borderTopColor"
     assert blanks.nth(0).evaluate(paint) != blanks.nth(1).evaluate(paint)
-    # The key copy's input (short-text/number rule, same collision) must differ from
-    # an unpainted input too -- measured after the reveal below.
     # Colours persist until the next Check (spec §1.2): editing a green part keeps it.
     blanks.nth(0).fill("12")
     assert "is-correct" in blanks.nth(0).get_attribute("class")
@@ -2577,6 +2575,12 @@ def test_show_answer_flow_and_switch(browser, live_server):
     assert not key.is_visible()
     q.locator("label:has([data-answer-view='key'])").click()
     assert key.is_visible() and key.locator("input").nth(1).input_value() == "9"
+    # Reload with "Correct answer" SELECTED must still reopen on "Your answer"
+    # (autocomplete="off" defeats form-state restoration, D3).
+    page.reload()
+    q = page.locator("[data-question]").first
+    assert q.locator("[data-answer-view='yours']").is_checked()
+    assert not q.locator("[data-answer-view='key']").is_checked()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2607,9 +2611,6 @@ def test_short_text_verdict_colours_are_computed(browser, live_server):
     qs.nth(0).locator("input.is-incorrect").wait_for(timeout=6000)
     wrong = qs.nth(0).locator("input[name='answer']").evaluate(paint)
     assert wrong != plain
-    # Reload never reopens on "Correct answer" (autocomplete=off, D3).
-    page.reload()
-    assert page.locator("[data-answer-view='yours']").first.is_checked()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2723,7 +2724,7 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py -m e2e -p no:randomly`
-Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` is a regression guard and is expected to PASS already; prove it can fail: move `{% include "courses/elements/_reveal_button.html" %}` ABOVE the Check button in `fillblankquestionelement.html` → it must go RED; restore by hand.
+Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` is a regression guard and is expected to PASS already. Its falsification belongs in Step 5 (it cannot go RED before quiz.js sends the submitter).
 
 - [ ] **Step 3: Implement quiz.js**
 
@@ -2822,6 +2823,8 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
 Also run `tests/test_e2e_uniform_block_width.py tests/test_e2e_blank_input_width.py tests/test_e2e_unit_nav.py tests/test_e2e_slideshow.py tests/test_e2e_question_restore.py tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
+
+Enter-guard falsification (only now, with the submitter sent): move `{% include "courses/elements/_reveal_button.html" %}` ABOVE the Check button in `fillblankquestionelement.html` → `test_enter_in_a_blank_checks_not_reveals` must go RED — as an `expect_request` timeout (Enter picks Show answer, quiz.js calls `confirm()`, Playwright auto-dismisses it, no POST is sent); restore by hand.
 
 Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
 - a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
@@ -3317,6 +3320,8 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | `quiz_render_state`: `"mark_result": result` (not locked-gated) | `test_quiz_render_state_unlocked_partial_paints_without_key` (asserts `mark_result is None` unlocked) |
 | `neutralise_key_copy`: skip `attrs.pop("name")` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
 | quiz.js: freeze without the `[data-answer-switch]` skip | `test_show_answer_flow_and_switch` |
+| fill-blank template: `_reveal_button.html` include moved above Check | `test_enter_in_a_blank_checks_not_reveals` (as an `expect_request` timeout) |
+| short-text template: drop `verdicts=None` from the `{% else %}` controls include | `test_nojs_lesson_check_leaves_sibling_unpainted` |
 | editor.js: freeze without the `[data-answer-switch]` skip | `test_editor_try_it_reveal_switch_survives_freeze` |
 | quiz.js: counter guard without `!isReveal` | `test_previewer_reveal_keeps_client_counter` |
 | `quiz_answer` reveal branch: `response.attempt_count += 1` AND add `"attempt_count"` to its `update_fields` (otherwise the increment never persists and the mutant is vacuous) | `test_reveal_locks_at_current_marks_without_an_attempt` |
