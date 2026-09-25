@@ -76,10 +76,33 @@ def test_show_answer_flow_and_switch(browser, live_server):
     blanks.nth(0).fill("12")
     assert "is-correct" in blanks.nth(0).get_attribute("class")
     blanks.nth(0).fill("11")
+    # D1: Show answer asks first. CANCEL must send nothing and change nothing.
+    posts = []
+    page.on(
+        "request",
+        lambda r: (
+            posts.append(r.url) if r.method == "POST" and "/answer/" in r.url else None
+        ),
+    )
+    dialogs = []
+
+    def _dismiss(d):
+        dialogs.append((d.type, d.message))
+        d.dismiss()
+
+    page.once("dialog", _dismiss)
+    q.locator("[data-reveal-btn]").click()
+    assert len(dialogs) == 1 and dialogs[0][0] == "confirm"
+    assert "(0.25 of 1)" in dialogs[0][1]  # the marks kept (reveal_earned of max)
+    assert q.locator("[data-answer-switch]").count() == 0
+    assert q.locator("[data-reveal-btn]").count() == 1
     # Confirm must be ACCEPTED explicitly: Playwright auto-dismisses dialogs.
     page.once("dialog", lambda d: d.accept())
     q.locator("[data-reveal-btn]").click()
     q.locator("[data-answer-switch]").wait_for(timeout=6000)
+    # The switch is the ACCEPTED reveal's response, so any POST the cancelled click
+    # sent was issued before it: exactly one reveal POST in total.
+    assert len(posts) == 1
     yours = q.locator("[data-answer-view='yours']")
     assert yours.is_checked() and yours.is_enabled()  # not frozen
     key = q.locator("[data-answer-key]")
@@ -263,9 +286,29 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
     q_el.locator("input[name='blank']").nth(0).fill("11")
     q_el.locator("button[type='submit']:not([name='reveal'])").click()
     q_el.locator("[data-reveal-btn]").wait_for(timeout=6000)
-    page.once("dialog", lambda d: d.accept())
+    # D1 in the editor too: a confirm, and cancelling it sends no reveal POST.
+    posts = []
+    page.on(
+        "request",
+        lambda r: (
+            posts.append(r.url) if r.method == "POST" and "/try/" in r.url else None
+        ),
+    )
+    dialogs = []
+
+    def _dismiss(d):
+        dialogs.append(d.type)
+        d.dismiss()
+
+    page.once("dialog", _dismiss)
+    q_el.locator("[data-reveal-btn]").click()
+    assert dialogs == ["confirm"]
+    assert q_el.locator("[data-answer-switch]").count() == 0
+    page.once("dialog", lambda d: dialogs.append(d.type) or d.accept())
     q_el.locator("[data-reveal-btn]").click()
     q_el.locator("[data-answer-switch]").wait_for(timeout=6000)
+    assert dialogs == ["confirm", "confirm"]
+    assert len(posts) == 1  # only the accepted reveal was sent
     assert q_el.locator(
         "[data-answer-view='key']"
     ).is_enabled()  # editor freeze skipped it
