@@ -1116,6 +1116,9 @@ def test_lesson_mode_paints_with_sr_text(fb):
     html = _render(q, el, mode="lesson", action_url=None, submitted_values=["11", "5"],
                    mark_result=q.mark(["11", "5"]))
     assert re.search(r'value="5"[^>]*aria-invalid="true"[^>]*>\s*<span class="sr-only">incorrect</span>', html)
+    right = re.search(r'<input[^>]*value="11"[^>]*>', html).group(0)
+    assert "aria-invalid" not in right
+    assert re.search(r'value="11"[^>]*>\s*<span class="sr-only">correct</span>', html)
 
 
 def test_fill_gate_render_is_unchanged():
@@ -1235,7 +1238,7 @@ Add the method to `QuestionElement` (after `render`):
 
 (`mark_safe` — add `from django.utils.safestring import mark_safe` to models.py imports if absent.)
 
-**`ChoiceQuestionElement.render` overrides `render()`** (the ONLY question type that does — `awk '/^class .*QuestionElement\)/{c=$2} /    def render\(/{print NR": "c}' courses/models.py` confirms). Its keyword-only signature ends at `feedback_html=""`, and from this task on `_quiz_article.html` passes the five new keys for EVERY question, while Task 8 splats `**state` into choice renders (it is `INLINE_QUIZ_REVEAL`). Add the same five kwargs to its signature, after `feedback_html=""`, accepted and unused in PR 1 (choice is unconverted until PR 3):
+**`ChoiceQuestionElement.render` overrides `render()`** (the ONLY question type that does — `awk '/^class .*QuestionElement\)/{c=$2} /    def render\(/ && c != "" {print NR": "c}' courses/models.py` prints exactly one line, `ChoiceQuestionElement(QuestionElement):`). Its keyword-only signature ends at `feedback_html=""`, and from this task on `_quiz_article.html` passes the five new keys for EVERY question, while Task 8 splats `**state` into choice renders (it is `INLINE_QUIZ_REVEAL`). Add the same five kwargs to its signature, after `feedback_html=""`, accepted and unused in PR 1 (choice is unconverted until PR 3):
 
 ```python
         verdicts=None,
@@ -1581,12 +1584,17 @@ def test_lesson_nojs_and_restore_paint(client):
 
 
 @pytest.mark.django_db
-def test_lesson_sr_text_on_both_aria_invalid_only_on_wrong(client):
-    q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
+@pytest.mark.parametrize("model,right_answer,wrong_answer", [
+    (ShortTextQuestionElement, "Paris", "Rome"),
+    (ShortNumericQuestionElement, "3.14", "9"),
+])
+def test_lesson_sr_text_on_both_aria_invalid_only_on_wrong(client, model, right_answer, wrong_answer):
+    kw = {"accepted": "Paris"} if model is ShortTextQuestionElement else {"value": "3.14"}
+    q = model.objects.create(stem="?", **kw)
     _s, _u, _el, url = _lesson(client, q)
-    wrong = client.post(url, {"answer": "Rome"}).content.decode()
+    wrong = client.post(url, {"answer": wrong_answer}).content.decode()
     assert re.search(r'aria-invalid="true"[^>]*>\s*<span class="sr-only">incorrect</span>', wrong)
-    right = client.post(url, {"answer": "Paris"}).content.decode()
+    right = client.post(url, {"answer": right_answer}).content.decode()
     assert '<span class="sr-only">correct</span>' in right
     assert "aria-invalid" not in _INPUT.findall(right)[0]
 
@@ -1976,6 +1984,32 @@ def test_locked_wrong_has_key_copy_and_no_old_list(client, kind):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["fillblank", "text", "number"])
+@pytest.mark.parametrize("mode", ["N", "R"])
+def test_not_marked_and_review_never_show_the_key(client, kind, mode):
+    # Spec §2.2: N/R lock on first submission, are never "fully correct", and have a
+    # non-None key_answer() -- only key_view's AUTO conjunct keeps the key hidden.
+    from courses.models import ShortNumericQuestionElement
+
+    _u, unit = _quiz(client)
+    if kind == "fillblank":
+        el, data = _fb(unit, marking_mode=mode), {"blank": ["11", "5"]}
+    elif kind == "text":
+        el = add_element(unit, ShortTextQuestionElement.objects.create(
+            stem="?", accepted="Paris", marking_mode=mode))
+        data = {"answer": "Rome"}
+    else:
+        el = add_element(unit, ShortNumericQuestionElement.objects.create(
+            stem="?", value="3.14", marking_mode=mode))
+        data = {"answer": "9"}
+    body = _fetch(client, unit, el, data).content.decode()
+    page = client.get(reverse("courses:quiz_unit",
+                              kwargs={"slug": unit.course.slug, "node_pk": unit.pk})).content.decode()
+    for html in (body, page):
+        assert "data-answer-key" not in html and "data-answer-switch" not in html
+
+
+@pytest.mark.django_db
 def test_nojs_enrolled_validation_keeps_prior_answer_painted(client):
     _u, unit = _quiz(client)
     el = _fb(unit)
@@ -2068,6 +2102,12 @@ def test_previewer_reveal_divergences(client):
     # Empty form on reveal: marked as-is, locked, 0 marks, switch shown.
     body = _fetch(client, unit, el, {"blank": ["", ""], "reveal": "1", "attempt": "1"}).content.decode()
     assert "answer shown" in body and "0 / 1" in body and "data-answer-switch" in body
+    # Form edited after the last Check: the confirm text shows the Check's marks, the
+    # lock marks the edited form -- they differ, accepted on this path (spec §3.3).
+    body = _fetch(client, unit, el, {"blank": ["11", "5"], "attempt": "1"}).content.decode()
+    assert "(0.5 of 1)" in body
+    body = _fetch(client, unit, el, {"blank": ["", "5"], "reveal": "1", "attempt": "1"}).content.decode()
+    assert "answer shown" in body and "0 / 1" in body
     # Fully correct form on reveal: Correct, no switch.
     body = _fetch(client, unit, el, {"blank": ["11", "9"], "reveal": "1", "attempt": "1"}).content.decode()
     assert "Correct" in body and "answer shown" in body and "data-answer-switch" not in body
@@ -2272,7 +2312,7 @@ def test_reveal_parity_no_attempt_yet(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_flow.py -p no:randomly`
-Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed). Expected to PASS already (regression guards on today's behaviour): `test_locked_choice_still_whole_element_with_marks` (choice already takes the whole-element path) and `test_nojs_previewer_validation_keeps_empty_form`.
+Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed). Expected to PASS already (regression guards on today's behaviour): `test_locked_choice_still_whole_element_with_marks` (choice already takes the whole-element path), `test_nojs_previewer_validation_keeps_empty_form`, `test_key_edit_after_stored_correct_paints_all_green` (resume's locked `mark_result.correct` already renders every blank is-correct — it guards resume only), and in the parity file `test_reveal_rule_parity[fillblank-N-False]` (N already locks → 409; the ephemeral reveal already runs as a plain Check). The parity file is only partly RED here (the fillblank-A and choice cases).
 
 - [ ] **Step 3: Implement**
 
@@ -2461,7 +2501,7 @@ def _quiz_reveal_refused(request, slug, node_pk):
 
 - [ ] **Step 4: Run to verify, then run the quiz suites and rewrite quiz-reveal assertions for the three converted types**
 
-Run: `uv run pytest tests/test_quiz_reveal_flow.py tests/test_quiz_lock_rule_parity.py -p no:randomly` → PASS.
+Run: `uv run pytest tests/test_quiz_reveal_flow.py tests/test_quiz_lock_rule_parity.py tests/test_quiz_reveal_helpers.py tests/test_quiz_reveal_result_line.py tests/test_quiz_reveal_fillblank_render.py tests/test_quiz_reveal_single_part.py -p no:randomly` → PASS (the last four guard code this task rewrites: build_quiz_context, _quiz_render_feedback, choice's whole-element path).
 
 Then: `uv run pytest tests/test_quiz_answer.py tests/test_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_choice_inline_marking.py tests/test_element_try.py tests/test_ux_roster_and_feedback.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_quiz_render.py tests/test_ephemeral_quiz_feedback.py courses/tests/test_fillblank_inline_verdicts.py tests/test_questions_2d_quiz_noleak.py tests/test_questions_2diii_quiz.py tests/test_quiz_previewer_render.py tests/test_quiz_views.py tests/test_choice_nudge_paths.py -p no:randomly`
 
@@ -2982,6 +3022,32 @@ def test_results_row_matrix(client, mode, answer, badge, switch, key_shown):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["fillblank", "number"])
+@pytest.mark.parametrize("mode", ["N", "R"])
+@pytest.mark.parametrize("answered", [True, False])
+def test_results_nr_rows_never_show_the_key(client, kind, mode, answered):
+    from courses.models import ShortNumericQuestionElement
+
+    user = make_login(client, "stu_nr")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    if kind == "fillblank":
+        q = FillBlankQuestionElement.objects.create(
+            stem=parse("{{11}}")[0], marking_mode=mode, max_attempts=1)
+        Blank.objects.create(question=q, order=0, accepted="11")
+        data = {"blank": ["5"]}
+    else:
+        q = ShortNumericQuestionElement.objects.create(
+            stem="?", value="3.14", marking_mode=mode, max_attempts=1)
+        data = {"answer": "9"}
+    el = add_element(unit, q)
+    if answered:
+        _answer(client, unit, el, data)
+    row = _finish_and_get_results(client, unit).split("quiz-results__item")[1]
+    assert "data-answer-key" not in row and "data-answer-switch" not in row
+
+
+@pytest.mark.django_db
 def test_results_reviewed_row_shows_teacher_marks(client):
     from django.utils import timezone
 
@@ -3090,7 +3156,7 @@ def test_analytics_keeps_expected_answers_and_tags_reveal(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_results.py -p no:randomly`
-Expected: FAIL — the results page still prints the old list rows.
+Expected: FAIL — the results page still prints the old list rows. Expected to PASS already (regression guards — a RED here is a real problem): all six `test_analytics_expected_answer_per_type` cases (analytics unchanged by design), `test_results_reviewed_row_shows_teacher_marks`, and the `test_results_row_matrix` N / R cases (badge text and explanation rules unchanged; no switch / key before or after).
 
 - [ ] **Step 3: Implement**
 
@@ -3319,6 +3385,7 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | Mutant | Must fail |
 |---|---|
 | `key_view`: drop the `marking_mode != AUTO` return | `test_key_view_matrix`, `test_results_render_questions_as_they_ended` (Oslo) |
+| `quiz_render_state`: `"key_values": question.key_answer() if locked else None` (bypass `key_view`) | `test_not_marked_and_review_never_show_the_key` |
 | `quiz_feedback_context`: drop `or question.SUPPORTS_REVEAL` (old list comes back beside the key copy) | `test_locked_wrong_has_key_copy_and_no_old_list` |
 | `key_view`: drop the `not locked` condition (copy before the lock) | `test_key_view_matrix`, `test_check_returns_whole_element_painted_no_key` |
 | `neutralise_key_copy`: skip `tag["disabled"] = ""` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
