@@ -158,9 +158,12 @@ render/rehydrate path draws both copies identically:
 | Drag onto image | the correct `slot` value per zone |
 | Multiple choice, extended response | `None` (own view, D8 / D7) |
 
-When a question is **locked AND not fully correct AND `key_answer()` is not None** (§2.6
-defines the source of "fully correct"), the renderer draws a second copy from
-`key_answer()` — and the switch (§2.3) is shown under exactly the same condition. Test: a
+When **`mode in ("quiz", "results")` AND** the question is **locked AND not fully correct
+AND `key_answer()` is not None** (§2.6 defines the source of "fully correct"), the
+renderer draws a second copy from
+`key_answer()` — and the switch (§2.3) is shown under exactly the same condition.
+**Lesson mode never calls `key_answer()`** and never draws the copy or the switch, whatever
+its own "locked on correct" notion says (D11). Test: a
 wrong locked multiple-choice or extended-response question renders no switch and no copy.
 
 **What the copy contains — the controls region only.** Each converted template factors
@@ -274,7 +277,10 @@ finds no `[data-dnd]` descendant at all. Both copies would also share one block 
 pool (for drag onto image, `selects[zoneIdx]` would pair the key copy's selects with the
 student's badges). Therefore: **`data-dnd`, its `[data-dnd-pool]` and
 `[data-dragimage-stage]` move INTO the per-type controls include**, rendered once per
-copy, and are dropped from the outer div. Each copy is its own dnd root, and after a swap
+copy, and are dropped from the outer div. The templates' form-less `{% else %}` branch
+(e.g. matchpair's `<div>{% render_match_pairs el %}{% include "_dnd_pool.html" %}</div>`
+and the drag-onto-image stage) also renders **through the same controls include**, so it
+keeps a dnd root. Each copy is its own dnd root, and after a swap
 those roots are new nodes with no `dndReady`, so quiz.js's call to
 **`window.libliEnhanceDnd(form)`** (editor.js already calls it) enhances them. Test that
 fails on today's markup: after a fetch Check on each drag type, `.dnd__chip` exists in
@@ -304,8 +310,17 @@ The other render paths must draw §1 state 2 or 4 identically:
   its `data-confirm` marks, `revealed`, and the key-copy inputs. Test: a no-JS previewer
   Check shows the part colours and the Show answer button.
 
+**New render keys travel through three signatures.** `verdicts`, `revealed`, the Show
+answer eligibility + its `data-confirm` marks, and the key-copy values are added as
+keyword arguments to **`QuestionElement.render()`**, the **`render_element`** template tag,
+and the **`{% render_element … %}` call in `_quiz_article.html`** (which today forwards
+`mark_result=st.mark_result` etc. from `render_states`). A missed key fails silently (the
+part is simply not painted), so a resume test asserts painted parts — it fails if
+`st.verdicts` is not forwarded. (Lesson verdicts need none of this: §5a.)
+
 **The Show answer button's render condition**, on every path:
-`SUPPORTS_REVEAL and can_reveal(...) and not quiz_submitted`. `can_reveal` leaves
+`mode == "quiz" and SUPPORTS_REVEAL and can_reveal(...) and not quiz_submitted` (the
+results mode has no buttons at all; lessons never show it, D11). `can_reveal` leaves
 SUBMITTED out on purpose (§3.5), but `build_quiz_context` still renders a submitted quiz
 with `quiz_submitted=True`, so without the extra term an answered-but-unlocked question
 on a submitted quiz would show a live button whose POST 409s and reloads forever. Test:
@@ -526,9 +541,19 @@ exactly the #346 mechanism fill in the blanks uses:
   `element_try`'s lesson branch return the whole re-rendered element (lesson mode) and
   the lesson render drops `reveal_template` — **no answer list, no key copy, no switch,
   no Show answer** in lessons (D11);
-- the lesson template paints each part from `verdicts = part_verdicts(result)` (a lesson
-  Check has one fresh result); the no-JS lesson re-render and the practice-state
-  **restore** path (types with `RESTORABLE_IN_LESSON`) paint the same way;
+- **where lesson verdicts come from:** in lesson mode `QuestionElement.render()` computes
+  them **itself** — `verdicts = self.part_verdicts(mark_result)` **iff
+  `element.pk == feedback_for_pk`**, else `None`. No caller passes lesson verdicts, so
+  every lesson path gets them with no new plumbing: fetch, no-JS, practice-state
+  restore (`render_element`'s restore branch), editor try-it, and questions **nested in
+  containers** (which receive only the container `page` dict — `feedback_for_pk`,
+  `selected_ids`, `submitted_values`, `mark_result` — never a new kwarg). The
+  `feedback_for_pk` guard is load-bearing: the no-JS lesson re-render hands **one**
+  page-level `mark_result` to every question on the unit, so without it a question
+  would paint from another question's result, and a different type's `reveal` shape can
+  raise. Tests: a lesson question nested in a callout paints on no-JS and on restore; a
+  no-JS lesson Check on question A leaves a converted question B of another type
+  unpainted and renders without error;
 - the lesson form carries `data-question-inline` in lesson mode (question.js and
   editor.js already swap the form body for it). For drag types, the per-copy `data-dnd`
   root (§2.4) applies in lessons too, and **question.js** must call
@@ -537,7 +562,10 @@ exactly the #346 mechanism fill in the blanks uses:
 
 Extended response and multiple choice are unchanged in lessons. Tests per converted
 type: a wrong lesson Check (fetch, no-JS, restore, editor try-it) paints each part and
-contains no `_reveal_*` markup and no "Correct answer" text; a correct one locks as today.
+contains no `_reveal_*` markup and no "Correct answer" text. On a correct lesson answer
+the newly converted types keep **today's** behaviour: Check hidden (question.js
+`finishSolved`), inputs **stay editable** — only fill in the blanks has
+`data-lock-on-correct`, and D13 does not extend it.
 
 ## 6. Out of scope
 
