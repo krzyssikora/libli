@@ -63,8 +63,9 @@ requires-review (R) questions are unchanged: they lock on first submission, show
    - every part is coloured green/red (D6) — blank, box, slot, zone, pair, grid row;
      for multiple choice the **ticked** options get ✓/✗, but the ＋ (a missed correct
      option) is **not** shown, because it would reveal the key;
-   - result line: "✓ Correct · 1 / 1", "◐ Partly correct · 0.25 / 1 · 2 attempts
-     left", "✗ Incorrect · 0 / 1 · 2 attempts left" (D4). The marks are
+   - result line: "◐ Partly correct · 0.25 / 1 · 2 attempts left", "✗ Incorrect · 0 / 1
+     · 2 attempts left" (D4) — a fully correct answer always locks (state 4), so
+     "✓ Correct · 1 / 1" only ever appears locked. The marks are
      `earned_marks(to_stored_fraction(result.fraction), max_marks)` of this attempt
      (§2.5 defines the outcome from those marks);
    - a **Show answer** button after Check (§3.1 fixes its position);
@@ -235,8 +236,8 @@ The radios carry **`autocomplete="off"`** so reload / back-forward form restorat
 never reopen a question on "Correct answer" (e2e covers a reload). Test: no switch radio has a `disabled`
 ancestor `fieldset`, in the server render and after each script's freeze.
 
-- `answer_view_*` joins the reserved POST names documented on
-  `courses.quiz.parse_attempt`: no `build_answer` may read it. It only exists on a
+- `answer_view_*` **and `reveal`** (§3.1) join `attempt` in the reserved POST names
+  documented on `courses.quiz.parse_attempt`: no `build_answer` may read them. It only exists on a
   locked question, whose form is never posted again (its Check is disabled, and
   Finish re-posts only open questions).
 - **Freeze exclusion, both scripts.** quiz.js freezes
@@ -344,11 +345,15 @@ Any render of an **already-stored** answer (the enrolled reveal response, resume
 the results page) re-marks it to get verdicts, and re-marking can disagree with what
 was awarded if the author has since edited the key. So on every path:
 
-- the **result line, the marks, the `data-confirm` marks and whether the switch is
-  shown** ("fully correct" or not) come from the **stored** `response.fraction` /
-  `earned_marks`;
-- the **part colours and `mark_result`** (hence the key copy) come from a **fresh**
-  `mark(answer_from_json(question, latest_answer))`.
+- the **result line, the marks and the `data-confirm` marks** come from the **stored**
+  `response.fraction` / `earned_marks`, the line's outcome via the §2.5 helper;
+- **"fully correct"** — which alone decides whether the key copy and switch are drawn —
+  is **one predicate: `_stored_result(...).correct`** (stored `fraction == 1`). Where it
+  disagrees with the helper's outcome after rounding (e.g. 0.9999 → earned 1.00), the
+  line still follows the helper and the switch still follows this predicate;
+- the **part colours and `mark_result`** come from a **fresh**
+  `mark(answer_from_json(question, latest_answer))`. The **key copy** comes from
+  `key_answer()` (always the current key), not from `mark_result`.
 
 This split **already exists**: `views._stored_result(question, response)` builds a
 `MarkResult` from the stored fraction/correctness plus a fresh `reveal` / `annotated`,
@@ -414,7 +419,11 @@ Within step 2:
 
 - eligible iff `can_reveal(question, attempts_made=response.attempt_count,
   locked=response.locked)` (§3.5);
-- then `locked = True`, `revealed_at = now()`. It **ignores the posted answer** —
+- then `locked = True`, `revealed_at = now()`, and **both** the fetch and the no-JS
+  response call `_quiz_render_feedback(..., result=_stored_result(question, response))`
+  — never with `result=None`, which `quiz_feedback_context` reads as an N/R question and
+  renders "Answer recorded" (test: an enrolled reveal response has the marks line, not
+  "Answer recorded"). It **ignores the posted answer** —
   "Your answer", the verdicts and the marks come from the stored latest attempt, so a
   student cannot slip in an unchecked answer. It does **not** increment
   `attempt_count` and creates **no** `Attempt` row;
@@ -433,8 +442,11 @@ Stateless, persists nothing, as today. When the POST carries `reveal`,
 never offers the button before a Check, and the server-side check is advisory on this
 path), and `locked = False` — a previously locked state is **not** modelled server-side
 (the client has already frozen the question, so its reveal button no longer exists).
-`can_reveal` decides; ineligible → the same response as an ephemeral Check with no
-attempt (the unlocked element, no reveal).
+`can_reveal` decides. On this path ineligibility can only come from N/R marking or a
+type without `SUPPORTS_REVEAL` (the attempt floor makes `attempts_made >= 1`), and
+neither ever renders the button, so an ineligible ephemeral reveal (fetch or no-JS,
+previewer or editor) simply **ignores `reveal` and is processed as a normal ephemeral
+Check** of the posted answer — whatever response that type gives a Check today.
 
 - Previewer: `quiz_answer`'s non-enrolled branch → `ephemeral_quiz_feedback(...,
   reveal=True)` → a locked stand-in → the same whole-element render.
@@ -488,15 +500,25 @@ the time it is written (currently `0066_blank_answers_unescape`).
 the same renderer**, from the stored `latest_answer`, locked, via a new render mode
 **`render(mode="results")`**: each converted template gains that branch, which emits a
 `<div data-answer-scope>` in place of the `<form>`, **no** Check / Show answer button,
-the controls include(s) with values + verdicts, the key copy, the switch, and the result
-line + explanation in the same `[data-question-feedback]` box. (Today's templates have
+the controls include(s) with values + verdicts, the key copy, the switch, and a
+`[data-question-feedback]` box filled with a **`feedback_html`** fragment. That fragment is
+a new **`_results_question_feedback.html`**, built by the results helper from today's
+`quiz_results.html` row markup — the outcome badge with earned / possible, "Not answered",
+"Answer recorded" / "Submitted for review" / reviewed with the teacher's marks and
+`review_feedback`, "· answer shown", and the explanation. `_quiz_question_feedback.html`
+(the live quiz) gains none of these results-only states. (Today's templates have
 only an `{% if element %}` form branch and a bare `{% else %}` branch; neither fits.)
 Each PR lists this branch in its per-type template work. Test: the results page contains
 no `<form>` and no submit button inside any question.
 
 Values follow §2.6 (stored marks / fresh colours). **Unanswered** rows (no
 `QuestionResponse`, or `latest_answer` None) get `verdicts = None` — neutral controls —
-and `mark()` is **not** called for them; only the key copy is drawn.
+and, **for types whose `key_answer()` is not None**, `mark()` is **not** called — only the
+key copy is drawn. **Multiple choice and extended response** have no key copy; their only
+view of the answer comes from a mark result, so for them the results helper keeps
+today's `mark(build_answer(QueryDict()))` ("reveal all"): choice shows ＋ on every correct
+option, extended response its keyword block. Test (PR 3): an unanswered choice row shows
+＋ on the correct options; an unanswered extended-response row shows its keywords.
 
 Rows:
 
