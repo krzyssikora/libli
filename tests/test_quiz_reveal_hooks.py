@@ -93,3 +93,9 @@ def test_stored_result_carries_fresh_correct_after_key_edit():
     stored = _stored_result(q, r)
     assert stored.correct is True  # stored fraction
     assert stored.fresh_correct is False  # the key as it is now
+
+
+def test_revealed_at_is_a_nullable_datetime():
+    field = QuestionResponse._meta.get_field("revealed_at")
+    assert field.get_internal_type() == "DateTimeField"
+    assert field.null is True

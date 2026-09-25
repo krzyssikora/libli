@@ -3257,6 +3257,8 @@ class QuestionResponse(models.Model):
     )
     locked = models.BooleanField(default=False)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
+    # Set when the student pressed Show answer (spec 2026-09-25 §3). Null = never.
+    revealed_at = models.DateTimeField(null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
