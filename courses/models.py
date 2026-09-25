@@ -2643,6 +2643,12 @@ class ShortTextQuestionElement(QuestionElement):
 
     RESTORABLE_IN_LESSON = True
 
+    # Lesson (spec §5a, D13): the box turns green/red in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_shorttextquestionelement_controls.html"
+
     REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
 
     accepted = models.TextField(blank=True)  # newline-delimited accepted answers
@@ -2710,6 +2716,12 @@ class ShortNumericQuestionElement(QuestionElement):
     """Numeric answer marked correct iff within an absolute tolerance of value."""
 
     RESTORABLE_IN_LESSON = True
+
+    # Lesson (spec §5a, D13): the box turns green/red in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_shortnumericquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
 

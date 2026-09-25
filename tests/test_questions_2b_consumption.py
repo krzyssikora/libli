@@ -52,7 +52,8 @@ def test_shorttext_check_answer_fragment(client):
     url = _check_url(course, unit, el)
     wrong = client.post(url, {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-incorrect" in wrong.content
-    assert b"Paris" in wrong.content  # reveal shown on a wrong answer
+    # D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" list assertion
+    assert b'aria-invalid="true"' in wrong.content
     ok = client.post(url, {"answer": " paris "}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-correct" in ok.content
     assert b"Paris" not in ok.content  # fully-correct suppresses the reveal
@@ -84,11 +85,13 @@ def test_shortnumeric_reveal_shows_the_canonical_string(client):
     )
     el = Element.objects.create(unit=unit, content_object=q)
     url = _check_url(course, unit, el)
-    resp = client.post(url, {"answer": "9"})  # wrong, reveal renders
+    resp = client.post(url, {"answer": "9"})  # wrong, no reveal text (D13)
     html = resp.content.decode()
-    assert "1/3" in html
+    # D13 (spec 2026-09-25 §5a): replaces the old "Expected:" lesson list assertion
+    (inp,) = re.findall(r'<input[^>]*name="answer"[^>]*>', html)
+    assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
     assert "0.33333333" not in html
-    assert "±" not in html  # zero tolerance renders no tolerance clause
+    assert "±" not in html  # no reveal at all pre-lock
 
 
 @pytest.mark.django_db
@@ -114,7 +117,9 @@ def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot(client):
     response = client.post(url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl")
     html = response.content.decode()
     assert "3,14" not in html  # the pre-change rendering
-    assert "3.14" in html
+    # D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" list assertion
+    (inp,) = re.findall(r'<input[^>]*name="answer"[^>]*>', html)
+    assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
     # Prove the page really did render in Polish, or the assertion above is vacuous.
     assert "Sprawdź" in html  # the pl translation of the "Check" button
 
@@ -192,9 +197,11 @@ def test_post_submit_reveals_only_answered_across_types(client):
     other = ShortTextQuestionElement.objects.create(stem="<p>B?</p>", accepted="secret")
     el = Element.objects.create(unit=unit, content_object=answered)
     Element.objects.create(unit=unit, content_object=other)
-    # Answer WRONG so the reveal renders (fully-correct suppresses it now).
+    # Answer WRONG so the answered question paints in place (D13).
     resp = client.post(_check_url(course, unit, el), {"answer": "wrong"})  # no-JS
     body = resp.content.decode()
-    assert "is-incorrect" in body  # the answered question revealed
+    # D13 (spec 2026-09-25 §5a): replaces the old "exactly one reveal block" assertion
+    # -- only the answered question is marked, and the OTHER key never appears.
+    inputs = re.findall(r'<input[^>]*name="answer"[^>]*>', body)
+    assert sum("is-incorrect" in inp for inp in inputs) == 1
     assert "secret" not in body  # the OTHER question's accepted answer stays hidden
-    assert body.count("question__reveal-text") == 1  # exactly one reveal block
