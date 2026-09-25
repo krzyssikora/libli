@@ -1086,8 +1086,9 @@ def test_locked_key_copy_is_nameless_disabled_unique_ids(fb):
     assert 'name="reveal"' not in html
     yours_radio = re.search(r'<input[^>]*value="yours"[^>]*>', html).group(0)
     assert "checked" in yours_radio
-    ids = re.findall(r'\sid="([^"]+)"', html)
-    assert len(ids) == len(set(ids))
+    # (The -key id suffixing is pinned by Task 4's
+    # test_ids_suffixed_internal_refs_rewritten_external_untouched: this render has no
+    # ids at all, so a uniqueness check here could never fail.)
 
 
 def test_switch_is_outside_every_fieldset(fb):
@@ -1789,7 +1790,7 @@ Flags, on BOTH `ShortTextQuestionElement` and `ShortNumericQuestionElement`:
 
 The results render passes `locked=True` (Task 10), which the include turns into `disabled` on the student input — the same mechanism the quiz uses (spec §4).
 
-**Expected interim state (do not "fix" it here):** until Task 8, a locked-wrong short-text / number QUIZ question shows neither the old list nor the key copy; quiz tests asserting that reveal (e.g. `tests/test_ux_roster_and_feedback.py::test_incorrect_feedback_keeps_reveal_in_a_panel`) are expected RED until Task 8 and are rewritten there.
+**Expected interim state (do not "fix" it here):** until Task 8, a locked-wrong short-text / number QUIZ question shows neither the old list nor the key copy; quiz tests asserting that reveal (e.g. `tests/test_ux_roster_and_feedback.py::test_incorrect_feedback_keeps_reveal_in_a_panel`) are expected RED until Task 8 and are rewritten there. Likewise the LESSON e2e that pins the old short-text / number list (e.g. `tests/test_e2e_questions_2b.py::test_reveal_shows_the_fraction_and_hides_a_zero_tolerance`, possibly `tests/test_e2e_question_restore.py`) is expected RED from here until Task 9 Step 5 rewrites it under its D13 rule — do not "fix" the code for it.
 
 CSS, next to the fill-blank verdict rules (specificity (0,3,0) beats app.css's `input[type=text]` (0,1,1)):
 
@@ -2886,14 +2887,14 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
-Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
+Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_questions.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
 `test_results_page_switch_shows_the_key` needs Task 10 (the results render); it is expected to FAIL until Task 10 lands — run it again in Task 10 Step 4.
 
 Also run `tests/test_e2e_uniform_block_width.py tests/test_e2e_blank_input_width.py tests/test_e2e_unit_nav.py tests/test_e2e_slideshow.py tests/test_e2e_question_restore.py tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
 
 Enter-guard falsification (only now, with the submitter sent): move `{% include "courses/elements/_reveal_button.html" %}` ABOVE the Check button in `fillblankquestionelement.html` → `test_enter_in_a_blank_checks_not_reveals` must go RED — as an `expect_request` timeout (Enter picks Show answer, quiz.js calls `confirm()`, Playwright auto-dismisses it, no POST is sent); restore by hand.
 
-Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
+Expected: PASS. `tests/test_e2e_questions.py` guards the PRE-EXISTING editor try-it contract (`test_preview_quiz_gating_withholds_then_reveals`: counter + freeze survive the swap; `test_preview_try_it_grades_without_persisting`) — a failure there is a regression in the editor.js change, never an allowed rewrite. Allowed e2e rewrites (comment naming the replaced assertion):
 - a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
 - a converted type's Check now swaps the whole form, so a locator held across a Check must be re-queried;
 - a strict `button[type='submit']` Locator on a converted QUIZ question that now also matches Show answer (a strict-mode violation after the first Check — e.g. `tests/test_e2e_quiz.py` ~line 134) becomes `button[type='submit']:not([name='reveal'])`; legacy non-strict `page.click(...)` calls need no change;
