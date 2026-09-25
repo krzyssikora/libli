@@ -492,7 +492,7 @@ git commit -m "feat(quiz-reveal): part_verdicts + key_answer for drag, match, im
 - Test: `tests/test_quiz_reveal_pr2_paint.py` (new)
 
 **Interfaces:**
-- Consumes: nothing from Task 1 (the builders take plain verdict lists).
+- Consumes: Task 1's test kit (`tests/reveal_pr2_kit.py`) in the tests; the production builders take plain verdict lists.
 - Produces: `courses.verdicts.part_verdict(verdicts, i, key) -> bool | None`, `state_class(verdict) -> str` (`" is-correct"` / `" is-incorrect"` / `""`), `invalid_attr(verdict) -> SafeString`, `sr_verdict(verdict) -> SafeString`. `dnd.render_selects(token_stem, pool, chosen=None, verdicts=None, key=False)`, same two kwargs on `render_match_rows` and `render_zone_selects`; `dnd._render_select(pool, chosen, verdict=None)`. Template tags `render_drag_selects / render_match_pairs / render_image_selects / render_choice_grid / render_multigrid (el, submitted_values=None, verdicts=None, copy="")` — `copy == "key"` paints every part correct. Grid markup: a painted row is `<tr class="is-correct">` / `<tr class="is-incorrect">`, the verdict span is the last child of the statement cell, and each input of a wrong row carries `aria-invalid="true"` as its LAST attribute (after `checked`) — existing tests pin the substrings `value="<pk>" checked` and `name="row_<pk>" value="<pk>" checked` (`courses/tests/test_question_restore.py`), and a lesson restore of a wrong grid now paints, so nothing may be inserted between `name`, `value` and `checked`. Likewise on a drag `<select>` the state class goes INSIDE the existing `class` attribute and `aria-invalid` after it: `<select name="slot"` stays the tag's prefix (`_slot_options()` in the same file splits on it).
 
 - [ ] **Step 1: Write the failing tests**
@@ -1729,6 +1729,20 @@ def _check(q):
     q.locator("button[type='submit']:not([name='reveal'])").click()
 
 
+def _drop(target, token="gammadis"):
+    """A synthetic drop straight onto a slot / overlay target (spec §2.2: "tapping
+    / dragging a chip ... leaves every select unchanged"). Dispatched in the page,
+    so none of Playwright's pointer-event traps apply."""
+    target.evaluate(
+        """(el, tok) => {
+            const dt = new DataTransfer();
+            dt.setData("text/plain", tok);
+            el.dispatchEvent(new DragEvent("drop", {dataTransfer: dt, bubbles: true, cancelable: true}));
+        }""",
+        token,
+    )
+
+
 def _select_values(q, scope):
     return q.locator(f"{scope} select").evaluate_all("els => els.map(e => e.value)")
 
@@ -1768,14 +1782,18 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
     before = _select_values(q, "[data-answer-yours]")
     q.locator("[data-answer-yours] .dnd__chip").first.click(force=True)
     q.locator("[data-answer-yours] .dnd__slot, [data-answer-yours] .dragimage__target").nth(0).click(force=True)
+    _drop(q.locator("[data-answer-yours] .dnd__slot, [data-answer-yours] .dragimage__target").nth(0))
     assert _select_values(q, "[data-answer-yours]") == before
     # The key copy: built by dnd.js (select[data-slot]), inert, showing the key.
     q.locator("label:has([data-answer-view='key'])").click()
     key_targets = q.locator("[data-answer-key] .dnd__slot, [data-answer-key] .dragimage__target")
     assert key_targets.nth(1).inner_text().strip() == "betakey"
-    assert q.locator("[data-answer-key] .dnd__chip").evaluate_all("cs => cs.every(c => c.disabled)")
+    key_chips = q.locator("[data-answer-key] .dnd__chip")
+    assert key_chips.count() >= 3  # [].every() is true: prove the pool was built
+    assert key_chips.evaluate_all("cs => cs.every(c => c.disabled)")
     key_before = _select_values(q, "[data-answer-key]")
     key_targets.nth(1).click(force=True)
+    _drop(key_targets.nth(1), "alphakey")
     assert _select_values(q, "[data-answer-key]") == key_before == ["alphakey", "betakey"]
 
 
@@ -1845,6 +1863,8 @@ def test_lesson_check_repaints_and_rebuilds(browser, live_server, kind):
         assert "is-incorrect" in q.locator(".dnd__slot").nth(1).get_attribute("class")
     else:
         assert "is-incorrect" in q.locator("tbody tr").nth(1).get_attribute("class")
+        # question.js re-wired the swapped-in scroll wrapper.
+        assert q.locator("[data-scroll-x]").get_attribute("data-scroll-x-ready") == "1"
     assert q.locator("[data-answer-key], [data-answer-switch], [data-reveal-btn]").count() == 0
 
 
@@ -1866,6 +1886,7 @@ def test_results_page_drag_ui_is_inert(browser, live_server):
     assert row.locator("[data-answer-yours] .dnd__slot").count() == 2  # dnd.js loaded
     before = _select_values(row, "[data-answer-yours]")
     row.locator("[data-answer-yours] .dnd__slot").nth(1).click(force=True)
+    _drop(row.locator("[data-answer-yours] .dnd__slot").nth(1), "alphakey")
     assert _select_values(row, "[data-answer-yours]") == before
     switch = row.locator("[data-answer-switch]")
     pos = switch.bounding_box()
@@ -1937,7 +1958,7 @@ In `enhance(block)`:
       selects.some(function (s) { return s.matches(":disabled"); });
 ```
 
-In the chip loop: when `inert`, set `chip.disabled = true; chip.draggable = false;` and attach **no** listeners (wrap the `dragstart` / `click` listener block in `if (!inert) { … }`).
+When `inert`, add `block.classList.add("dnd--inert");` (the CSS hook for the default cursor, Step 5). In the chip loop: when `inert`, set `chip.disabled = true; chip.draggable = false;` and attach **no** listeners (wrap the `dragstart` / `click` listener block in `if (!inert) { … }`).
 
 Pass `inert` into both builders — `buildOverlayTargets(block, stage, selects, tapTarget, inert)` and `buildInlineSlots(selects, tapTarget, inert)` — and in each, when `inert`: set `tabIndex = -1` instead of `0`, and skip the `dragover` / `drop` / `click` / `keydown` listeners (the `change` listener that repaints is harmless; keep it). In both builders, right after the slot / target element is created, copy the select's verdict (plan P2):
 
@@ -2000,15 +2021,16 @@ Update the file's closing comment above `window.libliEnhanceDnd = init;`: "Expos
 
 - [ ] **Step 5: Verdict CSS (`courses/static/courses/css/courses.css`)**
 
-Directly after the `.el--question .question__text-input.is-incorrect` rule (the PR 1 single-part verdicts):
+Directly after the `.dragimage__target--filled` rule (the end of the drag-to-image block) — NOT next to PR 1's text-input verdicts: `.dragimage__target:hover, .dragimage__target:focus` is (0,2,0) like `.dragimage__target.is-correct`, so the verdict rule must come LATER in the file to keep its border on hover / focus:
 
 ```css
 /* Drag + grid verdicts (spec 2026-09-25 §2.1, D6; plan P1/P2): the fill-table
    colours on the part itself. Drag: the no-JS select and the dnd.js slot / image
    target (which copies its select's class). Grid: the row's statement cell, with
-   an inset bar so a row with nothing picked still reads. Each selector out-ranks
-   the base rule it recolours (select.dnd__select, .dragimage__target--filled,
-   the grids' even-row stripe). */
+   an inset bar so a row with nothing picked still reads. Placed after the drag
+   blocks: the target's hover / focus border rule has the same specificity and
+   loses only by source order; the other bases (select.dnd__select,
+   .dragimage__target--filled, the grids' even-row stripe) are out-ranked. */
 select.dnd__select.is-correct,
 .dnd__slot.is-correct,
 .dragimage__target.is-correct { border-color: var(--success); background: var(--success-subtle); }
@@ -2019,8 +2041,11 @@ select.dnd__select.is-incorrect,
 .multigrid tbody tr.is-correct td.multigrid__stmt { background: var(--success-subtle); box-shadow: inset 3px 0 0 var(--success); }
 .choicegrid tbody tr.is-incorrect td.choicegrid__stmt,
 .multigrid tbody tr.is-incorrect td.multigrid__stmt { background: var(--danger-subtle); box-shadow: inset 3px 0 0 var(--danger); }
-/* An inert chip (locked copy / key copy / results) must not look grabbable. */
+/* An inert chip / slot / target (locked copy, key copy, results) must not look
+   grabbable or tappable; dnd.js adds dnd--inert to the root when inert. */
 .dnd__chip:disabled { cursor: default; opacity: .7; }
+.dnd--inert .dnd__slot,
+.dnd--inert .dragimage__target { cursor: default; }
 .dnd__chip:disabled:hover { border-color: var(--border-strong); color: var(--text-primary); }
 ```
 
@@ -2038,12 +2063,15 @@ Expected: PASS after these known rewrites (Task 3 Step 5's rules, with the comme
 | `test_e2e_choicegrid.py::test_matrix_quiz_withhold_then_results` | results `.question__reveal--grid`, `"True"` / `"False"`, 2 × `.answer-wrong` | (d) → the results row has `[data-answer-switch]`; both `tbody tr` of `[data-answer-yours]` are `is-incorrect`; the key copy's checked radios are the correct columns |
 | `test_e2e_multigrid.py::test_multigrid_lesson_immediate_feedback` | `.question__reveal--grid` counts, `"B" in reveal` | (b) → row classes as for the matrix |
 
+Also — still GREEN but now vacuous, because a painted select / slot / target also carries `is-correct` (P2): `tests/test_e2e_questions_2d.py` lines ~112, 132, 292, 309 and `tests/test_e2e_questions_2dii.py` lines ~205, 280, 359 assert `page.locator(".is-correct").count() >= 1` (or `result_page.…`). Scope each to `.question__verdict.is-correct` (find them with `grep -n '"\.is-correct"' tests/test_e2e_questions_2d*.py`), with the replaces-comment.
+
 Update the stale module / helper docstrings of `test_e2e_choicegrid.py` and `test_e2e_multigrid.py` that describe the list. `test_e2e_widget_restore.py`'s `to_have_text("Heart")` etc. must stay green unedited (the `.sr-only` verdict sits AFTER the select, never inside a slot / target). If a Playwright test fails as a TIMEOUT, first rule out a stale service worker and parallel load (memory: `stale-service-worker-serves-old-static`, `e2e-flakes-under-parallel-load`).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-uv run ruff check --no-cache --fix tests/test_e2e_quiz_reveal_pr2.py && uv run ruff format --no-cache tests/test_e2e_quiz_reveal_pr2.py && uv run ruff check --no-cache tests/test_e2e_quiz_reveal_pr2.py
+# <rewritten> = every existing e2e file Step 6 rewrote
+uv run ruff check --no-cache --fix tests/test_e2e_quiz_reveal_pr2.py <rewritten> && uv run ruff format --no-cache tests/test_e2e_quiz_reveal_pr2.py <rewritten> && uv run ruff check --no-cache tests/test_e2e_quiz_reveal_pr2.py <rewritten>
 git add courses/static/courses/js courses/static/courses/css/courses.css templates/courses/quiz_results.html tests/
 git commit -m "feat(quiz-reveal): inert drag UI, re-enhance after every swap, drag + grid verdict colours"
 ```
@@ -2115,7 +2143,10 @@ git commit -m "docs(quiz-reveal): lesson in-place feedback for drag, match, imag
 | `dragfillblankquestionelement.html`: put `data-dnd` back on the outer div as well | `test_each_copy_is_its_own_dnd_root` |
 | `courses/verdicts.py`: `part_verdict` ignores `key` | `test_key_paints_every_gap_correct`, `test_locked_wrong_shows_a_neutralised_painted_key_copy` |
 | `courses/verdicts.py`: `invalid_attr` returns `""` | `test_render_selects_paints_each_gap_with_both_cues`, `test_grid_rows_paint_with_both_cues`, `test_cues_on_every_painted_part` |
-| `_grid_row_cells`: drop the `invalid` placeholder (grid inputs lose aria-invalid) | `test_grid_rows_paint_with_both_cues` |
+| `_grid_row_cells`: drop the `invalid` placeholder (grid inputs lose aria-invalid) | `test_grid_rows_paint_with_both_cues[choicegrid]` |
+| `_multigrid_row_cells`: drop the `invalid` placeholder | `test_grid_rows_paint_with_both_cues[multigrid]` |
+| `dnd.js`: inert builders keep the `drop` listener (only `click` skipped) | `test_drag_quiz_check_reveal_inert_copies`, `test_results_page_drag_ui_is_inert` |
+| `question.js`: drop the `libliInitScrollAffordance(form)` call | `test_lesson_check_repaints_and_rebuilds[choicegrid]` |
 | `MatchPairQuestionElement`: `SUPPORTS_REVEAL = False` | `test_check_answers_whole_element_painted_no_key[matchpair]`, `test_locked_wrong_shows_a_neutralised_painted_key_copy[matchpair]` |
 | `ChoiceGridQuestionElement`: `INLINE_LESSON_FEEDBACK = False` | `test_lesson_fetch_check_paints_in_place_no_list[choicegrid]` |
 | `ChoiceGridQuestionElement.key_answer`: `return None` | `test_key_answer_is_build_answer_of_the_right_post[choicegrid]`, `test_locked_wrong_shows_a_neutralised_painted_key_copy[choicegrid]` |
