@@ -95,8 +95,9 @@ All server-side; no per-type JS; works without JS.
 
 ### 2.1 Per-part verdicts
 
-`QuestionElement.part_verdicts(mark_result) -> list[bool] | None` — the right/wrong
-flag per part, in the order the type's template draws its parts. Every multi-part type
+`QuestionElement.part_verdicts(mark_result, answer) -> list[bool | None] | None` — the
+right/wrong flag per part (a `None` **entry** means "neutral, paint nothing", and every
+type's template must treat it so — never as False), in the order the type's template draws its parts. Every multi-part type
 already computes these in `mark()`, under a **per-type key**: `correct` for fill in the
 blanks and the dnd types (`dnd.mark_slots`), `is_correct` for choice grid and multi
 grid — each type's `part_verdicts` reads its own key (no shared base implementation).
@@ -148,7 +149,17 @@ today). No-leak test (PR 3): an unlocked, wrong choice question's HTML carries n
 class or attribute on any unpicked option.
 
 Multiple choice: `choice_marks` gains the unlocked-quiz case — ✓/✗ on **picked**
-options only, never ＋ until locked.
+options only, never ＋ until locked. That case reads the pinned per-option **`verdicts`**,
+**never `mark_result`** (whose `reveal` is the whole key); `mark_result` stays `None` in an
+unlocked choice render's context, which the PR 3 no-leak test asserts.
+
+**`answer` argument.** Choice's `MarkResult` does not carry the student's picks (`reveal`
+is the correct-id set; `annotated` only the feedback-bearing wrong ones), so
+`part_verdicts` takes the answer as its second argument, in `build_answer` shape. Each
+path passes: the **live** answer on a fetch Check / ephemeral path; `answer_from_json(
+question, latest_answer)` on stored paths (resume, no-JS, reveal response, results); and
+it is **not called** for unanswered results rows (verdicts `None`, §4). Types other than
+choice ignore it.
 
 ### 2.2 The correct-answer copy
 
@@ -292,9 +303,15 @@ copy, and are dropped from the outer div. The templates' form-less `{% else %}` 
 (e.g. matchpair's `<div>{% render_match_pairs el %}{% include "_dnd_pool.html" %}</div>`
 and the drag-onto-image stage) also renders **through the same controls include**, so it
 keeps a dnd root. Each copy is its own dnd root, and after a swap
-those roots are new nodes with no `dndReady`, so quiz.js's call to
-**`window.libliEnhanceDnd(form)`** (editor.js already calls it) enhances them. Test that
-fails on today's markup: after a fetch Check on each drag type, `.dnd__chip` exists in
+those roots are new nodes with no `dndReady`, and re-enhancing them is a **new
+requirement (PR 2) on all three swap sites**: quiz.js **must call**
+`window.libliEnhanceDnd(form)` after its form-body swap (it has no such call today);
+question.js likewise (§5a); and editor.js's **try-it** branch must call
+`window.libliEnhanceDnd(tryForm)` after `tryForm.innerHTML = …` (today it calls
+`libliEnhanceDnd` only after a whole editor-pane fragment swap, and re-runs only math
+after a try-it). Test that fails on today's markup — on the student quiz, the lesson,
+and the editor try-it in quiz and lesson mode: after a fetch Check on each drag type,
+`.dnd__chip` exists in
 the live copy, and each copy's selects are driven only by its own pool / targets.
 blank_autosize.js needs no change: its document-wide `MutationObserver` already re-fits
 after any swap, and it is a no-op where `field-sizing: content` is supported (so a
@@ -305,7 +322,8 @@ The other render paths must draw §1 state 2 or 4 identically:
 
 - **resume** (`build_quiz_context`, page load mid-quiz) and the **no-JS** re-render
   compute `result = _stored_result(question, response)` and
-  `verdicts = question.part_verdicts(result)` for an answered question, **locked or
+  `verdicts = question.part_verdicts(result, answer_from_json(question,
+  response.latest_answer))` for an answered question, **locked or
   not**. Today `build_quiz_context` already calls `_stored_result` for **every** answered
   AUTO question (`attempt_count > 0`) and only limits `state["mark_result"]` to locked
   ones; the change is to **also derive `verdicts` from that same result on both
@@ -590,7 +608,8 @@ exactly the #346 mechanism fill in the blanks uses:
   the lesson render drops `reveal_template` — **no answer list, no key copy, no switch,
   no Show answer** in lessons (D11);
 - **where lesson verdicts come from:** in lesson mode `QuestionElement.render()` computes
-  them **itself** — `verdicts = self.part_verdicts(mark_result)` **iff
+  them **itself** — `verdicts = self.part_verdicts(mark_result, submitted)` (the
+  `selected_ids` / `submitted_values` it already receives) **iff
   `element.pk == feedback_for_pk`**, else `None`. No caller passes lesson verdicts, so
   every lesson path gets them with no new plumbing: fetch, no-JS, practice-state
   restore (`render_element`'s restore branch), editor try-it, and questions **nested in
