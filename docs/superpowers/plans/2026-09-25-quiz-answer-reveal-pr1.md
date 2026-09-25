@@ -1001,7 +1001,7 @@ git commit -m "feat(quiz-reveal): result line states partial + marks + answer sh
 ### Task 6: Render plumbing + fill in the blanks (quiz + results + lesson)
 
 **Files:**
-- Modify: `courses/models.py` (`QuestionElement.render`, new `render_key_copy`; `FillBlankQuestionElement` flags)
+- Modify: `courses/models.py` (`QuestionElement.render`, new `render_key_copy`; `ChoiceQuestionElement.render` override accepts the new kwargs; `FillBlankQuestionElement` flags)
 - Modify: `courses/fillblank.py` (`render_inputs` sr-only verdict text)
 - Modify: `courses/templatetags/courses_extras.py` (`render_element`, `render_fill_blanks`)
 - Modify: `templates/courses/_quiz_article.html`
@@ -1129,6 +1129,26 @@ def test_fill_gate_render_is_unchanged():
     assert "sr-only" not in render_inputs(token_stem, ["a"], locked=True)
 
 
+@pytest.mark.django_db
+def test_quiz_page_with_a_choice_question_still_renders(client):
+    # _quiz_article.html forwards the new keys for EVERY question; choice overrides
+    # render(), so its signature must accept them (a TypeError here 500s the page).
+    from django.urls import reverse
+
+    from courses.models import Choice, ChoiceQuestionElement
+    from tests.factories import EnrollmentFactory, add_element, make_login
+
+    user = make_login(client, "stu_ch")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    Choice.objects.create(question=q, text="A", is_correct=True)
+    add_element(unit, q)
+    resp = client.get(reverse("courses:quiz_unit",
+                              kwargs={"slug": unit.course.slug, "node_pk": unit.pk}))
+    assert resp.status_code == 200
+
+
 def test_lesson_mode_never_draws_key_or_button(fb):
     q, el = fb
     html = _render(q, el, mode="lesson", action_url=None, submitted_values=["11", "5"],
@@ -1219,6 +1239,18 @@ Add the method to `QuestionElement` (after `render`):
 
 (`mark_safe` — add `from django.utils.safestring import mark_safe` to models.py imports if absent.)
 
+**`ChoiceQuestionElement.render` overrides `render()`** (the ONLY question type that does — `awk '/^class .*QuestionElement\)/{c=$2} /    def render\(/{print NR": "c}' courses/models.py` confirms). Its keyword-only signature ends at `feedback_html=""`, and from this task on `_quiz_article.html` passes the five new keys for EVERY question, while Task 8 splats `**state` into choice renders (it is `INLINE_QUIZ_REVEAL`). Add the same five kwargs to its signature, after `feedback_html=""`, accepted and unused in PR 1 (choice is unconverted until PR 3):
+
+```python
+        verdicts=None,
+        key_values=None,
+        can_reveal=False,
+        reveal_earned=None,
+        revealed=False,
+```
+
+and extend its signature comment: "`verdicts` / `key_values` / `can_reveal` / `reveal_earned` / `revealed` are accepted for signature uniformity with QuestionElement.render (quiz answer reveal PR 1); choice consumes them in PR 3."
+
 `FillBlankQuestionElement` — add:
 
 ```python
@@ -1307,7 +1339,7 @@ SUPPORTS_REVEAL / AUTO / attempt / lock rules; quiz_submitted is defence in dept
 {% load courses_extras %}{% render_fill_blanks el values locked=locked verdicts=verdicts sr_verdict=True %}
 ```
 
-Rewrite `fillblankquestionelement.html`, keeping its existing `{% comment %}` header and adding one paragraph to it ("PR 1 of the quiz answer reveal: `data-answer-scope` on the form (quiz/lesson) or the results `<div>`; the student's controls sit in `[data-answer-yours]`, the key copy in `[data-answer-key]`, the switch outside the fieldset."):
+Rewrite `fillblankquestionelement.html`, keeping its existing `{% comment %}` header but REWRITING the three sentences this change makes false — "mark_result is None in quiz mode (_quiz_article.html passes feedback_html instead)" (a LOCKED quiz question now gets mark_result, and every quiz question gets `verdicts`), "mark_result=... paints it green/red" (the paint now comes from `verdicts`), and "Lesson only: a quiz answer is still the bare feedback fragment" (`data-question-inline` is unconditional; quiz Checks return the whole element from Task 8) — and adding one paragraph ("PR 1 of the quiz answer reveal: `data-answer-scope` on the form (quiz/lesson) or the results `<div>`; the student's controls sit in `[data-answer-yours]`, the key copy in `[data-answer-key]`, the switch outside the fieldset."):
 
 ```django
 <div class="el el--question el--fillblank" data-question>
@@ -1610,8 +1642,12 @@ def test_numeric_key_copy_tolerance_matches_old_reveal_in_pl(db):
         old = render_to_string("courses/elements/_reveal_shortnumeric.html", {
             "mark_result": MarkResult(correct=False, fraction=0.0,
                                       reveal={"value": "3.5", "tolerance": "0.25"})})
-    key = html.split("data-answer-key")[1]
-    assert 'value="3.5"' in key and "0.25" in old and "± 0.25" in key
+    key = html.split("data-answer-key")[1].split("data-answer-switch")[0]
+    assert 'value="3.5"' in key
+    # Same tolerance text in both renders (no localisation drift, e.g. 0,25).
+    old_tol = re.search(r"± (\S+?)\s*</p>", old).group(1)
+    new_tol = re.search(r"± (\S+?)(\s|<|$)", key).group(1)
+    assert old_tol == new_tol == "0.25"
 
 
 @pytest.mark.django_db
@@ -2048,14 +2084,20 @@ def test_editor_try_quiz_reveal(client):
 
 Append to `tests/test_quiz_lock_rule_parity.py` (one case per `can_reveal` condition, both paths):
 
-```python
-import pytest as _pytest
+Add to the file's TOP import block (it already imports `pytest`, `make_login`, `EnrollmentFactory`, `add_element`, `make_quiz_unit`; `_url` is already defined), one import per line, no aliases:
 
-from courses.fillblank import parse as _parse
-from courses.models import Blank as _Blank
-from courses.models import ChoiceQuestionElement as _Choice
-from courses.models import FillBlankQuestionElement as _FB
-from courses.models import QuestionResponse as _QR
+```python
+from courses.fillblank import parse
+from courses.models import Blank
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import FillBlankQuestionElement
+from courses.models import QuestionResponse
+```
+
+then append:
+
+```python
 
 
 def _reveal_setup(client, *, enrolled, kind, marking_mode="A", attempts=1):
@@ -2067,15 +2109,13 @@ def _reveal_setup(client, *, enrolled, kind, marking_mode="A", attempts=1):
     if enrolled:
         EnrollmentFactory(student=user, course=unit.course)
     if kind == "fillblank":
-        q = _FB.objects.create(stem=_parse("{{11}}")[0], marking_mode=marking_mode, max_attempts=3)
-        _Blank.objects.create(question=q, order=0, accepted="11")
+        q = FillBlankQuestionElement.objects.create(stem=parse("{{11}}")[0], marking_mode=marking_mode, max_attempts=3)
+        Blank.objects.create(question=q, order=0, accepted="11")
         data = {"blank": ["5"]}
     else:
-        from courses.models import Choice as _ChoiceOpt
-
-        q = _Choice.objects.create(stem="?", marking_mode=marking_mode, max_attempts=3)
-        _ChoiceOpt.objects.create(question=q, text="A", is_correct=True)
-        wrong = _ChoiceOpt.objects.create(question=q, text="B", is_correct=False)
+        q = ChoiceQuestionElement.objects.create(stem="?", marking_mode=marking_mode, max_attempts=3)
+        Choice.objects.create(question=q, text="A", is_correct=True)
+        wrong = Choice.objects.create(question=q, text="B", is_correct=False)
         data = {"choice": [str(wrong.pk)]}  # a real (wrong) attempt
     el = add_element(unit, q)
     for n in range(attempts):
@@ -2089,8 +2129,8 @@ def _reveal(client, unit, el, data, made):
                        HTTP_X_REQUESTED_WITH="fetch")
 
 
-@_pytest.mark.django_db
-@_pytest.mark.parametrize("kind,marking_mode,accepted", [
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind,marking_mode,accepted", [
     ("fillblank", "A", True),
     ("fillblank", "N", False),
     ("choice", "A", False),  # unconverted type
@@ -2111,11 +2151,11 @@ def test_reveal_rule_parity(client, kind, marking_mode, accepted):
         assert b"answer shown" not in ephemeral.content
 
 
-@_pytest.mark.django_db
+@pytest.mark.django_db
 def test_reveal_parity_no_attempt_yet(client):
     unit, el, data = _reveal_setup(client, enrolled=True, kind="fillblank", attempts=0)
     assert _reveal(client, unit, el, data, 0).status_code == 409
-    assert _QR.objects.filter(element=el, revealed_at__isnull=False).count() == 0
+    assert QuestionResponse.objects.filter(element=el, revealed_at__isnull=False).count() == 0
     client.logout()
     unit2, el2, data2 = _reveal_setup(client, enrolled=False, kind="fillblank", attempts=0)
     # Ephemeral: reveal_attempts_made reads 0 -> refused -> processed as a normal Check.
@@ -2439,8 +2479,12 @@ def test_enter_in_a_blank_checks_not_reveals(browser, live_server):
     # NOW Enter: implicit submission uses the FIRST submit button -- which must be
     # Check. Show answer would lock and draw the switch.
     q.locator("input[name='blank']").nth(1).fill("5")
-    q.locator("input[name='blank']").nth(1).press("Enter")
-    q.locator(".question__verdict.is-partial").wait_for(timeout=6000)
+    # Sync on the Enter POST itself -- the partial verdict is ALREADY on screen from
+    # the first Check, so waiting for it would pass before the response lands.
+    with page.expect_request(lambda r: r.method == "POST" and "/answer/" in r.url) as req:
+        q.locator("input[name='blank']").nth(1).press("Enter")
+    assert "reveal" not in (req.value.post_data or "")
+    q.get_by_text("1 attempt left").wait_for(timeout=6000)  # only the Enter response says 1
     assert q.locator("[data-answer-switch]").count() == 0
     assert q.locator("[data-reveal-btn]").count() == 1
 
