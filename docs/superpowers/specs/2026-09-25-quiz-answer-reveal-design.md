@@ -64,12 +64,17 @@ requires-review (R) questions are unchanged: they lock on first submission, show
      for multiple choice the **ticked** options get ✓/✗, but the ＋ (a missed correct
      option) is **not** shown, because it would reveal the key;
    - result line: "◐ Partly correct · 0.25 / 1 · 2 attempts left", "✗ Incorrect · 0 / 1
-     · 2 attempts left" (D4) — a fully correct answer always locks (state 4), so
-     "✓ Correct · 1 / 1" only ever appears locked. The marks are
+     · 2 attempts left" (D4). A fully correct answer always locks (state 4). On an
+     **unlocked** question the line never reads "Correct": if the §2.5 helper says
+     correct only because of rounding (e.g. `max_marks = 0.01`, fraction 0.5 → earned
+     0.01) while `result.correct` is False, the line reads **partial**. The marks are
      `earned_marks(to_stored_fraction(result.fraction), max_marks)` of this attempt
      (§2.5 defines the outcome from those marks);
    - a **Show answer** button after Check (§3.1 fixes its position);
-   - explanation still hidden (unchanged).
+   - explanation still hidden (unchanged);
+   - the colours are **server-rendered and persist until the next Check** — editing a
+     part does not clear its colour (no JS); test: edit a green part, the class stays
+     until the next Check replaces the element.
 
    The same state is drawn on a page reload (resume) and on the no-JS re-render (§2.4).
 3. **Show answer**: `confirm()` — "Show the answer? This ends the question: you won't
@@ -173,7 +178,7 @@ render/rehydrate path draws both copies identically:
 |---|---|
 | Fill in the blanks | first accepted line per blank (list) |
 | Short text | first accepted line |
-| Short number | the **raw** stored value (and tolerance) — not display text; the short-number key-copy **template** formats them with the same filter / markup today's `_reveal_shortnumeric.html` uses, "± tolerance" beside it when tolerance > 0 (no display change; test in the pl locale compares the two) |
+| Short number | **`self.value`** — a plain string, exactly `build_answer`'s shape (`post.get("answer", "")`), fed through the same `submitted_values` pairing into the key copy's `<input value=…>`. The key-copy **template** prints "± `el.tolerance`" beside the input when `el.tolerance` is non-empty, **unfiltered** — exactly as today's `_reveal_shortnumeric.html` prints `reveal.value` / `reveal.tolerance` with no filter (no display change; a pl-locale test compares the two) |
 | Drag the words | the correct `slot` value per gap |
 | Match pairs | the correct `slot` value per left item |
 | Choice grid / multi grid | the correct column pk(s) per row |
@@ -234,7 +239,11 @@ The key copy's controls:
   depth, so no re-post can ever send the key as the student's answer. Drag types'
   nameless `<select>`s carry **`data-slot`** instead, and dnd.js's selector widens from
   `select[name="slot"]` to `select[name="slot"], select[data-slot]` so it still builds
-  the drag UI for the key copy (PR 2);
+  the drag UI for the key copy (PR 2). **Server side:** `dnd._render_select` hard-codes
+  `name="slot"` and is reached through `render_selects`, `render_match_rows` and
+  `render_zone_selects`; all four gain a `key_copy` argument that drops `name`, adds
+  `data-slot` and adds `disabled` on the select itself. The student's locked copy keeps
+  `name` and is disabled **only through its fieldset** (as today);
 - **the drag UI is inert when its controls are disabled** — dnd.js's `enhance` today
   ignores `disabled` and builds live chips whose tap/drag changes the select's value
   in code. It must build a display-only UI (chips `disabled`, no drag or tap-assign)
@@ -348,7 +357,11 @@ The other render paths must draw §1 state 2 or 4 identically:
   `_quiz_render_feedback`'s no-JS branch patches the question's `st[...]` by hand
   (`locked`, `selected_ids`, `submitted_values`, `mark_result` today). That patch site
   must also set **every new render key**: `verdicts`, the Show answer eligibility and
-  its `data-confirm` marks, `revealed`, and the key-copy inputs. Test: a no-JS previewer
+  its `data-confirm` marks, `revealed`, and the key-copy inputs. On **every** caller,
+  when `result is None` (a validation response, or an N/R question) `verdicts = None`
+  **without calling `part_verdicts`** (the per-type implementations read
+  `mark_result.reveal` / `.correct` and would raise). The previewer test adds a no-JS
+  validation case. Test: a no-JS previewer
   Check shows the part colours and the Show answer button.
 
 **New render keys travel through three signatures.** `verdicts`, `revealed`, the Show
@@ -550,7 +563,10 @@ the time it is written (currently `0066_blank_answers_unescape`).
 ## 4. Results page (D10)
 
 `views._results_row` / `quiz_results.html` render each question **read-only through
-the same renderer**, from the stored `latest_answer`, locked, via a new render mode
+the same renderer**, from the stored `latest_answer`, locked — the results helper passes
+**`locked=True` for every row**, to `key_view` and to the render, exactly as `_results_row`
+hard-codes it today (`finalize_submission` locks every response on Finish, so this only
+pins the invariant); only `fully_correct` varies per row — via a new render mode
 **`render(mode="results")`**: each converted template gains that branch, which emits a
 `<div data-answer-scope>` in place of the `<form>`, **no** Check / Show answer button,
 the controls include(s) with values + verdicts, the key copy, the switch, and a
