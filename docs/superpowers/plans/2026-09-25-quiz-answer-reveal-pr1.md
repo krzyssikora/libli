@@ -1003,7 +1003,7 @@ git commit -m "feat(quiz-reveal): result line states partial + marks + answer sh
 
 **Interfaces:**
 - Consumes: Task 1 hooks, Task 4 `neutralise_key_copy`.
-- Produces: `QuestionElement.render(..., verdicts=None, key_values=None, can_reveal=False, reveal_earned=None, revealed=False)` (plus existing kwargs); `mode` may now be `"results"`; `QuestionElement.render_key_copy(key_values) -> SafeString`; `render_element` tag accepts the same five kwargs; template context keys `verdicts`, `key_copy_html`, `can_reveal`, `reveal_earned`, `revealed`; `render_fill_blanks(el, submitted_values=None, locked=False, verdicts=None)`.
+- Produces: `QuestionElement.render(..., verdicts=None, key_values=None, can_reveal=False, reveal_earned=None, revealed=False)` (plus existing kwargs); `mode` may now be `"results"`; `QuestionElement.render_key_copy(key_values) -> SafeString`; `render_element` tag accepts the same five kwargs; template context keys `verdicts`, `key_copy_html`, `can_reveal`, `reveal_earned`, `revealed`; `render_fill_blanks(el, submitted_values=None, locked=False, verdicts=None, sr_verdict=False)` — its old `mark_result=` parameter is REMOVED (its only caller was the fill-blank question template, rewritten here; fill gates never passed it; lesson verdicts now come from `render()`); `fillblank.render_inputs(..., verdicts=None, *, sr_verdict=False)`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1462,6 +1462,17 @@ def test_quiz_locked_wrong_shows_key_copy(st_quiz):
     assert 'aria-label="Correct answer"' in key
     (yours,) = _INPUT.findall(html)
     assert "is-incorrect" in yours and 'aria-invalid="true"' in yours
+
+
+@pytest.mark.parametrize("model", [ShortTextQuestionElement, ShortNumericQuestionElement])
+def test_check_is_the_first_submit_button_single_part(db, model):
+    unit = make_quiz_unit()
+    q = model.objects.create(stem="?", **({"accepted": "a"} if model is ShortTextQuestionElement else {"value": "1"}))
+    el = Element.objects.create(unit=unit, content_object=q)
+    html = q.render(element=el, mode="quiz", action_url="/x/", feedback_for_pk=el.pk,
+                    submitted_values="x", can_reveal=True)
+    buttons = re.findall(r'<button[^>]*type="submit"[^>]*>', html)
+    assert 'name="reveal"' not in buttons[0] and 'name="reveal"' in buttons[1]
 
 
 def test_numeric_key_copy_prints_tolerance_unfiltered(db):
@@ -2520,6 +2531,33 @@ def test_enter_in_a_blank_checks_not_reveals(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_previewer_reveal_keeps_client_counter(browser, live_server):
+    # The client counter only matters on the stateless previewer path.
+    from django.contrib.auth import get_user_model
+
+    _student("rev_prev")
+    course, unit = _seed_quiz("rev_prev", "e2e-reveal-prev")
+    user = get_user_model().objects.get(username="rev_prev")
+    from courses.models import Enrollment
+
+    Enrollment.objects.filter(student=user).delete()  # not enrolled ...
+    user.is_staff = True  # ... but staff -> previewer
+    user.save()
+    page = browser.new_context().new_page()
+    _login(page, live_server, "rev_prev")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
+    q = page.locator("[data-question]").first
+    q.locator("input[name='blank']").nth(0).fill("11")
+    q.locator("button[type='submit']:not([name='reveal'])").click()
+    q.locator("[data-reveal-btn]").wait_for(timeout=6000)
+    assert q.get_attribute("data-attempts-made") == "1"
+    page.once("dialog", lambda d: d.accept())
+    q.locator("[data-reveal-btn]").click()
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)
+    assert q.get_attribute("data-attempts-made") == "1"
+
+
+@pytest.mark.django_db(transaction=True)
 def test_reveal_sent_when_submitter_is_missing(browser, live_server):
     # Old engines (Safari < 15.4) have no SubmitEvent.submitter: the click fallback
     # must still send reveal=1.
@@ -2855,6 +2893,25 @@ def test_results_reviewed_row_shows_teacher_marks(client):
 
 
 @pytest.mark.django_db
+def test_results_short_text_row_every_input_disabled(client):
+    # Short text / number have no fieldset: freezing on the results page relies on
+    # locked=True reaching the controls include (spec §4).
+    import re
+
+    user = make_login(client, "stu_dis")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortTextQuestionElement.objects.create(stem="?", accepted="Paris", max_attempts=1)
+    el = add_element(unit, q)
+    _answer(client, unit, el, {"answer": "Rome"})
+    row = _finish_and_get_results(client, unit).split("quiz-results__item")[1]
+    inputs = re.findall(r'<input[^>]*type="text"[^>]*>', row)
+    assert len(inputs) == 2  # yours + key copy
+    assert all("disabled" in t for t in inputs)
+    assert 'name="answer"' in inputs[0]
+
+
+@pytest.mark.django_db
 def test_results_controls_are_all_disabled(client):
     _u, unit, fb, _un, _nm = _setup(client)
     _answer(client, unit, fb, {"blank": ["11", "5"]})
@@ -2862,6 +2919,39 @@ def test_results_controls_are_all_disabled(client):
     row = body.split("quiz-results__item")[1]
     yours = row.split("data-answer-yours")[1].split("data-answer-key")[0]
     assert "disabled" in yours  # fieldset is `data-answer-yours disabled` (Task 6)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["fillblank", "text", "number"])
+@pytest.mark.parametrize("answered", [True, False])
+def test_analytics_expected_answer_per_type(client, kind, answered):
+    # Spec §5: _results_row's keys feed analytics; every converted type, answered
+    # (wrong) and unanswered, must still show its expected answer there.
+    from courses.models import ShortNumericQuestionElement
+    from tests.factories import make_pa
+
+    user = make_login(client, "stu_an")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    if kind == "fillblank":
+        q = FillBlankQuestionElement.objects.create(stem=parse("{{zetakey}}")[0], max_attempts=1)
+        Blank.objects.create(question=q, order=0, accepted="zetakey")
+        data, key = {"blank": ["no"]}, "zetakey"
+    elif kind == "text":
+        q = ShortTextQuestionElement.objects.create(stem="?", accepted="Parisxyz", max_attempts=1)
+        data, key = {"answer": "no"}, "Parisxyz"
+    else:
+        q = ShortNumericQuestionElement.objects.create(stem="?", value="3.14159", max_attempts=1)
+        data, key = {"answer": "1"}, "3.14159"
+    el = add_element(unit, q)
+    if answered:
+        _answer(client, unit, el, data)
+    _finish_and_get_results(client, unit)
+    client.logout()
+    make_pa(client, "pa_an")
+    url = reverse("courses:manage_analytics_student_quiz",
+                  kwargs={"slug": unit.course.slug, "student_pk": user.pk, "node_pk": unit.pk})
+    assert key in client.get(url).content.decode()
 
 
 @pytest.mark.django_db
@@ -3082,7 +3172,7 @@ To samo dotyczy pytań z krótką odpowiedzią tekstową i liczbową, które na 
 kolorują pole zamiast wypisywać poprawną odpowiedź.
 ```
 
-In the `## Short text` and `## Short numeric` sections of both files (find them with `grep -n "^## " docs/help/course-admin/quiz-editors*.md`), add one sentence each:
+In the `## {el:shorttext} …` and `## {el:shortnumeric} …` sections of both files (EN "Short text" / "Short numeric"-style titles; PL `## {el:shorttext} Krótki tekst` and `## {el:shortnumeric} Liczba` — locate with `grep -n "^## {el:short" docs/help/course-admin/quiz-editors*.md`), add one sentence each:
 - EN: "In a **lesson**, a wrong answer turns the box red instead of showing the correct answer; in a **quiz** the answer is available through **Show answer**."
 - PL: "Na **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast pokazywać poprawną odpowiedź; w **quizie** odpowiedź jest dostępna przez **Pokaż odpowiedź**."
 
@@ -3113,10 +3203,13 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | `key_view`: drop the `marking_mode != AUTO` return | `test_key_view_matrix`, `test_results_render_questions_as_they_ended` (Oslo) |
 | `key_view`: drop the `not locked` condition (copy before the lock) | `test_key_view_matrix`, `test_check_returns_whole_element_painted_no_key` |
 | `neutralise_key_copy`: skip `tag["disabled"] = ""` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
-| `quiz_render_state`: `"mark_result": result` (not locked-gated) | `tests/test_quiz_choice_inline_marking.py` (unpicked-option markers before the lock) — if it stays green, write a choice test that asserts no `question__choice-marker` on an unlocked wrong answer and record it |
+| `quiz_render_state`: `"mark_result": result` (not locked-gated) | `test_quiz_render_state_unlocked_partial_paints_without_key` (asserts `mark_result is None` unlocked) |
 | `neutralise_key_copy`: skip `attrs.pop("name")` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
 | quiz.js: freeze without the `[data-answer-switch]` skip | `test_show_answer_flow_and_switch` |
+| editor.js: freeze without the `[data-answer-switch]` skip | `test_editor_try_it_reveal_switch_survives_freeze` |
+| quiz.js: counter guard without `!isReveal` | `test_previewer_reveal_keeps_client_counter` |
 | `quiz_answer` reveal branch: `response.attempt_count += 1` AND add `"attempt_count"` to its `update_fields` (otherwise the increment never persists and the mutant is vacuous) | `test_reveal_locks_at_current_marks_without_an_attempt` |
+| `_results_question_html`: drop `locked=True` from its `question.render(...)` call | `test_results_short_text_row_every_input_disabled` |
 | `render()`: drop the `element.pk == feedback_for_pk` guard | `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (Task 7) |
 
 Record each mutant's RED test name in the PR description.
