@@ -304,6 +304,8 @@ blockquote {
    in the body colour; only the (aria-hidden) glyph carries the warning hue. */
 .question__verdict.is-partial { color: var(--text-primary); }
 .question__verdict.is-partial .question__glyph { color: var(--warning); }
+/* "◐ Partly correct", not "◐Partly correct" (D4); ✓ / ✗ get the same gap. */
+.question__verdict .question__glyph { margin-inline-end: .3em; }
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
 .question__nudge {
@@ -400,12 +402,22 @@ input.question__blank-input[type="text"] {
    is untouched. (0,3,0) beats app.css's input[type=text] (0,1,1). */
 .el--question .question__text-input.is-correct { border-color: var(--success); background: var(--success-subtle); }
 .el--question .question__text-input.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
-[data-answer-scope]:has([data-answer-view="key"]:checked) span[data-answer-key] { display: inline; }
 /* Quiz answer reveal (spec 2026-09-25 §2.3): the key copy is hidden by default and
    shown only by :has(), so a browser without :has() degrades to "Your answer" (D3). */
 [data-answer-key] { display: none; }
 [data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: block; }
 [data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-yours] { display: none; }
+/* Short text / number key copy: ONE flex line, so a number's " ± 0.01" stays beside
+   its input instead of wrapping under it (where it pushed the inline-flex switch
+   sideways). Same height + bottom margin as the "yours" block input, so the switch
+   does not move on toggle. (0,4,1) beats the display:block rule above. */
+[data-answer-scope]:has([data-answer-view="key"]:checked) span[data-answer-key] {
+  display: flex;
+  align-items: center;
+  gap: .35em;
+  margin-bottom: var(--space-2);
+}
+span[data-answer-key] .question__text-input { margin-bottom: 0; }
 .answer-switch {
   display: inline-flex;
   margin: 0 0 var(--space-2);
@@ -475,7 +487,8 @@ input.question__blank-input[type="text"] {
    default `resize: both` precisely so a full-width textarea cannot be dragged
    past its container. */
 .quiz input.question__text-input,
-.lesson input.question__text-input { max-width: 22rem; }
+.lesson input.question__text-input,
+.quiz-results__item input.question__text-input { max-width: 22rem; }
 /* Set the irreversible "Finish quiz" action apart from the last question. */
 .quiz .quiz-finish {
   margin-top: var(--space-6);
@@ -785,6 +798,9 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
 }
 .quiz-results__item .question__stem { margin-bottom: var(--space-2); }
+/* ...except a fill-blank key copy (a .question__stem <div>): it must match the
+   "yours" fieldset's inline space-3, or the switch jumps 4px on toggle. */
+.quiz-results__item .question__stem.answer-key { margin-bottom: var(--space-3); }
 
 /* ── code-field primitive (batch 1; JS enhancement in batch 4) ────────────────
    Theme-following monospace editor look: header-less gutter + textarea, no soft

@@ -135,9 +135,60 @@ def test_results_page_switch_shows_the_key(browser, live_server):
     page.wait_for_url("**/results/**")
     row = page.locator(".quiz-results__item").first
     assert not row.locator("[data-answer-key]").is_visible()
+    switch = row.locator("[data-answer-switch]")
+    before = switch.bounding_box()
     row.locator("label:has([data-answer-view='key'])").click()
     assert row.locator("[data-answer-key]").is_visible()
     assert not row.locator("[data-answer-yours]").is_visible()
+    # Both copies keep the same bottom margin: the switch must not move (V1b).
+    after = switch.bounding_box()
+    assert (after["x"], after["y"]) == (before["x"], before["y"])
+
+
+@pytest.mark.django_db(transaction=True)
+def test_number_key_copy_keeps_tolerance_inline_and_switch_still(browser, live_server):
+    # The number key copy is "3.14 ± 0.01": the tolerance must stay on the key
+    # input's line, and toggling must not move the switch out from under the cursor.
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import ShortNumericQuestionElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    _student("rev_num")
+    user = get_user_model().objects.get(username="rev_num")
+    course = CourseFactory(slug="e2e-reveal-num")
+    Enrollment.objects.get_or_create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
+    )
+    Element.objects.create(
+        unit=unit,
+        content_object=ShortNumericQuestionElement.objects.create(
+            stem="pi?", value="3.14", tolerance="0.01", max_attempts=1
+        ),
+    )
+    page = browser.new_context().new_page()
+    _login(page, live_server, "rev_num")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
+    q = page.locator("[data-question]").first
+    q.locator("input[name='answer']").fill("3")
+    q.locator("button[type='submit']:not([name='reveal'])").click()
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)  # 1 attempt: locked
+    switch = q.locator("[data-answer-switch]")
+    before = switch.bounding_box()
+    q.locator("label:has([data-answer-view='key'])").click()
+    key = q.locator("[data-answer-key]")
+    assert key.is_visible()
+    after = switch.bounding_box()
+    assert (after["x"], after["y"]) == (before["x"], before["y"])
+    # One line: the key copy is no taller than its input (the tolerance did not wrap).
+    assert (
+        key.bounding_box()["height"]
+        <= key.locator("input").bounding_box()["height"] + 1
+    )
 
 
 @pytest.mark.django_db(transaction=True)
