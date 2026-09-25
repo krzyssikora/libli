@@ -320,7 +320,8 @@ part is simply not painted), so a resume test asserts painted parts — it fails
 `st.verdicts` is not forwarded. (Lesson verdicts need none of this: §5a.)
 
 **The Show answer button's render condition**, on every path:
-`mode == "quiz" and SUPPORTS_REVEAL and can_reveal(...) and not quiz_submitted` (the
+`mode == "quiz" and can_reveal(...) and not quiz_submitted` (`can_reveal` includes the
+`SUPPORTS_REVEAL` check, §3.5; the
 results mode has no buttons at all; lessons never show it, D11). `can_reveal` leaves
 SUBMITTED out on purpose (§3.5), but `build_quiz_context` still renders a submitted quiz
 with `quiz_submitted=True`, so without the extra term an answered-but-unlocked question
@@ -346,7 +347,11 @@ the results page) re-marks it to get verdicts, and re-marking can disagree with 
 was awarded if the author has since edited the key. So on every path:
 
 - the **result line, the marks and the `data-confirm` marks** come from the **stored**
-  `response.fraction` / `earned_marks`, the line's outcome via the §2.5 helper;
+  `response.fraction`, with `earned` **always recomputed** as
+  `earned_marks(stored fraction, current max_marks)` exactly as `_results_row` does — the
+  stored `response.earned_marks` column is **not** read for display (it used the
+  `max_marks` in force at Check time), except for a reviewed R question's
+  teacher-awarded marks; the line's outcome via the §2.5 helper;
 - **"fully correct"** — which alone decides whether the key copy and switch are drawn —
   is **one predicate: `_stored_result(...).correct`** (stored `fraction == 1`). Where it
   disagrees with the helper's outcome after rounding (e.g. 0.9999 → earned 1.00), the
@@ -483,10 +488,15 @@ would silently not happen).
 ### 3.5 Reveal-rule parity
 
 `courses.quiz.can_reveal(question, *, attempts_made, locked) -> bool`:
-AUTO marking mode, `attempts_made >= 1`, not `locked`. The SUBMITTED check stays in
+**`type(question).SUPPORTS_REVEAL`**, AUTO marking mode, `attempts_made >= 1`, not
+`locked`. The flag check lives **here and only here**, so every caller — the button's
+render condition (§2.4), the enrolled branch (§3.2 step 2), the ephemeral paths (§3.3)
+— gets it by calling `can_reveal`. The SUBMITTED check stays in
 `quiz_answer`'s existing gate (the ephemeral path has no submission). Both the saved
 path (§3.2) and both ephemeral paths (§3.3) call it; `tests/test_quiz_lock_rule_parity.py`
-gains a case per condition.
+gains a case per condition, including an unconverted AUTO type (a crafted reveal POST
+for it gets the ineligible response on the enrolled path and a normal Check on the
+ephemeral ones).
 
 ### 3.6 Migration
 
@@ -524,8 +534,11 @@ Rows:
 
 - **auto-marked, answered**: result line ("· answer shown" if `revealed_at`), the switch
   (or ✓ ✗ ＋ for choice), the explanation;
-- **auto-marked, unanswered**: empty controls, "Not answered · 0 / 1", and the switch so
-  the answer is still viewable;
+- **auto-marked, unanswered**: empty controls, "Not answered · 0 / 1", and the answer
+  still viewable — the switch for types with a key copy; ＋ on the correct options for
+  choice; the keyword block for extended response. The results helper treats an
+  unanswered row as **locked and not fully correct without calling `_stored_result`**
+  (there is no response / `latest_answer` to read);
 - **N / R, answered**: the student's answer read-only + "Answer recorded" / "Submitted
   for review" / the teacher's `review_feedback`; never a key (as today);
 - **N / R, unanswered**: empty controls + "Not answered"; no marks, no switch, no key;
