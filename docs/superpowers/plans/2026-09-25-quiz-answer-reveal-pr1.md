@@ -23,6 +23,7 @@
 - Tests: run with `uv run pytest …` after `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. e2e needs `-m e2e`. Never pass `-q`. Scope runs to the files named in each task; the whole-repo sweep is Task 12 only.
 - Template comments: `{# #}` is single-line only; multi-line comments use `{% comment %}…{% endcomment %}`.
 - Commit messages end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- **Lint before EVERY commit** (each task's "Commit" step), scoped to the files that task touched: `uv run ruff check --no-cache --fix <files> && uv run ruff format --no-cache <files> && uv run ruff check --no-cache <files>`. The repo's ruff config has isort `force-single-line = true` and checks function-level imports too, so the plan's combined in-function imports (`from x import A, B`) are split by `--fix` (I001) and any unused import is dropped (F401) — let the fixer do it. A long raw-regex assertion that stays over 88 characters after `ruff format` gets a trailing `# noqa: E501` (do NOT split the regex into adjacent literals — it hides the pattern). `--no-cache` because a stale cache can hide a noqa change.
 
 ## Review Focus
 
@@ -799,7 +800,6 @@ from courses.fillblank import parse
 from courses.models import Blank
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
-from courses.models import ShortTextQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_login
@@ -2626,6 +2626,29 @@ def test_show_answer_flow_and_switch(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_results_page_switch_shows_the_key(browser, live_server):
+    # On the results page the :has() scope is a plain <div data-answer-scope>, not a
+    # form -- click the switch there too, not only in the quiz / editor.
+    _student("rev_res")
+    course, unit = _seed_quiz("rev_res", "e2e-reveal-results", max_attempts=1)
+    page = browser.new_context().new_page()
+    _login(page, live_server, "rev_res")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
+    q = page.locator("[data-question]").first
+    q.locator("input[name='blank']").nth(0).fill("11")
+    q.locator("button[type='submit']:not([name='reveal'])").click()
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)  # 1 attempt: locked
+    page.once("dialog", lambda d: d.accept())
+    page.locator("[data-finish-btn]").click()
+    page.wait_for_url("**/results/**")
+    row = page.locator(".quiz-results__item").first
+    assert not row.locator("[data-answer-key]").is_visible()
+    row.locator("label:has([data-answer-view='key'])").click()
+    assert row.locator("[data-answer-key]").is_visible()
+    assert not row.locator("[data-answer-yours]").is_visible()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_short_text_verdict_colours_are_computed(browser, live_server):
     # Short text's .question__text-input.is-* rules sit on the app.css
     # input[type=text] collision: measure, don't trust the specificity argument.
@@ -2864,6 +2887,8 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
+`test_results_page_switch_shows_the_key` needs Task 10 (the results render); it is expected to FAIL until Task 10 lands — run it again in Task 10 Step 4.
+
 Also run `tests/test_e2e_uniform_block_width.py tests/test_e2e_blank_input_width.py tests/test_e2e_unit_nav.py tests/test_e2e_slideshow.py tests/test_e2e_question_restore.py tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
 
 Enter-guard falsification (only now, with the submitter sent): move `{% include "courses/elements/_reveal_button.html" %}` ABOVE the Check button in `fillblankquestionelement.html` → `test_enter_in_a_blank_checks_not_reveals` must go RED — as an `expect_request` timeout (Enter picks Show answer, quiz.js calls `confirm()`, Playwright auto-dismisses it, no POST is sent); restore by hand.
@@ -3261,7 +3286,7 @@ and update the existing `{# Badges: … change both. #}` comment in the old bran
 - [ ] **Step 4: Run to verify, plus the results / analytics suites**
 
 Run: `uv run pytest tests/test_quiz_reveal_results.py tests/test_quiz_results_render.py tests/test_quiz_finish.py tests/test_quiz_results_choice_reveal.py tests/test_analytics_student_quiz.py tests/test_questions_2d_results.py tests/test_questions_2diii_results.py -p no:randomly`
-Then the results / analytics e2e: `uv run pytest tests/test_e2e_results.py tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py -m e2e -p no:randomly`.
+Then the results / analytics e2e: `uv run pytest tests/test_e2e_results.py tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py "tests/test_e2e_quiz_reveal.py::test_results_page_switch_shows_the_key" -m e2e -p no:randomly` (the last one was written in Task 9 and goes GREEN here).
 
 Expected: PASS, except (a) a locator scoped to the OLD converted-row markup (`li.quiz-results__item > .question__feedback-panel …`) — converted rows now nest the panel inside `.el--question [data-answer-scope] .question__feedback`; re-scope the locator, keep the assertion; and (b) results-page assertions of "Correct answer:" / "Expected:" / per-blank reveal lists for the THREE converted types — rewrite those to the rendered element (switch + key copy) with a comment naming the replaced assertion. Choice and the PR 2 types keep their old rows untouched; any failure there is a regression. A lost badge surface, contrast or outcome border colour on a CONVERTED row (e.g. `test_e2e_analytics_student_pages.py::test_t33b_badge_has_its_own_opaque_surface_on_both_pages`) is a CSS regression to fix — never loosen that assertion.
 
