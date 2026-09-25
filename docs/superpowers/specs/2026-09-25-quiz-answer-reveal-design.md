@@ -123,8 +123,10 @@ verdict is the **fresh** correctness (see §2.6 — their `reveal` is a string /
    still returns the whole element with its ✓ ✗ ＋ marks). Set in PR 1 on fill in the
    blanks, short text and number; PR 2 on its five types; PR 3 on multiple choice and
    extended response. An unset type behaves exactly as it does today (its current
-   response shape, no button, its old results row), and a reveal POST for it gets the
-   ineligible response (test).
+   response shape, no button, its old results row) **except for the result line**, and a
+   reveal POST for it gets the ineligible response (test). The result line (§2.5: partly
+   correct, marks, attempts-left omission) is **not** gated: it is one shared template,
+   D4 is not type-specific, and it ships for **every** quiz type in PR 1.
 2. **The in-place view**, which decides what a locked, not-fully-correct question shows:
    - `key_answer()` is not None → key copy + switch (every PR 1–2 type);
    - multiple choice → its inline ✓ ✗ ＋ marks (`INLINE_QUIZ_REVEAL`, D8), no switch;
@@ -152,6 +154,16 @@ False for a picked option, `None` for an unpicked one** — the correctness of a
 option never leaves the server before the lock (after it, `choice_marks` shows ＋ as
 today). No-leak test (PR 3): an unlocked, wrong choice question's HTML carries no marker,
 class or attribute on any unpicked option.
+
+**Colour is never the only cue** (WCAG 1.4.1). Removing the `_reveal_*` lists removes the
+only non-colour verdict cue most types have today, so every painted part of every converted
+type — in quizzes and in lessons — carries **`aria-invalid="true"` when wrong** and a
+**visually-hidden "correct" / "incorrect" text** (translatable) inside or labelling the
+part; a right part has no `aria-invalid`. No visible glyph is added: the look stays the
+fill-in-table look the owner chose (D2 / D6). Choice keeps its existing `MARK_GLYPHS`
+labels. Per-type test: a wrong part carries both cues and a right part neither `aria-invalid`
+nor the "incorrect" text, in the quiz and in a lesson. (Beware the project's redefined
+`.visually-hidden` in the notes / tags CSS — use the shared utility class.)
 
 Multiple choice: `choice_marks` gains the unlocked-quiz case — ✓/✗ on **picked**
 options only, never ＋ until locked. That case reads the pinned per-option **`verdicts`**,
@@ -210,7 +222,7 @@ once for "Your answer" and once with `copy="key"` for the correct answer. Per ty
 | Type | Controls include holds | Stem |
 |---|---|---|
 | Fill in the blanks, drag the words | the token stem with its inputs / slots (the stem prose IS the controls) | inside the copy |
-| Short text, number | the `<input name="answer">` only (+ "± tolerance" in the key copy) | stays outside the form, once; the key copy sits right after the student's input |
+| Short text, number | the `<input name="answer">` only (+ "± tolerance" in the key copy); the key copy's input gets **`aria-label`** = the translatable "Correct answer" (its student-side label stays outside the copy) | stays outside the form, once; the key copy sits right after the student's input |
 | Match pairs, both grids, drag onto image | the content of the type's controls `<fieldset>` | stays where it is today, once |
 
 The form wrapper, the Check and Show answer buttons, the `[data-question-feedback]` box
@@ -225,7 +237,10 @@ with **`decode_contents()`** (a `NavigableString` decodes entities while a `Tag`
 re-escapes them — the known bs4 trap; test: a stem containing `\(a<b\)` and `&amp;`
 renders identically in both copies apart from the id suffixes): **every** `id` in it — template-generated or
 authored — gets the `-key` suffix and every `for=` / `aria-labelledby` /
-`aria-describedby` / `aria-controls` reference inside the copy is rewritten to match;
+`aria-describedby` / `aria-controls` reference inside the copy is rewritten to match
+**only when its target id is itself inside the key copy** — a reference to an id outside
+the copy (e.g. a hint in the stem, which stays outside for short text / match pairs /
+grids) is left untouched (test case: a reference pointing outside the copy);
 `<iframe>` / `<embed>` / `<object>` elements are **removed** from the key copy (the
 student's copy keeps them; duplicating a GeoGebra applet is heavy and pointless). Tests
 include a stem with an authored id / anchor and one with an iframe.
@@ -259,7 +274,11 @@ The key copy's controls:
   when the block's selects are disabled or the block is a key copy; this also covers a
   locked "Your answer" on resume and in the editor, where no script freezes the chips.
   Test: tapping / dragging a chip in either locked copy leaves every select unchanged;
-- ids per the author-HTML rule above.
+- ids per the author-HTML rule above;
+- **empty keys:** `key_answer()` returns `None` (no copy, no switch) when the type's whole
+  key is empty — e.g. a short-text question with no accepted line. A fill-in-the-blanks
+  question where only some blanks have no accepted line still gets a copy, with those
+  blanks as empty green boxes (an authoring gap, not hidden); tests pin both.
 
 **The copy is rendered only when locked**; it never appears in the page, the Check
 response, or the resume render before that.
@@ -666,7 +685,11 @@ exactly the #346 mechanism fill in the blanks uses:
   editor.js already swap the form body for it). For drag types, the per-copy `data-dnd`
   root (§2.4) applies in lessons too, and **question.js** must call
   `window.libliEnhanceDnd(form)` after its swap, like quiz.js;
-- the verdict line and the explanation stay, as for fill in the blanks today.
+- the verdict line and the explanation stay, as for fill in the blanks today — the lesson
+  line is **unchanged**, so a partly right lesson answer still reads "Incorrect" above its
+  green and red parts. D4's partial wording is quiz-only; the lesson line
+  (`_question_feedback.html`) is shared by every lesson question, and changing it is out of
+  scope here.
 
 Extended response and multiple choice are unchanged in lessons. Tests per converted
 type: a wrong lesson Check (fetch, no-JS, restore, editor try-it) paints each part and
