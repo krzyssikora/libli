@@ -98,3 +98,23 @@ def test_incorrect_unconverted_type_gets_new_line_too(client):
     el = add_element(unit, q)
     body = _post(client, unit, el, {"choice": [str(wrong.pk)]})
     assert "Incorrect" in body and "0 / 1" in body
+
+
+@pytest.mark.django_db
+def test_incorrect_unconverted_non_inline_type_gets_new_line_too(client):
+    # Drag the words is neither SUPPORTS_REVEAL nor INLINE_QUIZ_REVEAL: its response
+    # is the bare feedback fragment, which must carry the new line with marks too.
+    from courses.models import DragBlank
+    from courses.models import DragFillBlankQuestionElement
+
+    unit = _enrolled_quiz(client)
+    q = DragFillBlankQuestionElement.objects.create(
+        stem=parse("{{cat}} and {{dog}}")[0], distractors="x", max_attempts=3
+    )
+    DragBlank.objects.create(question=q, correct_token="cat", order=0)
+    DragBlank.objects.create(question=q, correct_token="dog", order=1)
+    el = add_element(unit, q)
+    body = _post(client, unit, el, {"slot": ["dog", "cat"]})
+    assert "data-question-inline" not in body  # the fragment, not the element
+    assert "question__verdict is-incorrect" in body
+    assert "Incorrect" in body and "0 / 1" in body and "2 attempts left" in body

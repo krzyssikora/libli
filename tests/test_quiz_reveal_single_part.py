@@ -115,6 +115,28 @@ def test_numeric_key_copy_prints_tolerance_unfiltered(db):
     assert 'value="3.14"' in key and "± 0.01" in key
 
 
+def test_numeric_key_copy_shows_value_as_authored_no_tolerance_at_zero(db):
+    # "1/3" stays "1/3" (never 0.33333333 or a localised 0,33...), and a blank
+    # tolerance prints no "±" at all.
+    unit = make_quiz_unit()
+    q = ShortNumericQuestionElement.objects.create(
+        stem="third?", value="1/3", tolerance=""
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    html = q.render(
+        element=el,
+        mode="quiz",
+        action_url="/x/",
+        feedback_for_pk=el.pk,
+        submitted_values="4",
+        key_values="1/3",
+        locked=True,
+    )
+    key = html.split("data-answer-key")[1].split("data-answer-switch")[0]
+    assert 'value="1/3"' in key
+    assert "±" not in key
+
+
 def _lesson(client, q):
     student = make_student(client, "st_lesson")
     course, unit = make_course_with_unit()

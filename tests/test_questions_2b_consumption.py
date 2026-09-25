@@ -56,6 +56,11 @@ def test_shorttext_check_answer_fragment(client):
     assert b'aria-invalid="true"' in wrong.content
     ok = client.post(url, {"answer": " paris "}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-correct" in ok.content
+    # Was only: b"Paris" not in ok.content -- true merely because " paris " was
+    # typed. Lessons never render a reveal list or a key copy (D11, D13).
+    for resp in (wrong, ok):
+        assert b"question__reveal" not in resp.content
+        assert b"data-answer-key" not in resp.content
     assert b"Paris" not in ok.content  # fully-correct suppresses the reveal
 
 
@@ -90,8 +95,11 @@ def test_shortnumeric_reveal_shows_the_canonical_string(client):
     # D13 (spec 2026-09-25 §5a): replaces the old "Expected:" lesson list assertion
     (inp,) = re.findall(r'<input[^>]*name="answer"[^>]*>', html)
     assert "is-incorrect" in inp and 'aria-invalid="true"' in inp
-    assert "0.33333333" not in html
-    assert "±" not in html  # no reveal at all pre-lock
+    # Was: "0.33333333" / "±" absent -- unfailable here, a lesson renders no key
+    # copy at all (D11). The number key copy's "value as authored, no ± at zero
+    # tolerance" is pinned in test_quiz_reveal_single_part.py::
+    # test_numeric_key_copy_shows_value_as_authored_no_tolerance_at_zero.
+    assert "data-answer-key" not in html
 
 
 @pytest.mark.django_db
@@ -116,7 +124,8 @@ def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot(client):
     # that the "Sprawdź" assertion below relies on.
     response = client.post(url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl")
     html = response.content.decode()
-    assert "3,14" not in html  # the pre-change rendering
+    # Was: "3,14" absent -- unfailable, a lesson renders no key copy (D11); the
+    # key copy's as-authored value is pinned in test_quiz_reveal_single_part.py.
     # D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" list assertion
     (inp,) = re.findall(r'<input[^>]*name="answer"[^>]*>', html)
     assert "is-incorrect" in inp and 'aria-invalid="true"' in inp

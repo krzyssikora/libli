@@ -61,6 +61,8 @@ def test_results_render_questions_as_they_ended(client):
     _answer(client, unit, nm, {"answer": "Bergen"})
     body = _finish_and_get_results(client, unit)
     assert "<form" not in body.split("quiz-results__list")[1]
+    listing = body.split("quiz-results__list")[1].split("</ol>")[0]
+    assert "<button" not in listing and 'type="submit"' not in listing  # spec §4
     assert body.count("data-answer-switch") == 2  # fb (partial) + unanswered short text
     assert "answer shown" in body
     assert 'value="Paris"' in body  # unanswered key visible
@@ -288,3 +290,34 @@ def test_analytics_keeps_expected_answers_and_tags_reveal(client):
     body = client.get(url).content.decode()
     assert "answer shown" in body
     assert "Paris" in body  # the unanswered row still shows its expected answer
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["fillblank", "text", "number"])
+def test_results_helper_never_marks_an_unanswered_row(monkeypatch, kind):
+    # Spec §4: an unanswered converted row renders neutral controls WITHOUT mark().
+    # _results_row may call mark() itself (spec §5 allows it), so the row is built
+    # first and mark is patched to raise only around the helper.
+    from courses import views
+    from courses.models import ShortNumericQuestionElement
+
+    unit = make_quiz_unit()
+    if kind == "fillblank":
+        q = FillBlankQuestionElement.objects.create(stem=parse("{{11}}")[0])
+        Blank.objects.create(question=q, order=0, accepted="11")
+        key = 'value="11"'
+    elif kind == "text":
+        q = ShortTextQuestionElement.objects.create(stem="U?", accepted="Paris")
+        key = 'value="Paris"'
+    else:
+        q = ShortNumericQuestionElement.objects.create(stem="N?", value="3.14")
+        key = 'value="3.14"'
+    el = add_element(unit, q)
+    row = views._results_row(q, None)
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("mark() called for an unanswered results row")
+
+    monkeypatch.setattr(type(q), "mark", _boom)
+    html = views._results_question_html(el, q, None, row)
+    assert "data-answer-switch" in html and key in html
