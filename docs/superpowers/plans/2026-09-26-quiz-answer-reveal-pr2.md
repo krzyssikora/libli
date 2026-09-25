@@ -44,7 +44,7 @@
 | # | Decision | Why |
 |---|---|---|
 | P1 | A grid "part" is a **row**: the `<tr>` gets `is-correct` / `is-incorrect`, its statement cell is tinted (success/danger-subtle + a 3px inset bar on the left) and holds the `.sr-only` verdict; every input of a wrong row gets `aria-invalid="true"`. | D6 says "grid row"; the statement cell is the one cell every row has whatever was picked (a wrong row with nothing picked must still read red). |
-| P2 | A drag part is painted on its `<select>` (the no-JS control) and dnd.js copies `is-correct` / `is-incorrect` onto the slot / overlay target it builds for that select. The numbered image badges are not painted. | One server-side source of truth; the JS never decides a verdict. |
+| P2 | A drag part is painted on its `<select>` (the no-JS control) and dnd.js copies `is-correct` / `is-incorrect` onto the slot / overlay target it builds for that select; for drag onto image (whose rows dnd.js hides) it also places a copy of the `.sr-only` verdict right after the target. The numbered image badges are not painted. | One server-side source of truth; the JS never decides a verdict. |
 | P3 | `key_answer()` returns `None` when the whole key is empty: no gaps / pairs / zones / rows, or (drag types) every expected token empty, or (multi grid) no row has any correct column. A multi-grid row whose correct set is empty inside a non-empty key is a real "tick nothing" answer and stays `[]`. | Spec §2.2 "empty keys", mirroring fill in the blanks' `any(...)` rule. |
 | P4 | The drag key copy keeps its chip pool, built display-only (chips `disabled`, not draggable). | Spec §2.2 literally ("chips `disabled`"); both copies look alike. |
 | P5 | The key-copy wrapper for the drag types is `<div class="answer-key" data-answer-key>` (drag the words: `class="question__stem answer-key"` with `style="margin:0;"`), matching the "yours" fieldset's zero margin so the switch does not move on toggle. | PR 1's V1b rule (the switch must not jump). |
@@ -529,9 +529,13 @@ def test_part_verdict_rules():
 
 
 def test_unpainted_select_is_byte_identical():
+    # Master's markup, literally (the option label is translatable, so only the
+    # structure around it is pinned). The existing render suites guard the rest.
     plain = str(dnd._render_select(["a", "b"], "a"))
-    assert plain == str(dnd._render_select(["a", "b"], "a", verdict=None))
-    assert "is-" not in plain and "aria-invalid" not in plain and "sr-only" not in plain
+    assert plain.startswith('<select name="slot" class="dnd__select"><option value="">')
+    assert plain.endswith(
+        '<option value="a" selected>a</option><option value="b">b</option></select>'
+    )
 
 
 def test_render_selects_paints_each_gap_with_both_cues():
@@ -734,7 +738,7 @@ def _row_class(verdict):
 - [ ] **Step 6: Run the new tests plus the unchanged render suites**
 
 Run: `uv run pytest tests/test_quiz_reveal_pr2_paint.py tests/test_dnd_render.py tests/test_render_choicegrid.py tests/test_render_multigrid.py tests/test_questions_2dii_render.py tests/test_quiz_reveal_fillblank_render.py -p no:randomly`
-Expected: PASS, with the four existing suites **unedited** (the byte-identity constraint). A failure in them means an unpainted path changed — fix the code, not the test.
+Expected: PASS, with the five existing suites **unedited** (the byte-identity constraint). A failure in them means an unpainted path changed — fix the code, not the test.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -874,6 +878,8 @@ def test_one_feedback_box_check_first_at_most_one_reveal(client, kind):
         _fetch(client, unit, el, kit.half).content.decode(),
         _page(client, unit),
     ):
+        # Only THIS question's form: the full page has other submit buttons.
+        body = re.search(r"<form[^>]*data-answer-scope.*?</form>", body, re.S).group(0)
         assert body.count("data-question-feedback") == 1
         buttons = re.findall(r'<button[^>]*type="submit"[^>]*>', body)
         assert 'name="reveal"' not in buttons[0]  # Check first (spec §3.1)
@@ -1300,7 +1306,7 @@ In `courses/models.py`, on each of `DragFillBlankQuestionElement`, `MatchPairQue
 Run: `uv run pytest tests/test_quiz_reveal_pr2_flow.py -p no:randomly`
 Expected: PASS.
 
-Then run: `uv run pytest tests/test_questions_2d_consumption.py tests/test_questions_2d_quiz_noleak.py tests/test_questions_2d_quiz_routing.py tests/test_questions_2d_results.py tests/test_questions_2d_reveal.py tests/test_questions_2d_views_touchpoints.py tests/test_questions_2dii_consumption.py tests/test_questions_2dii_render.py tests/test_dnd_render.py tests/test_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_previewer_render.py tests/test_quiz_reveal_flow.py tests/test_quiz_reveal_results.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py tests/test_imagezoom_render.py tests/test_media_img_tag.py courses/tests/test_question_restore.py -p no:randomly`
+Then run: `uv run pytest tests/test_questions_2d_consumption.py tests/test_questions_2d_quiz_noleak.py tests/test_questions_2d_quiz_routing.py tests/test_questions_2d_results.py tests/test_questions_2d_reveal.py tests/test_questions_2d_views_touchpoints.py tests/test_questions_2dii_consumption.py tests/test_questions_2dii_render.py tests/test_dnd_render.py tests/test_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_previewer_render.py tests/test_quiz_reveal_flow.py tests/test_quiz_reveal_results.py tests/test_quiz_reveal_result_line.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py tests/test_imagezoom_render.py tests/test_media_img_tag.py courses/tests/test_question_restore.py -p no:randomly`
 
 Expected RED, and the ONLY allowed rewrites (each with the `# PR 2 (spec …): replaces …` comment):
 
@@ -1327,7 +1333,7 @@ Expected RED, and the ONLY allowed rewrites (each with the `# PR 2 (spec …): r
 | `tests/test_quiz_previewer_render.py::test_previewer_fieldset_wrapped_inputs_are_live` (probably GREEN) | reads the FIRST `<fieldset`; docstring cites `matchpairquestionelement.html:7` | make the split target `data-answer-yours`, drop the line citation |
 | `tests/test_imagezoom_render.py` `NEVER_ARMED` | lists `dragtoimagequestionelement.html` — the stage `<img>` moved out of it | ADD `"courses/elements/_dragtoimagequestionelement_controls.html"` to `NEVER_ARMED` (keep the old entry); this is a guard widening, not a rewrite |
 
-e2e tests with the same cause are rewritten in Task 5 (they need the JS). Anything RED outside (a)–(g) and this table is a bug in this task — fix the code. Re-run the command above until it is green.
+Every file named in this table is in the run command above — keep it that way if a row is added. e2e tests with the same cause are rewritten in Task 5 (they need the JS). Anything RED outside (a)–(g) and this table is a bug in this task — fix the code. Re-run the command above until it is green.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1700,6 +1706,19 @@ def _quiz_url(live_server, course, unit):
     return f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/"
 
 
+def _size_stages(page):
+    """MediaAssetFactory's file is not served, so the stage <img> collapses to 0px
+    and every overlay target sits at one point (tests/test_e2e_questions_2dii.py
+    explains the same trap). A page-level stylesheet sizes EVERY stage -- the one
+    a Check swaps in and the key copy's second stage included -- so, unlike a
+    one-off inline-style fix, it survives each form swap. Presentation only."""
+    page.add_style_tag(
+        content="[data-dragimage-stage]{display:block!important;width:400px!important;"
+        "height:300px!important}[data-dragimage-stage] .dragimage__img"
+        "{width:400px!important;height:300px!important}"
+    )
+
+
 def _drag(q, token, slot_index):
     """Tap-assign: arm the chip, then tap the n-th live slot / target."""
     q.locator("[data-answer-yours] .dnd__chip", has_text=token).first.click()
@@ -1722,6 +1741,8 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
     page = browser.new_context().new_page()
     _login(page, live_server, f"d_{kind}")
     page.goto(_quiz_url(live_server, course, unit))
+    if kind == "dragimage":
+        _size_stages(page)
     q = page.locator("[data-question]").first
     _drag(q, "alphakey", 0)
     _drag(q, "gammadis", 1)
@@ -1734,6 +1755,12 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
     assert "is-incorrect" in targets.nth(1).get_attribute("class")
     paint = "el => getComputedStyle(el).backgroundColor"
     assert targets.nth(0).evaluate(paint) != targets.nth(1).evaluate(paint)
+    if kind == "dragimage":
+        # dnd.js hides the zone rows (and their .sr-only verdicts): each painted
+        # overlay target must carry its own non-colour cue (spec §2.1).
+        after = "t => (t.nextElementSibling || {}).textContent"
+        assert targets.nth(1).evaluate(after) == "incorrect"
+        assert targets.nth(1).inner_text().strip() == "gammadis"  # text unchanged
     page.once("dialog", lambda d: d.accept())
     q.locator("[data-reveal-btn]").click()
     q.locator("[data-answer-switch]").wait_for(timeout=6000)
@@ -1785,6 +1812,9 @@ def test_grid_lock_keeps_the_students_pick_and_paints_rows(browser, live_server,
     q.locator("[data-answer-switch]").wait_for(timeout=6000)  # 1 attempt: locked
     rows = q.locator("[data-answer-yours] tbody tr")
     assert rows.nth(1).locator("input").nth(0).is_checked()  # the key copy did not steal it
+    # The swapped-in scroll wrapper is wired again (scroll_affordance.js marks it).
+    wrap = q.locator("[data-answer-yours] [data-scroll-x]")
+    assert wrap.get_attribute("data-scroll-x-ready") == "1"
     stmt = "tr => getComputedStyle(tr.querySelector('td')).backgroundColor"
     assert rows.nth(0).evaluate(stmt) != rows.nth(1).evaluate(stmt)
     q.locator("label:has([data-answer-view='key'])").click()
@@ -1879,7 +1909,7 @@ def test_editor_try_it_rebuilds_drag_ui(browser, live_server, unit_type):
         assert q.locator("[data-answer-view='key']").is_enabled()
 ```
 
-**Step 1 notes for the executor.** The editor test reuses PR 1's author helpers (`tests/test_e2e_questions.py::_make_pa_user`, `_editor_url`), exactly as `tests/test_e2e_quiz_reveal.py::test_editor_try_it_reveal_switch_survives_freeze` does. The lesson URL is `courses:lesson_unit` = `/courses/<slug>/u/<pk>/`. `_drag` taps the chip then the target (dnd.js's tap-assign path) — no pointer drag, see memory `playwright-pointer-event-traps`. The quiz test's dialog handler is registered BEFORE the click (Playwright auto-dismisses a `confirm`, memory `playwright-auto-dismisses-confirm`).
+**Step 1 notes for the executor.** Every drag-onto-image e2e calls `_size_stages(page)` right after `page.goto` — without it the unserved factory image collapses the stage and the target taps time out on a CORRECT build; do not read that timeout as a product bug. The editor test reuses PR 1's author helpers (`tests/test_e2e_questions.py::_make_pa_user`, `_editor_url`), exactly as `tests/test_e2e_quiz_reveal.py::test_editor_try_it_reveal_switch_survives_freeze` does. The lesson URL is `courses:lesson_unit` = `/courses/<slug>/u/<pk>/`. `_drag` taps the chip then the target (dnd.js's tap-assign path) — no pointer drag, see memory `playwright-pointer-event-traps`. The quiz test's dialog handler is registered BEFORE the click (Playwright auto-dismisses a `confirm`, memory `playwright-auto-dismisses-confirm`).
 
 - [ ] **Step 2: Run the e2e tests to verify they fail**
 
@@ -1920,6 +1950,16 @@ Pass `inert` into both builders — `buildOverlayTargets(block, stage, selects, 
       });
 ```
 
+In `buildOverlayTargets`, directly after `stage.appendChild(target);`, give the target its own non-colour cue — the zone rows holding the select's `.sr-only` verdict are hidden under JS, which removes them from the accessibility tree (spec §2.1):
+
+```js
+      // The rows (and the select's .sr-only verdict) are hidden under JS, so the
+      // verdict text follows the target. A sibling, never a child: paint() resets
+      // the target's textContent, and tests read that text exactly.
+      var sr = sel.nextElementSibling;
+      if (sr && sr.classList.contains("sr-only")) stage.appendChild(sr.cloneNode(true));
+```
+
 Update the file's closing comment above `window.libliEnhanceDnd = init;`: "Exposed so every form-body swap (quiz.js, question.js, editor.js try-it) and the editor's pane swap can enhance the NEW dnd roots a response brings (spec §2.4). enhance() is idempotent via data-dndReady."
 
 - [ ] **Step 4: The three swap sites + the results page**
@@ -1928,21 +1968,26 @@ Update the file's closing comment above `window.libliEnhanceDnd = init;`: "Expos
 
 ```js
           // The swap brought NEW dnd roots (spec §2.4); build their chips before the
-          // freeze below, so a locked root is enhanced inert, not live.
+          // freeze below, so a locked root is enhanced inert, not live. The grids'
+          // new .scroll-x wrappers need their edge affordance wired again too.
           if (window.libliEnhanceDnd) window.libliEnhanceDnd(form);
+          if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(form);
 ```
 
 `question.js`, inside `if (newForm) { … }` right after `form.innerHTML = newForm.innerHTML;`:
 
 ```js
               if (window.libliEnhanceDnd) window.libliEnhanceDnd(form);  // spec §5a
+              if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(form);
 ```
 
 `editor.js` try-it branch, inside `if (newForm) { … }` right after `tryForm.innerHTML = newForm.innerHTML;`:
 
 ```js
-            // New dnd roots from the swap (spec §2.4); before the freeze below.
+            // New dnd roots / grid scroll wrappers from the swap (spec §2.4);
+            // before the freeze below.
             if (window.libliEnhanceDnd) window.libliEnhanceDnd(tryForm);
+            if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(tryForm);
 ```
 
 `templates/courses/quiz_results.html`, in `{% block extra_js %}` after the `{% endif %}` of the `has_math` block:
@@ -1981,7 +2026,7 @@ select.dnd__select.is-incorrect,
 
 - [ ] **Step 6: Run the e2e tests + PR 1's e2e + the dnd / grid e2e suites**
 
-Run: `uv run pytest tests/test_e2e_quiz_reveal_pr2.py tests/test_e2e_quiz_reveal.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_matchpair_rows.py tests/test_e2e_choicegrid.py tests/test_e2e_multigrid.py tests/test_e2e_widget_restore.py tests/test_e2e_uniform_block_width.py -m e2e -p no:randomly`
+Run: `uv run pytest tests/test_e2e_quiz_reveal_pr2.py tests/test_e2e_quiz_reveal.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_matchpair_rows.py tests/test_e2e_choicegrid.py tests/test_e2e_multigrid.py tests/test_e2e_widget_restore.py tests/test_e2e_uniform_block_width.py tests/test_e2e_scroll_affordance.py tests/test_e2e_wide_content_scroll.py -m e2e -p no:randomly`
 Expected: PASS after these known rewrites (Task 3 Step 5's rules, with the comment):
 
 | Test | Old assertion | Rule → rewrite to |
@@ -2063,6 +2108,9 @@ git commit -m "docs(quiz-reveal): lesson in-place feedback for drag, match, imag
 | `quiz.js`: drop the `libliEnhanceDnd(form)` call | `test_drag_quiz_check_reveal_inert_copies` |
 | `question.js`: drop the `libliEnhanceDnd(form)` call | `test_lesson_check_repaints_and_rebuilds[matchpair]` |
 | `editor.js`: drop the try-it `libliEnhanceDnd(tryForm)` call | `test_editor_try_it_rebuilds_drag_ui` |
+| `quiz.js`: drop the `libliInitScrollAffordance(form)` call | `test_grid_lock_keeps_the_students_pick_and_paints_rows` |
+| `dnd.js`: drop the overlay target's `.sr-only` clone | `test_drag_quiz_check_reveal_inert_copies[dragimage]` |
+| COMBINED: `quiz.js` calls `window.libliEnhanceDnd()` (whole document) AND `enhance()` loses its `dndReady` guard | `test_check_on_one_drag_question_leaves_the_other_alone` (the second question's chips double); either change alone is masked by the other |
 | `quiz_results.html`: drop the dnd.js script | `test_results_page_drag_ui_is_inert` |
 | `dragfillblankquestionelement.html`: put `data-dnd` back on the outer div as well | `test_each_copy_is_its_own_dnd_root` |
 | `courses/verdicts.py`: `part_verdict` ignores `key` | `test_key_paints_every_gap_correct`, `test_locked_wrong_shows_a_neutralised_painted_key_copy` |
@@ -2097,7 +2145,7 @@ git fetch origin && git rebase origin/master
 uv run python manage.py makemessages -l pl --no-obsolete && uv run python manage.py compilemessages -l pl
 ```
 
-Regenerate the `.mo` rather than resolving a binary conflict. Re-run the four `tests/test_quiz_reveal_pr2_*.py` files after the rebase.
+Regenerate the `.mo` rather than resolving a binary conflict. If `git status` then shows `locale/` changes, commit them (`git add locale && git commit -m "i18n: regenerate catalog after rebase"`). Re-run the four `tests/test_quiz_reveal_pr2_*.py` files after the rebase.
 
 - [ ] **Step 5: Commit gate fixes; stop before pushing**
 
