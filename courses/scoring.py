@@ -33,3 +33,14 @@ def earned_marks(fraction, max_marks):
     """Stored 4dp fraction × max_marks, quantized to 2dp. The single source of
     truth used by BOTH the per-attempt cache and the Finish recompute."""
     return (fraction * max_marks).quantize(_MARKS_Q, rounding=ROUND_HALF_UP)
+
+
+def outcome(earned, max_marks):
+    """'correct' / 'partial' / 'incorrect' from EARNED marks (spec 2026-09-25 §2.5):
+    the one classifier the live result line and the results page share, so a tiny
+    fraction that rounds to 0.00 reads "incorrect" in both places."""
+    if earned == max_marks:
+        return "correct"
+    if earned > 0:
+        return "partial"
+    return "incorrect"

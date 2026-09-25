@@ -3,10 +3,13 @@
 from decimal import Decimal
 from types import SimpleNamespace
 
+from django.utils import timezone
+
 from courses.models import ChoiceQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.scoring import earned_marks
+from courses.scoring import to_stored_fraction
 
 
 def quiz_feedback_context(question, response, *, result=None, validation=False):
@@ -78,12 +81,9 @@ def parse_attempt(post):
     STATELESS, so the client owns the attempt counter. Junk, absent, and
     out-of-range values all floor to 1; this never raises.
 
-    `attempt` is a RESERVED answer-POST field name, consumed only here. quiz.js
-    appends it to every answer POST including the enrolled path, where the server
-    ignores it entirely (attempt state comes from the persisted QuestionResponse).
-    NO QuestionElement.build_answer implementation may read it -- all ten read only
-    choice / answer / blank / slot / row_<pk>. A build_answer that claimed the name
-    would silently take a client-controlled value as answer data.
+    `attempt`, `reveal` and `answer_view_<pk>` are RESERVED answer-POST field names
+    (spec 2026-09-25 §2.3): NO QuestionElement.build_answer implementation may read
+    them -- all ten read only choice / answer / blank / slot / row_<pk>.
     """
     try:
         return max(1, int(post.get("attempt", "1")))
@@ -116,7 +116,88 @@ def locked_after(question, result, attempt_count):
     )
 
 
-def ephemeral_quiz_feedback(question, answer, attempt):
+def can_reveal(question, *, attempts_made, locked):
+    """May Show answer be offered / accepted (spec §3.5)? THE single home of the
+    SUPPORTS_REVEAL check: the button's render condition, the enrolled branch and
+    both ephemeral paths all call this. SUBMITTED is checked by quiz_answer's gate."""
+    return bool(
+        type(question).SUPPORTS_REVEAL
+        and question.marking_mode == QuestionElement.MarkingMode.AUTO
+        and attempts_made >= 1
+        and not locked
+    )
+
+
+def key_view(question, *, mode, locked, fully_correct):
+    """The key-copy values, or None (spec §2.2). One decision, made here, passed to
+    render() as `key_values`; the template draws the copy + switch iff non-None.
+    The AUTO conjunct is load-bearing: N/R questions lock on first submission and
+    are never fully correct, so without it they would show the key."""
+    if mode not in ("quiz", "results"):
+        return None
+    if question.marking_mode != QuestionElement.MarkingMode.AUTO:
+        return None
+    if not locked or fully_correct:
+        return None
+    return question.key_answer()
+
+
+BLANK_QUIZ_STATE = {
+    "locked": False,
+    "selected_ids": frozenset(),
+    "submitted_values": None,
+    "mark_result": None,
+    "verdicts": None,
+    "key_values": None,
+    "can_reveal": False,
+    "reveal_earned": None,
+    "revealed": False,
+}
+
+
+def quiz_render_state(question, response, result):
+    """Every quiz-mode render key for one answered question (spec §2.4): the fetch
+    response, resume, the no-JS re-render and the editor try-it all build the
+    element from this, so they cannot drift. `response` is a QuestionResponse or
+    the ephemeral stand-in (needs .locked, .attempt_count, .latest_answer,
+    .revealed_at). `result` is None for N/R."""
+    locked = bool(response.locked)
+    selected, submitted = rehydrate(question, response.latest_answer)
+    verdicts = None
+    if result is not None:
+        verdicts = question.part_verdicts(
+            result, answer_from_json(question, response.latest_answer)
+        )
+        if verdicts is not None and result.correct:
+            # §2.6 reverse case: a stored fully-correct answer paints all correct
+            # even if a later key edit makes the fresh mark disagree.
+            verdicts = [None if v is None else True for v in verdicts]
+    return {
+        "locked": locked,
+        "selected_ids": selected,
+        "submitted_values": submitted,
+        # Key material: only once locked (the withhold window is over).
+        "mark_result": result if locked else None,
+        "verdicts": verdicts,
+        "key_values": key_view(
+            question,
+            mode="quiz",
+            locked=locked,
+            fully_correct=bool(result is not None and result.correct),
+        ),
+        "can_reveal": can_reveal(
+            question, attempts_made=response.attempt_count, locked=locked
+        ),
+        "reveal_earned": (
+            earned_marks(to_stored_fraction(result.fraction), question.max_marks)
+            if result is not None
+            else None
+        ),
+        "revealed": bool(getattr(response, "revealed_at", None)),
+    }
+
+
+def ephemeral_quiz_feedback(question, answer, attempt, *, reveal=False):
     """Grade `answer` without persisting anything.
 
     Returns the triple (stand_in, result, validation) -- NOT a finished context --
@@ -126,20 +207,39 @@ def ephemeral_quiz_feedback(question, answer, attempt):
 
     Persists NOTHING: no QuizSubmission, no QuestionResponse, no Attempt.
 
-    Mirrors quiz_answer's state machine exactly:
+    Mirrors quiz_answer's state machine, now with THREE branches:
       - empty answer        -> (stand_in, None, True); mark() is NOT called
+      - reveal=True          -> skips the empty-answer validation entirely, marks
+                               whatever the form holds, locks, and consumes no
+                               attempt (spec §3.3). The caller has already checked
+                               can_reveal().
       - anything else       -> mark() for AUTO only, then defer the lock decision
                                to locked_after(), which views.quiz_answer also
                                calls. Do not restate the rule here: a copy in prose
                                drifts exactly the way the code copy did.
 
-    ONE three-attribute stand-in is built on every branch. `.latest_answer` is
-    always present because _quiz_render_feedback's no-JS branch calls
+    ONE four-attribute stand-in (`locked`, `attempt_count`, `latest_answer`,
+    `revealed_at`) is built on every branch. `.latest_answer` is always present
+    because _quiz_render_feedback's no-JS branch calls
     rehydrate(question, response.latest_answer); a stand-in missing it raises
     AttributeError there. It must be answer_to_json(answer), not the raw
     build_answer payload, because rehydrate is specified against a STORED value.
     """
     latest = answer_to_json(answer)
+    if reveal:
+        # Show answer on the stateless path (spec §3.3): bypasses the empty-answer
+        # validation, marks whatever the form holds, locks, consumes no attempt.
+        # The caller has already checked can_reveal().
+        return (
+            SimpleNamespace(
+                locked=True,
+                attempt_count=attempt,
+                latest_answer=latest,
+                revealed_at=timezone.now(),
+            ),
+            question.mark(answer),
+            False,
+        )
     if answer_is_empty(answer):
         # locked=False is load-bearing, not a default: quiz_feedback_context copies
         # .locked into the context before its `if validation: return ctx` exit, so a
@@ -147,7 +247,10 @@ def ephemeral_quiz_feedback(question, answer, attempt):
         # freeze the question on an empty submit.
         return (
             SimpleNamespace(
-                locked=False, attempt_count=attempt - 1, latest_answer=latest
+                locked=False,
+                attempt_count=attempt - 1,
+                latest_answer=latest,
+                revealed_at=None,
             ),
             None,
             True,
@@ -156,7 +259,12 @@ def ephemeral_quiz_feedback(question, answer, attempt):
     result = question.mark(answer) if is_auto else None
     locked = locked_after(question, result, attempt)
     return (
-        SimpleNamespace(locked=locked, attempt_count=attempt, latest_answer=latest),
+        SimpleNamespace(
+            locked=locked,
+            attempt_count=attempt,
+            latest_answer=latest,
+            revealed_at=None,
+        ),
         result,
         False,
     )

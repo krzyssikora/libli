@@ -87,6 +87,7 @@ from courses.rollups import tree_titles_have_math
 from courses.rollups import units_in_order
 from courses.rollups import units_under
 from courses.scoring import earned_marks
+from courses.scoring import outcome
 from courses.scoring import to_stored_fraction
 from courses.slideshow import partition_into_slides
 
@@ -1807,12 +1808,7 @@ def _results_row(question, response):
         else:
             earned = earned_marks(response.fraction, question.max_marks)
             row["earned"] = earned
-            if earned == question.max_marks:
-                row["outcome"] = "correct"
-            elif earned > 0:
-                row["outcome"] = "partial"
-            else:
-                row["outcome"] = "incorrect"
+            row["outcome"] = outcome(earned, question.max_marks)
         # `reveal` is the correct-answer payload. Mark the STUDENT'S answer when one
         # exists so the per-blank ✓/✗ in _reveal_fillblank reflects what they entered
         # (marking an empty answer would show every blank wrong even when correct);
