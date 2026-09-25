@@ -20,6 +20,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -75,6 +76,7 @@ from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import can_reveal
 from courses.quiz import ephemeral_quiz_feedback
+from courses.quiz import key_view
 from courses.quiz import locked_after
 from courses.quiz import parse_attempt
 from courses.quiz import quiz_feedback_context
@@ -1787,7 +1789,11 @@ def quiz_results(request, slug, node_pk):
         if not has_math:
             has_math = _question_has_math(q)
         r = responses.get(el.pk)
-        rows.append(_results_row(q, r))
+        row = _results_row(q, r)
+        row["rendered"] = (
+            _results_question_html(el, q, r, row) if q.SUPPORTS_REVEAL else ""
+        )
+        rows.append(row)
     has_math = has_math or titles_have_math([node.title])
     ctx = {
         "course": course,
@@ -1829,6 +1835,7 @@ def _results_row(question, response):
         "answered": response is not None and response.latest_answer is not None,
         "review_feedback": (response.review_feedback if response else ""),
         "review_earned": (response.earned_marks if response else None),
+        "revealed": bool(response is not None and response.revealed_at),
     }
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
@@ -1887,6 +1894,45 @@ def _results_row(question, response):
         row["outcome"] != "correct" or bool(row["marks"])
     )
     return row
+
+
+def _results_question_html(element, question, response, row):
+    """A converted question rendered read-only as it ended (spec §4), via
+    render(mode="results"). Separate from _results_row on purpose: analytics
+    consumes _results_row's keys and must not change (spec §5)."""
+    answered = row["answered"]
+    auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+    if answered and auto and response.fraction is not None:
+        result = _stored_result(question, response)
+        state = quiz_render_state(question, response, result)
+        fully_correct = bool(result.correct)
+    elif answered:
+        state = quiz_render_state(question, response, None)  # N/R: no verdicts
+        fully_correct = False
+    else:
+        # Unanswered: neutral controls, mark() NOT called (spec §4).
+        state = dict(BLANK_QUIZ_STATE)
+        fully_correct = False
+    # Every results row is locked (finalize_submission locks every response).
+    key_values = key_view(
+        question, mode="results", locked=True, fully_correct=fully_correct
+    )
+    feedback_html = render_to_string(
+        "courses/elements/_results_question_feedback.html", {"row": row}
+    )
+    return mark_safe(  # noqa: S308 — the element template escapes its own fields
+        question.render(
+            element=element,
+            mode="results",
+            feedback_for_pk=element.pk,
+            selected_ids=state["selected_ids"],
+            submitted_values=state["submitted_values"],
+            verdicts=state["verdicts"],
+            key_values=key_values,
+            locked=True,
+            feedback_html=feedback_html,
+        )
+    )
 
 
 @login_required

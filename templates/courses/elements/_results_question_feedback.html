@@ -1,0 +1,13 @@
+{% load i18n courses_extras %}
+<div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">{# Badges: same markup as quiz_results.html's list rows and analytics_student_quiz.html, EXCEPT Not answered carries (0/N) here for auto-marked (spec §4). #}
+{% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+{% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+{% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
+{% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}{% if row.question.marking_mode == "A" %} (0/{{ row.possible|marks }}){% endif %}</span>
+{% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
+{% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+{% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% if row.possible == 1 %}{% trans "up to 1 mark" %}{% else %}{% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %}{% endif %})</span>{% endif %}
+{% if row.revealed %}<span class="badge badge--muted">{% trans "answer shown" %}</span>{% endif %}
+{% if row.review_feedback %}<div class="question__feedback question__feedback--review"><p>{{ row.review_feedback }}</p></div>{% endif %}
+{% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" and row.outcome != "reviewed" %}<div class="question__explanation">{{ row.question.explanation|safe }}</div>{% endif %}
+</div>

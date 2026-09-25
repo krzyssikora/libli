@@ -25,9 +25,12 @@
 
   <ol class="quiz-results__list">
     {% for row in rows %}
+    {% if row.rendered %}
+    <li class="quiz-results__item is-{{ row.outcome }}">{{ row.rendered }}</li>
+    {% else %}
     <li class="quiz-results__item is-{{ row.outcome }}" data-question>
       <div class="question__stem">{{ row.question.stem|safe }}</div>
-      <div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">{# Badges: a deliberate copy of manage/analytics_student_quiz.html's, modifiers included; change both. #}
+      <div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">{# Badges: shared with analytics_student_quiz.html and _results_question_feedback.html, EXCEPT the converted rows' Not answered badge carries (0/N) for auto-marked (spec §4). #}
       {% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
       {% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
       {% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
@@ -50,6 +53,7 @@
       {% endif %}
       </div>
     </li>
+    {% endif %}
     {% endfor %}
   </ol>
 
