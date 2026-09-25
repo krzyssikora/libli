@@ -239,11 +239,20 @@ The key copy's controls:
   depth, so no re-post can ever send the key as the student's answer. Drag types'
   nameless `<select>`s carry **`data-slot`** instead, and dnd.js's selector widens from
   `select[name="slot"]` to `select[name="slot"], select[data-slot]` so it still builds
-  the drag UI for the key copy (PR 2). **Server side:** `dnd._render_select` hard-codes
-  `name="slot"` and is reached through `render_selects`, `render_match_rows` and
-  `render_zone_selects`; all four gain a `key_copy` argument that drops `name`, adds
-  `data-slot` and adds `disabled` on the select itself. The student's locked copy keeps
-  `name` and is disabled **only through its fieldset** (as today);
+  the drag UI for the key copy (PR 2). **Server side — one mechanism for every type:**
+  the controls are built in Python with hard-coded names (`fillblank.render_inputs` →
+  `name="blank"`; `dnd._render_select` via `render_selects` / `render_match_rows` /
+  `render_zone_selects` → `name="slot"`; the choice-grid / multi-grid cell builders in
+  `courses_extras.py` → `name="row_<pk>"`), so no builder is changed. Instead the
+  **BeautifulSoup post-pass** that already rewrites the key copy's ids (below) also, on
+  **every `input` / `select` / `textarea` in the key copy**: turns `name="slot"` into
+  `data-slot`, **removes `name`**, and adds **`disabled`**. The names are gone before the
+  HTML reaches the browser, which matters beyond leaks: a key-copy grid radio still named
+  `row_<pk>` would join the student copy's radio group in the same form, and its `checked`
+  would uncheck the student's pick. The student's locked copy keeps `name` and is disabled
+  **only through its fieldset** (as today). Test: on a locked, wrong choice-grid question
+  the student copy's picked radio stays `checked` in the rendered HTML and in the DOM
+  (e2e), beside the key copy; no control in any key copy has a `name`;
 - **the drag UI is inert when its controls are disabled** — dnd.js's `enhance` today
   ignores `disabled` and builds live chips whose tap/drag changes the select's value
   in code. It must build a display-only UI (chips `disabled`, no drag or tap-assign)
