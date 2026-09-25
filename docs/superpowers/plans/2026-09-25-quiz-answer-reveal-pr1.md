@@ -30,7 +30,7 @@
 2. **Author adds a blank after a student answered** — the stored answer has fewer entries than the stem has blanks; resume and results must render without error, painting the extra blank as wrong (mark pads with ""). Test in Task 8 (`test_resume_after_blank_added`).
 3. **`max_attempts=1` wrong answer** — locks immediately; no Show answer button ever appears, but the key copy and switch do. Test in Task 8 (`test_single_attempt_wrong_locks_with_key_no_button`).
 4. **Key text with HTML/LaTeX specials** (accepted answer `a<b` or `\(x\)`) — shown escaped in the key copy's `value`, never as markup. Test in Task 4 (`test_key_copy_escapes_value`) and Task 7.
-5. **Unlimited attempts, partial answer** — result line has no "attempts left" segment, Show answer is offered. Test in Task 5 (`test_unlimited_attempts_line_omits_count`) and Task 8.
+5. **Unlimited attempts, partial answer** — result line has no "attempts left" segment, Show answer is offered. Test in Task 5 (`test_unlimited_attempts_line_omits_count`) and Task 8 (`test_unlimited_attempts_partial_offers_reveal`).
 
 ---
 
@@ -1122,6 +1122,13 @@ def test_lesson_mode_paints_with_sr_text(fb):
     assert re.search(r'value="5"[^>]*aria-invalid="true"[^>]*>\s*<span class="sr-only">incorrect</span>', html)
 
 
+def test_fill_gate_render_is_unchanged():
+    from courses.fillblank import parse, render_inputs
+
+    token_stem, _ = parse("{{a}}")
+    assert "sr-only" not in render_inputs(token_stem, ["a"], locked=True)
+
+
 def test_lesson_mode_never_draws_key_or_button(fb):
     q, el = fb
     html = _render(q, el, mode="lesson", action_url=None, submitted_values=["11", "5"],
@@ -1235,22 +1242,28 @@ Add the method to `QuestionElement` (after `render`):
                     )
 ```
 
-(import `from django.utils.translation import pgettext`.) Also append the same `<span class="sr-only">` + `pgettext("answer part verdict", "correct")` after each input in the **locked** branch (the solved / key-copy look) so a locked green blank is not colour-only either. Extend the docstring: "A painted blank is followed by a `.sr-only` "correct"/"incorrect" — colour is never the only cue (spec 2026-09-25 §2.1)."
+(import `from django.utils.translation import pgettext`.) Give `render_inputs` a keyword-only `sr_verdict=False` parameter. When it is True, also append the same `<span class="sr-only">` + `pgettext("answer part verdict", "correct")` after each input in the **locked** branch (the solved / key-copy look), so a locked green blank is not colour-only either. It defaults to False because the locked branch is ALSO reached from `fillgateelement.html` (`{% render_fill_blanks el el.canonical_answers locked=True %}`) — a fill gate is not a question and must not change (Global Constraints). Only the question controls include turns it on (below). The non-locked branch's sr-only span is keyed on `verdict is not None`, which fill gates never pass, so it needs no flag. Extend the docstring: "A painted blank is followed by a `.sr-only` "correct"/"incorrect" — colour is never the only cue (spec 2026-09-25 §2.1)."
 
 `courses_extras.py`:
 - `render_fill_blanks` becomes:
 
 ```python
 @register.simple_tag
-def render_fill_blanks(el, submitted_values=None, locked=False, verdicts=None):
+def render_fill_blanks(el, submitted_values=None, locked=False, verdicts=None, sr_verdict=False):
     """Render a fill-blank stem: text segments (sanitized HTML) interleaved with
     server-built <input name="blank"> elements (escaped values). `locked=True`
     renders the read-only answered state; `verdicts` (one bool / None per blank,
-    from QuestionElement.render) paints each blank in place. See courses.fillblank."""
+    from QuestionElement.render) paints each blank in place; `sr_verdict` adds the
+    screen-reader "correct" to a LOCKED blank (questions only -- never fill gates).
+    See courses.fillblank."""
     from courses import fillblank
 
     return fillblank.render_inputs(
-        el.stem, submitted_values, locked=locked, verdicts=verdicts or None
+        el.stem,
+        submitted_values,
+        locked=locked,
+        verdicts=verdicts or None,
+        sr_verdict=sr_verdict,
     )
 ```
 
@@ -1291,7 +1304,7 @@ SUPPORTS_REVEAL / AUTO / attempt / lock rules; quiz_submitted is defence in dept
 `templates/courses/elements/_fillblankquestionelement_controls.html`:
 
 ```django
-{% load courses_extras %}{% render_fill_blanks el values locked=locked verdicts=verdicts %}
+{% load courses_extras %}{% render_fill_blanks el values locked=locked verdicts=verdicts sr_verdict=True %}
 ```
 
 Rewrite `fillblankquestionelement.html`, keeping its existing `{% comment %}` header and adding one paragraph to it ("PR 1 of the quiz answer reveal: `data-answer-scope` on the form (quiz/lesson) or the results `<div>`; the student's controls sit in `[data-answer-yours]`, the key copy in `[data-answer-key]`, the switch outside the fieldset."):
@@ -1331,6 +1344,8 @@ Rewrite `fillblankquestionelement.html`, keeping its existing `{% comment %}` he
 </div>
 ```
 
+**Expected interim state (do not "fix" it here):** from this commit until Task 8, a LOCKED-WRONG fill-blank quiz question shows neither the old list (Task 5 drops `reveal_template` for `SUPPORTS_REVEAL` types) nor the key copy (views pass `key_values` only from Task 8). Quiz tests asserting a fill-blank quiz reveal are expected RED until Task 8 and are rewritten there.
+
 `data-question-inline` is now unconditional on the form: lesson mode needed it since #346, and quiz mode needs it because `SUPPORTS_REVEAL` is set. Until Task 8 lands, a quiz Check still returns the bare fragment; quiz.js already falls through to the feedback-box swap when the response has no `<form>`.
 
 CSS — append to `courses.css` next to the fill-blank verdict rules:
@@ -1359,7 +1374,7 @@ Every token above is defined in `core/static/core/css/tokens.css` (`--accent`, `
 
 - [ ] **Step 5: Run to verify the new tests pass and nothing regressed**
 
-Run: `uv run pytest tests/test_quiz_reveal_fillblank_render.py courses/tests/test_fillblank_inline_verdicts.py courses/tests/test_fillblank_lock_on_correct.py tests/test_questions_2b_fillblank_parse.py tests/test_quiz_render.py -p no:randomly`
+Run: `uv run pytest tests/test_quiz_reveal_fillblank_render.py courses/tests/test_fillblank_inline_verdicts.py courses/tests/test_fillblank_lock_on_correct.py tests/test_questions_2b_fillblank_parse.py tests/test_quiz_render.py courses/tests/test_fillblank_locked.py courses/tests/test_fillgate_template.py courses/tests/test_question_restore.py -p no:randomly` and `uv run pytest tests/test_e2e_fillgate.py -m e2e -p no:randomly` (fill gates must be byte-for-byte unchanged: no `sr-only` in any fill-gate render).
 Expected: PASS. `test_questions_2b_fillblank_parse.py` and `courses/tests/test_fillblank_inline_verdicts.py` pin `render_inputs` / the painted blanks; if one fails only because a painted input is now followed by a `.sr-only` span (e.g. a regex that assumed the input tag ends the match, or a count of `<span`), update that assertion and say so in a comment.
 
 - [ ] **Step 6: Commit**
@@ -1556,6 +1571,29 @@ def test_editor_try_lesson_paints_single_part(client):
     assert "Expected:" not in body
 
 
+def test_key_copy_escapes_a_raw_key(st_quiz):
+    q, el = st_quiz
+    q.accepted = "a<b"
+    html = q.render(element=el, mode="quiz", action_url="/x/", feedback_for_pk=el.pk,
+                    submitted_values="x", key_values="a<b", locked=True)
+    key = html.split("data-answer-key")[1].split("data-answer-switch")[0]
+    assert 'value="a&lt;b"' in key and "<b" not in key.replace("&lt;b", "")
+
+
+@pytest.mark.django_db
+def test_fillblank_key_copy_keeps_latex_backslashes(db):
+    from courses.fillblank import parse
+    from courses.models import Blank, FillBlankQuestionElement
+
+    unit = make_quiz_unit()
+    q = FillBlankQuestionElement.objects.create(stem=parse("{{x}}")[0])
+    Blank.objects.create(question=q, order=0, accepted="\\(x\\)")
+    el = Element.objects.create(unit=unit, content_object=q)
+    html = q.render(element=el, mode="quiz", action_url="/x/", feedback_for_pk=el.pk,
+                    submitted_values=["y"], key_values=["\\(x\\)"], locked=True)
+    assert 'value="\\(x\\)"' in html.split("data-answer-key")[1]
+
+
 @pytest.mark.django_db
 def test_numeric_key_copy_tolerance_matches_old_reveal_in_pl(db):
     from django.template.loader import render_to_string
@@ -1646,6 +1684,8 @@ Flags, on BOTH `ShortTextQuestionElement` and `ShortNumericQuestionElement`:
 
 The results render passes `locked=True` (Task 10), which the include turns into `disabled` on the student input — the same mechanism the quiz uses (spec §4).
 
+**Expected interim state (do not "fix" it here):** until Task 8, a locked-wrong short-text / number QUIZ question shows neither the old list nor the key copy; quiz tests asserting that reveal (e.g. `tests/test_ux_roster_and_feedback.py::test_incorrect_feedback_keeps_reveal_in_a_panel`) are expected RED until Task 8 and are rewritten there.
+
 CSS, next to the fill-blank verdict rules (specificity (0,3,0) beats app.css's `input[type=text]` (0,1,1)):
 
 ```css
@@ -1657,7 +1697,7 @@ CSS, next to the fill-blank verdict rules (specificity (0,3,0) beats app.css's `
 - [ ] **Step 4: Run to verify they pass, plus the suites that pin the old lesson list**
 
 Run: `uv run pytest tests/test_quiz_reveal_single_part.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_element_try.py tests/test_i18n_questions_2b.py -p no:randomly`
-Expected: new tests PASS. Allowed rewrites, each with a comment naming the replaced assertion: (a) a short-text / number LESSON Check or lesson editor try-it now answers with the whole element (`<form`, `data-question-inline`), not the `_question_feedback.html` fragment; (b) existing lesson tests that assert "Correct answer:" / "Expected:" for a WRONG short-text / number LESSON Check are now wrong by design (D13): rewrite each to assert the painted input (`is-incorrect`, `aria-invalid`) and add a comment `# D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" lesson list assertion`. Quiz-side assertions of "Correct answer:" for these types change in Task 8, not here.
+Expected: new tests PASS. Allowed rewrites, each with a comment naming the replaced assertion: (a) a short-text / number LESSON Check or lesson editor try-it now answers with the whole element (`<form`, `data-question-inline`), not the `_question_feedback.html` fragment; (b) existing lesson tests that assert "Correct answer:" / "Expected:" — or count `question__reveal-text` (e.g. `tests/test_questions_2b_consumption.py::test_post_submit_reveals_only_answered_across_types`, whose substance is "only the answered question is marked, and the OTHER question's key never appears": rewrite to "exactly one `name="answer"` input carries `is-incorrect`, and `secret` is absent") — for a WRONG short-text / number LESSON Check are now wrong by design (D13): rewrite each to assert the painted input (`is-incorrect`, `aria-invalid`) and add a comment `# D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" lesson list assertion`. Quiz-side assertions of "Correct answer:" for these types change in Task 8, not here.
 
 - [ ] **Step 5: Commit**
 
@@ -1812,6 +1852,14 @@ def test_exhausted_but_unlocked_can_still_reveal(client):
 
 
 @pytest.mark.django_db
+def test_unlimited_attempts_partial_offers_reveal(client):
+    _u, unit = _quiz(client)
+    el = _fb(unit, max_attempts=None)
+    body = _fetch(client, unit, el, {"blank": ["11", "5"]}).content.decode()
+    assert 'name="reveal"' in body and "attempts left" not in body
+
+
+@pytest.mark.django_db
 def test_single_attempt_wrong_locks_with_key_no_button(client):
     _u, unit = _quiz(client)
     el = _fb(unit, max_attempts=1)
@@ -1859,7 +1907,9 @@ def test_resume_after_blank_added(client):
     page = client.get(reverse("courses:quiz_unit",
                               kwargs={"slug": unit.course.slug, "node_pk": unit.pk}))
     assert page.status_code == 200
-    assert len(_BLANK.findall(page.content.decode())) == 3
+    blanks = _BLANK.findall(page.content.decode())
+    assert len(blanks) == 3
+    assert "is-incorrect" in blanks[2]  # mark() pads the short stored answer with ""
 
 
 @pytest.mark.django_db
@@ -1903,6 +1953,12 @@ def test_nojs_previewer_check_paints_and_offers_reveal(client):
     right, wrong = _BLANK.findall(page)[:2]
     assert "is-correct" in right and "is-incorrect" in wrong
     assert 'name="reveal"' in page
+
+
+# Accepted limitation (staff previewer WITHOUT JS only): no `attempt` field is
+# posted, so reveal_attempts_made() reads 0 and a no-JS previewer's Show answer is
+# refused and processed as a normal Check. The enrolled no-JS reveal works (server
+# state). Not worth a hidden field on every question form.
 
 
 @pytest.mark.django_db
@@ -2378,9 +2434,15 @@ def test_enter_in_a_blank_checks_not_reveals(browser, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
     q = page.locator("[data-question]").first
     q.locator("input[name='blank']").nth(0).fill("11")
-    q.locator("input[name='blank']").nth(0).press("Enter")
+    q.locator("button[type='submit']:not([name='reveal'])").click()
+    q.locator("[data-reveal-btn]").wait_for(timeout=6000)  # button now exists
+    # NOW Enter: implicit submission uses the FIRST submit button -- which must be
+    # Check. Show answer would lock and draw the switch.
+    q.locator("input[name='blank']").nth(1).fill("5")
+    q.locator("input[name='blank']").nth(1).press("Enter")
     q.locator(".question__verdict.is-partial").wait_for(timeout=6000)
-    assert q.locator("[data-reveal-btn]").count() == 1  # still offered: no reveal happened
+    assert q.locator("[data-answer-switch]").count() == 0
+    assert q.locator("[data-reveal-btn]").count() == 1
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2443,7 +2505,7 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py -m e2e -p no:randomly`
-Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` is a regression guard and is expected to PASS already (Enter uses the first submit button, Check).
+Expected: FAIL — reveal click posts a plain Check (no `[data-answer-switch]` appears; the attempt counter moves). `test_enter_in_a_blank_checks_not_reveals` is a regression guard and is expected to PASS already; prove it can fail: move `{% include "courses/elements/_reveal_button.html" %}` ABOVE the Check button in `fillblankquestionelement.html` → it must go RED; restore by hand.
 
 - [ ] **Step 3: Implement quiz.js**
 
@@ -2541,7 +2603,7 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
-Also run `tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py -m e2e`.
+Also run `tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
 
 Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
 - a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
