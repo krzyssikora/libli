@@ -155,6 +155,69 @@ def answer_cells(cells):
                 yield r, c, cell.get("answer", "")
 
 
+# A box's neighbouring "word" (glue_gaps below): a run up to the next whitespace
+# or tag bracket. Math is masked first, so a \(…\) span is one placeholder and a run can
+# never end inside it. &nbsp; counts as whitespace, never as part of a word.
+_GLUE_WS = r"(?:\s|&nbsp;|&#160;)"
+_GLUE_WORD = r"(?:(?!&nbsp;|&#160;)[^\s<>])+"
+_GLUE_LEAD_RE = re.compile(rf"^{_GLUE_WS}*{_GLUE_WORD}")
+_GLUE_TRAIL_RE = re.compile(rf"{_GLUE_WORD}{_GLUE_WS}*$")
+_GLUE_OPEN = '<span class="filltable__gapglue">'
+
+
+def _glue_unit(regex, seg):
+    """The (start, end) of `regex`'s match in the text segment `seg`, or None. The
+    match is taken on the math-masked segment, so it holds whole maths spans only;
+    display maths (\\[…\\], a block) is never glued into a line."""
+    masked, spans = mask_math(seg)
+    m = regex.search(masked)
+    if not m or not m.group(0).strip():
+        return None
+    if "\\[" in restore_math(m.group(0), spans):
+        return None
+    # Offsets back in the unmasked segment: everything before the match restores
+    # to a prefix of `seg`, and the match restores to the unit itself.
+    start = len(restore_math(masked[: m.start()], spans))
+    return start, start + len(restore_math(m.group(0), spans))
+
+
+def glue_gaps(segments, inputs):
+    """Interleave text `segments` (len(inputs) + 1 of them) with `inputs`, wrapping
+    each box together with the word directly before and after it in a no-wrap
+    span -- so "{{20}} \\(\\pi\\)" never breaks between the box and the π in a
+    squeezed column. Whitespace further out is left outside, so a long cell still
+    wraps there. Neighbours with no whitespace between them share one span. Only
+    text is ever moved into a span (a word stops at `<` or `>`), so the markup
+    stays well-formed; stripping the spans gives back the unglued html byte for
+    byte."""
+    out = []
+    is_open = False
+    last = len(segments) - 1
+    for i, seg in enumerate(segments):
+        if is_open:
+            lead = _glue_unit(_GLUE_LEAD_RE, seg)
+            cut = lead[1] if lead else 0
+            out.append(seg[:cut])
+            seg = seg[cut:]
+            if seg or i == last:
+                out.append("</span>")
+                is_open = False
+        if i < last:
+            if not is_open:
+                trail = _glue_unit(_GLUE_TRAIL_RE, seg)
+                cut = trail[0] if trail else len(seg)
+                out.append(seg[:cut])
+                out.append(_GLUE_OPEN)
+                out.append(seg[cut:])
+                is_open = True
+            else:
+                out.append(seg)
+            out.append(inputs[i])
+        else:
+            out.append(seg)
+    return out
+
+
 def cell_parts(cell, r, c, *, done):
     """A static cell's html with each token replaced by its inline <input>, as ONE
     safe string. Text segments are trusted (sanitised at save); every input is
@@ -167,11 +230,10 @@ def cell_parts(cell, r, c, *, done):
 
     n_gaps = len(cell.get("gaps") or [])
     display = cell.get("gaps_display") or []
-    out = []
-    for i, part in enumerate(_TOKEN_RE.split(cell.get("html") or "")):
-        if i % 2 == 0:
-            out.append(part)
-            continue
+    split = _TOKEN_RE.split(cell.get("html") or "")
+    segments = split[0::2]
+    inputs = []
+    for part in split[1::2]:
         g = int(part)
         if n_gaps == 1:
             # Reuses the answer-cell template's msgid exactly.
@@ -184,7 +246,7 @@ def cell_parts(cell, r, c, *, done):
             }
         if done:
             v = display[g] if 0 <= g < len(display) else ""
-            out.append(
+            inputs.append(
                 format_html(
                     '<input type="text" class="filltable__input '
                     'filltable__input--inline filltable__input--correct" '
@@ -199,7 +261,7 @@ def cell_parts(cell, r, c, *, done):
                 )
             )
         else:
-            out.append(
+            inputs.append(
                 format_html(
                     '<input type="text" class="filltable__input '
                     'filltable__input--inline" data-r="{}" data-c="{}" '
@@ -210,4 +272,5 @@ def cell_parts(cell, r, c, *, done):
                     label,
                 )
             )
+    out = glue_gaps(segments, inputs)
     return mark_safe("".join(str(p) for p in out))  # noqa: S308 — see docstring

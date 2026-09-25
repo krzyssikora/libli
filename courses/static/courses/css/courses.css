@@ -1796,6 +1796,12 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    `disabled`, which matches :read-only, and with no `size` the box would jump to
    the UA's 20ch on the moment of success. (0,3,0) beats the width above. */
 .el--filltable .filltable__input--inline[readonly] { width: auto; }
+/* A box and the word typed beside it ("{{20}} \(\pi\)", "{{75}}°") stay on one
+   line. Auto table layout shrinks a squeezed column to its min-content width,
+   and a line may break on either side of an inline-block -- so on a phone the π
+   fell to the line BELOW its box. filltable.glue_gaps wraps each box with its
+   adjacent word only, so a long cell still wraps at its other spaces. */
+.el--filltable .filltable__gapglue { white-space: nowrap; }
 
 /* Correctness states: filltable.js toggles these per input after a Check;
    a correct cell is then locked read-only (mirrors .fillgate's blank-input
