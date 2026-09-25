@@ -1150,7 +1150,7 @@ def test_lesson_mode_never_draws_key_or_button(fb):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_fillblank_render.py -p no:randomly`
-Expected: FAIL — `TypeError: render() got an unexpected keyword argument 'verdicts'`.
+Expected: FAIL — `TypeError: render() got an unexpected keyword argument 'verdicts'` — EXCEPT the two regression guards `test_fill_gate_render_is_unchanged` and `test_quiz_page_with_a_choice_question_still_renders`, which pass no new kwarg and are expected to PASS already.
 
 - [ ] **Step 3: Implement the plumbing**
 
@@ -1763,7 +1763,7 @@ CSS, next to the fill-blank verdict rules (specificity (0,3,0) beats app.css's `
 
 - [ ] **Step 4: Run to verify they pass, plus the suites that pin the old lesson list**
 
-Run: `uv run pytest tests/test_quiz_reveal_single_part.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_element_try.py tests/test_i18n_questions_2b.py -p no:randomly`
+Run: `uv run pytest tests/test_quiz_reveal_single_part.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_element_try.py tests/test_i18n_questions_2b.py courses/tests/test_nested_question_nojs_feedback.py courses/tests/test_question_restore.py -p no:randomly` (the nested suite's docstrings rely on short text / number sharing a "byte-identical wrapper `<div class="el el--question" data-question>`" — the wrapper now carries `el--shorttext` / `el--shortnumeric`; update that comment, and any assertion that depended on it, to the new classes)
 Expected: new tests PASS. Allowed rewrites, each with a comment naming the replaced assertion: (a) a short-text / number LESSON Check or lesson editor try-it now answers with the whole element (`<form`, `data-question-inline`), not the `_question_feedback.html` fragment; (b) existing lesson tests that assert "Correct answer:" / "Expected:" — or count `question__reveal-text` (e.g. `tests/test_questions_2b_consumption.py::test_post_submit_reveals_only_answered_across_types`, whose substance is "only the answered question is marked, and the OTHER question's key never appears": rewrite to "exactly one `name="answer"` input carries `is-incorrect`, and `secret` is absent") — for a WRONG short-text / number LESSON Check are now wrong by design (D13): rewrite each to assert the painted input (`is-incorrect`, `aria-invalid`) and add a comment `# D13 (spec 2026-09-25 §5a): replaces the old "Correct answer:" lesson list assertion`. Quiz-side assertions of "Correct answer:" for these types change in Task 8, not here.
 
 - [ ] **Step 5: Commit**
@@ -2715,7 +2715,7 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
-Also run `tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
+Also run `tests/test_e2e_question_restore.py tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py tests/test_e2e_quiz_finish.py tests/test_e2e_quiz_math.py -m e2e` (Finish now meets two-button forms and whole-element swaps; math must re-typeset after the swap).
 
 Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
 - a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
@@ -3046,7 +3046,7 @@ def _results_question_html(element, question, response, row):
 
 ```django
 {% load i18n courses_extras %}
-<div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">{# Badges: same markup as quiz_results.html's list rows and manage/analytics_student_quiz.html; change all three. #}
+<div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">{# Badges: same markup as quiz_results.html's list rows and analytics_student_quiz.html, EXCEPT Not answered carries (0/N) here for auto-marked (spec §4). #}
 {% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
 {% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
 {% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
@@ -3070,7 +3070,7 @@ def _results_question_html(element, question, response, row):
     {% endif %}
 ```
 
-and update the existing `{# Badges: … change both. #}` comment in the old branch to "change all three" and name `_results_question_feedback.html`.
+and update the existing `{# Badges: … change both. #}` comment in the old branch to `{# Badges: shared with analytics_student_quiz.html and _results_question_feedback.html, EXCEPT the converted rows' Not answered badge carries (0/N) for auto-marked (spec §4). #}`.
 
 `analytics_student_quiz.html` — directly after the badge `{% if … %}…{% endif %}` chain (line ~62):
 
@@ -3081,7 +3081,9 @@ and update the existing `{# Badges: … change both. #}` comment in the old bran
 - [ ] **Step 4: Run to verify, plus the results / analytics suites**
 
 Run: `uv run pytest tests/test_quiz_reveal_results.py tests/test_quiz_finish.py tests/test_quiz_results_choice_reveal.py tests/test_analytics_student_quiz.py tests/test_questions_2d_results.py tests/test_questions_2diii_results.py -p no:randomly`
-Expected: PASS, except results-page assertions of "Correct answer:" / "Expected:" / per-blank reveal lists for the THREE converted types — rewrite those to the rendered element (switch + key copy) with a comment naming the replaced assertion. Choice and the PR 2 types keep their old rows untouched; any failure there is a regression.
+Then the results / analytics e2e: `uv run pytest tests/test_e2e_results.py tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py -m e2e -p no:randomly`.
+
+Expected: PASS, except (a) a locator scoped to the OLD converted-row markup (`li.quiz-results__item > .question__feedback-panel …`) — converted rows now nest the panel inside `.el--question [data-answer-scope] .question__feedback`; re-scope the locator, keep the assertion; and (b) results-page assertions of "Correct answer:" / "Expected:" / per-blank reveal lists for the THREE converted types — rewrite those to the rendered element (switch + key copy) with a comment naming the replaced assertion. Choice and the PR 2 types keep their old rows untouched; any failure there is a regression. A lost badge surface, contrast or outcome border colour on a CONVERTED row (e.g. `test_e2e_analytics_student_pages.py::test_t33b_badge_has_its_own_opaque_surface_on_both_pages`) is a CSS regression to fix — never loosen that assertion.
 
 - [ ] **Step 5: Commit**
 
