@@ -314,11 +314,11 @@ In `class QuestionResponse`, after `last_attempt_at`:
 Generate the migration and check its dependency is the current graph head:
 
 ```bash
+ls courses/migrations | grep -E "^0[0-9]+" | sort | tail -1   # the head BEFORE generating
 uv run python manage.py makemigrations courses -n questionresponse_revealed_at
-uv run python manage.py showmigrations courses | tail -3
 grep -n "dependencies" -A3 courses/migrations/0067_questionresponse_revealed_at.py
 ```
-Expected: the file depends on `("courses", "0066_blank_answers_unescape")` (or whatever `showmigrations` lists as the last applied-before-0067 head). If another 0067 already exists on master, rebase first and regenerate — never hand-renumber.
+Expected: the file depends on the head the `ls` printed (today `("courses", "0066_blank_answers_unescape")`). If another 0067 already exists on master, rebase first and regenerate — never hand-renumber.
 
 - [ ] **Step 4: Run to verify it passes, and the migration is complete**
 
@@ -345,6 +345,7 @@ git commit -m "feat(quiz-reveal): QuestionResponse.revealed_at"
 **Interfaces:**
 - Consumes: Task 1 hooks, Task 2 field.
 - Produces:
+  - `courses.quiz.reveal_attempts_made(post) -> int` (0-floored; the reveal check's attempt count on the ephemeral paths)
   - `courses.scoring.outcome(earned: Decimal, max_marks: Decimal) -> str` ∈ `{"correct","partial","incorrect"}`
   - `courses.quiz.can_reveal(question, *, attempts_made: int, locked: bool) -> bool`
   - `courses.quiz.key_view(question, *, mode: str, locked: bool, fully_correct: bool) -> object | None`
@@ -551,6 +552,17 @@ In `courses/quiz.py`:
 - append the new helpers (after `locked_after`):
 
 ```python
+def reveal_attempts_made(post):
+    """Checks already made, as the client reports them on a reveal POST (quiz.js /
+    editor.js send their `made` count, spec §3.1). Unlike parse_attempt this does NOT
+    floor at 1, so an ephemeral reveal before any Check is refused like the enrolled
+    one (spec §3.5 parity)."""
+    try:
+        return max(0, int(post.get("attempt", "0")))
+    except (TypeError, ValueError):
+        return 0
+
+
 def can_reveal(question, *, attempts_made, locked):
     """May Show answer be offered / accepted (spec §3.5)? THE single home of the
     SUPPORTS_REVEAL check: the button's render condition, the enrolled branch and
@@ -875,10 +887,15 @@ def test_resume_survives_auto_answer_switched_to_not_marked(client):
 
 @pytest.mark.django_db
 def test_incorrect_unconverted_type_gets_new_line_too(client):
+    # Choice stays unconverted through PR 1-2 -- the line is ungated (spec §2.1).
+    from courses.models import Choice, ChoiceQuestionElement
+
     unit = _enrolled_quiz(client)
-    q = ShortTextQuestionElement.objects.create(stem="?", accepted="Paris", max_attempts=3)
+    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    Choice.objects.create(question=q, text="A", is_correct=True)
+    wrong = Choice.objects.create(question=q, text="B", is_correct=False)
     el = add_element(unit, q)
-    body = _post(client, unit, el, {"answer": "Rome"})
+    body = _post(client, unit, el, {"choice": [str(wrong.pk)]})
     assert "Incorrect" in body and "0 / 1" in body
 ```
 
@@ -951,7 +968,10 @@ Add `courses_extras` to the template's `{% load %}` line (for `|marks`): `{% loa
 In `courses.css`, after `.question__verdict.is-incorrect { … }`:
 
 ```css
-.question__verdict.is-partial { color: var(--warning); }
+/* --warning on the page background is ~3.2:1 -- below AA for text. The words stay
+   in the body colour; only the (aria-hidden) glyph carries the warning hue. */
+.question__verdict.is-partial { color: var(--text-primary); }
+.question__verdict.is-partial .question__glyph { color: var(--warning); }
 ```
 
 - [ ] **Step 4: Run the new tests, then the quiz suites; update tests that pin the OLD line**
@@ -959,7 +979,9 @@ In `courses.css`, after `.question__verdict.is-incorrect { … }`:
 Run: `uv run pytest tests/test_quiz_reveal_result_line.py -p no:randomly` → PASS.
 
 Then run the quiz suites that render this template:
-`uv run pytest tests/test_quiz_answer.py tests/test_quiz_noleak.py tests/test_questions_2d_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_choice_inline_marking.py tests/test_element_try.py tests/test_ux_roster_and_feedback.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py -p no:randomly`
+`uv run pytest tests/test_quiz_answer.py tests/test_quiz_noleak.py tests/test_questions_2d_quiz_noleak.py tests/test_quiz_resume.py tests/test_quiz_previewer_answer.py tests/test_quiz_choice_inline_marking.py tests/test_element_try.py tests/test_ux_roster_and_feedback.py tests/test_questions_2b_consumption.py tests/test_questions_consumption.py tests/test_questions_2diii_quiz.py tests/test_choice_inline_feedback.py tests/test_review_wording_pl.py -p no:randomly`
+
+and list any other non-e2e quiz test that pins the old line: `grep -rlE "is-incorrect|attempts? left|Incorrect" tests courses/tests --include=test_*.py | grep -v e2e | xargs grep -l -i quiz` — run the hits too. The e2e side of this change is run in Task 9 Step 5.
 
 Expected failures are ONLY of these two shapes; fix each by rewriting the assertion and adding a one-line comment naming the old assertion it replaces:
 - the attempts separator changed from `" — N attempts left"` to `" · N attempts left"`;
@@ -1087,6 +1109,8 @@ def test_results_mode_has_no_form_or_buttons(fb):
                    feedback_html="<p>line</p>")
     assert "<form" not in html and "<button" not in html
     assert "data-answer-scope" in html and "<p>line</p>" in html
+    # The results fieldset is `data-answer-yours disabled` (attribute order pinned
+    # so this split sees the fieldset's own `disabled`).
     yours = html.split("data-answer-yours")[1].split("data-answer-key")[0]
     assert "disabled" in yours
 
@@ -1211,7 +1235,7 @@ Add the method to `QuestionElement` (after `render`):
                     )
 ```
 
-(import `from django.utils.translation import pgettext`.) Extend the docstring: "A painted blank is followed by a `.sr-only` "correct"/"incorrect" — colour is never the only cue (spec 2026-09-25 §2.1)."
+(import `from django.utils.translation import pgettext`.) Also append the same `<span class="sr-only">` + `pgettext("answer part verdict", "correct")` after each input in the **locked** branch (the solved / key-copy look) so a locked green blank is not colour-only either. Extend the docstring: "A painted blank is followed by a `.sr-only` "correct"/"incorrect" — colour is never the only cue (spec 2026-09-25 §2.1)."
 
 `courses_extras.py`:
 - `render_fill_blanks` becomes:
@@ -1276,7 +1300,7 @@ Rewrite `fillblankquestionelement.html`, keeping its existing `{% comment %}` he
 <div class="el el--question el--fillblank" data-question>
   {% if mode == "results" %}
   <div class="question__form" data-answer-scope>
-    <fieldset class="question__stem" disabled data-answer-yours style="border:0;padding:0;margin:0 0 var(--space-3);">
+    <fieldset class="question__stem" data-answer-yours disabled style="border:0;padding:0;margin:0 0 var(--space-3);">
       {% include "courses/elements/_fillblankquestionelement_controls.html" with values=submitted_values locked=False %}
     </fieldset>
     {% if key_copy_html %}<div class="question__stem answer-key" data-answer-key>{{ key_copy_html }}</div>{% include "courses/elements/_answer_switch.html" %}{% endif %}
@@ -1495,6 +1519,26 @@ def test_nojs_lesson_check_leaves_sibling_unpainted(client):
     assert body.status_code == 200
     (sibling,) = _INPUT.findall(body.content.decode())
     assert "is-correct" not in sibling and "is-incorrect" not in sibling
+
+
+@pytest.mark.django_db
+def test_nojs_short_text_check_beside_fillblank_sibling_is_safe(client):
+    # The feedback_for_pk guard's real job: without it a fill-blank sibling would run
+    # part_verdicts on a SHORT-TEXT result, whose reveal is a string -> item["correct"]
+    # on characters -> 500.
+    from courses.fillblank import parse
+    from courses.models import Blank, FillBlankQuestionElement
+
+    st = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
+    _s, unit, _el, url = _lesson(client, st)
+    token_stem, _ = parse("{{11}}")
+    fbq = FillBlankQuestionElement.objects.create(stem=token_stem)
+    Blank.objects.create(question=fbq, order=0, accepted="11")
+    Element.objects.create(unit=unit, content_object=fbq)
+    resp = client.post(url, {"answer": "Rome"})  # no-JS: whole unit re-rendered
+    assert resp.status_code == 200
+    blank = re.search(r'<input[^>]*name="blank"[^>]*>', resp.content.decode()).group(0)
+    assert "is-correct" not in blank and "is-incorrect" not in blank
 
 
 @pytest.mark.django_db
@@ -2016,6 +2060,10 @@ def test_reveal_parity_no_attempt_yet(client):
     unit, el, data = _reveal_setup(client, enrolled=True, kind="fillblank", attempts=0)
     assert _reveal(client, unit, el, data, 0).status_code == 409
     assert _QR.objects.filter(element=el, revealed_at__isnull=False).count() == 0
+    client.logout()
+    unit2, el2, data2 = _reveal_setup(client, enrolled=False, kind="fillblank", attempts=0)
+    # Ephemeral: reveal_attempts_made reads 0 -> refused -> processed as a normal Check.
+    assert b"answer shown" not in _reveal(client, unit2, el2, data2, 0).content
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -2025,7 +2073,7 @@ Expected: FAIL — fragment returned, `reveal` ignored (attempt consumed).
 
 - [ ] **Step 3: Implement**
 
-`courses/views.py` imports: add `BLANK_QUIZ_STATE`, `can_reveal`, `quiz_render_state` to the `courses.quiz` imports.
+`courses/views.py` imports: add `BLANK_QUIZ_STATE`, `can_reveal`, `quiz_render_state`, `reveal_attempts_made` to the `courses.quiz` imports.
 
 `build_quiz_context` — replace the `state = {...}` literal and the `if r is not None and r.attempt_count > 0:` body with:
 
@@ -2123,7 +2171,7 @@ def _quiz_reveal_refused(request, slug, node_pk):
         attempt = parse_attempt(request.POST)
         # An ineligible reveal is ignored and processed as a normal Check (spec §3.3).
         reveal = bool(request.POST.get("reveal")) and can_reveal(
-            question, attempts_made=attempt, locked=False
+            question, attempts_made=reveal_attempts_made(request.POST), locked=False
         )
         stand_in, result, validation = ephemeral_quiz_feedback(
             question, question.build_answer(request.POST), attempt, reveal=reveal
@@ -2173,10 +2221,11 @@ def _quiz_reveal_refused(request, slug, node_pk):
 ```python
     from courses.quiz import can_reveal
     from courses.quiz import quiz_render_state
+    from courses.quiz import reveal_attempts_made
 
     attempt = parse_attempt(request.POST)
     reveal = bool(request.POST.get("reveal")) and can_reveal(
-        question, attempts_made=attempt, locked=False
+        question, attempts_made=reveal_attempts_made(request.POST), locked=False
     )
     stand_in, result, validation = ephemeral_quiz_feedback(
         question, answer, attempt, reveal=reveal
@@ -2302,6 +2351,9 @@ def test_show_answer_flow_and_switch(browser, live_server):
     q.locator("button[type='submit']:not([name='reveal'])").click()
     q.locator(".question__verdict.is-partial").wait_for(timeout=6000)
     assert "is-incorrect" in blanks.nth(1).get_attribute("class")
+    # Measured, not just classed: app.css's input[type=text] (0,1,1) must not win.
+    paint = "el => getComputedStyle(el).borderTopColor"
+    assert blanks.nth(0).evaluate(paint) != blanks.nth(1).evaluate(paint)
     # Confirm must be ACCEPTED explicitly: Playwright auto-dismisses dialogs.
     page.once("dialog", lambda d: d.accept())
     q.locator("[data-reveal-btn]").click()
@@ -2384,6 +2436,8 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
     assert q_el.locator("[data-answer-view='key']").is_enabled()  # editor freeze skipped it
     q_el.locator("label:has([data-answer-view='key'])").click()
     assert q_el.locator("[data-answer-key]").is_visible()
+    # The reveal consumed no attempt: the client counter stayed at 1 (spec §3.1).
+    assert q_el.get_attribute("data-attempts-made") == "1"
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -2487,7 +2541,13 @@ Add the submitter-fallback click listener next to the other `root.addEventListen
 - [ ] **Step 5: Run to verify, then the existing JS-driven quiz / editor e2e**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal.py tests/test_e2e_quiz.py tests/test_e2e_quiz_previewer.py tests/test_e2e_quiz_choice_marking.py tests/test_e2e_fillblank_lock.py tests/test_e2e_fillblank_inline_verdicts.py tests/test_e2e_choice_editor_feedback.py -m e2e -p no:randomly`
-Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion): a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5), and a converted type's Check now swaps the whole form, so a locator held across a Check must be re-queried. Mutant check (required): comment out the `if (submitter && submitter.name) body.append(...)` line in quiz.js → `test_show_answer_flow_and_switch` must go RED; restore it by hand (never `git checkout`).
+Also run `tests/test_e2e_questions_2b.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_switchgrid.py -m e2e`.
+
+Expected: PASS. Allowed e2e rewrites (comment naming the replaced assertion):
+- a partly-right answer's verdict locator `.is-incorrect` becomes `.is-partial` (Task 5) — this hits unconverted types too (e.g. extended response with a missing keyword);
+- a converted type's Check now swaps the whole form, so a locator held across a Check must be re-queried;
+- QUIZ: an assertion that `.question__reveal-text` shows the answer for a locked short-text / number / fill-blank question (e.g. `tests/test_e2e_quiz_previewer.py` ~108–117) becomes: click `label:has([data-answer-view='key'])`, then read `[data-answer-key] input` `input_value()`;
+- LESSON (D13): an assertion on a number/short-text lesson `.question__reveal-text` (e.g. `tests/test_e2e_questions_2b.py::test_reveal_shows_the_fraction_and_hides_a_zero_tolerance`) moves to the QUIZ key copy — keep its substance: the key copy shows the value as authored (e.g. `1/3`), and prints no "±" when the tolerance is zero. Never simply delete such an assertion. Mutant check (required): comment out the `if (submitter && submitter.name) body.append(...)` line in quiz.js → `test_show_answer_flow_and_switch` must go RED; restore it by hand (never `git checkout`).
 
 - [ ] **Step 6: Commit**
 
@@ -2606,13 +2666,64 @@ def test_results_mirror_case_partial_line_over_green_parts(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("mode,answer,badge,switch,key_shown", [
+    ("A", "Paris", "Correct (1/1)", False, False),
+    ("A", "Rome", "Incorrect (0/1)", True, True),
+    ("A", None, "Not answered (0/1)", True, True),
+    ("N", "Rome", "Answer recorded", False, False),
+    ("N", None, "Not answered", False, False),
+    ("R", "Rome", "Awaiting review", False, False),
+])
+def test_results_row_matrix(client, mode, answer, badge, switch, key_shown):
+    user = make_login(client, "stu_m")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortTextQuestionElement.objects.create(
+        stem="Capital?", accepted="Paris", marking_mode=mode, max_attempts=1,
+        explanation="<p>Because.</p>")
+    el = add_element(unit, q)
+    if answer is not None:
+        _answer(client, unit, el, {"answer": answer})
+    body = _finish_and_get_results(client, unit)
+    row = body.split("quiz-results__item")[1]
+    assert badge in row
+    assert ("data-answer-switch" in row) is switch
+    assert ("data-answer-key" in row) is key_shown  # N/R never show a key
+    # Explanation: hidden for recorded / review / reviewed outcomes, as today.
+    assert ("Because." in row) is (mode == "A" or answer is None)
+
+
+@pytest.mark.django_db
+def test_results_reviewed_row_shows_teacher_marks(client):
+    from django.utils import timezone
+
+    from courses.models import QuestionResponse
+
+    user = make_login(client, "stu_r")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortTextQuestionElement.objects.create(
+        stem="Essay?", accepted="Paris", marking_mode="R", max_attempts=1)
+    el = add_element(unit, q)
+    _answer(client, unit, el, {"answer": "Rome"})
+    body_url_kw = {"slug": unit.course.slug, "node_pk": unit.pk}
+    client.post(reverse("courses:quiz_finish", kwargs=body_url_kw))
+    QuestionResponse.objects.filter(element=el).update(
+        reviewed_at=timezone.now(), earned_marks="0.50", review_feedback="Half right.")
+    body = client.get(reverse("courses:quiz_results", kwargs=body_url_kw)).content.decode()
+    row = body.split("quiz-results__item")[1]
+    assert "Reviewed (0.5/1)" in row and "Half right." in row
+    assert "data-answer-switch" not in row and 'value="Paris"' not in row
+
+
+@pytest.mark.django_db
 def test_results_controls_are_all_disabled(client):
     _u, unit, fb, _un, _nm = _setup(client)
     _answer(client, unit, fb, {"blank": ["11", "5"]})
     body = _finish_and_get_results(client, unit)
     row = body.split("quiz-results__item")[1]
     yours = row.split("data-answer-yours")[1].split("data-answer-key")[0]
-    assert "disabled" in yours
+    assert "disabled" in yours  # fieldset is `data-answer-yours disabled` (Task 6)
 
 
 @pytest.mark.django_db
@@ -2811,7 +2922,7 @@ uv run python manage.py compilemessages -l pl
 
 - [ ] **Step 4: Help text**
 
-In `docs/help/course-admin/quiz-editors.md`, after the `## {el:fillblank} Fill in the blanks` section's lesson paragraph, add:
+In `docs/help/course-admin/quiz-editors.md`, in the `## {el:fillblank} Fill in the blanks` section's lesson paragraph, DELETE its last sentence ("In a **quiz**, the correct answers are revealed once the question locks." — the switch model replaces it; the `.pl.md` twin: "W **quizie** poprawne odpowiedzi są pokazywane, gdy pytanie zostanie zablokowane."), then add after that paragraph:
 
 ```markdown
 In a **quiz**, each part turns green or red after every Check, and a **Show answer**
@@ -2833,7 +2944,11 @@ To samo dotyczy pytań z krótką odpowiedzią tekstową i liczbową, które na 
 kolorują pole zamiast wypisywać poprawną odpowiedź.
 ```
 
-Flag both Polish texts (UI strings + help paragraph) for the owner's review in the PR description.
+In the `## Short text` and `## Short numeric` sections of both files (find them with `grep -n "^## " docs/help/course-admin/quiz-editors*.md`), add one sentence each:
+- EN: "In a **lesson**, a wrong answer turns the box red instead of showing the correct answer; in a **quiz** the answer is available through **Show answer**."
+- PL: "Na **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast pokazywać poprawną odpowiedź; w **quizie** odpowiedź jest dostępna przez **Pokaż odpowiedź**."
+
+Flag both Polish texts (UI strings + help paragraphs) for the owner's review in the PR description.
 
 - [ ] **Step 5: Run to verify, plus the help-page and i18n suites**
 
@@ -2863,8 +2978,8 @@ git commit -m "i18n+docs(quiz-reveal): Polish strings and author help"
 | `quiz_render_state`: `"mark_result": result` (not locked-gated) | `tests/test_quiz_choice_inline_marking.py` (unpicked-option markers before the lock) — if it stays green, write a choice test that asserts no `question__choice-marker` on an unlocked wrong answer and record it |
 | `neutralise_key_copy`: skip `attrs.pop("name")` | `test_names_stripped_controls_disabled`, `test_locked_key_copy_is_nameless_disabled_unique_ids` |
 | quiz.js: freeze without the `[data-answer-switch]` skip | `test_show_answer_flow_and_switch` |
-| `quiz_answer` reveal branch: `response.attempt_count += 1` | `test_reveal_locks_at_current_marks_without_an_attempt` |
-| `render()`: drop the `element.pk == feedback_for_pk` guard | `test_nojs_lesson_check_leaves_sibling_unpainted` (Task 7) |
+| `quiz_answer` reveal branch: `response.attempt_count += 1` AND add `"attempt_count"` to its `update_fields` (otherwise the increment never persists and the mutant is vacuous) | `test_reveal_locks_at_current_marks_without_an_attempt` |
+| `render()`: drop the `element.pk == feedback_for_pk` guard | `test_nojs_short_text_check_beside_fillblank_sibling_is_safe` (Task 7) |
 
 Record each mutant's RED test name in the PR description.
 
