@@ -300,6 +300,10 @@ blockquote {
 }
 .question__verdict.is-correct { color: var(--success); }
 .question__verdict.is-incorrect { color: var(--danger); }
+/* --warning on the page background is ~3.2:1 -- below AA for text. The words stay
+   in the body colour; only the (aria-hidden) glyph carries the warning hue. */
+.question__verdict.is-partial { color: var(--text-primary); }
+.question__verdict.is-partial .question__glyph { color: var(--warning); }
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
 .question__nudge {

@@ -9,6 +9,7 @@ from courses.models import ChoiceQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.scoring import earned_marks
+from courses.scoring import outcome
 from courses.scoring import to_stored_fraction
 
 
@@ -28,6 +29,10 @@ def quiz_feedback_context(question, response, *, result=None, validation=False):
         "neutral": None,
         "locked": response.locked,
         "attempts_left": None,
+        "revealed": bool(getattr(response, "revealed_at", None)),
+        "outcome": None,
+        "earned": None,
+        "possible": question.max_marks,
     }
     if validation:
         return ctx
@@ -41,16 +46,34 @@ def quiz_feedback_context(question, response, *, result=None, validation=False):
         ctx["mark_result"] = None
         ctx["reveal_template"] = None
         return ctx
+    # The result line (spec §2.5): classified by EARNED marks via the shared helper.
+    # Guarded: an AUTO answer whose question was since switched to N/R reaches here
+    # with result=None and an UNLOCKED response (the early return needs locked);
+    # today's code survives that, so the new line must too (outcome stays None).
+    if result is not None:
+        earned = earned_marks(to_stored_fraction(result.fraction), question.max_marks)
+        ctx["earned"] = earned
+        ctx["outcome"] = outcome(earned, question.max_marks)
+        if ctx["outcome"] == "correct" and not result.correct and not response.locked:
+            # An unlocked question never reads "Correct" (§1): rounding (e.g. 0.5 of
+            # 0.01 marks -> 0.01) can reach full marks while result.correct is False.
+            # LOCKED, the same rounding reads "Correct" while the switch still shows
+            # (fully_correct follows result.correct): accepted by spec §2.6 ("the line
+            # follows the helper, the switch follows the predicate") -- do not "fix".
+            ctx["outcome"] = "partial"
     # [A]:
     revealing = response.locked and result is not None
     if revealing:
         # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
         ctx.update(question.feedback_context(result))
-        if question.INLINE_QUIZ_REVEAL:
+        if question.INLINE_QUIZ_REVEAL or question.SUPPORTS_REVEAL:
             # This type marks its own options list once locked (choice: ✓/✗/＋ per
             # option), so the bottom list would print the same answer key a second
             # time — and print it detached from the options, which is what made a
             # student unable to line up "what I picked" against "what was right".
+            # Converted types (SUPPORTS_REVEAL) show the key as a second copy of
+            # their own controls behind the Your/Correct switch (spec §2.2), so the
+            # list goes for them too.
             ctx["reveal_template"] = None
     else:
         # Withhold: no reveal_template, no mark_result payload beyond correct=False.
