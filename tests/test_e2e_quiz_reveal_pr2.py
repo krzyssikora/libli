@@ -411,3 +411,34 @@ def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_ty
             targets.nth(0).click(force=True)
             _drop(targets.nth(0))
             assert _select_values(q, "[data-answer-yours]") == before
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "kind", ["dragfill", "matchpair", "dragimage", "choicegrid", "multigrid"]
+)
+def test_switch_stays_put_on_toggle(browser, live_server, kind):
+    # PR 1's V1b rule (plan P5): "Correct answer" must not move the switch. A
+    # plain key <div> lets its first child's top margin collapse out of it into
+    # the stem's, while the "yours" fieldset keeps it -- the grids' switch rose
+    # 12px on toggle until the key copy became its own formatting context.
+    _student(f"sw_{kind}")
+    course, unit, _ = _seed(f"sw_{kind}", f"e2e-sw-{kind}", [kind], max_attempts=1)
+    page = browser.new_context().new_page()
+    _login(page, live_server, f"sw_{kind}")
+    page.goto(_quiz_url(live_server, course, unit))
+    if kind == "dragimage":
+        _size_stages(page)
+    q = page.locator("[data-question]").first
+    if kind in ("choicegrid", "multigrid"):
+        q.locator("tbody tr").nth(0).locator("input").nth(0).check()
+    else:
+        _drag(q, "alphakey", 0)
+    _check(q)
+    switch = q.locator("[data-answer-switch]")
+    switch.wait_for(timeout=6000)  # 1 attempt: locked
+    pos = switch.bounding_box()
+    q.locator("label:has([data-answer-view='key'])").click()
+    assert q.locator("[data-answer-key]").is_visible()
+    after = switch.bounding_box()
+    assert (after["x"], after["y"]) == (pos["x"], pos["y"])

@@ -408,14 +408,17 @@ input.question__blank-input[type="text"] {
 .el--question .question__text-input.is-correct { border-color: var(--success); background: var(--success-subtle); }
 .el--question .question__text-input.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
 /* Quiz answer reveal (spec 2026-09-25 §2.3): the key copy is hidden by default and
-   shown only by :has(), so a browser without :has() degrades to "Your answer" (D3). */
+   shown only by :has(), so a browser without :has() degrades to "Your answer" (D3).
+   flow-root, like the "yours" fieldset: its children's margins stay inside it,
+   else a grid / match key's first margin collapses into the stem's and the switch
+   rises on toggle. */
 [data-answer-key] { display: none; }
-[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: block; }
+[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: flow-root; }
 [data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-yours] { display: none; }
 /* Short text / number key copy: ONE flex line, so a number's " ± 0.01" stays beside
    its input instead of wrapping under it (where it pushed the inline-flex switch
    sideways). Same height + bottom margin as the "yours" block input, so the switch
-   does not move on toggle. (0,4,1) beats the display:block rule above. */
+   does not move on toggle. (0,4,1) beats the display:flow-root rule above. */
 [data-answer-scope]:has([data-answer-view="key"]:checked) span[data-answer-key] {
   display: flex;
   align-items: center;
