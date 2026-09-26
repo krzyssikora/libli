@@ -1,5 +1,5 @@
 """The PR 2 types through every quiz, results and lesson path (spec 2026-09-25 §2,
-§4, §5, §5a). Task 3 converts the drag types; Task 4 widens KINDS_UNDER_TEST."""
+§4, §5, §5a)."""
 
 import re
 

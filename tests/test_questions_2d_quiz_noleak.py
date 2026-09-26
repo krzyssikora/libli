@@ -35,6 +35,12 @@ def test_dragfill_quiz_withholds_reveal_then_reveals_on_last_attempt(client):
     ).content.decode()
     assert "Correct token:" not in body1
     assert "question__reveal" not in body1
+    # PR 2 (spec 2026-09-25 §2.1, §7): replaces the two checks above, which target
+    # list markers that no longer exist and so can never fail -- before the lock
+    # only booleans reach the page: no key copy at all, and the wrong gap's
+    # correct token is never shown selected.
+    assert "data-answer-key" not in body1
+    assert 'value="Paris" selected' not in body1
 
     # Wrong on the LAST attempt → reveal: the correct token is now shown.
     body2 = client.post(
@@ -59,6 +65,12 @@ def test_matchpair_quiz_withholds_then_reveals(client):
         url, {"slot": ["Rome"]}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()
     assert "Correct match:" not in body1
+    # PR 2 (spec 2026-09-25 §2.1, §7): replaces the check above, which targets a
+    # list marker that no longer exists and so can never fail -- before the lock
+    # only booleans reach the page: no key copy at all, and the wrong gap's
+    # correct token is never shown selected.
+    assert "data-answer-key" not in body1
+    assert 'value="Paris" selected' not in body1
     body2 = client.post(
         url, {"slot": ["Rome"]}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()

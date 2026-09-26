@@ -47,12 +47,13 @@ def test_results_reveals_dragfill_tokens_including_unanswered(client):
     )
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
-    # A fully-correct row is terse: its whole reveal is suppressed (no ✓ list, no
-    # token text) — there is nothing useful to add once you got it all right. Only
-    # the wrong + unanswered rows reveal the accepted token, so "Madrid" (wrong) and
-    # "Lisbon" (unanswered, reconstructed via mark(build_answer(QueryDict()))) appear
-    # while "Paris" (correct) and the answer-correct tick never render.
-    assert "answer-correct" not in body
+    # PR 2 (spec 2026-09-25 §4): replaces the stale claim that a fully-correct row's
+    # markup suppresses "Paris" and an "answer-correct" tick entirely -- every row
+    # now renders the question, so "Paris" DOES appear, selected and painted
+    # `is-correct`, on the correct row's own (non-key) select. `"answer-correct"
+    # not in body` is vacuous (that class is not emitted by any current markup, so
+    # it could never fail); what actually distinguishes the fully-correct row --
+    # no key copy, no switch -- is asserted below via rows[0].
     # PR 2 (spec 2026-09-25 §4): replaces `"Madrid" in body and "Lisbon" in body`
     # and `"Paris" not in body` -- each row renders the question (every select
     # lists the whole pool), so the key is read from each row's key copy.

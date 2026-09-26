@@ -350,7 +350,9 @@ def test_results_page_drag_ui_is_inert(browser, live_server):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("unit_type", ["quiz", "lesson"])
-@pytest.mark.parametrize("kind", ["dragfill", "matchpair", "dragimage", "choicegrid"])
+@pytest.mark.parametrize(
+    "kind", ["dragfill", "matchpair", "dragimage", "choicegrid", "multigrid"]
+)
 def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_type):
     # Spec §2.4: editor.js's try-it branch re-enhances drag roots and re-wires grid
     # scroll wrappers after its swap, in quiz and lesson mode.
@@ -375,7 +377,7 @@ def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_ty
     if kind == "dragimage":
         _size_stages(page)
     q = page.locator("[data-scope='preview'] [data-question]").first
-    if kind == "choicegrid":
+    if kind in ("choicegrid", "multigrid"):
         q.locator("tbody tr").nth(0).locator("input").nth(0).check()
         q.locator("tbody tr").nth(1).locator("input").nth(0).check()
     else:
@@ -383,7 +385,7 @@ def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_ty
         _drag(q, "gammadis", 1)
     _check(q)
     q.locator(".question__verdict").wait_for(timeout=6000)
-    if kind == "choicegrid":
+    if kind in ("choicegrid", "multigrid"):
         wrap = q.locator("[data-answer-yours] [data-scroll-x]")
         assert wrap.get_attribute("data-scroll-x-ready") == "1"  # editor.js re-wired
         assert "is-incorrect" in q.locator("[data-answer-yours] tbody tr").nth(
@@ -403,7 +405,7 @@ def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_ty
         q.locator("[data-reveal-btn]").click()
         q.locator("[data-answer-switch]").wait_for(timeout=6000)
         assert q.locator("[data-answer-view='key']").is_enabled()
-        if kind != "choicegrid":
+        if kind not in ("choicegrid", "multigrid"):
             before = _select_values(q, "[data-answer-yours]")
             targets = q.locator(
                 "[data-answer-yours] .dnd__slot, [data-answer-yours] .dragimage__target"
@@ -415,15 +417,24 @@ def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_ty
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "kind", ["dragfill", "matchpair", "dragimage", "choicegrid", "multigrid"]
+    "kind",
+    ["dragfill", "matchpair", "dragimage", "choicegrid", "multigrid", "fillblank"],
 )
 def test_switch_stays_put_on_toggle(browser, live_server, kind):
     # PR 1's V1b rule (plan P5): "Correct answer" must not move the switch. A
     # plain key <div> lets its first child's top margin collapse out of it into
     # the stem's, while the "yours" fieldset keeps it -- the grids' switch rose
     # 12px on toggle until the key copy became its own formatting context.
+    # PR 2 (spec 2026-09-25 plan P5): fillblank is PR 1's type, whose shared
+    # key-copy rule changed to display:flow-root too -- covered here alongside
+    # the five PR 2 types, built via PR 1's own _seed_quiz, not reveal_pr2_kit.
     _student(f"sw_{kind}")
-    course, unit, _ = _seed(f"sw_{kind}", f"e2e-sw-{kind}", [kind], max_attempts=1)
+    if kind == "fillblank":
+        from tests.test_e2e_quiz_reveal import _seed_quiz
+
+        course, unit = _seed_quiz(f"sw_{kind}", f"e2e-sw-{kind}", max_attempts=1)
+    else:
+        course, unit, _ = _seed(f"sw_{kind}", f"e2e-sw-{kind}", [kind], max_attempts=1)
     page = browser.new_context().new_page()
     _login(page, live_server, f"sw_{kind}")
     page.goto(_quiz_url(live_server, course, unit))
@@ -432,6 +443,10 @@ def test_switch_stays_put_on_toggle(browser, live_server, kind):
     q = page.locator("[data-question]").first
     if kind in ("choicegrid", "multigrid"):
         q.locator("tbody tr").nth(0).locator("input").nth(0).check()
+    elif kind == "fillblank":
+        # Only the first blank is filled (correctly); the rest are left empty, so
+        # the single attempt locks the question wrong overall.
+        q.locator("[data-answer-yours] input[name='blank']").nth(0).fill("11")
     else:
         _drag(q, "alphakey", 0)
     _check(q)

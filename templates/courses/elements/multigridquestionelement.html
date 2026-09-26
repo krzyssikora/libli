@@ -1,8 +1,8 @@
 {% load i18n %}
 {% comment %}Quiz answer reveal PR 2 (spec 2026-09-25 §2.2-§2.4, §4, §5a): the
 controls include (scroll wrappers + table) renders once per copy; the key copy's
-radios lose their row_<pk> names in the keycopy pass, so they never join the
-student's radio group. data-question-inline is unconditional (lesson D13 + quiz).{% endcomment %}
+checkboxes lose their row_<pk> names in the keycopy pass, so they never join the
+student's checkbox group. data-question-inline is unconditional (lesson D13 + quiz).{% endcomment %}
 <div class="el el--question el--multigrid" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
   {% if mode == "results" %}
