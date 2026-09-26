@@ -23,11 +23,16 @@ blockquote {
    are inline-block, so a margin-top would visibly shift them. <div> is in the
    first list because Chromium's contenteditable emits <div> (not <p>) for a
    block made with Enter, and the sanitizer keeps it -- but it stays OUT of the
-   stem list, where a direct-child div is a widget (.dnd__pool), not prose. */
+   stem list, where a direct-child div is a widget (.dnd__pool), not prose.
+   A drag-the-words stem sits one level down, inside its per-copy [data-dnd]
+   root (quiz answer reveal PR 2), so the stem branch reaches through it. */
 :is(.rte-surface, .el--text)
   > :is(p, div, h2, h3, h4, ul, ol, pre, blockquote)
   + :is(p, div, h2, h3, h4, ul, ol, pre, blockquote),
 .question__stem
+  > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, h2, h3, h4, ul, ol, pre, blockquote),
+.question__stem > [data-dnd]
   > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
   + :is(p, h2, h3, h4, ul, ol, pre, blockquote) { margin-top: var(--space-3); }
 
@@ -403,14 +408,17 @@ input.question__blank-input[type="text"] {
 .el--question .question__text-input.is-correct { border-color: var(--success); background: var(--success-subtle); }
 .el--question .question__text-input.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
 /* Quiz answer reveal (spec 2026-09-25 §2.3): the key copy is hidden by default and
-   shown only by :has(), so a browser without :has() degrades to "Your answer" (D3). */
+   shown only by :has(), so a browser without :has() degrades to "Your answer" (D3).
+   flow-root, like the "yours" fieldset: its children's margins stay inside it,
+   else a grid / match key's first margin collapses into the stem's and the switch
+   rises on toggle. */
 [data-answer-key] { display: none; }
-[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: block; }
+[data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-key] { display: flow-root; }
 [data-answer-scope]:has([data-answer-view="key"]:checked) [data-answer-yours] { display: none; }
 /* Short text / number key copy: ONE flex line, so a number's " ± 0.01" stays beside
    its input instead of wrapping under it (where it pushed the inline-flex switch
    sideways). Same height + bottom margin as the "yours" block input, so the switch
-   does not move on toggle. (0,4,1) beats the display:block rule above. */
+   does not move on toggle. (0,4,1) beats the display:flow-root rule above. */
 [data-answer-scope]:has([data-answer-view="key"]:checked) span[data-answer-key] {
   display: flex;
   align-items: center;
@@ -710,7 +718,11 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   background: var(--primary); color: var(--text-inverse);
   border: 2px solid var(--surface-raised); border-radius: var(--radius-full);
   font-weight: 700; font-size: 0.85rem; line-height: 1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); pointer-events: none;
+  /* Above the JS overlay target (z-index 3), which starts at the badge's own corner
+     and used to cover half of it. pointer-events: none keeps every tap / drop on
+     the target underneath. */
+  z-index: 4;
 }
 /* JS overlay drop-target: a transparent rectangle over each zone that accepts a
    dropped/tapped chip and shows the placed token. */
@@ -728,6 +740,29 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   border-style: solid; border-color: var(--primary);
   background: var(--surface-raised);
 }
+/* Drag + grid verdicts (spec 2026-09-25 §2.1, D6; plan P1/P2): the fill-table
+   colours on the part itself. Drag: the no-JS select and the dnd.js slot / image
+   target (which copies its select's class). Grid: the row's statement cell, with
+   an inset bar so a row with nothing picked still reads. Placed after the drag
+   blocks: the target's hover / focus border rule has the same specificity and
+   loses only by source order; the other bases (select.dnd__select,
+   .dragimage__target--filled, the grids' even-row stripe) are out-ranked. */
+select.dnd__select.is-correct,
+.dnd__slot.is-correct,
+.dragimage__target.is-correct { border-color: var(--success); background: var(--success-subtle); }
+select.dnd__select.is-incorrect,
+.dnd__slot.is-incorrect,
+.dragimage__target.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
+.choicegrid tbody tr.is-correct td.choicegrid__stmt,
+.multigrid tbody tr.is-correct td.multigrid__stmt { background: var(--success-subtle); box-shadow: inset 3px 0 0 var(--success); }
+.choicegrid tbody tr.is-incorrect td.choicegrid__stmt,
+.multigrid tbody tr.is-incorrect td.multigrid__stmt { background: var(--danger-subtle); box-shadow: inset 3px 0 0 var(--danger); }
+/* An inert chip / slot / target (locked copy, key copy, results) must not look
+   grabbable or tappable; dnd.js adds dnd--inert to the root when inert. */
+.dnd__chip:disabled { cursor: default; opacity: .7; }
+.dnd--inert .dnd__slot,
+.dnd--inert .dragimage__target { cursor: default; }
+.dnd__chip:disabled:hover { border-color: var(--border-strong); color: var(--text-primary); }
 
 /* ── Results / stat components (batch 1 primitive) ────────────────────────────
    Shared by quiz_results (per-quiz) and course_results (per-course). A headline
@@ -2003,6 +2038,11 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 }
 /* Chosen cell tint (progressive enhancement; the radio dot is the fallback). */
 .choicegrid tbody td:has(input:checked) { background: var(--primary-subtle); }
+/* Dark: a disabled (locked) radio / checkbox dot barely shows on a dark cell, so the
+   picked cell's tint alone carries the pick -- make it stronger there. */
+[data-theme="dark"] .choicegrid tbody td:has(input:checked) {
+  background: color-mix(in srgb, var(--brand-primary) 50%, var(--surface-raised));
+}
 /* Hover affordance only on a live (not disabled) grid. */
 .choicegrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
 .choicegrid td input[type="radio"]:disabled { cursor: default; }
@@ -2067,6 +2107,11 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 }
 /* Chosen cell tint (progressive enhancement; the checkbox is the fallback). */
 .multigrid tbody td:has(input:checked) { background: var(--primary-subtle); }
+/* Dark: a disabled (locked) radio / checkbox dot barely shows on a dark cell, so the
+   picked cell's tint alone carries the pick -- make it stronger there. */
+[data-theme="dark"] .multigrid tbody td:has(input:checked) {
+  background: color-mix(in srgb, var(--brand-primary) 50%, var(--surface-raised));
+}
 /* Hover affordance only on a live (not disabled) grid. */
 .multigrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
 .multigrid td input[type="checkbox"]:disabled { cursor: default; }

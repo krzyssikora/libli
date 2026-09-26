@@ -45,6 +45,7 @@ import re
 import urllib.parse
 
 import pytest
+from playwright.sync_api import expect
 
 from courses.models import ContentNode
 from courses.models import Course
@@ -202,7 +203,9 @@ def test_dragimage_js_drag_path(live_server, page):
 
     page.locator('.question__form button[type="submit"]').click()
     page.locator("[data-question-feedback] .is-correct").wait_for(timeout=6000)
-    assert page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert page.locator(".question__verdict.is-correct").count() >= 1
 
 
 @pytest.mark.django_db(transaction=True)
@@ -277,7 +280,9 @@ def test_dragimage_tap_to_assign_equals_drag(live_server, page):
 
     page.locator('.question__form button[type="submit"]').click()
     page.locator("[data-question-feedback] .is-correct").wait_for(timeout=6000)
-    assert page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert page.locator(".question__verdict.is-correct").count() >= 1
 
 
 # ── Tap state table: armed+filled OVERWRITES; unarmed+filled CLEARS ──────────
@@ -356,7 +361,9 @@ def test_dragimage_no_js_select_path(live_server, browser):
 
     result_page = context.new_page()
     result_page.set_content(html)
-    assert result_page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces result_page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert result_page.locator(".question__verdict.is-correct").count() >= 1
     result_page.close()
     context.close()
 
@@ -418,11 +425,16 @@ def test_dragimage_quiz_withhold_then_reveal_js(live_server, browser):
     # exactly by the last-attempt swap, and it is not the reveal block itself, so
     # waiting on it does not make the assertions below vacuous.
     feedback.locator("[data-quiz-locked]").wait_for(state="attached", timeout=6000)
-    revealed = page.content()
-    assert "Correct label:" in revealed, (
-        "reveal must show accepted labels after last attempt"
-    )
-    assert "Heart" in revealed and "Lung" in revealed
+    # PR 2 (spec 2026-09-25 §2.2): replaces `"Correct label:" in revealed` and the
+    # (vacuous -- the chips/options always hold them) `"Heart"/"Lung" in revealed`:
+    # the key copy's overlay targets must read the accepted labels.
+    q = page.locator("[data-question]").first
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)
+    q.locator("label:has([data-answer-view='key'])").click()
+    key_targets = q.locator("[data-answer-key] .dragimage__target")
+    expect(key_targets).to_have_count(2)
+    expect(key_targets.nth(0)).to_have_text("Heart")
+    expect(key_targets.nth(1)).to_have_text("Lung")
     ctx.close()
 
 
@@ -518,11 +530,15 @@ def test_dragimage_katex_in_chip_and_reveal(live_server, browser):
     page.locator('.question__form button[type="submit"]').first.click()
     page.locator("[data-question-feedback] .is-incorrect").wait_for(timeout=6000)
     page.wait_for_timeout(500)
-    # The reveal lists the accepted label; KaTeX should have typeset it (a .katex node
-    # inside the reveal block).
-    page.wait_for_selector(".question__reveal .katex", timeout=6000)
-    assert page.locator(".question__reveal .katex").count() >= 1, (
-        "KaTeX did not typeset the accepted \\(x\\) label in the reveal"
+    # PR 2 (spec 2026-09-25 §2.2): replaces `.question__reveal .katex` exists -- the
+    # accepted label now shows in the key copy's overlay target, typeset by dnd.js.
+    q = page.locator("[data-question]").first
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)
+    q.locator("label:has([data-answer-view='key'])").click()
+    key_math = q.locator("[data-answer-key] .dragimage__target .katex")
+    key_math.first.wait_for(state="attached", timeout=6000)
+    assert key_math.count() >= 1, (
+        "KaTeX did not typeset the accepted \\(x\\) label in the key copy"
     )
     ctx.close()
 

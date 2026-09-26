@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-25 16:23+0200\n"
+"POT-Creation-Date: 2026-09-26 03:48+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -483,7 +483,7 @@ msgstr "Dobrze"
 msgid "Excellent"
 msgstr "Świetnie"
 
-#: .\courses\dnd.py:75
+#: .\courses\dnd.py:81
 msgid "— choose —"
 msgstr "— wybierz —"
 
@@ -778,28 +778,29 @@ msgid "Username"
 msgstr "Nazwa użytkownika"
 
 #: .\courses\fillblank.py:147 .\courses\fillblank.py:172
+#: .\courses\verdicts.py:35
 #: .\templates\courses\elements\_shortnumericquestionelement_controls.html:1
 #: .\templates\courses\elements\_shorttextquestionelement_controls.html:1
-#: .\tests\test_i18n_quiz_reveal.py:12
+#: .\tests\test_i18n_quiz_reveal.py:18
 msgctxt "answer part verdict"
 msgid "correct"
 msgstr "poprawnie"
 
-#: .\courses\fillblank.py:174
+#: .\courses\fillblank.py:174 .\courses\verdicts.py:37
 #: .\templates\courses\elements\_shortnumericquestionelement_controls.html:1
 #: .\templates\courses\elements\_shorttextquestionelement_controls.html:1
-#: .\tests\test_i18n_quiz_reveal.py:11
+#: .\tests\test_i18n_quiz_reveal.py:17
 msgctxt "answer part verdict"
 msgid "incorrect"
 msgstr "niepoprawnie"
 
-#: .\courses\filltable.py:178
+#: .\courses\filltable.py:240
 #: .\templates\courses\elements\_filltable_cell.html:1
 #, python-format
 msgid "Answer, row %(r)s, column %(c)s"
 msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
 
-#: .\courses\filltable.py:180
+#: .\courses\filltable.py:242
 #, python-format
 msgid "Answer, row %(r)s, column %(c)s, box %(g)s"
 msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s, pole %(g)s"
@@ -1226,24 +1227,24 @@ msgstr "twoja odpowiedź, niepoprawna"
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:3193
+#: .\courses\models.py:3270
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:3195
+#: .\courses\models.py:3272
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:3200
+#: .\courses\models.py:3277
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:3271
+#: .\courses\models.py:3348
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:3272
+#: .\courses\models.py:3349
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1251,64 +1252,64 @@ msgstr "Przesłano"
 msgid "Additional"
 msgstr "Dodatkowa"
 
-#: .\courses\templatetags\courses_extras.py:403
+#: .\courses\templatetags\courses_extras.py:458
 #: .\templates\courses\elements\fillgateelement.html:13
 msgid "Confirm"
 msgstr "Potwierdź"
 
-#: .\courses\templatetags\courses_extras.py:418
+#: .\courses\templatetags\courses_extras.py:473
 msgid "Choose ▾"
 msgstr "Wybierz ▾"
 
-#: .\courses\templatetags\courses_extras.py:420
+#: .\courses\templatetags\courses_extras.py:475
 msgid "Choose an option"
 msgstr "Wybierz opcję"
 
-#: .\courses\templatetags\courses_extras.py:422
-#: .\courses\templatetags\courses_extras.py:593
+#: .\courses\templatetags\courses_extras.py:477
+#: .\courses\templatetags\courses_extras.py:648
 #: .\templates\courses\elements\filltableelement.html:15
 msgid "Try again"
 msgstr "Spróbuj ponownie"
 
-#: .\courses\templatetags\courses_extras.py:461
-#: .\courses\templatetags\courses_extras.py:468
+#: .\courses\templatetags\courses_extras.py:516
+#: .\courses\templatetags\courses_extras.py:523
 #: .\templates\courses\elements\_answer_switch.html:8
 msgid "Your answer"
 msgstr "Twoja odpowiedź"
 
-#: .\courses\templatetags\courses_extras.py:469
-#: .\courses\templatetags\courses_extras.py:569
-#: .\templates\courses\elements\choicegridquestionelement.html:18
+#: .\courses\templatetags\courses_extras.py:524
+#: .\courses\templatetags\courses_extras.py:624
+#: .\templates\courses\elements\choicegridquestionelement.html:30
 #: .\templates\courses\elements\choicequestion.html:51
-#: .\templates\courses\elements\dragfillblankquestionelement.html:16
-#: .\templates\courses\elements\dragtoimagequestionelement.html:26
+#: .\templates\courses\elements\dragfillblankquestionelement.html:31
+#: .\templates\courses\elements\dragtoimagequestionelement.html:32
 #: .\templates\courses\elements\fillblankquestionelement.html:44
 #: .\templates\courses\elements\filltableelement.html:42
-#: .\templates\courses\elements\matchpairquestionelement.html:17
-#: .\templates\courses\elements\multigridquestionelement.html:18
+#: .\templates\courses\elements\matchpairquestionelement.html:32
+#: .\templates\courses\elements\multigridquestionelement.html:30
 #: .\templates\courses\elements\shortnumericquestionelement.html:16
 #: .\templates\courses\elements\shorttextquestionelement.html:16
 msgid "Check"
 msgstr "Sprawdź"
 
-#: .\courses\templatetags\courses_extras.py:474
+#: .\courses\templatetags\courses_extras.py:529
 msgid "Correct!"
 msgstr "Dobrze!"
 
-#: .\courses\templatetags\courses_extras.py:487
+#: .\courses\templatetags\courses_extras.py:542
 msgid "The number is too big, try again."
 msgstr "Liczba jest za duża, spróbuj ponownie."
 
-#: .\courses\templatetags\courses_extras.py:488
+#: .\courses\templatetags\courses_extras.py:543
 msgid "The number is too small, try again."
 msgstr "Liczba jest za mała, spróbuj ponownie."
 
-#: .\courses\templatetags\courses_extras.py:546
+#: .\courses\templatetags\courses_extras.py:601
 msgid "Cycle options"
 msgstr "Przełącz opcje"
 
-#: .\courses\templatetags\courses_extras.py:574
-#: .\courses\templatetags\courses_extras.py:592
+#: .\courses\templatetags\courses_extras.py:629
+#: .\courses\templatetags\courses_extras.py:647
 #: .\templates\courses\elements\filltableelement.html:14
 #: .\templates\courses\elements\filltableelement.html:43
 msgid "Great!"
@@ -2666,7 +2667,7 @@ msgstr "Ten quiz został już przesłany."
 msgid "Show answer is not available for this question."
 msgstr "Pokazanie odpowiedzi nie jest dostępne dla tego pytania."
 
-#: .\courses\views.py:2026
+#: .\courses\views.py:2025
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."

@@ -2,9 +2,11 @@
 
 Two tests, driving the REAL radio clicks (never page.evaluate shortcuts):
   1. LESSON: answer a matrix (one row right, one wrong) and Check → immediate
-     per-row feedback + the reveal grid shows the wrong row's correct column.
+     per-row feedback: each row of the grid itself is painted is-correct /
+     is-incorrect (quiz answer reveal PR 2; the old reveal list is gone).
   2. QUIZ: a wrong answer with attempts remaining WITHHOLDS the correct columns;
-     Finish → the per-quiz results page reveals the correct columns.
+     Finish → the per-quiz results page shows the painted "Your answer" grid and a
+     "Correct answer" copy behind the answer switch.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Harness mirrors test_e2e_quiz.py / test_e2e_questions_2d.py (fixtures, login,
@@ -79,8 +81,8 @@ def _seed_matrix(username, slug, *, unit_type, max_attempts=0):
 def test_matrix_lesson_immediate_feedback(page, live_server):
     """LESSON: click radios (row1 correct, row2 wrong), Check → immediate feedback.
 
-    The verdict is .is-incorrect (one row wrong) and the reveal grid shows one
-    correct row (✓) + one wrong row whose correct column ("False") is revealed.
+    The verdict is .is-incorrect (one row wrong) and the grid's own rows are
+    painted: row 1 is-correct, row 2 is-incorrect (no reveal list).
     """
     course, unit, el, col_true, col_false, row1, row2 = _seed_matrix(
         "cg_lesson", "cg-lesson", unit_type="lesson"
@@ -104,19 +106,17 @@ def test_matrix_lesson_immediate_feedback(page, live_server):
         "Expected .is-incorrect verdict after a partially-wrong matrix answer"
     )
 
-    # Per-row reveal grid: one correct row, one wrong row with its correct column shown.
-    reveal = feedback.locator(".question__reveal--grid")
-    reveal.wait_for(timeout=6000)
-    assert reveal.locator(".answer-correct").count() == 1, (
-        "Expected exactly one correct row (2+2=4 → True)"
+    # PR 2 (spec 2026-09-25 §5a): replaces the `.question__reveal--grid` checks
+    # (one `.answer-correct`, one `.answer-wrong`, "False" revealed) -- a lesson
+    # paints the rows themselves and shows no key (D11).
+    rows = q.locator("tbody tr")
+    assert "is-correct" in rows.nth(0).get_attribute("class"), (
+        "Expected row 1 (2+2=4 → True) painted correct"
     )
-    assert reveal.locator(".answer-wrong").count() == 1, (
-        "Expected exactly one wrong row (5 is even → chose True)"
+    assert "is-incorrect" in rows.nth(1).get_attribute("class"), (
+        "Expected row 2 (5 is even → chose True) painted incorrect"
     )
-    # The wrong row reveals its correct column label.
-    assert "False" in reveal.inner_text(), (
-        "Expected the wrong row to reveal its correct column ('False')"
-    )
+    assert q.locator(".question__reveal").count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
@@ -155,15 +155,21 @@ def test_matrix_quiz_withhold_then_results(browser, live_server):
     page.locator("[data-finish-btn]").click()
     page.wait_for_url("**/quiz/results/", timeout=8000)
 
-    # The results page reveals the correct columns for the incorrectly-answered matrix.
-    reveal = page.locator(".question__reveal--grid")
-    reveal.wait_for(timeout=6000)
-    reveal_text = reveal.inner_text()
-    assert "True" in reveal_text and "False" in reveal_text, (
-        "Results page must reveal both rows' correct columns (True / False)"
-    )
-    assert reveal.locator(".answer-wrong").count() == 2, (
-        "Both rows were answered wrong → two revealed correct columns"
-    )
+    # PR 2 (spec 2026-09-25 §4): replaces the results `.question__reveal--grid`
+    # checks ("True" / "False" revealed, 2 × `.answer-wrong`) -- the results row
+    # carries the answer switch, both "Your answer" rows are painted wrong, and the
+    # key copy's checked radios are the correct columns.
+    item = page.locator(".quiz-results__item").first
+    item.locator("[data-answer-switch]").wait_for(timeout=6000)
+    yours = item.locator("[data-answer-yours] tbody tr")
+    assert yours.count() == 2
+    for i in range(2):
+        assert "is-incorrect" in yours.nth(i).get_attribute("class"), (
+            "Both rows were answered wrong → both painted incorrect"
+        )
+    key = item.locator("[data-answer-key] tbody tr")
+    assert key.nth(0).locator(f"input[value='{col_true.pk}']").is_checked()
+    assert key.nth(1).locator(f"input[value='{col_false.pk}']").is_checked()
+    assert key.locator("input:checked").count() == 2
 
     ctx.close()

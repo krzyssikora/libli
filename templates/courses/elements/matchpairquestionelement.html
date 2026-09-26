@@ -1,25 +1,40 @@
-{% load i18n courses_extras %}
-<div class="el el--question el--matchpair" data-question data-dnd>
+{% load i18n %}
+{% comment %}Quiz answer reveal PR 2 (spec 2026-09-25 §2.2-§2.4, §4, §5a): the
+stem stays outside the answer scope, once; the controls include holds the dnd root,
+so each copy (the student's, the key) is its own data-dnd block; data-answer-scope
+on the form (quiz / lesson) or the results div; the switch outside every fieldset.
+data-question-inline is unconditional: it tells quiz.js / question.js / editor.js
+to swap the form body, in lessons (D13) and quizzes alike.{% endcomment %}
+<div class="el el--question el--matchpair" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
-  {% if element %}
-  <form class="question__form" method="post" action="{{ action_url }}">
+  {% if mode == "results" %}
+  <div class="question__form" data-answer-scope>
+    <fieldset data-answer-yours disabled style="border:0;padding:0;margin:0;">
+      {% include "courses/elements/_matchpairquestionelement_controls.html" with values=submitted_values %}
+    </fieldset>
+    {% if key_copy_html %}<div class="answer-key" data-answer-key>{{ key_copy_html }}</div>{% include "courses/elements/_answer_switch.html" %}{% endif %}
+    <div class="question__feedback" data-question-feedback>{{ feedback_html|safe }}</div>
+  </div>
+  {% elif element %}
+  <form class="question__form" method="post" action="{{ action_url }}" data-question-inline data-answer-scope>
     {% csrf_token %}
-    <fieldset {% if quiz_submitted or locked %}disabled{% endif %}
+    <fieldset data-answer-yours {% if quiz_submitted or locked %}disabled{% endif %}
               style="border:0;padding:0;margin:0;">
       {% if element.pk == feedback_for_pk %}
-        {% render_match_pairs el submitted_values %}
+        {% include "courses/elements/_matchpairquestionelement_controls.html" with values=submitted_values %}
       {% else %}
-        {% render_match_pairs el %}
+        {% include "courses/elements/_matchpairquestionelement_controls.html" with values=None verdicts=None %}
       {% endif %}
-      {% include "courses/elements/_dnd_pool.html" %}
     </fieldset>
+    {% if key_copy_html %}<div class="answer-key" data-answer-key>{{ key_copy_html }}</div>{% include "courses/elements/_answer_switch.html" %}{% endif %}
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+    {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>
   </form>
   {% else %}
-    <div>{% render_match_pairs el %}{% include "courses/elements/_dnd_pool.html" %}</div>
+    <div>{% include "courses/elements/_matchpairquestionelement_controls.html" with values=None verdicts=None %}</div>
   {% endif %}
 </div>

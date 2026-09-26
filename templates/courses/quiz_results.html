@@ -72,4 +72,7 @@
     {% include "courses/_katex_js.html" %}
     <script src="{% static 'courses/js/question.js' %}" defer></script>
   {% endif %}
+  {% comment %}Drag types render their (inert) drag UI on the results page (spec §4);
+  dnd.js is a no-op on a page without [data-dnd].{% endcomment %}
+  <script src="{% static 'courses/js/dnd.js' %}" defer></script>
 {% endblock %}

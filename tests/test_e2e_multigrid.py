@@ -3,8 +3,9 @@
 One test, driving the REAL checkbox clicks (never page.evaluate shortcuts):
   LESSON: answer a multi-select grid — tick a *partially*-correct set in one row
   (all-or-nothing → wrong) and the *exact* set in another (→ correct) — and Check
-  → immediate per-row feedback (one row answer-correct, one answer-wrong) whose
-  reveal lists the wrong row's correct column set. One column label carries
+  → immediate per-row feedback: the grid's own rows are painted (one is-correct,
+  one is-incorrect; quiz answer reveal PR 2 -- a lesson shows no key, so the old
+  reveal list of correct column sets is gone). One column label carries
   \\(x^2\\); a .katex node must render in the widget.
 
 Marked e2e (excluded from the default run; run with -m e2e).
@@ -80,8 +81,8 @@ def test_multigrid_lesson_immediate_feedback(page, live_server):
     """LESSON: tick a partially-correct set (row1) and the exact set (row2), Check →
     immediate per-row all-or-nothing feedback.
 
-    The verdict is .is-incorrect (row1 partial → wrong) and the reveal grid shows one
-    correct row (✓) + one wrong row whose full correct column set is revealed. A
+    The verdict is .is-incorrect (row1 partial → wrong) and the grid's rows are
+    painted: row 1 is-incorrect, row 2 is-correct (no reveal list). A
     \\(x^2\\) column label renders as a .katex node.
     """
     course, unit, el, col_x, col_b, row1, row2 = _seed_multigrid(
@@ -115,17 +116,14 @@ def test_multigrid_lesson_immediate_feedback(page, live_server):
         "Expected .is-incorrect verdict after a partially-correct multigrid row"
     )
 
-    # Per-row reveal grid: one all-or-nothing correct row, one wrong row whose full
-    # correct column set is revealed.
-    reveal = feedback.locator(".question__reveal--grid")
-    reveal.wait_for(timeout=6000)
-    assert reveal.locator(".answer-correct").count() == 1, (
-        "Expected exactly one correct row (r2 → exactly B)"
+    # PR 2 (spec 2026-09-25 §5a): replaces the `.question__reveal--grid` checks
+    # (one `.answer-correct`, one `.answer-wrong`, "B" in the reveal) -- a lesson
+    # paints the rows themselves, all-or-nothing, and shows no key (D11).
+    rows = q.locator("tbody tr")
+    assert "is-incorrect" in rows.nth(0).get_attribute("class"), (
+        "Expected row 1 (r1 → only x^2 of {x^2, B}) painted incorrect"
     )
-    assert reveal.locator(".answer-wrong").count() == 1, (
-        "Expected exactly one wrong row (r1 → only x^2 of {x^2, B})"
+    assert "is-correct" in rows.nth(1).get_attribute("class"), (
+        "Expected row 2 (r2 → exactly B) painted correct"
     )
-    # The wrong row reveals its full correct column set (plain-text "B" is part of it).
-    assert "B" in reveal.inner_text(), (
-        "Expected the wrong row to reveal its correct column set (includes 'B')"
-    )
+    assert q.locator(".question__reveal").count() == 0

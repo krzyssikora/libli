@@ -109,7 +109,9 @@ def test_dragfill_no_js_select_path(live_server, browser):
 
     result_page = context.new_page()
     result_page.set_content(html)
-    assert result_page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces result_page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert result_page.locator(".question__verdict.is-correct").count() >= 1
     result_page.close()
     context.close()
 
@@ -129,7 +131,9 @@ def test_dragfill_js_drag_path(live_server, page):
     page.locator('.question__form button[type="submit"]').click()
     # question.js sends a fetch; wait for the async feedback to appear.
     page.locator("[data-question-feedback] .is-correct").wait_for(timeout=6000)
-    assert page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert page.locator(".question__verdict.is-correct").count() >= 1
 
 
 # ── Quiz seeding (mirrors _seed_quiz in test_e2e_quiz.py) ────────────────────
@@ -199,9 +203,12 @@ def test_dragfill_quiz_withhold_reveal_resume_js(live_server, browser):
         page.locator('.question__form button[type="submit"]').first.click()
     # Then assert on the text the reveal ADDS, with an auto-retrying expectation, so
     # the check cannot outrun the box swap that follows the response.
-    expect(page.locator("[data-question-feedback]").first).to_contain_text(
-        "Correct token:"
-    )
+    # PR 2 (spec 2026-09-25 §2.2): replaces feedback to_contain_text("Correct token:")
+    # -- the key is now a second, inert copy behind the answer switch.
+    q = page.locator("[data-question]").first
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)
+    q.locator("label:has([data-answer-view='key'])").click()
+    expect(q.locator("[data-answer-key] .dnd__slot").nth(1)).to_have_text("Madrid")
 
     # Resume: reload and confirm the last submitted placement rehydrates.
     page.goto(quiz_url)
@@ -289,7 +296,9 @@ def test_matchpair_no_js_select_path(live_server, browser):
 
     result_page = context.new_page()
     result_page.set_content(html)
-    assert result_page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces result_page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert result_page.locator(".question__verdict.is-correct").count() >= 1
     result_page.close()
     context.close()
 
@@ -306,4 +315,6 @@ def test_matchpair_js_drag_path(live_server, page):
     assert page.locator('select[name="slot"]').first.input_value() == "Paris"
     page.locator('.question__form button[type="submit"]').click()
     page.locator("[data-question-feedback] .is-correct").wait_for(timeout=6000)
-    assert page.locator(".is-correct").count() >= 1
+    # PR 2 (spec 2026-09-25 §2.1): replaces page.locator(".is-correct") --
+    # a painted select / slot / target now carries is-correct too.
+    assert page.locator(".question__verdict.is-correct").count() >= 1

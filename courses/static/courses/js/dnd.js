@@ -42,10 +42,21 @@
   function enhance(block) {
     if (block.dataset.dndReady) return;
     block.dataset.dndReady = "1";
-    var selects = Array.prototype.slice.call(block.querySelectorAll('select[name="slot"]'));
+    // The key copy's selects are nameless (spec 2026-09-25 §2.2): data-slot marks them.
+    var selects = Array.prototype.slice.call(
+      block.querySelectorAll('select[name="slot"], select[data-slot]')
+    );
     if (!selects.length) return;
     var pool = block.querySelector("[data-dnd-pool]");
     if (!pool) return;
+    // Display-only when the controls are disabled (a locked "Your answer" -- its
+    // fieldset is disabled, which `.disabled` does NOT report but :disabled does)
+    // or this block is the key copy. No drag, no tap-assign, no keyboard re-show:
+    // nothing may change a select (spec §2.2, §4).
+    var inert =
+      !!block.closest("[data-answer-key]") ||
+      selects.some(function (s) { return s.matches(":disabled"); });
+    if (inert) block.classList.add("dnd--inert");
 
     // ── Shared "armed chip" tap state ──────────────────────────────────────
     // Only one chip is armed at a time. Tapping a chip toggles its armed state;
@@ -73,17 +84,23 @@
       chip.type = "button";
       chip.className = "dnd__chip";
       chip.textContent = tok;
-      chip.draggable = true;
       chip.dataset.token = tok;
-      chip.addEventListener("dragstart", function (e) {
-        e.dataTransfer.setData("text/plain", tok);
-        // A drag supersedes any pending tap-arm.
-        disarm();
-      });
-      // Tap-to-arm (toggle). Shared by all three DnD types.
-      chip.addEventListener("click", function () {
-        toggleArm(chip);
-      });
+      if (inert) {
+        // Display-only chip (spec §2.2, plan P4): no drag, no tap-arm.
+        chip.disabled = true;
+        chip.draggable = false;
+      } else {
+        chip.draggable = true;
+        chip.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", tok);
+          // A drag supersedes any pending tap-arm.
+          disarm();
+        });
+        // Tap-to-arm (toggle). Shared by all three DnD types.
+        chip.addEventListener("click", function () {
+          toggleArm(chip);
+        });
+      }
       pool.appendChild(chip);
     });
     // The page's KaTeX pass ran before these chips existed; typeset them now so a
@@ -109,14 +126,14 @@
     // ── Discriminator: image-overlay block vs inline-slot block ────────────
     var stage = block.querySelector("[data-dragimage-stage]");
     if (stage) {
-      buildOverlayTargets(block, stage, selects, tapTarget);
+      buildOverlayTargets(block, stage, selects, tapTarget, inert);
     } else {
-      buildInlineSlots(selects, tapTarget);
+      buildInlineSlots(selects, tapTarget, inert);
     }
   }
 
   // ── Drag-to-image: absolutely-positioned overlay drop-targets on the stage ──
-  function buildOverlayTargets(block, stage, selects, tapTarget) {
+  function buildOverlayTargets(block, stage, selects, tapTarget, inert) {
     var badges = Array.prototype.slice.call(stage.querySelectorAll("[data-zone]"));
     // The numbered <select> rows below the image are the no-JS fallback; under JS the
     // overlay targets ON the image are the interaction, so the rows are redundant and
@@ -129,7 +146,13 @@
 
       var target = document.createElement("span");
       target.className = "dragimage__target";
-      target.tabIndex = 0;
+      target.tabIndex = inert ? -1 : 0;
+      // The verdict is server-rendered on the select (spec §2.1); the visible
+      // slot / target wears it too. It stays until the next Check replaces the
+      // element (spec §1.2), so it is copied once, never recomputed here.
+      ["is-correct", "is-incorrect"].forEach(function (c) {
+        if (sel.classList.contains(c)) target.classList.add(c);
+      });
       // Position from the badge's raw fractional geometry (JS is independent of the
       // no-JS percentage CSS on the badge itself).
       var x = parseFloat(badge.dataset.x) || 0;
@@ -148,21 +171,23 @@
       }
       paint();
 
-      target.addEventListener("dragover", function (e) { e.preventDefault(); });
-      target.addEventListener("drop", function (e) {
-        e.preventDefault();
-        setSelect(sel, e.dataTransfer.getData("text/plain"));
-      });
-      target.addEventListener("click", function () { tapTarget(sel); });
-      target.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") {
+      if (!inert) {
+        target.addEventListener("dragover", function (e) { e.preventDefault(); });
+        target.addEventListener("drop", function (e) {
           e.preventDefault();
-          // Re-reveal the hidden no-JS rows so a keyboard user can use the native select.
-          if (rowsList) rowsList.hidden = false;
-          sel.style.display = "";
-          sel.focus();
-        }
-      });
+          setSelect(sel, e.dataTransfer.getData("text/plain"));
+        });
+        target.addEventListener("click", function () { tapTarget(sel); });
+        target.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            // Re-reveal the hidden no-JS rows so a keyboard user can use the native select.
+            if (rowsList) rowsList.hidden = false;
+            sel.style.display = "";
+            sel.focus();
+          }
+        });
+      }
       sel.addEventListener("change", function () {
         paint();
         typeset(target);
@@ -170,6 +195,11 @@
       // The native selects are kept (source of truth) but hidden under JS.
       sel.style.display = "none";
       stage.appendChild(target);
+      // The rows (and the select's .sr-only verdict) are hidden under JS, so the
+      // verdict text follows the target. A sibling, never a child: paint() resets
+      // the target's textContent, and tests read that text exactly.
+      var sr = sel.nextElementSibling;
+      if (sr && sr.classList.contains("sr-only")) stage.appendChild(sr.cloneNode(true));
       typeset(target);
     });
     // All overlay targets built — hide the now-redundant numbered rows below the image.
@@ -177,12 +207,18 @@
   }
 
   // ── Drag-fill / match-pairs: a visible inline drop-slot per select ──────────
-  function buildInlineSlots(selects, tapTarget) {
+  function buildInlineSlots(selects, tapTarget, inert) {
     selects.forEach(function (sel) {
       sel.classList.add("dnd__select--enhanced");
       var slot = document.createElement("span");
       slot.className = "dnd__slot";
-      slot.tabIndex = 0;
+      slot.tabIndex = inert ? -1 : 0;
+      // The verdict is server-rendered on the select (spec §2.1); the visible
+      // slot / target wears it too. It stays until the next Check replaces the
+      // element (spec §1.2), so it is copied once, never recomputed here.
+      ["is-correct", "is-incorrect"].forEach(function (c) {
+        if (sel.classList.contains(c)) slot.classList.add(c);
+      });
       slot.textContent = sel.value || sel.dataset.placeholder || "…";
       sel.parentNode.insertBefore(slot, sel);
       sel.style.display = "none";
@@ -190,21 +226,23 @@
       function accept(tok) {
         setSelect(sel, tok);
       }
-      slot.addEventListener("dragover", function (e) { e.preventDefault(); });
-      slot.addEventListener("drop", function (e) {
-        e.preventDefault();
-        accept(e.dataTransfer.getData("text/plain"));
-      });
-      slot.addEventListener("click", function () { tapTarget(sel); });
-      // Keyboard fallback: focus the slot and use the hidden select via arrow keys
-      // by re-showing it on Enter (kept simple; the select remains the source of truth).
-      slot.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") {
+      if (!inert) {
+        slot.addEventListener("dragover", function (e) { e.preventDefault(); });
+        slot.addEventListener("drop", function (e) {
           e.preventDefault();
-          sel.style.display = "";
-          sel.focus();
-        }
-      });
+          accept(e.dataTransfer.getData("text/plain"));
+        });
+        slot.addEventListener("click", function () { tapTarget(sel); });
+        // Keyboard fallback: focus the slot and use the hidden select via arrow keys
+        // by re-showing it on Enter (kept simple; the select remains the source of truth).
+        slot.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            sel.style.display = "";
+            sel.focus();
+          }
+        });
+      }
       sel.addEventListener("change", function () {
         slot.textContent = sel.value || "…";
         typeset(slot);
@@ -216,9 +254,9 @@
   function init(root) {
     (root || document).querySelectorAll("[data-dnd]").forEach(enhance);
   }
-  // Exposed so the manage editor can re-enhance its live preview after a fragment
-  // swap (student pages never re-render stems, so they only need the load-time pass).
-  // enhance() is idempotent via the data-dndReady guard, so calling this is safe.
+  // Exposed so every form-body swap (quiz.js, question.js, editor.js try-it) and the
+  // editor's pane swap can enhance the NEW dnd roots a response brings (spec §2.4).
+  // enhance() is idempotent via data-dndReady.
   window.libliEnhanceDnd = init;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () { init(); });

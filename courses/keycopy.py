@@ -11,6 +11,20 @@ as \\(a&lt;b\\) unchanged (the known bs4 trap).
 """
 
 from bs4 import BeautifulSoup
+from bs4.formatter import HTMLFormatter
+
+
+class _SourceOrderFormatter(HTMLFormatter):
+    # The key copy must read attribute-for-attribute like the student copy; bs4's
+    # default formatter sorts attributes (<option selected="" value="x">).
+    def attributes(self, tag):
+        return tag.attrs.items()
+
+
+# Same "minimal" entity substitution as bs4's default formatter.
+_FORMATTER = _SourceOrderFormatter(
+    entity_substitution=HTMLFormatter.REGISTRY["minimal"].entity_substitution
+)
 
 KEY_SUFFIX = "-key"
 _REF_ATTRS = ("for", "aria-labelledby", "aria-describedby", "aria-controls")
@@ -39,4 +53,4 @@ def neutralise_key_copy(html):
         if tag.name == "select" and name == "slot":
             tag["data-slot"] = ""
         tag["disabled"] = ""
-    return soup.decode_contents()
+    return soup.decode_contents(formatter=_FORMATTER)

@@ -62,6 +62,8 @@
             var newForm = doc.querySelector("form");
             if (newForm) {
               form.innerHTML = newForm.innerHTML;
+              if (window.libliEnhanceDnd) window.libliEnhanceDnd(form);  // spec §5a
+              if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(form);
               renderQ(form);
               if (form.querySelector(".question__verdict.is-correct")) finishSolved(form);
               return;

@@ -42,3 +42,13 @@ def test_latex_and_entities_round_trip():
 def test_key_copy_escapes_value():
     out = neutralise_key_copy('<input name="answer" value="a&lt;b">')
     assert 'value="a&lt;b"' in out
+
+
+def test_attribute_order_preserved():
+    # PR 2 (spec 2026-09-25 §2.2): the key copy reads attribute-for-attribute like
+    # the student copy -- bs4's default formatter would sort `selected` first.
+    out = neutralise_key_copy(
+        '<select name="slot"><option value="x" selected>x</option></select>'
+    )
+    assert '<option value="x" selected="">' in out
+    assert '<select data-slot="" disabled="">' in out

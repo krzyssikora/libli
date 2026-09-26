@@ -79,6 +79,7 @@ NEVER_ARMED = [
     "courses/manage/editor/_edit_filltable.html",
     "courses/manage/editor/_edit_gallery.html",
     "courses/elements/dragtoimagequestionelement.html",
+    "courses/elements/_dragtoimagequestionelement_controls.html",
     "courses/manage/editor/_edit_table.html",
 ]
 

@@ -454,6 +454,10 @@
           var newForm = doc.querySelector("form");
           if (newForm) {
             tryForm.innerHTML = newForm.innerHTML;
+            // New dnd roots / grid scroll wrappers from the swap (spec §2.4);
+            // before the freeze below.
+            if (window.libliEnhanceDnd) window.libliEnhanceDnd(tryForm);
+            if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(tryForm);
             if (window.libliRenderMath) window.libliRenderMath(tryForm);
             renderPreviewMath(tryForm);
             slot = tryForm.querySelector("[data-question-feedback]");

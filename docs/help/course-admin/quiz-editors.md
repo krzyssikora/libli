@@ -98,12 +98,20 @@ instead of typing. Mark each gap the same way with `{{token}}` in the stem;
 add optional **distractors** (extra wrong chips shown alongside the correct
 ones) to make guessing harder.
 
+In a **lesson**, checking an answer turns each gap green (right) or red
+(wrong) in place; the correct answers are not shown. If you want students to
+be able to look them up, put them in a Spoiler under the question.
+
 ## {el:matchpairs} Match pairs
 
 A two-column matching question: a list of **left** labels (the fixed targets)
 each paired with its correct **right** token (the draggable/selectable
 answer). Add optional **distractors** — extra right-hand tokens with no
 matching left label — to prevent elimination-by-process-of-exclusion.
+
+In a **lesson**, checking an answer turns each pair green (right) or red
+(wrong) in place; the correct answers are not shown. If you want students to
+be able to look them up, put them in a Spoiler under the question.
 
 ## {el:switchgrid} Matrix question
 
@@ -113,12 +121,20 @@ column. Add columns freely, or use the **True/False preset** to seed the two
 columns instantly. Each row is scored independently (partial credit), unlike
 the exact-match, all-or-nothing marking above.
 
+In a **lesson**, checking an answer turns each row green (right) or red
+(wrong) in place; the correct answers are not shown. If you want students to
+be able to look them up, put them in a Spoiler under the question.
+
 ## {el:switchgrid} Multi-select grid
 
 Like Matrix question — the same **statements**-against-**columns** grid —
 but each statement can have *several* correct columns: tick every column
 that applies per row. Marking is all-or-nothing per row: a statement counts
 correct only when its full set of ticked columns matches.
+
+In a **lesson**, checking an answer turns each row green (right) or red
+(wrong) in place; the correct answers are not shown. If you want students to
+be able to look them up, put them in a Spoiler under the question.
 
 ## {el:dragimage} Drag to image
 
@@ -127,6 +143,10 @@ the media library, then use the **zone editor**: click-drag directly on the
 image to draw a rectangular zone, and type the zone's correct label. Click an
 existing zone (or its row) to select, resize with the handles, or delete it.
 Add optional **distractor** labels the same way as the other drag types.
+
+In a **lesson**, checking an answer turns each zone green (right) or red
+(wrong) in place; the correct answers are not shown. If you want students to
+be able to look them up, put them in a Spoiler under the question.
 
 ## {el:extended} Extended response
 

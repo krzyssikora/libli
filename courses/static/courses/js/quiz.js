@@ -82,6 +82,12 @@
         const newForm = doc.querySelector("form");
         if (newForm) {
           form.innerHTML = newForm.innerHTML;
+          // The swap brought NEW dnd roots (spec §2.4). A locked root is inert
+          // because the SERVER rendered its fieldset disabled; enhancing before the
+          // freeze below means dnd.js's :disabled test reads that server markup, not
+          // the freeze's. The grids' new .scroll-x wrappers are wired again too.
+          if (window.libliEnhanceDnd) window.libliEnhanceDnd(form);
+          if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(form);
           box = form.querySelector("[data-question-feedback]");
           typeset(form); // re-typeset the swapped stems/choices, not just the box
         }

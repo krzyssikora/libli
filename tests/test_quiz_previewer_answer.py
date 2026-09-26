@@ -97,10 +97,11 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     templates are a different rendering path from short text, so a
     short-text-only no-leak test does not cover them.
 
-    Fixture and POST shape mirrored verbatim from
-    tests/test_questions_2d_quiz_noleak.py:22-42 (verified) -- `{"slot": [...]}`,
-    max_attempts=2, and "Correct token:" as the reveal marker. Do not invent a
-    payload shape for these types."""
+    Fixture and POST shape mirrored from the drag-the-words withhold test in
+    tests/test_questions_2d_quiz_noleak.py (verified) --
+    `{"slot": [...]}`, max_attempts=2; "Correct token:" was the old list's reveal
+    marker (PR 2 replaced the list with the key copy, `data-answer-key`). Do not
+    invent a payload shape for these types."""
     from courses.models import DragBlank
     from courses.models import DragFillBlankQuestionElement
 
@@ -108,12 +109,12 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     user.is_staff = True
     user.save()
     unit = make_quiz_unit()
-    # The stem's blank-placeholder sentinel is irrelevant here: the withhold branch
-    # never renders the stem, so any stem passes. (Measured -- the source fixture at
-    # tests/test_questions_2d_quiz_noleak.py:25 uses a ￿-delimited placeholder;
-    # this test's two assertions hold either way.)
+    # PR 2 (spec 2026-09-25 §4): replaces the comment claiming the withhold branch
+    # never renders the stem -- drag the words now answers with the WHOLE element,
+    # so the stem carries a real gap (the U+FFFF-delimited placeholder) and a real
+    # drag select is rendered and painted.
     q = DragFillBlankQuestionElement.objects.create(
-        stem="Cap is X", distractors="Rome", marking_mode="A", max_attempts=2
+        stem="Cap is ￿0￿", distractors="Rome", marking_mode="A", max_attempts=2
     )
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = add_element(unit, q)
@@ -131,6 +132,12 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     assert "is-incorrect" in body
     assert "Correct token:" not in body
     assert "question__reveal" not in body
+    # PR 2 (spec 2026-09-25 §2.1, §7): replaces relying on the two list markers
+    # above alone -- the "Correct token:" list is gone for every path, so they can
+    # no longer fail. Before the lock the key copy must not render, and the wrong
+    # gap's select must not show the key token selected.
+    assert "data-answer-key" not in body
+    assert 'value="Paris" selected' not in body
     _assert_nothing_persisted()
 
 
