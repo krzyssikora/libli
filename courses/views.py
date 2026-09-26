@@ -82,6 +82,7 @@ from courses.quiz import parse_attempt
 from courses.quiz import quiz_feedback_context
 from courses.quiz import quiz_render_state
 from courses.quiz import rehydrate  # noqa: F401
+from courses.quiz import reveal_list_template
 from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
@@ -1925,7 +1926,15 @@ def _results_question_html(element, question, response, row):
         question, mode="results", locked=True, fully_correct=fully_correct
     )
     feedback_html = render_to_string(
-        "courses/elements/_results_question_feedback.html", {"row": row}
+        "courses/elements/_results_question_feedback.html",
+        {
+            "row": row,
+            # Extended response's keyword block (its view, D7), on the rows where
+            # the old list page showed it (_results_row's show_reveal, P7).
+            "reveal_template": (
+                reveal_list_template(question) if row["show_reveal"] else None
+            ),
+        },
     )
     return mark_safe(  # noqa: S308 — the element template escapes its own fields
         question.render(

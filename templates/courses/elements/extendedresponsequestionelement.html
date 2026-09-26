@@ -1,14 +1,24 @@
 {% load i18n %}
+{% comment %}data-question-inline is unconditional (P5), as on every converted type:
+the editor preview renders lesson markup even in a quiz unit, and the quiz try-it
+answers with the whole element. A lesson Check still answers with the feedback
+fragment (no <form>), which question.js / editor.js land in the feedback box.{% endcomment %}
 <div class="el el--question" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
-  {% if element %}
-  <form class="question__form" method="post" action="{{ action_url }}">
+  {% if mode == "results" %}
+  <div class="question__form">
+    <textarea name="answer" class="question__text-input" rows="6" disabled>{{ submitted_values|default_if_none:'' }}</textarea>
+    <div class="question__feedback" data-question-feedback>{{ feedback_html|safe }}</div>
+  </div>
+  {% elif element %}
+  <form class="question__form" method="post" action="{{ action_url }}" data-question-inline>
     {% csrf_token %}
     <textarea name="answer" class="question__text-input" rows="6" maxlength="10000"
               autocomplete="off"
               {% if quiz_submitted or locked %}disabled{% endif %}>{% if element.pk == feedback_for_pk %}{{ submitted_values|default_if_none:'' }}{% endif %}</textarea>
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Submit" %}</button>
+    {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>

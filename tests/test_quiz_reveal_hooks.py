@@ -67,15 +67,13 @@ def test_fillblank_key_answer_partial_empty_kept_whole_empty_none():
     assert _fillblank(["", ""]).key_answer() is None
 
 
-def test_unconverted_type_hooks_are_none():
-    # PR 3 (spec 2026-09-25 §2.1): replaces the ChoiceQuestionElement instance —
-    # choice's part_verdicts is now a per-option list (pinned by
-    # test_part_verdicts_one_entry_per_option_picked_only in
-    # tests/test_quiz_reveal_pr3_choice.py) and an unsaved instance cannot read
-    # self.choices, so retarget to extended response, the type still unconverted
-    # after this task (Task 3 flips SUPPORTS_REVEAL to True).
+def test_extended_response_hooks_are_none():
+    # PR 3 (spec 2026-09-25 §2.1): replaces test_unconverted_type_hooks_are_none —
+    # extended response is converted by this task (SUPPORTS_REVEAL flips to True),
+    # but it keeps no in-place per-part verdicts and no key copy (D7): the keyword
+    # block stays its own view, with no part_verdicts / key_answer plumbing.
     q = ExtendedResponseQuestionElement()
-    assert q.SUPPORTS_REVEAL is False
+    assert q.SUPPORTS_REVEAL is True
     assert q.part_verdicts(MarkResult(correct=False, fraction=0.0), set()) is None
     assert q.key_answer() is None
 

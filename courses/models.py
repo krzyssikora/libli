@@ -2720,6 +2720,11 @@ class ExtendedResponseQuestionElement(QuestionElement):
 
     RESTORABLE_IN_LESSON = True
 
+    # Quiz answer reveal (spec 2026-09-25 §8 PR 3): Show answer + the results-page
+    # render. No key copy, no switch: the keyword block stays its view (D7), and
+    # lessons are unchanged (no INLINE_LESSON_FEEDBACK).
+    SUPPORTS_REVEAL = True
+
     REVEAL_TEMPLATE = "courses/elements/_reveal_extendedresponse.html"
     required_keywords = models.TextField(blank=True)
     forbidden_keywords = models.TextField(blank=True)
