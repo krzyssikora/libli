@@ -2849,6 +2849,11 @@ class DragFillBlankQuestionElement(QuestionElement):
     from fillblank.parse(); each gap's correct token is a DragBlank row."""
 
     RESTORABLE_IN_LESSON = True
+    # Lesson (spec 2026-09-25 §5a, D13): parts painted in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_dragfillblankquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_dragfill.html"
 
@@ -2912,6 +2917,11 @@ class MatchPairQuestionElement(QuestionElement):
     against the pair's `right`. `left` labels are targets and never enter the pool."""
 
     RESTORABLE_IN_LESSON = True
+    # Lesson (spec 2026-09-25 §5a, D13): parts painted in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_matchpairquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_matchpair.html"
 
@@ -3178,6 +3188,11 @@ class DragToImageQuestionElement(QuestionElement):
     row. `stem` (inherited) is the optional prompt above the image."""
 
     RESTORABLE_IN_LESSON = True
+    # Lesson (spec 2026-09-25 §5a, D13): parts painted in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_dragtoimagequestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_dragimage.html"
 

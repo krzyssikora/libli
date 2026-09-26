@@ -53,9 +53,9 @@ def test_previewer_control_level_inputs_are_live(client):
 
 @pytest.mark.django_db
 def test_previewer_fieldset_wrapped_inputs_are_live(client):
-    """Family 2: `disabled` sits on a wrapping <fieldset>
-    (matchpairquestionelement.html:7). A test that only checks the <input> is
-    vacuous for every 2D/grid type.
+    """Family 2: `disabled` sits on a wrapping <fieldset> (the student's
+    `data-answer-yours` fieldset in matchpairquestionelement.html). A test that only
+    checks the <input> is vacuous for every 2D/grid type.
 
     MatchPair is used rather than MultiGrid because there is no
     MultiGridQuestionElementFactory (verified); DragToImage would also work but
@@ -66,7 +66,9 @@ def test_previewer_fieldset_wrapped_inputs_are_live(client):
     MatchPairFactory(question=q)
     add_element(unit, q)
     body = client.get(_quiz_url(unit)).content.decode()
-    fieldset = body.split("<fieldset")[1][:120]
+    # PR 2 (spec 2026-09-25 §2.4): replaces `body.split("<fieldset")[1]` -- target
+    # the student's fieldset by its marker, not by being the first on the page.
+    fieldset = body.split("data-answer-yours")[1][:120]
     assert "disabled" not in fieldset
 
 

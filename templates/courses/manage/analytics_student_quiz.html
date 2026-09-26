@@ -41,7 +41,7 @@
         <div class="answers__stem question__stem" lang="{{ course.language }}">{{ row.stem_html }}</div>
       </div>
       {% if row.dragimage %}
-        {% comment %}A REDUCED copy of the static stage in dragtoimagequestionelement.html:
+        {% comment %}A REDUCED copy of the static stage in _dragtoimagequestionelement_controls.html:
         no data-* attributes (they exist for dnd.js), no selects, pool or form.{% endcomment %}
         <div class="dragimage__stage">
           <img class="dragimage__img" src="{{ row.dragimage.media.file.url }}" alt="{{ row.dragimage.alt }}">

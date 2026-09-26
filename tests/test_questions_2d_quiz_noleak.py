@@ -9,6 +9,7 @@ from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
+from tests.reveal_pr2_kit import key
 
 
 def _quiz(client):
@@ -39,7 +40,10 @@ def test_dragfill_quiz_withholds_reveal_then_reveals_on_last_attempt(client):
     body2 = client.post(
         url, {"slot": ["Rome"]}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()
-    assert "Correct token:" in body2 and "Paris" in body2
+    # PR 2 (spec 2026-09-25 §2.2, §4): replaces `"Correct token:" in body2 and
+    # "Paris" in body2` -- the locked question shows the key copy, not the list.
+    assert "data-answer-key" in body2
+    assert 'value="Paris" selected' in key(body2)
 
 
 @pytest.mark.django_db
@@ -58,4 +62,7 @@ def test_matchpair_quiz_withholds_then_reveals(client):
     body2 = client.post(
         url, {"slot": ["Rome"]}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()
-    assert "Correct match:" in body2 and "Paris" in body2
+    # PR 2 (spec 2026-09-25 §2.2, §4): replaces `"Correct match:" in body2 and
+    # "Paris" in body2` -- the locked question shows the key copy, not the list.
+    assert "data-answer-key" in body2
+    assert 'value="Paris" selected' in key(body2)

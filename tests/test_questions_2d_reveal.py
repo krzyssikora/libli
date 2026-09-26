@@ -10,6 +10,8 @@ from courses.models import MatchPairQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_login
+from tests.reveal_pr2_kit import paint
+from tests.reveal_pr2_kit import parts
 
 
 def _enrolled_unit(client):
@@ -39,7 +41,13 @@ def test_dragfill_reveal_shows_correct_token_on_wrong_answer(client):
         _check_url(course, unit, el), {"slot": ["Rome"]}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()
     assert "is-incorrect" in body
-    assert "Paris" in body  # lesson is always-reveal → correct token shown
+    # PR 2 (spec 2026-09-25 §5a, D13): replaces `"Paris" in body  # lesson is
+    # always-reveal → correct token shown` -- the lesson paints the select in place
+    # and no longer lists (or preselects) the correct token.
+    assert paint("dragfill", body) == ["incorrect"]
+    assert 'aria-invalid="true"' in parts("dragfill", body)[0]
+    assert "question__reveal" not in body
+    assert 'value="Paris" selected' not in body
 
 
 @pytest.mark.django_db
@@ -51,4 +59,10 @@ def test_matchpair_reveal_lists_left_labels(client):
     body = client.post(
         _check_url(course, unit, el), {"slot": ["Wrong"]}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()
-    assert "France" in body and "Paris" in body
+    # PR 2 (spec 2026-09-25 §5a, D13): replaces `"France" in body and "Paris" in
+    # body` -- the left label stays, the select is painted wrong, no list.
+    assert "France" in body
+    assert paint("matchpair", body) == ["incorrect"]
+    assert 'aria-invalid="true"' in parts("matchpair", body)[0]
+    assert "question__reveal" not in body
+    assert 'value="Paris" selected' not in body

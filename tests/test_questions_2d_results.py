@@ -1,4 +1,6 @@
 # tests/test_questions_2d_results.py
+import re
+
 import pytest
 
 from courses.models import DragBlank
@@ -9,6 +11,7 @@ from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
+from tests.reveal_pr2_kit import key
 
 
 @pytest.mark.django_db
@@ -50,8 +53,13 @@ def test_results_reveals_dragfill_tokens_including_unanswered(client):
     # "Lisbon" (unanswered, reconstructed via mark(build_answer(QueryDict()))) appear
     # while "Paris" (correct) and the answer-correct tick never render.
     assert "answer-correct" not in body
-    assert "Madrid" in body and "Lisbon" in body
-    assert "Paris" not in body
+    # PR 2 (spec 2026-09-25 §4): replaces `"Madrid" in body and "Lisbon" in body`
+    # and `"Paris" not in body` -- each row renders the question (every select
+    # lists the whole pool), so the key is read from each row's key copy.
+    rows = body.split('class="quiz-results__item')[1:4]
+    assert "data-answer-switch" not in rows[0] and "data-answer-key" not in rows[0]
+    assert 'value="Madrid" selected' in key(rows[1])
+    assert 'value="Lisbon" selected' in key(rows[2])
 
 
 @pytest.mark.django_db
@@ -67,4 +75,10 @@ def test_results_matchpair_row_shows_left_label(client):
     # student flow; don't rely on quiz_finish create-if-absent)
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
-    assert "France" in body and "Paris" in body  # left label + accepted token revealed
+    # PR 2 (spec 2026-09-25 §4): replaces `"France" in body and "Paris" in body`
+    # -- the row's key copy pairs the left label with the accepted token.
+    assert re.search(
+        r'France</span><select[^>]*>(?:(?!</select>).)*value="Paris" selected',
+        key(body),
+        re.S,
+    )
