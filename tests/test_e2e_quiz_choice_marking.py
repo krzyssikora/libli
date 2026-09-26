@@ -115,7 +115,7 @@ def test_wrong_answer_separates_the_pick_from_the_answer_key(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_nothing_is_marked_while_attempts_remain(page, live_server):
+def test_only_the_pick_is_marked_while_attempts_remain(page, live_server):
     make_verified_user(
         username="stuC", email="stuC@t.example.com", password=TEST_PASSWORD
     )
@@ -128,7 +128,12 @@ def test_nothing_is_marked_while_attempts_remain(page, live_server):
     page.locator("form.question__form button[type=submit]").click()
     expect(page.locator(".question__verdict.is-incorrect")).to_be_visible()
 
-    # Withhold: no marker anywhere, and the inputs stay live for another go.
-    expect(page.locator(".question__choice-marker")).to_have_count(0)
+    # PR 3 (spec 2026-09-25 §2.1): replaces
+    # `expect(page.locator(".question__choice-marker")).to_have_count(0)` -- choice
+    # now marks the pick (✗) from the first Check; only the correct, unpicked
+    # option must stay withheld until the lock.
+    expect(options.nth(1).locator(".question__choice-marker--wrong")).to_have_count(1)
+    expect(options.nth(0).locator(".question__choice-marker--missed")).to_have_count(0)
+    expect(options.nth(2).locator(".question__choice-marker")).to_have_count(0)
     expect(page.locator(".question__choice--picked")).to_have_count(0)
     expect(options.nth(0).locator("input")).to_be_enabled()
