@@ -20,14 +20,14 @@ from tests.factories import make_pa
 from tests.factories import make_quiz_unit
 from tests.factories import make_student
 from tests.reveal_pr2_kit import DND_KINDS
+from tests.reveal_pr2_kit import GRID_KINDS
 from tests.reveal_pr2_kit import build
 from tests.reveal_pr2_kit import key
 from tests.reveal_pr2_kit import paint
 from tests.reveal_pr2_kit import parts
 from tests.reveal_pr2_kit import yours
 
-# Task 4 widens this to DND_KINDS + GRID_KINDS.
-KINDS_UNDER_TEST = DND_KINDS
+KINDS_UNDER_TEST = DND_KINDS + GRID_KINDS
 
 _CONTROL = re.compile(r"<(?:input|select)\b[^>]*>")
 _SR_OK = '<span class="sr-only">correct</span>'

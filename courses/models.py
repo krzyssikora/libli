@@ -2986,6 +2986,11 @@ class ChoiceGridQuestionElement(QuestionElement):
     shape but with two children (columns + rows)."""
 
     RESTORABLE_IN_LESSON = True
+    # Lesson (spec 2026-09-25 §5a, D13): rows painted in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_choicegridquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
@@ -3086,6 +3091,11 @@ class MultiGridQuestionElement(QuestionElement):
     columns instead of a single FK."""
 
     RESTORABLE_IN_LESSON = True
+    # Lesson (spec 2026-09-25 §5a, D13): rows painted in place; the list is gone.
+    INLINE_LESSON_FEEDBACK = True
+
+    SUPPORTS_REVEAL = True
+    CONTROLS_TEMPLATE = "courses/elements/_multigridquestionelement_controls.html"
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"
     elements = GenericRelation(Element)
