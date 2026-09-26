@@ -32,8 +32,8 @@ odpowiedź**. Jego naciśnięcie (po potwierdzeniu) kończy pytanie z punktami, 
 ma w tej chwili, a uczeń może wtedy przełączać się między **Twoją odpowiedzią** i
 **Poprawną odpowiedzią** w samym pytaniu. Ten sam przełącznik pojawia się, gdy pytanie
 zostanie zablokowane po ostatniej próbie, oraz na stronie wyników po zakończeniu quizu.
-Pytania wyboru i rozszerzona odpowiedź pokazują odpowiedź na swój sposób — zobacz ich
-sekcje poniżej.
+Pytania wyboru i rozszerzona odpowiedź pokazują odpowiedź na swój sposób — zobacz
+poniżej.
 
 ## {el:choice-single}{el:choice-multi} Jednokrotny wybór / Wielokrotny wybór
 
@@ -64,8 +64,8 @@ To zmienia, co pokazuje niepoprawna odpowiedź, i zależy od typu jednostki:
   zakończy — po poprawnej odpowiedzi, ostatniej próbie albo po **Pokaż
   odpowiedź** — pominięte poprawne odpowiedzi dostają znak ＋, a strona
   wyników pokazuje te same oznaczenia. Ten typ nie ma przełącznika Twoja
-  odpowiedź / Poprawna odpowiedź: oznaczenia przy odpowiedziach są jego
-  widokiem odpowiedzi. Informacja zwrotna dla opcji pojawia się po
+  odpowiedź / Poprawna odpowiedź — zamiast niego odpowiedź widać
+  w oznaczeniach przy opcjach. Informacja zwrotna dla opcji pojawia się po
   zakończeniu pytania.
 
 ## {el:shorttext} Krótki tekst
