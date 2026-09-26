@@ -18,6 +18,10 @@ from courses import switchgate as _switchgate
 from courses.models import HtmlElement
 from courses.models import QuestionElement
 from courses.sanitize import sanitize_html
+from courses.verdicts import invalid_attr
+from courses.verdicts import part_verdict
+from courses.verdicts import sr_verdict
+from courses.verdicts import state_class
 
 logger = logging.getLogger(__name__)
 
@@ -226,40 +230,64 @@ def render_fill_blanks(
 
 
 @register.simple_tag
-def render_drag_selects(el, submitted_values=None):
+def render_drag_selects(el, submitted_values=None, verdicts=None, copy=""):
     """Render a drag-fill stem: text segments interleaved with server-built
-    <select name="slot"> elements (escaped). See courses.dnd."""
+    <select name="slot"> elements (escaped). `verdicts` / copy="key" paint the gaps
+    (spec 2026-09-25 §2.1). See courses.dnd."""
     from courses import dnd
 
-    return dnd.render_selects(el.stem, dnd.build_pool(el), submitted_values)
-
-
-@register.simple_tag
-def render_match_pairs(el, submitted_values=None):
-    """Render a match-pairs widget: an <ol> of (left label, <select name="slot">)
-    rows. See courses.dnd."""
-    from courses import dnd
-
-    return dnd.render_match_rows(
-        list(el.pairs.all()), dnd.build_pool(el), submitted_values
+    return dnd.render_selects(
+        el.stem,
+        dnd.build_pool(el),
+        submitted_values or None,
+        verdicts=verdicts or None,
+        key=copy == "key",
     )
 
 
 @register.simple_tag
-def render_choice_grid(el, submitted_values=None):
+def render_match_pairs(el, submitted_values=None, verdicts=None, copy=""):
+    """Render a match-pairs widget: an <ol> of (left label, <select name="slot">)
+    rows. `verdicts` / copy="key" paint the rows (spec 2026-09-25 §2.1). See
+    courses.dnd."""
+    from courses import dnd
+
+    return dnd.render_match_rows(
+        list(el.pairs.all()),
+        dnd.build_pool(el),
+        submitted_values or None,
+        verdicts=verdicts or None,
+        key=copy == "key",
+    )
+
+
+@register.simple_tag
+def render_choice_grid(el, submitted_values=None, verdicts=None, copy=""):
     """Render a matrix single-choice widget: a <table> whose header row lists the
     column labels and whose body has one row per statement carrying a radio group
     (name="row_<rowpk>", value="<colpk>"), checked per the positional
-    submitted_values list. See courses.models.ChoiceGridQuestionElement."""
+    submitted_values list. `verdicts` / copy="key" paint each row (spec 2026-09-25
+    §2.1). See courses.models.ChoiceGridQuestionElement."""
     cols = list(el.columns.all())
     rows = list(el.rows.all())
     sv = submitted_values or []
+    key = copy == "key"
     head = format_html_join("", "<th>{}</th>", ((c.label,) for c in cols))
     body = format_html_join(
         "",
-        '<tr><td class="choicegrid__stmt">{}</td>{}</tr>',
+        '<tr{}><td class="choicegrid__stmt">{}{}</td>{}</tr>',
         (
-            (row.statement, _grid_row_cells(row, cols, sv[i] if i < len(sv) else ""))
+            (
+                _row_class(part_verdict(verdicts, i, key)),
+                row.statement,
+                sr_verdict(part_verdict(verdicts, i, key)),
+                _grid_row_cells(
+                    row,
+                    cols,
+                    sv[i] if i < len(sv) else "",
+                    invalid_attr(part_verdict(verdicts, i, key)),
+                ),
+            )
             for i, row in enumerate(rows)
         ),
     )
@@ -271,51 +299,70 @@ def render_choice_grid(el, submitted_values=None):
     )
 
 
-def _grid_row_cells(row, cols, chosen):
+def _row_class(verdict):
+    # A grid part is a ROW (spec 2026-09-25 D6, plan P1). No attribute at all when
+    # unpainted, so an unpainted grid stays byte-identical.
+    state = state_class(verdict).strip()
+    return format_html(' class="{}"', state) if state else ""
+
+
+def _grid_row_cells(row, cols, chosen, invalid=""):
     # chosen is an int col-pk or "" (Task 2). Branch between two format_html templates
     # so `checked` is a literal in the template, not a value arg — NO mark_safe (avoids
     # ruff S308) and NO escape import. Each SafeString cell is spliced into the row
-    # template above without re-escaping.
+    # template above without re-escaping. `invalid` is aria-invalid="true" or "",
+    # always LAST in the tag so `value="<pk>" checked` survives a painted row.
     cells = []
     for c in cols:
         if chosen != "" and chosen == c.pk:
             cells.append(
                 format_html(
-                    '<td><label><input type="radio" name="row_{}" value="{}" checked>'
+                    '<td><label><input type="radio" name="row_{}" value="{}" checked{}>'
                     "</label></td>",
                     row.pk,
                     c.pk,
+                    invalid,
                 )
             )
         else:
             cells.append(
                 format_html(
-                    '<td><label><input type="radio" name="row_{}" value="{}">'
+                    '<td><label><input type="radio" name="row_{}" value="{}"{}>'
                     "</label></td>",
                     row.pk,
                     c.pk,
+                    invalid,
                 )
             )
     return format_html_join("", "{}", ((cell,) for cell in cells))
 
 
 @register.simple_tag
-def render_multigrid(el, submitted_values=None):
+def render_multigrid(el, submitted_values=None, verdicts=None, copy=""):
     """Render a multi-select grid: a <table> whose header lists the column labels
     and whose body has one row per statement carrying a checkbox group
     (name="row_<rowpk>", value="<colpk>"), each checked when its col pk is in that
-    row's positional chosen-pk list. See courses.models.MultiGridQuestionElement."""
+    row's positional chosen-pk list. `verdicts` / copy="key" paint each row (spec
+    2026-09-25 §2.1). See courses.models.MultiGridQuestionElement."""
     cols = list(el.columns.all())
     rows = list(el.rows.all())
     sv = submitted_values or []
+    key = copy == "key"
     head = format_html_join("", "<th>{}</th>", ((c.label,) for c in cols))
     body = format_html_join(
         "",
-        '<tr><td class="multigrid__stmt">{}</td>{}</tr>',
+        '<tr{}><td class="multigrid__stmt">{}{}</td>{}</tr>',
         (
             (
+                _row_class(part_verdict(verdicts, i, key)),
                 row.statement,
-                _multigrid_row_cells(row, cols, sv[i] if i < len(sv) else []),
+                sr_verdict(part_verdict(verdicts, i, key)),
+                _multigrid_row_cells(
+                    row,
+                    cols,
+                    sv[i] if i < len(sv) else [],
+                    invalid_attr(part_verdict(verdicts, i, key)),
+                ),
             )
             for i, row in enumerate(rows)
         ),
@@ -328,9 +375,10 @@ def render_multigrid(el, submitted_values=None):
     )
 
 
-def _multigrid_row_cells(row, cols, chosen):
+def _multigrid_row_cells(row, cols, chosen, invalid=""):
     # chosen is a list of chosen col-pks (Task 2). Branch between two format_html
     # templates so `checked` is a literal, not a value arg — no mark_safe, no escape.
+    # `invalid` is aria-invalid="true" or "", always LAST in the tag.
     chosen_set = set(chosen or [])
     cells = []
     for c in cols:
@@ -338,33 +386,40 @@ def _multigrid_row_cells(row, cols, chosen):
             cells.append(
                 format_html(
                     "<td><label>"
-                    '<input type="checkbox" name="row_{}" value="{}" checked>'
+                    '<input type="checkbox" name="row_{}" value="{}" checked{}>'
                     "</label></td>",
                     row.pk,
                     c.pk,
+                    invalid,
                 )
             )
         else:
             cells.append(
                 format_html(
-                    '<td><label><input type="checkbox" name="row_{}" value="{}">'
+                    '<td><label><input type="checkbox" name="row_{}" value="{}"{}>'
                     "</label></td>",
                     row.pk,
                     c.pk,
+                    invalid,
                 )
             )
     return format_html_join("", "{}", ((cell,) for cell in cells))
 
 
 @register.simple_tag
-def render_image_selects(el, submitted_values=None):
+def render_image_selects(el, submitted_values=None, verdicts=None, copy=""):
     """Render the drag-to-image no-JS select list: an <ol> of (badge number,
     <select name="slot">) rows. The pool is built here (mirroring the render_match_pairs
-    tag, whose helper render_match_rows this one is modeled on). See courses.dnd."""
+    tag, whose helper render_match_rows this one is modeled on). `verdicts` /
+    copy="key" paint the rows (spec 2026-09-25 §2.1). See courses.dnd."""
     from courses import dnd
 
     return dnd.render_zone_selects(
-        list(el.zones.all()), dnd.build_pool(el), submitted_values
+        list(el.zones.all()),
+        dnd.build_pool(el),
+        submitted_values or None,
+        verdicts=verdicts or None,
+        key=copy == "key",
     )
 
 

@@ -12,6 +12,10 @@ from django.utils.translation import gettext as _
 from courses.fillblank import _TOKEN_RE
 from courses.marking import normalize_text
 from courses.models import _accepted_lines
+from courses.verdicts import invalid_attr
+from courses.verdicts import part_verdict
+from courses.verdicts import sr_verdict
+from courses.verdicts import state_class
 
 
 def build_pool(question):
@@ -53,7 +57,7 @@ def mark_slots(expected, pool, chosen):
     return n_correct, tuple(reveal)
 
 
-def _render_select(pool, chosen):
+def _render_select(pool, chosen, verdict=None):
     """One <select name="slot">: a leading empty placeholder then one option per pool
     token. Pre-select the pool option whose NORMALIZED form equals the (normalized)
     `chosen` — membership/pre-selection are normalize-aware, exactly like mark_slots
@@ -61,7 +65,9 @@ def _render_select(pool, chosen):
     normalize-collision still pre-selects correctly (render and mark never disagree).
     If no normalized match exists (deleted/forged token, or chosen empty), the
     placeholder is selected (resumes as unfilled, not the first token).
-    `build_pool` dedups by normalize_text, so at most one pool option matches."""
+    `build_pool` dedups by normalize_text, so at most one pool option matches.
+    `verdict` paints the select (spec 2026-09-25 §2.1); None leaves the markup
+    unchanged."""
     chosen_norm = normalize_text(chosen or "")
     matched = chosen_norm != "" and any(normalize_text(t) == chosen_norm for t in pool)
     # Only explicitly mark the placeholder selected when a non-empty, non-pool value was
@@ -82,14 +88,18 @@ def _render_select(pool, chosen):
         )
         opts.append(format_html('<option value="{}"{}>{}</option>', tok, sel, tok))
     return format_html(
-        '<select name="slot" class="dnd__select">{}</select>',
+        '<select name="slot" class="dnd__select{}"{}>{}</select>{}',
+        state_class(verdict),
+        invalid_attr(verdict),
         mark_safe("".join(opts)),  # noqa: S308 — options built via format_html; join is safe
+        sr_verdict(verdict),
     )
 
 
-def render_selects(token_stem, pool, chosen=None):
+def render_selects(token_stem, pool, chosen=None, verdicts=None, key=False):
     """Drag-fill: split the token-stem and splice a <select> per gap. Text segments are
-    trusted sanitized HTML; only the server-built <select>s are inserted (escaped)."""
+    trusted sanitized HTML; only the server-built <select>s are inserted (escaped).
+    `verdicts` / `key` paint the selects (spec 2026-09-25 §2.1)."""
     chosen = list(chosen or [])
     parts = _TOKEN_RE.split(token_stem or "")
     out = []
@@ -99,12 +109,13 @@ def render_selects(token_stem, pool, chosen=None):
         else:
             n = int(part)
             val = chosen[n] if 0 <= n < len(chosen) else ""
-            out.append(str(_render_select(pool, val)))
+            out.append(str(_render_select(pool, val, part_verdict(verdicts, n, key))))
     return mark_safe("".join(out))  # noqa: S308 — segments sanitized; options escaped
 
 
-def render_match_rows(pairs, pool, chosen=None):
-    """Match-pairs: an <ol> of (left label, <select>) rows in pairs order."""
+def render_match_rows(pairs, pool, chosen=None, verdicts=None, key=False):
+    """Match-pairs: an <ol> of (left label, <select>) rows in pairs order.
+    `verdicts` / `key` paint the selects (spec 2026-09-25 §2.1)."""
     chosen = list(chosen or [])
     rows = []
     for i, pair in enumerate(pairs):
@@ -113,7 +124,7 @@ def render_match_rows(pairs, pool, chosen=None):
             format_html(
                 '<li class="dnd__row"><span class="dnd__left">{}</span>{}</li>',
                 pair.left,
-                _render_select(pool, val),
+                _render_select(pool, val, part_verdict(verdicts, i, key)),
             )
         )
     return format_html(
@@ -122,10 +133,11 @@ def render_match_rows(pairs, pool, chosen=None):
     )
 
 
-def render_zone_selects(zones, pool, chosen=None):
+def render_zone_selects(zones, pool, chosen=None, verdicts=None, key=False):
     """Drag-to-image: an <ol> of (badge number, <select name="slot">) rows in zones
     order. Modeled on render_match_rows but emits the 1-based badge number instead of
-    a left label; geometry lives on the badges in the template, not here."""
+    a left label; geometry lives on the badges in the template, not here.
+    `verdicts` / `key` paint the selects (spec 2026-09-25 §2.1)."""
     chosen = list(chosen or [])
     rows = []
     for i, _zone in enumerate(zones):
@@ -134,7 +146,7 @@ def render_zone_selects(zones, pool, chosen=None):
             format_html(
                 '<li class="dnd__row"><span class="dnd__num">{}</span>{}</li>',
                 i + 1,
-                _render_select(pool, val),
+                _render_select(pool, val, part_verdict(verdicts, i, key)),
             )
         )
     return format_html(
