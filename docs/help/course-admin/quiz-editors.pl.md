@@ -161,7 +161,7 @@ poprawną etykietę. Kliknij istniejącą strefę (lub jej wiersz), aby ją
 zaznaczyć, zmienić rozmiar uchwytami lub usunąć. Dodaj opcjonalne etykiety
 **dystraktorów** w ten sam sposób, co w pozostałych typach przeciągania.
 
-W **lekcji** po sprawdzeniu odpowiedzi każde pole zmienia kolor na zielony
+W **lekcji** po sprawdzeniu odpowiedzi każda strefa zmienia kolor na zielony
 (dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
 uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
 pytaniem.
