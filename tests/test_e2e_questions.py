@@ -472,12 +472,20 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
     options = pq.locator(".question__choice")
     fb = pq.locator("[data-question-feedback]")
 
-    # Attempt 1 (wrong) → incorrect, correct answer WITHHELD.
+    # Attempt 1 (wrong) → incorrect. PR 3 (spec 2026-09-25 §2.1): the picked option
+    # is marked (✗) from this first Check; only the correct, unpicked option stays
+    # WITHHELD until the lock.
     radios.nth(0).check()
-    pq.locator("button[type='submit']").click()
+    pq.locator("button[type='submit']:not([name='reveal'])").click()
     fb.locator(".is-incorrect").wait_for(timeout=6000)
-    assert pq.locator(".question__choice-marker").count() == 0, (
-        "nothing may be marked while an attempt remains"
+    # PR 3 (spec 2026-09-25 §2.1): replaces
+    # `pq.locator(".question__choice-marker").count() == 0` -- choice now marks the
+    # picked option from the first Check.
+    assert options.nth(0).locator(".question__choice-marker--wrong").count() == 1, (
+        "the picked option must be marked from the first Check"
+    )
+    assert options.nth(1).locator(".question__choice-marker--missed").count() == 0, (
+        "the correct option must stay withheld while an attempt remains"
     )
 
     # Attempt 2 (wrong, last) → reveal + lock. A locked choice question marks its
@@ -491,8 +499,11 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
     # Reaching attempt 2 at all proves the counter survived; is_disabled proves the
     # freeze did.
     radios.nth(0).check()
-    pq.locator("button[type='submit']").click()
-    options.nth(0).locator(".question__choice-marker--wrong").wait_for(timeout=6000)
+    pq.locator("button[type='submit']:not([name='reveal'])").click()
+    # PR 3: wait for something NEW -- `--missed` -- never a condition already true
+    # (`--wrong` was already painted after attempt 1); see memory
+    # tests-that-sample-race-windows.
+    options.nth(1).locator(".question__choice-marker--missed").wait_for(timeout=6000)
     assert options.nth(1).locator(".question__choice-marker--missed").count() == 1, (
         "the correct option the author missed is not flagged"
     )

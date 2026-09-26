@@ -86,8 +86,10 @@ def test_resume_survives_auto_answer_switched_to_not_marked(client):
 
 
 @pytest.mark.django_db
-def test_incorrect_unconverted_type_gets_new_line_too(client):
-    # Choice stays unconverted through PR 1-2 -- the line is ungated (spec §2.1).
+def test_incorrect_choice_gets_the_new_line(client):
+    # PR 3 (spec 2026-09-25 §8): choice is now converted (SUPPORTS_REVEAL); the
+    # result line was always ungated regardless of that flag (spec §2.1) -- this
+    # pins it stays for choice's own whole-element response too.
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
 
@@ -101,15 +103,20 @@ def test_incorrect_unconverted_type_gets_new_line_too(client):
 
 
 @pytest.mark.django_db
-def test_incorrect_unconverted_non_inline_type_gets_new_line_too(client):
+def test_incorrect_unconverted_non_inline_type_gets_new_line_too(client, monkeypatch):
     # Extended response is neither SUPPORTS_REVEAL nor INLINE_QUIZ_REVEAL: its
     # response is the bare feedback fragment, which must carry the new line with
     # marks too.
     # PR 2 (spec 2026-09-25 §8): replaces the DragFillBlankQuestionElement example
     # (converted in PR 2) with ExtendedResponseQuestionElement (unconverted until
     # PR 3); every assertion is kept.
+    # PR 3: extended response is converted, so this test's subject -- the
+    # unconverted-type result line -- is kept alive with the monkeypatch (the
+    # type still has SUPPORTS_REVEAL as a real, un-forced-True class flag).
+    from courses.models import ExtendedResponseQuestionElement
     from tests.factories import ExtendedResponseQuestionElementFactory
 
+    monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)
     unit = _enrolled_quiz(client)
     q = ExtendedResponseQuestionElementFactory(
         required_keywords="alpha", max_attempts=3
@@ -119,3 +126,23 @@ def test_incorrect_unconverted_non_inline_type_gets_new_line_too(client):
     assert "data-question-inline" not in body  # the fragment, not the element
     assert "question__verdict is-incorrect" in body
     assert "Incorrect" in body and "0 / 1" in body and "2 attempts left" in body
+
+
+@pytest.mark.django_db
+def test_incorrect_extended_response_whole_element_line(client):
+    # PR 3 (spec 2026-09-25 §8): extended response converted -- the fetch Check
+    # now answers with the whole element (Show answer, data-question-inline), not
+    # the bare fragment, but the result line's outcome/marks/attempts-left is the
+    # same shared line as every other type.
+    from tests.factories import ExtendedResponseQuestionElementFactory
+
+    unit = _enrolled_quiz(client)
+    q = ExtendedResponseQuestionElementFactory(
+        required_keywords="alpha", max_attempts=3
+    )
+    el = add_element(unit, q)
+    body = _post(client, unit, el, {"answer": "beta"})
+    assert "<form" in body
+    assert 'name="reveal"' in body
+    assert "is-incorrect" in body
+    assert "0 / 1" in body and "2 attempts left" in body

@@ -13,6 +13,17 @@ from courses.scoring import outcome
 from courses.scoring import to_stored_fraction
 
 
+def reveal_list_template(question):
+    """The answer list a locked question shows under its result line, or None
+    (spec 2026-09-25 §2.1: None iff the type has an in-place view). In-place views:
+    choice's inline ✓ ✗ ＋ (INLINE_QUIZ_REVEAL) and every key-copy type (a
+    CONTROLS_TEMPLATE). Extended response has neither -- its keyword block IS its
+    view (D7), in the live panel and on the results page."""
+    if question.INLINE_QUIZ_REVEAL or question.CONTROLS_TEMPLATE is not None:
+        return None
+    return question.REVEAL_TEMPLATE
+
+
 def quiz_feedback_context(question, response, *, result=None, validation=False):
     """Reveal-gated feedback context. Reveal (reveal_template + mark_result) is
     included ONLY when the question is locked AND was marked — i.e. correct, or
@@ -64,17 +75,10 @@ def quiz_feedback_context(question, response, *, result=None, validation=False):
     # [A]:
     revealing = response.locked and result is not None
     if revealing:
-        # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
+        # Reuse the per-type feedback_context (choices, answered) for the reveal;
+        # the list itself only for a type with no in-place view (P6).
         ctx.update(question.feedback_context(result))
-        if question.INLINE_QUIZ_REVEAL or question.SUPPORTS_REVEAL:
-            # This type marks its own options list once locked (choice: ✓/✗/＋ per
-            # option), so the bottom list would print the same answer key a second
-            # time — and print it detached from the options, which is what made a
-            # student unable to line up "what I picked" against "what was right".
-            # Converted types (SUPPORTS_REVEAL) show the key as a second copy of
-            # their own controls behind the Your/Correct switch (spec §2.2), so the
-            # list goes for them too.
-            ctx["reveal_template"] = None
+        ctx["reveal_template"] = reveal_list_template(question)
     else:
         # Withhold: no reveal_template, no mark_result payload beyond correct=False.
         ctx["mark_result"] = result

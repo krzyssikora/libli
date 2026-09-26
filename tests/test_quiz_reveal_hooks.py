@@ -7,7 +7,7 @@ import pytest
 from courses.fillblank import parse
 from courses.marking import MarkResult
 from courses.models import Blank
-from courses.models import ChoiceQuestionElement
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
@@ -67,9 +67,13 @@ def test_fillblank_key_answer_partial_empty_kept_whole_empty_none():
     assert _fillblank(["", ""]).key_answer() is None
 
 
-def test_unconverted_type_hooks_are_none():
-    q = ChoiceQuestionElement()
-    assert q.SUPPORTS_REVEAL is False
+def test_extended_response_hooks_are_none():
+    # PR 3 (spec 2026-09-25 §2.1): replaces test_unconverted_type_hooks_are_none —
+    # extended response is converted by this task (SUPPORTS_REVEAL flips to True),
+    # but it keeps no in-place per-part verdicts and no key copy (D7): the keyword
+    # block stays its own view, with no part_verdicts / key_answer plumbing.
+    q = ExtendedResponseQuestionElement()
+    assert q.SUPPORTS_REVEAL is True
     assert q.part_verdicts(MarkResult(correct=False, fraction=0.0), set()) is None
     assert q.key_answer() is None
 

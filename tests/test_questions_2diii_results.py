@@ -121,10 +121,12 @@ def test_unanswered_only_forbidden_no_false_check(client):
 
 
 def test_answered_required_keyword_shows_checkmark_on_results(client):
-    # Regression guard: the results row include wires `answered=row["answered"]` where
-    # `_results_row` sets `answered = response is not None and
-    # response.latest_answer is not None`. This test proves the `{% if answered %}`
-    # branch of _reveal_extendedresponse.html renders the per-keyword ✓ breakdown.
+    # Regression guard: PR 3 (spec 2026-09-25 §4) moves this wiring from
+    # quiz_results.html's list-row include to _results_question_feedback.html's
+    # `{% include reveal_template … answered=row.answered %}`, still fed by
+    # `_results_row`'s `answered = response is not None and response.latest_answer
+    # is not None`. This test proves the `{% if answered %}` branch of
+    # _reveal_extendedresponse.html renders the per-keyword ✓ breakdown.
     # If the wiring silently passed `answered=False` (the neutral-guide branch), the
     # ✓ assertion below would fail — the neutral guide never emits ✓ for required
     # keywords, only the `{% if answered %}` branch does.

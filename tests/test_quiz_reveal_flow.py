@@ -10,6 +10,7 @@ from courses.models import Attempt
 from courses.models import Blank
 from courses.models import ChoiceQuestionElement
 from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
@@ -18,6 +19,7 @@ from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
+from tests.reveal_pr3_kit import extended
 
 _BLANK = re.compile(r'<input[^>]*name="blank"[^>]*>')
 
@@ -99,20 +101,24 @@ def test_reveal_before_any_attempt_is_refused(client):
 
 
 @pytest.mark.django_db
-def test_reveal_refused_for_not_marked_and_unconverted(client):
+def test_reveal_refused_for_not_marked_and_unconverted(client, monkeypatch):
+    # PR 3 (spec 2026-09-25 §8): replaces the ChoiceQuestionElement half (converted
+    # in PR 3) with ExtendedResponseQuestionElement, the only type still
+    # unconverted at this point in the plan.
+    monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)
     _u, unit = _quiz(client)
     nm = _fb(unit, marking_mode=QuestionElement.MarkingMode.NOT_MARKED)
     _fetch(client, unit, nm, {"blank": ["1", "2"]})  # locks on first submit
     assert _fetch(client, unit, nm, {"reveal": "1"}).status_code == 409
-    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
-    ch = add_element(unit, q)
+    q = extended(max_attempts=3)
+    er = add_element(unit, q)
     QuestionResponse.objects.create(
         submission=QuestionResponse.objects.get(element=nm).submission,
-        element=ch,
+        element=er,
         attempt_count=1,
-        latest_answer=[],
+        latest_answer="x",
     )
-    assert _fetch(client, unit, ch, {"reveal": "1"}).status_code == 409
+    assert _fetch(client, unit, er, {"reveal": "1"}).status_code == 409
 
 
 @pytest.mark.django_db

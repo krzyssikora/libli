@@ -2286,7 +2286,8 @@ class QuestionElement(ElementBase):
         self.explanation = normalize_body(self.explanation)
         super().save(*args, **kwargs)
 
-    REVEAL_TEMPLATE = None  # each concrete type sets its per-type reveal include
+    # The answer list of a type with no in-place view (only extended response).
+    REVEAL_TEMPLATE = None
 
     def render(
         self,
@@ -2425,17 +2426,18 @@ class ChoiceQuestionElement(QuestionElement):
 
     RESTORABLE_IN_LESSON = True
 
-    # A locked quiz marks its OPTIONS LIST inline (see choice_marks), so the bottom
-    # reveal list would echo the same answer key twice — and echo it detached from the
-    # options. The lesson path already suppresses it via render()'s reveal_template
-    # override below; this is the quiz half of the same rule.
+    # A locked quiz marks its OPTIONS LIST inline (see choice_marks) -- its
+    # in-place view (courses.quiz.reveal_list_template).
     INLINE_QUIZ_REVEAL = True
     INLINE_LESSON_FEEDBACK = True
 
+    # Quiz answer reveal (spec 2026-09-25 §8 PR 3): Show answer + the results-page
+    # render. Choice keeps its own in-place view (D8: ✓ ✗ ＋ on the options, no
+    # switch, key_answer() stays None).
+    SUPPORTS_REVEAL = True
+
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_choice.html"
 
     def correct_ids(self):
         return frozenset(
@@ -2459,6 +2461,17 @@ class ChoiceQuestionElement(QuestionElement):
         ctx["choices"] = list(self.choices.all())
         return ctx
 
+    def part_verdicts(self, mark_result, answer):
+        """One entry per option, in option order (spec 2026-09-25 §2.1, pinned):
+        True / False for a PICKED option, None for an unpicked one. An unpicked
+        option's correctness IS the key, so it never leaves the server before the
+        lock; after it, choice_marks adds ＋ from mark_result."""
+        correct = set(mark_result.reveal or ())
+        picked = set(answer or ())
+        return [
+            (c.pk in correct) if c.pk in picked else None for c in self.choices.all()
+        ]
+
     # Marker glyph + screen-reader label per outcome. The glyph is aria-hidden (a
     # bare "✓" announces as "check mark", which says nothing about whose answer it
     # is), so the label is the ONLY thing assistive tech gets — it must stand alone.
@@ -2468,41 +2481,52 @@ class ChoiceQuestionElement(QuestionElement):
         "missed": ("＋", _("correct answer, not chosen")),
     }
 
-    def choice_marks(self, choices, selected, mark_result, mode, locked):
-        """Per-option outcome markers: {choice pk: "correct"|"wrong"|"missed"}.
+    def choice_marks(self, choices, selected, mark_result, mode, locked, verdicts=None):
+        """Per-option outcome markers: {choice pk: {"kind", "glyph", "label"}}.
 
-        QUIZ — marks appear only once the question LOCKS, and then cover every
-        option. A locked quiz disables its inputs, and a disabled radio's dot is
-        grey-on-grey: it cannot carry "this is what you picked" on its own, which
-        left a correct answer showing a green verdict beside options that all
-        looked untouched. While attempts remain this returns {} — the withhold
-        rule owns that window and must not leak the key mid-quiz.
+        QUIZ / RESULTS — the picks are marked ✓ / ✗ from `verdicts` (part_verdicts:
+        picked options only) from the first Check on (spec 2026-09-25 §1.2, D6),
+        and never from mark_result while unlocked: an unlocked render's mark_result
+        is None, and its reveal would be the whole key. Once LOCKED, a correct
+        option the student did not pick gets ＋ -- unless the locked answer is fully
+        correct (mark_result.correct; on stored paths the STORED correctness, so a
+        later key edit cannot put ＋ beside a "Correct" line, spec §2.6). A locked
+        call without verdicts (analytics' views._results_row) marks the picks from
+        mark_result.reveal, as before.
 
         LESSON — unchanged from the per-option-feedback design (#132): only
         options the author wrote feedback for, and only where the selection state
-        is wrong (mark_result.annotated), so a lesson never grows a tick it did
-        not have. A lesson leaves its inputs live, so the radio dot still reads.
-
-        Public because the RESULTS page needs the same vocabulary from a different
-        renderer: it has no live controls, so _reveal_choice.html is its only
-        vehicle. views._results_row calls this with mode="quiz", locked=True (a
-        submitted question is terminal by definition).
+        is wrong (mark_result.annotated). A lesson leaves its inputs live, so the
+        radio dot still reads.
         """
-        if mark_result is None:
-            return {}
-        if mode != "lesson" and not locked:
-            return {}
-        correct = set(mark_result.reveal or ())
         marks = {}
-        for c in choices:
-            picked = c.pk in selected
-            if mode == "lesson":
+        if mode == "lesson":
+            if mark_result is None:
+                return {}
+            for c in choices:
                 if c.pk in mark_result.annotated:
-                    marks[c.pk] = "wrong" if picked else "missed"
-            elif picked:
-                marks[c.pk] = "correct" if c.pk in correct else "wrong"
-            elif c.pk in correct:
-                marks[c.pk] = "missed"
+                    marks[c.pk] = "wrong" if c.pk in selected else "missed"
+        else:
+            if verdicts is not None:
+                # `choices` and `verdicts` come from separate self.choices.all()
+                # queries (caller vs. part_verdicts) and line up by POSITION only
+                # because Choice.Meta.ordering = ["order", "pk"] is deterministic;
+                # strict=False is defensive, not an expected-mismatch tolerance.
+                for c, v in zip(choices, verdicts, strict=False):
+                    if v is True:
+                        marks[c.pk] = "correct"
+                    elif v is False:
+                        marks[c.pk] = "wrong"
+            elif locked and mark_result is not None:
+                correct = set(mark_result.reveal or ())
+                for c in choices:
+                    if c.pk in selected:
+                        marks[c.pk] = "correct" if c.pk in correct else "wrong"
+            if locked and mark_result is not None and not mark_result.correct:
+                correct = set(mark_result.reveal or ())
+                for c in choices:
+                    if c.pk not in selected and c.pk in correct:
+                        marks[c.pk] = "missed"
         return {
             pk: {
                 "kind": kind,
@@ -2559,12 +2583,17 @@ class ChoiceQuestionElement(QuestionElement):
         # `element` is the Element join-row (carries the unit + pk for the form
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
-        # `verdicts` / `key_values` / `can_reveal` / `reveal_earned` / `revealed` are
-        # accepted for signature uniformity with QuestionElement.render (quiz answer
-        # reveal PR 1); choice consumes them in PR 3.
+        # verdicts / can_reveal / reveal_earned / revealed: quiz answer reveal
+        # (spec 2026-09-25 §2.1, §3).
         choices = list(self.choices.all())
         selected = set(selected_ids or ())
-        marks = self.choice_marks(choices, selected, mark_result, mode, locked)
+        # An unresolvable template variable (a quiz row with no st.verdicts) arrives
+        # as ''. Normalise, as QuestionElement.render does.
+        verdicts = verdicts or None
+        marks = self.choice_marks(
+            choices, selected, mark_result, mode, locked, verdicts=verdicts
+        )
+        show_picks = bool(mode != "lesson" and locked)
         unit = element.unit if element is not None else None
         if action_url is None and unit is not None:
             action_url = reverse(
@@ -2591,12 +2620,15 @@ class ChoiceQuestionElement(QuestionElement):
                 # state where the input is disabled and its dot stops being legible.
                 # A lesson (and a quiz with attempts left) keeps its inputs live, so
                 # the native dot already answers "what did I pick?".
-                "show_picks": bool(mode != "lesson" and locked),
-                # Lesson: per-option feedback renders INLINE in the choices list, so
-                # the bottom reveal list is suppressed (this override only — the base
-                # QuestionElement.render must keep REVEAL_TEMPLATE for other types'
-                # no-JS path).
-                "reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,
+                "show_picks": show_picks,
+                # Inline "option ✓" rows whenever a quiz / results list carries a
+                # marker -- from the first Check on (P3), not only once locked.
+                "marked_layout": bool(show_picks or (mode != "lesson" and marks)),
+                "can_reveal": can_reveal,
+                "reveal_earned": reveal_earned,
+                "revealed": revealed,
+                # No answer list: the options are marked in place.
+                "reveal_template": None,
                 "mode": mode,
                 "action_url": action_url,
                 "feedback_partial": feedback_partial,
@@ -2649,8 +2681,6 @@ class ShortTextQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_shorttextquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
-
     accepted = models.TextField(blank=True)  # newline-delimited accepted answers
     case_sensitive = models.BooleanField(default=False)
     elements = GenericRelation(Element)
@@ -2685,6 +2715,11 @@ class ExtendedResponseQuestionElement(QuestionElement):
     [R] human-reviewed (Phase 3 queue) / [N] recorded. Single-row, no sub-tables."""
 
     RESTORABLE_IN_LESSON = True
+
+    # Quiz answer reveal (spec 2026-09-25 §8 PR 3): Show answer + the results-page
+    # render. No key copy, no switch: the keyword block stays its view (D7), and
+    # lessons are unchanged (no INLINE_LESSON_FEEDBACK).
+    SUPPORTS_REVEAL = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_extendedresponse.html"
     required_keywords = models.TextField(blank=True)
@@ -2722,8 +2757,6 @@ class ShortNumericQuestionElement(QuestionElement):
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_shortnumericquestionelement_controls.html"
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
 
     value = models.CharField(max_length=64, validators=[validate_numeric_text])
     tolerance = models.CharField(
@@ -2785,8 +2818,6 @@ class FillBlankQuestionElement(QuestionElement):
 
     # Lesson: each blank turns green/red in place; the answer list is quiz-only.
     INLINE_LESSON_FEEDBACK = True
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_fillblankquestionelement_controls.html"
@@ -2855,8 +2886,6 @@ class DragFillBlankQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_dragfillblankquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_dragfill.html"
-
     distractors = models.TextField(blank=True)  # newline-delimited extra (wrong) tokens
     elements = GenericRelation(Element)
 
@@ -2922,8 +2951,6 @@ class MatchPairQuestionElement(QuestionElement):
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_matchpairquestionelement_controls.html"
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_matchpair.html"
 
     distractors = models.TextField(blank=True)  # newline-delimited extra right-items
     elements = GenericRelation(Element)
@@ -2992,7 +3019,6 @@ class ChoiceGridQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_choicegridquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
 
     def delete(self, *args, **kwargs):
@@ -3097,7 +3123,6 @@ class MultiGridQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_multigridquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"
     elements = GenericRelation(Element)
 
     def build_answer(self, post):
@@ -3203,8 +3228,6 @@ class DragToImageQuestionElement(QuestionElement):
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_dragtoimagequestionelement_controls.html"
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_dragimage.html"
 
     media = models.ForeignKey(
         "MediaAsset", on_delete=models.PROTECT, limit_choices_to={"kind": "image"}

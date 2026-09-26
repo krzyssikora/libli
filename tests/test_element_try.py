@@ -8,12 +8,15 @@ from django.urls import reverse
 
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionResponse
 from courses.models import TextElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import add_element
 from tests.factories import make_pa
+from tests.reveal_pr3_kit import ER_WRONG
+from tests.reveal_pr3_kit import extended
 
 
 def _unit(course):
@@ -135,7 +138,11 @@ def test_try_quiz_withholds_reveal_while_attempts_remain(client):
     assert resp.status_code == 200
     assert b"is-incorrect" in resp.content
     assert b"answer-correct" not in resp.content  # reveal withheld
-    assert b"question__choice-marker" not in resp.content  # nor marked inline
+    # PR 3 (spec 2026-09-25 §2.1): replaces `b"question__choice-marker" not in
+    # resp.content` — D6 now marks the pick itself from the first Check on; the
+    # missed correct option (the key) stays unmarked until the question locks.
+    assert b"question__choice-marker--wrong" in resp.content
+    assert b"question__choice-marker--missed" not in resp.content
     assert b"data-quiz-locked" not in resp.content  # not terminal yet
     assert QuestionResponse.objects.count() == 0
 
@@ -290,19 +297,23 @@ def test_try_quiz_neutral_modes_lock_without_marking(client, mode):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("kind", ["choice", "not_marked"])
-def test_try_quiz_ineligible_reveal_is_a_plain_check(client, kind):
+@pytest.mark.parametrize("kind", ["extended", "not_marked"])
+def test_try_quiz_ineligible_reveal_is_a_plain_check(client, kind, monkeypatch):
     """Spec §3.5: reveal=1 on a question that cannot reveal (unconverted type, or a
     converted type that is not AUTO) is graded as a normal Check: nothing locks on
     the reveal, no "answer shown", no key copy, nothing persisted."""
     from courses.models import ShortTextQuestionElement
 
+    # PR 3 (spec 2026-09-25 §8): replaces the "choice" param (converted in PR 3)
+    # with "extended" -- ExtendedResponseQuestionElement is the only type still
+    # unconverted at this point in the plan.
+    monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _quiz_unit(course)
-    if kind == "choice":
-        el, _a, b = _question(unit, max_attempts=3)
-        data = {"choice": str(b.pk), "attempt": "1", "reveal": "1"}
+    if kind == "extended":
+        el = add_element(unit, extended(max_attempts=3))
+        data = {**ER_WRONG, "attempt": "1", "reveal": "1"}
     else:
         el = add_element(
             unit,
@@ -316,7 +327,7 @@ def test_try_quiz_ineligible_reveal_is_a_plain_check(client, kind):
     assert resp.status_code == 200
     assert "answer shown" not in body
     assert "data-answer-key" not in body and "Paris" not in body
-    if kind == "choice":  # the ordinary wrong-with-attempts-left Check response
+    if kind == "extended":  # the ordinary wrong-with-attempts-left Check response
         assert "is-incorrect" in body and "2 attempts left" in body
         assert "data-quiz-locked" not in body
     else:  # the ordinary not-marked Check response

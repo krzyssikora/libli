@@ -82,6 +82,7 @@ from courses.quiz import parse_attempt
 from courses.quiz import quiz_feedback_context
 from courses.quiz import quiz_render_state
 from courses.quiz import rehydrate  # noqa: F401
+from courses.quiz import reveal_list_template
 from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
@@ -1817,9 +1818,10 @@ def quiz_results(request, slug, node_pk):
 def _results_row(question, response):
     """Outcome classification keyed on CURRENT marking_mode (stale fraction ignored
     for [N]). For [A], attach a `reveal_result` (a MarkResult whose `.reveal` is the
-    correct-answer payload) + `choices`, so the per-type reveal partial renders the
-    correct answer for EVERY [A] row — including unanswered ones (§3.4 'reveal all').
-    Returns a dict the results template renders."""
+    correct-answer payload) + `choices`. Since PR 3, the per-type reveal partial
+    renders that payload as the answer key only for extended response (its keyword
+    block); for other [A] types it feeds analytics (answer_summary) and choice's
+    own results-page render instead. Returns a dict the results template renders."""
     mode = question.marking_mode
     row = {
         "question": question,
@@ -1852,11 +1854,8 @@ def _results_row(question, response):
             earned = earned_marks(response.fraction, question.max_marks)
             row["earned"] = earned
             row["outcome"] = outcome(earned, question.max_marks)
-        # `reveal` is the correct-answer payload. Mark the STUDENT'S answer when one
-        # exists so the per-blank ✓/✗ in _reveal_fillblank reflects what they entered
-        # (marking an empty answer would show every blank wrong even when correct);
-        # for an unanswered question, mark an empty answer (shows the correct answers,
-        # all blanks ✗ — acceptable, it was not answered).
+        # The student's answer is marked when one exists (analytics' per-part ✓/✗
+        # reads it); an unanswered question marks an empty answer ("reveal all").
         if response is not None and response.latest_answer is not None:
             row["reveal_result"] = question.mark(
                 answer_from_json(question, response.latest_answer)
@@ -1866,12 +1865,9 @@ def _results_row(question, response):
         row["reveal_template"] = question.REVEAL_TEMPLATE
         if isinstance(question, ChoiceQuestionElement):
             row["choices"] = list(question.choices.all())
-            # Per-option markers, same vocabulary the locked quiz page uses. Without
-            # these _reveal_choice.html shows the answer KEY only — it was the one
-            # reveal partial of seven that never marked the student's own answer, so
-            # a multi-select row could not distinguish a correct option the student
-            # picked from one they missed. locked=True: a submitted question is
-            # terminal, so the withhold window is over by definition.
+            # Per-option markers for analytics (answer_summary option_marks), same
+            # vocabulary the locked quiz page uses. locked=True: a submitted question
+            # is terminal, so the withhold window is over by definition.
             row["marks"] = question.choice_marks(
                 row["choices"],
                 selected_ids(
@@ -1883,12 +1879,13 @@ def _results_row(question, response):
                 "quiz",
                 True,
             )
-    # Suppress the reveal on a correct outcome ONLY for types whose reveal is the
-    # answer key alone — echoing it would tell the student nothing they did not just
-    # get right. A reveal that marks their OWN answer (choice) still says WHAT they
-    # answered, which the results page is otherwise the only place to see, and a
-    # submitted quiz redirects here. Precomputed: `A and B or C` binds the wrong way
-    # in a template.
+    # Suppress the reveal on a correct outcome — echoing the reveal list would tell
+    # the student nothing they did not just get right. The list itself only shows
+    # for a type with one (today, only extended response's REVEAL_TEMPLATE), so
+    # `or bool(row["marks"])` is inert for every current type: choice's
+    # REVEAL_TEMPLATE is None, so bool(row["reveal_template"]) is already False.
+    # Kept for an unconverted type whose reveal marks its OWN answer, as choice did.
+    # Precomputed: `A and B or C` binds the wrong way in a template.
     row["show_reveal"] = bool(row["reveal_template"]) and (
         row["outcome"] != "correct" or bool(row["marks"])
     )
@@ -1901,23 +1898,42 @@ def _results_question_html(element, question, response, row):
     consumes _results_row's keys and must not change (spec §5)."""
     answered = row["answered"]
     auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+    mark_result = None
     if answered and auto and response.fraction is not None:
         result = _stored_result(question, response)
         state = quiz_render_state(question, response, result)
         fully_correct = bool(result.correct)
+        mark_result = result
     elif answered:
-        state = quiz_render_state(question, response, None)  # N/R: no verdicts
+        # N/R (no verdicts, no key) -- or an AUTO question answered while it was
+        # N/R (no stored fraction; _results_row reads it as not_answered): that one
+        # shows its key like an unanswered auto row (spec §4, ＋ for choice).
+        state = quiz_render_state(question, response, None)
         fully_correct = False
+        if auto:
+            mark_result = row["reveal_result"]
     else:
-        # Unanswered: neutral controls, mark() NOT called (spec §4).
+        # Unanswered: neutral controls, mark() NOT called here (spec §4). Types
+        # with no key copy (choice) read row["reveal_result"] -- _results_row's
+        # "reveal all" mark, which analytics needs anyway.
         state = dict(BLANK_QUIZ_STATE)
         fully_correct = False
+        if auto:
+            mark_result = row["reveal_result"]
     # Every results row is locked (finalize_submission locks every response).
     key_values = key_view(
         question, mode="results", locked=True, fully_correct=fully_correct
     )
     feedback_html = render_to_string(
-        "courses/elements/_results_question_feedback.html", {"row": row}
+        "courses/elements/_results_question_feedback.html",
+        {
+            "row": row,
+            # Extended response's keyword block (its view, D7), on the rows where
+            # the old list page showed it (_results_row's show_reveal, P7).
+            "reveal_template": (
+                reveal_list_template(question) if row["show_reveal"] else None
+            ),
+        },
     )
     return mark_safe(  # noqa: S308 — the element template escapes its own fields
         question.render(
@@ -1927,6 +1943,7 @@ def _results_question_html(element, question, response, row):
             selected_ids=state["selected_ids"],
             submitted_values=state["submitted_values"],
             verdicts=state["verdicts"],
+            mark_result=mark_result,
             key_values=key_values,
             locked=True,
             feedback_html=feedback_html,

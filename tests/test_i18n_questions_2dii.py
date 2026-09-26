@@ -25,7 +25,6 @@ from django.utils import translation
             " numbered dropdowns below it"
         ),
         "Extra labels (distractors, one per line)",
-        "Correct label:",
     ],
 )
 def test_pl_translation_present(english):

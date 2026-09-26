@@ -7,7 +7,7 @@ import pytest
 
 from courses.fillblank import parse
 from courses.models import Blank
-from courses.models import ChoiceQuestionElement
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import QuestionElement
 from courses.models import ShortTextQuestionElement
@@ -45,8 +45,12 @@ def test_can_reveal_matrix(converted):
     assert can_reveal(converted, attempts_made=1, locked=False) is False
 
 
-def test_can_reveal_refuses_unconverted_type():
-    q = ChoiceQuestionElement(marking_mode=A)
+def test_can_reveal_refuses_unconverted_type(monkeypatch):
+    # PR 3 (spec 2026-09-25 §8): replaces the ChoiceQuestionElement example
+    # (converted in PR 3) with ExtendedResponseQuestionElement, the only type
+    # still unconverted at this point in the plan.
+    monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)
+    q = ExtendedResponseQuestionElement(marking_mode=A)
     assert can_reveal(q, attempts_made=3, locked=False) is False
 
 

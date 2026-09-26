@@ -9,8 +9,9 @@ next to three options that all looked untouched.
 The rule pinned here: once a quiz question LOCKS, the options list itself carries
 the marking — the pick is tinted, correct options get a tick, a wrong pick a
 cross, a missed correct option a plus — and the duplicate bottom reveal list goes
-away. While attempts remain NOTHING is marked (the withhold rule is unchanged),
-and lesson mode is untouched.
+away. While attempts remain only the picks are marked (✓/✗, spec 2026-09-25 §2.1)
+— never ＋, never the pick tint (the withhold rule is unchanged there), and lesson
+mode is untouched.
 """
 
 import pytest
@@ -118,14 +119,17 @@ def test_locked_choice_question_drops_the_duplicate_reveal_list(client):
 
 
 @pytest.mark.django_db
-def test_no_marking_while_attempts_remain(client):
+def test_only_the_pick_is_marked_while_attempts_remain(client):
     unit, el, right, wrong = _quiz(client, max_attempts=3)
 
     html = _answer(client, unit, el, wrong.pk)
 
+    # PR 3 (spec 2026-09-25 §2.1): replaces `M_WRONG not in html` — D6 now marks
+    # the pick itself from the first Check on; the kit here picks only the wrong
+    # option, so the correct option stays unmarked and the pick tint stays locked-only.
+    assert html.count(M_WRONG) == 1
     assert M_CORRECT not in html
     assert M_MISSED not in html
-    assert M_WRONG not in html
     assert PICKED not in html
 
 
@@ -147,11 +151,11 @@ def test_a_submitted_quiz_never_renders_its_options_again(client):
 
     `quiz_submitted` disables every input independently of `locked`, so a question
     the student answered without exhausting its attempts would render disabled AND
-    unmarked — the original invisible-pick defect by another route. It is
-    unreachable only because a submitted quiz redirects to the results page, which
-    renders no options list at all. If that redirect is ever removed, this fails and
-    the marking rule in _choice_marks has to widen from `locked` to
-    `locked or quiz_submitted`.
+    unmarked — the original invisible-pick defect by another route. This test pins
+    that the QUIZ page itself is never shown again for a submitted quiz — it
+    redirects to the results page instead. PR 3 (spec §4): the results page now
+    renders the options read-only too (via `render(mode="results")`), so the
+    marking rule stays in one place: `choice_marks`.
     """
     unit, el, right, wrong = _quiz(client, max_attempts=3)
     _answer(client, unit, el, wrong.pk)  # 2 attempts still remain -> NOT locked

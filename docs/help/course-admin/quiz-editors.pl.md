@@ -32,6 +32,8 @@ odpowiedź**. Jego naciśnięcie (po potwierdzeniu) kończy pytanie z punktami, 
 ma w tej chwili, a uczeń może wtedy przełączać się między **Twoją odpowiedzią** i
 **Poprawną odpowiedzią** w samym pytaniu. Ten sam przełącznik pojawia się, gdy pytanie
 zostanie zablokowane po ostatniej próbie, oraz na stronie wyników po zakończeniu quizu.
+Pytania wyboru i rozszerzona odpowiedź pokazują odpowiedź na swój sposób — zobacz
+poniżej.
 
 ## {el:choice-single}{el:choice-multi} Jednokrotny wybór / Wielokrotny wybór
 
@@ -56,10 +58,15 @@ To zmienia, co pokazuje niepoprawna odpowiedź, i zależy od typu jednostki:
   uczeń się pomylił (zła odpowiedź wybrana albo poprawna pominięta), są
   oznaczane w treści pytania i pokazują swój tekst informacji zwrotnej — ale
   tylko te oznaczone odpowiedzi; nie ma osobnej listy poprawnych odpowiedzi.
-- W **quizie** poprawne odpowiedzi są zawsze ujawniane, gdy uczeń wyczerpie
-  liczbę prób (przy ostatniej niepoprawnej próbie albo później, w wynikach/
-  przeglądzie) — niezależnie od tego, czy którakolwiek odpowiedź ma tekst
-  informacji zwrotnej.
+- W **quizie** każde sprawdzenie oznacza zaznaczone przez ucznia odpowiedzi
+  znakiem ✓ (dobrze) lub ✗ (źle); poprawna odpowiedź, której nie zaznaczył,
+  nie jest wskazywana, dopóki może jeszcze próbować. Gdy pytanie się
+  zakończy — po poprawnej odpowiedzi, ostatniej próbie albo po **Pokaż
+  odpowiedź** — pominięte poprawne odpowiedzi dostają znak ＋, a strona
+  wyników pokazuje te same oznaczenia. Ten typ nie ma przełącznika Twoja
+  odpowiedź / Poprawna odpowiedź — zamiast niego odpowiedź widać
+  w oznaczeniach przy opcjach. Informacja zwrotna dla opcji pojawia się po
+  zakończeniu pytania.
 
 ## {el:shorttext} Krótki tekst
 
@@ -174,6 +181,13 @@ oceniana automatycznie na podstawie list słów kluczowych **wymaganych** i
 recenzji**, tak aby nauczyciel przeczytał ją i ocenił ręcznie później,
 albo jako **Nieoceniane**, jeśli chcesz jedynie zbierać odpowiedzi bez ich
 oceniania.
+
+W **quizie** rozszerzona odpowiedź oceniana automatycznie również ma przycisk
+**Pokaż odpowiedź**. Kończy on pytanie i pokazuje listę słów kluczowych —
+które wymagane słowa odpowiedź zawiera, a których zabronionych używa —
+zamiast przełącznika Twoja odpowiedź / Poprawna odpowiedź. Ta sama lista
+pojawia się, gdy pytanie zakończy się na ostatniej próbie bez pełnej liczby
+punktów, oraz na stronie wyników. W **lekcji** nic się nie zmienia.
 
 ## Gdzie znajdują się pytania
 
