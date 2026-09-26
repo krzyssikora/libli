@@ -2878,6 +2878,16 @@ class DragFillBlankQuestionElement(QuestionElement):
             reveal=reveal,
         )
 
+    def part_verdicts(self, mark_result, answer):
+        # dnd.mark_slots: one {"index", "correct", "accepted"} per gap, gap order.
+        return [bool(item["correct"]) for item in mark_result.reveal]
+
+    def key_answer(self):
+        # build_answer's shape: one slot value per gap (spec §2.2); None when the
+        # whole key is empty (P3).
+        tokens = self.expected_tokens()
+        return tokens if any(tokens) else None
+
 
 class DragBlank(models.Model):
     question = models.ForeignKey(
@@ -2931,6 +2941,16 @@ class MatchPairQuestionElement(QuestionElement):
             fraction=(n_correct / n) if n else 0.0,
             reveal=reveal,
         )
+
+    def part_verdicts(self, mark_result, answer):
+        # dnd.mark_slots: one entry per left item, pairs order.
+        return [bool(item["correct"]) for item in mark_result.reveal]
+
+    def key_answer(self):
+        # build_answer's shape: one slot value per left item (spec §2.2); None when
+        # the whole key is empty (P3).
+        tokens = self.expected_tokens()
+        return tokens if any(tokens) else None
 
 
 class MatchPair(models.Model):
@@ -3007,6 +3027,15 @@ class ChoiceGridQuestionElement(QuestionElement):
             fraction=(n_correct / n) if n else 0.0,
             reveal=tuple(reveal),
         )
+
+    def part_verdicts(self, mark_result, answer):
+        # mark(): one {"statement", ..., "is_correct"} per row, rows order.
+        return [bool(item["is_correct"]) for item in mark_result.reveal]
+
+    def key_answer(self):
+        # build_answer's shape: one column pk per row (spec §2.2). correct_column is
+        # a required FK, so a key exists as soon as a row does.
+        return [row.correct_column_id for row in self.rows.all()] or None
 
 
 class GridColumn(models.Model):
@@ -3095,6 +3124,19 @@ class MultiGridQuestionElement(QuestionElement):
             reveal=tuple(reveal),
         )
 
+    def part_verdicts(self, mark_result, answer):
+        # mark(): one {"statement", ..., "is_correct"} per row, rows order.
+        return [bool(item["is_correct"]) for item in mark_result.reveal]
+
+    def key_answer(self):
+        # build_answer's shape: a SORTED column-pk list per row (spec §2.2). A row
+        # with no correct column is a real "tick nothing" answer; only a key with
+        # nothing correct anywhere is empty (P3).
+        key = [
+            sorted(c.pk for c in row.correct_columns.all()) for row in self.rows.all()
+        ]
+        return key if any(key) else None
+
 
 class MultiGridColumn(models.Model):
     question = models.ForeignKey(
@@ -3166,6 +3208,16 @@ class DragToImageQuestionElement(QuestionElement):
             fraction=(n_correct / n) if n else 0.0,
             reveal=reveal,
         )
+
+    def part_verdicts(self, mark_result, answer):
+        # dnd.mark_slots: one entry per zone, zones order.
+        return [bool(item["correct"]) for item in mark_result.reveal]
+
+    def key_answer(self):
+        # build_answer's shape: one slot value per zone (spec §2.2); None when the
+        # whole key is empty (P3).
+        tokens = self.expected_tokens()
+        return tokens if any(tokens) else None
 
 
 class DragZone(models.Model):
