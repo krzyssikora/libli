@@ -339,7 +339,8 @@ blockquote {
 }
 .question__choice-marker--wrong { color: var(--danger); }
 .question__choice-marker--correct { color: var(--success); }
-/* Locked quiz: put the marker INLINE after the option text ("Paris ✓") instead of
+/* A quiz or results list with markers (from the first Check on, not only once locked):
+   put the marker INLINE after the option text ("Paris ✓") instead of
    on its own line. app.css's `label { display: block }` is what pushes it down, so
    the label has to become inline-block for the row to read as one statement — a
    lone glyph on the next line reads as unrelated content. Any per-option feedback

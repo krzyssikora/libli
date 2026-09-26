@@ -135,7 +135,11 @@ def test_try_quiz_withholds_reveal_while_attempts_remain(client):
     assert resp.status_code == 200
     assert b"is-incorrect" in resp.content
     assert b"answer-correct" not in resp.content  # reveal withheld
-    assert b"question__choice-marker" not in resp.content  # nor marked inline
+    # PR 3 (spec 2026-09-25 §2.1): replaces `b"question__choice-marker" not in
+    # resp.content` — D6 now marks the pick itself from the first Check on; the
+    # missed correct option (the key) stays unmarked until the question locks.
+    assert b"question__choice-marker--wrong" in resp.content
+    assert b"question__choice-marker--missed" not in resp.content
     assert b"data-quiz-locked" not in resp.content  # not terminal yet
     assert QuestionResponse.objects.count() == 0
 

@@ -7,7 +7,7 @@ import pytest
 from courses.fillblank import parse
 from courses.marking import MarkResult
 from courses.models import Blank
-from courses.models import ChoiceQuestionElement
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
@@ -68,7 +68,13 @@ def test_fillblank_key_answer_partial_empty_kept_whole_empty_none():
 
 
 def test_unconverted_type_hooks_are_none():
-    q = ChoiceQuestionElement()
+    # PR 3 (spec 2026-09-25 §2.1): replaces the ChoiceQuestionElement instance —
+    # choice's part_verdicts is now a per-option list (pinned by
+    # test_part_verdicts_one_entry_per_option_picked_only in
+    # tests/test_quiz_reveal_pr3_choice.py) and an unsaved instance cannot read
+    # self.choices, so retarget to extended response, the type still unconverted
+    # after this task (Task 3 flips SUPPORTS_REVEAL to True).
+    q = ExtendedResponseQuestionElement()
     assert q.SUPPORTS_REVEAL is False
     assert q.part_verdicts(MarkResult(correct=False, fraction=0.0), set()) is None
     assert q.key_answer() is None

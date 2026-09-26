@@ -2459,6 +2459,17 @@ class ChoiceQuestionElement(QuestionElement):
         ctx["choices"] = list(self.choices.all())
         return ctx
 
+    def part_verdicts(self, mark_result, answer):
+        """One entry per option, in option order (spec 2026-09-25 §2.1, pinned):
+        True / False for a PICKED option, None for an unpicked one. An unpicked
+        option's correctness IS the key, so it never leaves the server before the
+        lock; after it, choice_marks adds ＋ from mark_result."""
+        correct = set(mark_result.reveal or ())
+        picked = set(answer or ())
+        return [
+            (c.pk in correct) if c.pk in picked else None for c in self.choices.all()
+        ]
+
     # Marker glyph + screen-reader label per outcome. The glyph is aria-hidden (a
     # bare "✓" announces as "check mark", which says nothing about whose answer it
     # is), so the label is the ONLY thing assistive tech gets — it must stand alone.
@@ -2468,41 +2479,48 @@ class ChoiceQuestionElement(QuestionElement):
         "missed": ("＋", _("correct answer, not chosen")),
     }
 
-    def choice_marks(self, choices, selected, mark_result, mode, locked):
-        """Per-option outcome markers: {choice pk: "correct"|"wrong"|"missed"}.
+    def choice_marks(self, choices, selected, mark_result, mode, locked, verdicts=None):
+        """Per-option outcome markers: {choice pk: {"kind", "glyph", "label"}}.
 
-        QUIZ — marks appear only once the question LOCKS, and then cover every
-        option. A locked quiz disables its inputs, and a disabled radio's dot is
-        grey-on-grey: it cannot carry "this is what you picked" on its own, which
-        left a correct answer showing a green verdict beside options that all
-        looked untouched. While attempts remain this returns {} — the withhold
-        rule owns that window and must not leak the key mid-quiz.
+        QUIZ / RESULTS — the picks are marked ✓ / ✗ from `verdicts` (part_verdicts:
+        picked options only) from the first Check on (spec 2026-09-25 §1.2, D6),
+        and never from mark_result while unlocked: an unlocked render's mark_result
+        is None, and its reveal would be the whole key. Once LOCKED, a correct
+        option the student did not pick gets ＋ -- unless the locked answer is fully
+        correct (mark_result.correct; on stored paths the STORED correctness, so a
+        later key edit cannot put ＋ beside a "Correct" line, spec §2.6). A locked
+        call without verdicts (analytics' views._results_row) marks the picks from
+        mark_result.reveal, as before.
 
         LESSON — unchanged from the per-option-feedback design (#132): only
         options the author wrote feedback for, and only where the selection state
-        is wrong (mark_result.annotated), so a lesson never grows a tick it did
-        not have. A lesson leaves its inputs live, so the radio dot still reads.
-
-        Public because the RESULTS page needs the same vocabulary from a different
-        renderer: it has no live controls, so _reveal_choice.html is its only
-        vehicle. views._results_row calls this with mode="quiz", locked=True (a
-        submitted question is terminal by definition).
+        is wrong (mark_result.annotated). A lesson leaves its inputs live, so the
+        radio dot still reads.
         """
-        if mark_result is None:
-            return {}
-        if mode != "lesson" and not locked:
-            return {}
-        correct = set(mark_result.reveal or ())
         marks = {}
-        for c in choices:
-            picked = c.pk in selected
-            if mode == "lesson":
+        if mode == "lesson":
+            if mark_result is None:
+                return {}
+            for c in choices:
                 if c.pk in mark_result.annotated:
-                    marks[c.pk] = "wrong" if picked else "missed"
-            elif picked:
-                marks[c.pk] = "correct" if c.pk in correct else "wrong"
-            elif c.pk in correct:
-                marks[c.pk] = "missed"
+                    marks[c.pk] = "wrong" if c.pk in selected else "missed"
+        else:
+            if verdicts is not None:
+                for c, v in zip(choices, verdicts, strict=False):
+                    if v is True:
+                        marks[c.pk] = "correct"
+                    elif v is False:
+                        marks[c.pk] = "wrong"
+            elif locked and mark_result is not None:
+                correct = set(mark_result.reveal or ())
+                for c in choices:
+                    if c.pk in selected:
+                        marks[c.pk] = "correct" if c.pk in correct else "wrong"
+            if locked and mark_result is not None and not mark_result.correct:
+                correct = set(mark_result.reveal or ())
+                for c in choices:
+                    if c.pk not in selected and c.pk in correct:
+                        marks[c.pk] = "missed"
         return {
             pk: {
                 "kind": kind,
@@ -2559,12 +2577,17 @@ class ChoiceQuestionElement(QuestionElement):
         # `element` is the Element join-row (carries the unit + pk for the form
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
-        # `verdicts` / `key_values` / `can_reveal` / `reveal_earned` / `revealed` are
-        # accepted for signature uniformity with QuestionElement.render (quiz answer
-        # reveal PR 1); choice consumes them in PR 3.
+        # verdicts / can_reveal / reveal_earned / revealed: quiz answer reveal
+        # (spec 2026-09-25 §2.1, §3).
         choices = list(self.choices.all())
         selected = set(selected_ids or ())
-        marks = self.choice_marks(choices, selected, mark_result, mode, locked)
+        # An unresolvable template variable (a quiz row with no st.verdicts) arrives
+        # as ''. Normalise, as QuestionElement.render does.
+        verdicts = verdicts or None
+        marks = self.choice_marks(
+            choices, selected, mark_result, mode, locked, verdicts=verdicts
+        )
+        show_picks = bool(mode != "lesson" and locked)
         unit = element.unit if element is not None else None
         if action_url is None and unit is not None:
             action_url = reverse(
@@ -2591,7 +2614,13 @@ class ChoiceQuestionElement(QuestionElement):
                 # state where the input is disabled and its dot stops being legible.
                 # A lesson (and a quiz with attempts left) keeps its inputs live, so
                 # the native dot already answers "what did I pick?".
-                "show_picks": bool(mode != "lesson" and locked),
+                "show_picks": show_picks,
+                # Inline "option ✓" rows whenever a quiz / results list carries a
+                # marker -- from the first Check on (P3), not only once locked.
+                "marked_layout": bool(show_picks or (mode != "lesson" and marks)),
+                "can_reveal": can_reveal,
+                "reveal_earned": reveal_earned,
+                "revealed": revealed,
                 # Lesson: per-option feedback renders INLINE in the choices list, so
                 # the bottom reveal list is suppressed (this override only — the base
                 # QuestionElement.render must keep REVEAL_TEMPLATE for other types'

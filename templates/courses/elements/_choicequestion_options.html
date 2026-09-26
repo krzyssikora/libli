@@ -1,0 +1,42 @@
+{% load courses_extras %}
+{% comment %}The choice options list, shared by the question form and the results
+branch. --marked switches the rows to an inline layout (option text then marker)
+whenever a quiz or results list carries a marker (marked_layout, set in
+ChoiceQuestionElement.render). A lesson list keeps app.css's `label { display: block }`
+stacking, which its per-option feedback indent was tuned against.{% endcomment %}
+<ul class="question__choices{% if marked_layout %} question__choices--marked{% endif %}">
+  {% for c in choices %}
+    {% comment %}`marks` (ChoiceQuestionElement.choice_marks) owns WHICH options
+    carry a marker and why -- a quiz marks the picks from the first Check and adds ＋
+    once locked, a lesson marks only the author-annotated ones. Keep that rule in
+    Python; the template just paints what it is handed.{% endcomment %}
+    {% with mk=marks|dictkey:c.pk %}
+    <li class="question__choice{% if show_picks and c.pk in selected_ids %} question__choice--picked{% endif %}">
+      <label>
+        <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
+               name="choice" value="{{ c.pk }}"
+               {% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked{% endif %}
+               {% if quiz_submitted or locked %}disabled{% endif %}>
+        <span class="question__choice-text">{{ c.text }}</span>
+      </label>
+      {% if mk %}
+        <span class="question__choice-marker question__choice-marker--{{ mk.kind }}" aria-hidden="true">{{ mk.glyph }}</span>
+        {% comment %}The glyph is aria-hidden, so this is the only thing a screen
+        reader gets for the outcome. The `checked` state is announced by the input
+        itself, but "checked" alone never says whether the pick was right.{% endcomment %}
+        <span class="sr-only">{{ mk.label }}</span>
+      {% endif %}
+      {% comment %}Gated on `mk` AND mark_result: an unlocked quiz render has no
+      mark_result, so author feedback (which can name a missed correct option) waits
+      for the lock (P2). Never beside a ✓: a stored-correct pick painted correct
+      after a key edit (P4) can sit in the fresh `annotated`, and feedback written
+      for a wrong selection must not print next to "correct". The quiz used to show
+      this text in the bottom reveal list (question__nudge); that list is gone for
+      this type.{% endcomment %}
+      {% if mk and mk.kind != "correct" and c.pk in mark_result.annotated %}
+        <p class="question__choice-feedback">{{ c.feedback }}</p>
+      {% endif %}
+    </li>
+    {% endwith %}
+  {% endfor %}
+</ul>
