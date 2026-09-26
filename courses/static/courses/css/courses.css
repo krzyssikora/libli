@@ -23,11 +23,16 @@ blockquote {
    are inline-block, so a margin-top would visibly shift them. <div> is in the
    first list because Chromium's contenteditable emits <div> (not <p>) for a
    block made with Enter, and the sanitizer keeps it -- but it stays OUT of the
-   stem list, where a direct-child div is a widget (.dnd__pool), not prose. */
+   stem list, where a direct-child div is a widget (.dnd__pool), not prose.
+   A drag-the-words stem sits one level down, inside its per-copy [data-dnd]
+   root (quiz answer reveal PR 2), so the stem branch reaches through it. */
 :is(.rte-surface, .el--text)
   > :is(p, div, h2, h3, h4, ul, ol, pre, blockquote)
   + :is(p, div, h2, h3, h4, ul, ol, pre, blockquote),
 .question__stem
+  > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, h2, h3, h4, ul, ol, pre, blockquote),
+.question__stem > [data-dnd]
   > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
   + :is(p, h2, h3, h4, ul, ol, pre, blockquote) { margin-top: var(--space-3); }
 
@@ -728,6 +733,29 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   border-style: solid; border-color: var(--primary);
   background: var(--surface-raised);
 }
+/* Drag + grid verdicts (spec 2026-09-25 §2.1, D6; plan P1/P2): the fill-table
+   colours on the part itself. Drag: the no-JS select and the dnd.js slot / image
+   target (which copies its select's class). Grid: the row's statement cell, with
+   an inset bar so a row with nothing picked still reads. Placed after the drag
+   blocks: the target's hover / focus border rule has the same specificity and
+   loses only by source order; the other bases (select.dnd__select,
+   .dragimage__target--filled, the grids' even-row stripe) are out-ranked. */
+select.dnd__select.is-correct,
+.dnd__slot.is-correct,
+.dragimage__target.is-correct { border-color: var(--success); background: var(--success-subtle); }
+select.dnd__select.is-incorrect,
+.dnd__slot.is-incorrect,
+.dragimage__target.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
+.choicegrid tbody tr.is-correct td.choicegrid__stmt,
+.multigrid tbody tr.is-correct td.multigrid__stmt { background: var(--success-subtle); box-shadow: inset 3px 0 0 var(--success); }
+.choicegrid tbody tr.is-incorrect td.choicegrid__stmt,
+.multigrid tbody tr.is-incorrect td.multigrid__stmt { background: var(--danger-subtle); box-shadow: inset 3px 0 0 var(--danger); }
+/* An inert chip / slot / target (locked copy, key copy, results) must not look
+   grabbable or tappable; dnd.js adds dnd--inert to the root when inert. */
+.dnd__chip:disabled { cursor: default; opacity: .7; }
+.dnd--inert .dnd__slot,
+.dnd--inert .dragimage__target { cursor: default; }
+.dnd__chip:disabled:hover { border-color: var(--border-strong); color: var(--text-primary); }
 
 /* ── Results / stat components (batch 1 primitive) ────────────────────────────
    Shared by quiz_results (per-quiz) and course_results (per-course). A headline
