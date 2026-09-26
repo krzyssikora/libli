@@ -57,6 +57,10 @@
    would repaint it primary-blue. --danger token: light #A8392E / dark #E57373. */
 .btn--danger { background: var(--danger); color: #fff; border-color: transparent; }
 .btn--danger:hover, .btn--danger:active { background: var(--danger); filter: brightness(0.92); }
+/* A disabled button must look disabled -- nothing did, so a locked quiz Check read as
+   live. The gallery / tabs arrows' look. pointer-events: none also keeps every
+   variant's :hover / :active repaint off it. */
+.btn:disabled { opacity: .45; pointer-events: none; cursor: default; }
 
 /* Action-button row for forms/confirm pages. Global (was previously defined only in
    accounts/people.css, leaving course_form + the transfer templates unstyled). */
