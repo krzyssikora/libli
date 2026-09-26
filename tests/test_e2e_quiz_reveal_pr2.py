@@ -331,6 +331,21 @@ def test_results_page_drag_ui_is_inert(browser, live_server):
     )
     after = switch.bounding_box()
     assert (after["x"], after["y"]) == (pos["x"], pos["y"])  # P5: the switch stays
+    # P5 without JS: dnd.js never unhides the chip pool, whose bottom margin
+    # otherwise masks the key wrapper's own (it collapses through the wrapper, but
+    # stays inside the "yours" fieldset) -- so only here does the key-copy
+    # wrapper's inline margin:0 keep the switch still.
+    nojs = browser.new_context(
+        java_script_enabled=False, storage_state=page.context.storage_state()
+    ).new_page()
+    nojs.goto(page.url)
+    row = nojs.locator(".quiz-results__item").first
+    switch = row.locator("[data-answer-switch]")
+    pos = switch.bounding_box()
+    row.locator("label:has([data-answer-view='key'])").click()
+    assert row.locator("[data-answer-key]").is_visible()
+    after = switch.bounding_box()
+    assert (after["x"], after["y"]) == (pos["x"], pos["y"])
 
 
 @pytest.mark.django_db(transaction=True)
