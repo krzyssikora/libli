@@ -718,7 +718,11 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   background: var(--primary); color: var(--text-inverse);
   border: 2px solid var(--surface-raised); border-radius: var(--radius-full);
   font-weight: 700; font-size: 0.85rem; line-height: 1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); pointer-events: none;
+  /* Above the JS overlay target (z-index 3), which starts at the badge's own corner
+     and used to cover half of it. pointer-events: none keeps every tap / drop on
+     the target underneath. */
+  z-index: 4;
 }
 /* JS overlay drop-target: a transparent rectangle over each zone that accepts a
    dropped/tapped chip and shows the placed token. */
