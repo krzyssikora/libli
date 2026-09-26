@@ -2508,6 +2508,10 @@ class ChoiceQuestionElement(QuestionElement):
                     marks[c.pk] = "wrong" if c.pk in selected else "missed"
         else:
             if verdicts is not None:
+                # `choices` and `verdicts` come from separate self.choices.all()
+                # queries (caller vs. part_verdicts) and line up by POSITION only
+                # because Choice.Meta.ordering = ["order", "pk"] is deterministic;
+                # strict=False is defensive, not an expected-mismatch tolerance.
                 for c, v in zip(choices, verdicts, strict=False):
                     if v is True:
                         marks[c.pk] = "correct"

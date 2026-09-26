@@ -1818,9 +1818,10 @@ def quiz_results(request, slug, node_pk):
 def _results_row(question, response):
     """Outcome classification keyed on CURRENT marking_mode (stale fraction ignored
     for [N]). For [A], attach a `reveal_result` (a MarkResult whose `.reveal` is the
-    correct-answer payload) + `choices`, so the per-type reveal partial renders the
-    correct answer for EVERY [A] row — including unanswered ones (§3.4 'reveal all').
-    Returns a dict the results template renders."""
+    correct-answer payload) + `choices`. Since PR 3, the per-type reveal partial
+    renders that payload as the answer key only for extended response (its keyword
+    block); for other [A] types it feeds analytics (answer_summary) and choice's
+    own results-page render instead. Returns a dict the results template renders."""
     mode = question.marking_mode
     row = {
         "question": question,
@@ -1878,12 +1879,13 @@ def _results_row(question, response):
                 "quiz",
                 True,
             )
-    # Suppress the reveal on a correct outcome ONLY for types whose reveal is the
-    # answer key alone — echoing it would tell the student nothing they did not just
-    # get right. A reveal that marks their OWN answer (choice) still says WHAT they
-    # answered, which the results page is otherwise the only place to see, and a
-    # submitted quiz redirects here. Precomputed: `A and B or C` binds the wrong way
-    # in a template.
+    # Suppress the reveal on a correct outcome — echoing the reveal list would tell
+    # the student nothing they did not just get right. The list itself only shows
+    # for a type with one (today, only extended response's REVEAL_TEMPLATE), so
+    # `or bool(row["marks"])` is inert for every current type: choice's
+    # REVEAL_TEMPLATE is None, so bool(row["reveal_template"]) is already False.
+    # Kept for an unconverted type whose reveal marks its OWN answer, as choice did.
+    # Precomputed: `A and B or C` binds the wrong way in a template.
     row["show_reveal"] = bool(row["reveal_template"]) and (
         row["outcome"] != "correct" or bool(row["marks"])
     )
