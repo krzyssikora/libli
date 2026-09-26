@@ -107,6 +107,11 @@ słowami do luk zamiast je wpisywać. Oznacz każdą lukę tak samo, wpisując
 `{{token}}` w treści; dodaj opcjonalne **dystraktory** (dodatkowe błędne
 fiszki wyświetlane obok poprawnych), aby utrudnić zgadywanie.
 
+W **lekcji** po sprawdzeniu odpowiedzi każda luka zmienia kolor na zielony
+(dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
+uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
+pytaniem.
+
 ## {el:matchpairs} Dopasuj pary
 
 Pytanie typu dopasowanie dwóch kolumn: lista etykiet **lewych** (stałe cele)
@@ -114,6 +119,11 @@ z przypisanym poprawnym **prawym** tokenem (odpowiedzią do przeciągnięcia
 lub wybrania). Dodaj opcjonalne **dystraktory** — dodatkowe tokeny prawej
 strony bez odpowiadającej im etykiety po lewej — aby uniemożliwić
 odgadywanie przez eliminację.
+
+W **lekcji** po sprawdzeniu odpowiedzi każda para zmienia kolor na zielony
+(dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
+uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
+pytaniem.
 
 ## {el:switchgrid} Pytanie macierzowe
 
@@ -124,6 +134,11 @@ kliknij **Szablon Prawda/Fałsz**, aby od razu utworzyć te dwie kolumny.
 Każdy wiersz jest oceniany niezależnie (częściowe punkty), inaczej niż
 przy ścisłym, zero-jedynkowym ocenianiu opisanym wyżej.
 
+W **lekcji** po sprawdzeniu odpowiedzi każdy wiersz zmienia kolor na zielony
+(dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
+uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
+pytaniem.
+
 ## {el:switchgrid} Siatka wielokrotnego wyboru
 
 Podobnie jak Pytanie macierzowe — ta sama siatka **stwierdzeń** w
@@ -131,6 +146,11 @@ zestawieniu z **kolumnami** — ale każde stwierdzenie może mieć *kilka*
 poprawnych kolumn: zaznacz każdą kolumnę, która pasuje w danym wierszu.
 Ocenianie jest zero-jedynkowe dla każdego wiersza: stwierdzenie liczy się
 jako poprawne tylko wtedy, gdy cały zestaw zaznaczonych kolumn się zgadza.
+
+W **lekcji** po sprawdzeniu odpowiedzi każdy wiersz zmienia kolor na zielony
+(dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
+uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
+pytaniem.
 
 ## {el:dragimage} Przeciągnij na obraz
 
@@ -140,6 +160,11 @@ bezpośrednio po obrazie, aby narysować prostokątną strefę, i wpisz jej
 poprawną etykietę. Kliknij istniejącą strefę (lub jej wiersz), aby ją
 zaznaczyć, zmienić rozmiar uchwytami lub usunąć. Dodaj opcjonalne etykiety
 **dystraktorów** w ten sam sposób, co w pozostałych typach przeciągania.
+
+W **lekcji** po sprawdzeniu odpowiedzi każde pole zmienia kolor na zielony
+(dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane. Jeśli
+uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod
+pytaniem.
 
 ## {el:extended} Rozszerzona odpowiedź
 
