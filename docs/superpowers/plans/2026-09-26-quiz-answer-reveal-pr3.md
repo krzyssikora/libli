@@ -173,7 +173,6 @@ Task 1: picks painted from the first Check, nothing on an unpicked option before
 lock. Task 2 adds Show answer and the results page (same file)."""
 
 import dataclasses
-import re
 
 import pytest
 from django.test.signals import template_rendered
@@ -620,6 +619,8 @@ git commit -m "feat(quiz-reveal): multiple choice marks its picks from the first
 
 - [ ] **Step 1: Write the failing tests** (append to `tests/test_quiz_reveal_pr3_choice.py`)
 
+First add `import re` to the file's import section (after `import dataclasses`): the tests below call `re.findall`, and Task 1 deliberately did not import it (its `ruff --fix` would have removed an unused import).
+
 ```python
 # ── Task 2: Show answer ───────────────────────────────────────────────────────
 
@@ -809,7 +810,7 @@ def test_analytics_still_shows_the_choice_key(client, answered):
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_pr3_choice.py -p no:randomly`
-Expected: the Task 1 tests PASS; of the new Task 2 tests these FAIL — `test_show_answer_offered_after_a_wrong_check_check_first`, `test_enrolled_reveal_locks_marks_missed_and_uses_no_attempt`, `test_nojs_reveal_rerenders_the_page_locked`, `test_previewer_and_editor_reveal_lock_ephemerally` (no Show answer button, `SUPPORTS_REVEAL` is False; reveal POSTs get 409 / are processed as a Check), and the four `test_results_*` tests (the rows are the old `_reveal_choice.html` list: `question__reveal` present, no `<input>`). These PASS already and are guards: `test_analytics_still_shows_the_choice_key` (analytics must not change) and `test_not_marked_and_review_choice_never_reveal` (an N/R question locks on its first submit, so the enrolled reveal hits `_quiz_locked_response`'s 409 before `can_reveal`; `can_reveal`'s marking-mode check is pinned by the `("choice", "N", False)` parity case added in Step 5 and by the previewer leg below).
+Expected: the Task 1 tests PASS; of the new Task 2 tests these FAIL — `test_show_answer_offered_after_a_wrong_check_check_first`, `test_enrolled_reveal_locks_marks_missed_and_uses_no_attempt`, `test_nojs_reveal_rerenders_the_page_locked`, `test_previewer_and_editor_reveal_lock_ephemerally` (no Show answer button, `SUPPORTS_REVEAL` is False; reveal POSTs get 409 / are processed as a Check), and the five `test_results_*` tests — `test_results_choice_rows_as_they_ended`, `test_results_stored_correct_key_edited_choice_shows_picks_correct`, `test_results_nr_choice_rows_show_picks_without_verdicts` (both params), `test_results_auto_row_answered_while_not_marked_shows_the_key`, `test_results_option_feedback_shows_on_marked_options` (the rows are the old `_reveal_choice.html` list: `question__reveal` present, no `<input>`). Every expected failure is an ASSERTION failure; a `NameError` / `ImportError` means the test file is wrong — fix it before Step 3. These PASS already and are guards: `test_analytics_still_shows_the_choice_key` (analytics must not change) and `test_not_marked_and_review_choice_never_reveal` (an N/R question locks on its first submit, so the enrolled reveal hits `_quiz_locked_response`'s 409 before `can_reveal`; `can_reveal`'s marking-mode check is pinned by the `("choice", "N", False)` parity case added in Step 5 and by the previewer leg below).
 
 In `test_not_marked_and_review_choice_never_reveal`, add a previewer leg after the enrolled assertions so the refusal path itself is exercised: log in a staff previewer (`make_login(client, f"prev_{mode}")`, `is_staff = True`), build a fresh `choice(marking_mode=mode)` in a new `make_quiz_unit()`, POST `{**kit.half, "reveal": "1", "attempt": "1"}` with the fetch header, and assert `"answer shown" not in body` (an ineligible ephemeral reveal is processed as a normal Check, spec §3.3).
 
@@ -883,7 +884,13 @@ In `courses/views.py::_results_question_html`, compute the mark result the in-pl
             mark_result = row["reveal_result"]
 ```
 
-and pass `mark_result=mark_result,` in the `question.render(...)` call (after `verdicts=state["verdicts"],`). Key-copy templates ignore `mark_result` in results mode (their results branches read `submitted_values` / `verdicts` / `key_copy_html` only — confirm with `grep -n "mark_result" templates/courses/elements/*questionelement.html`: only `fillblankquestionelement.html`'s quiz/lesson branch reads it). Also update `_results_row`'s comment that says "these _reveal_choice.html shows the answer KEY only" to: `# Per-option markers for analytics (answer_summary option_marks), same vocabulary the locked quiz page uses.` — keep the code.
+and pass `mark_result=mark_result,` in the `question.render(...)` call (after `verdicts=state["verdicts"],`). Key-copy templates ignore `mark_result` in results mode (their results branches read `submitted_values` / `verdicts` / `key_copy_html` only — confirm with `grep -n "mark_result" templates/courses/elements/*questionelement.html`: only `fillblankquestionelement.html`'s quiz/lesson branch reads it). Also replace `_results_row`'s whole six-line comment above `row["marks"] = question.choice_marks(` (it starts `# Per-option markers, same vocabulary the locked quiz page uses. Without` and says `_reveal_choice.html` shows the key only) with these three lines — keep the code:
+
+```python
+            # Per-option markers for analytics (answer_summary option_marks), same
+            # vocabulary the locked quiz page uses. locked=True: a submitted question
+            # is terminal, so the withhold window is over by definition.
+```
 
 - [ ] **Step 4: Run the file**
 
@@ -1120,7 +1127,8 @@ def test_student_text_is_escaped_everywhere(client):
     body = _fetch(client, unit, el, raw).content.decode()
     assert "<script>x()" not in body and "&lt;script&gt;x()" in body
     assert "<script>x()" not in _page(client, unit)
-    _fetch(client, unit, el, {"reveal": "1"})
+    body = _fetch(client, unit, el, {"reveal": "1"}).content.decode()
+    assert "<script>x()" not in body and "&lt;script&gt;x()" in body
     row = _rows(_results(client, unit))[0]
     assert "<script>x()" not in row and "&lt;script&gt;x()" in row
 
@@ -1325,7 +1333,6 @@ from django.urls import reverse
 from courses.fillblank import parse
 from courses.models import Blank
 from courses.models import Enrollment
-from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
@@ -1472,7 +1479,7 @@ Expected: FAIL — `test_only_extended_response_keeps_an_answer_list` (nine extr
 git rm templates/courses/elements/_reveal_choice.html templates/courses/elements/_reveal_shorttext.html templates/courses/elements/_reveal_shortnumeric.html templates/courses/elements/_reveal_fillblank.html templates/courses/elements/_reveal_dragfill.html templates/courses/elements/_reveal_matchpair.html templates/courses/elements/_reveal_choicegrid.html templates/courses/elements/_reveal_multigrid.html templates/courses/elements/_reveal_dragimage.html
 ```
 
-In `courses/models.py`, delete the `REVEAL_TEMPLATE = "courses/elements/_reveal_<type>.html"` line (and a blank line left orphaned by it) on `ChoiceQuestionElement`, `ShortTextQuestionElement`, `ShortNumericQuestionElement`, `FillBlankQuestionElement`, `DragFillBlankQuestionElement`, `MatchPairQuestionElement`, `ChoiceGridQuestionElement`, `MultiGridQuestionElement`, `DragToImageQuestionElement`. Change the base line to `REVEAL_TEMPLATE = None  # the answer list of a type with no in-place view (only extended response)`. In `ChoiceQuestionElement`: replace the comment above `INLINE_QUIZ_REVEAL = True` with `# A locked quiz marks its OPTIONS LIST inline (see choice_marks) -- its in-place view (courses.quiz.reveal_list_template).`; in `render()`, replace `"reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,` and its 3-line comment with `"reveal_template": None,  # no answer list: the options are marked in place`.
+In `courses/models.py`, delete the `REVEAL_TEMPLATE = "courses/elements/_reveal_<type>.html"` line (and a blank line left orphaned by it) on `ChoiceQuestionElement`, `ShortTextQuestionElement`, `ShortNumericQuestionElement`, `FillBlankQuestionElement`, `DragFillBlankQuestionElement`, `MatchPairQuestionElement`, `ChoiceGridQuestionElement`, `MultiGridQuestionElement`, `DragToImageQuestionElement`. Change the base line to `REVEAL_TEMPLATE = None  # the answer list of a type with no in-place view (only extended response)`. In `ChoiceQuestionElement`: replace the comment above `INLINE_QUIZ_REVEAL = True` with `# A locked quiz marks its OPTIONS LIST inline (see choice_marks) -- its in-place view (courses.quiz.reveal_list_template).`; in `render()`, replace `"reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,` and its 4-line comment above it (`# Lesson: per-option feedback renders INLINE in the choices list, so` … `# no-JS path).`) with `"reveal_template": None,  # no answer list: the options are marked in place`.
 
 In `courses/views.py::_results_row`, replace the comment `# exists so the per-blank ✓/✗ in _reveal_fillblank reflects …` block with `# The student's answer is marked when one exists (analytics' per-part ✓/✗ reads it); an unanswered question marks an empty answer ("reveal all").` — code unchanged. In `check_answer`, the comment "render() sets reveal_template=None for lesson mode -> no bottom reveal list." stays true; leave it.
 
@@ -1813,7 +1820,7 @@ EN (`quiz-editors.md`):
 3. At the end of `{el:extended}`, add a paragraph:
    "In a **quiz**, an auto-marked extended response has **Show answer** too. It ends the question and shows the keyword list — which required keywords the answer contains and which forbidden ones it uses — instead of a Your answer / Correct answer switch. The same list appears when the question ends on its last attempt without full marks, and on the results page. In a **lesson** nothing changes."
 
-PL (`quiz-editors.pl.md`), the same three places:
+PL (`quiz-editors.pl.md`), the same three places — (1) appended as the last sentence of the paragraph that starts "W **quizie** pytanie oceniane automatycznie po każdym sprawdzeniu…" (after "…oraz na stronie wyników po zakończeniu quizu."); (2) replacing the whole bullet "- W **quizie** poprawne odpowiedzi są zawsze ujawniane…" (through "…informacji zwrotnej."); (3) a new paragraph at the end of the `## {el:extended} Rozszerzona odpowiedź` section:
 
 1. "Pytania wyboru i rozszerzona odpowiedź pokazują odpowiedź na swój sposób — zobacz ich sekcje poniżej."
 2. "- W **quizie** każde sprawdzenie oznacza zaznaczone przez ucznia odpowiedzi znakiem ✓ (dobrze) lub ✗ (źle); poprawna odpowiedź, której nie zaznaczył, nie jest wskazywana, dopóki może jeszcze próbować. Gdy pytanie się zakończy — po poprawnej odpowiedzi, ostatniej próbie albo po **Pokaż odpowiedź** — pominięte poprawne odpowiedzi dostają znak ＋, a strona wyników pokazuje te same oznaczenia. Ten typ nie ma przełącznika Twoja odpowiedź / Poprawna odpowiedź: oznaczenia przy odpowiedziach są jego widokiem odpowiedzi. Informacja zwrotna dla opcji pojawia się po zakończeniu pytania."
