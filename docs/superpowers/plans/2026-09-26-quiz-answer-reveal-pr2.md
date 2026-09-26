@@ -760,7 +760,7 @@ git commit -m "feat(quiz-reveal): paint drag selects and grid rows from verdicts
 - Rewrite (allowed, see Step 5): existing tests pinning the old drag markup / lists
 
 **Interfaces:**
-- Consumes: Task 1 hooks and kit; Task 2 tags (`verdicts=`, `copy=`); PR 1's `render()` (context keys `values`, `verdicts`, `copy`, `locked`, `key_copy_html`, `can_reveal`, `reveal_earned`, `revealed`, `mode`), `_answer_switch.html`, `_reveal_button.html`.
+- Consumes: Task 1 hooks and kit; Task 2 tags (`verdicts=`, `copy=`); PR 1's `render()` (its template context: `submitted_values`, `verdicts`, `locked`, `key_copy_html`, `can_reveal`, `reveal_earned`, `revealed`, `mode`, `feedback_for_pk`, `feedback_html`); the controls include instead receives `values`, `verdicts`, `copy` — from the type template's `{% include … with values=… %}` or from `render_key_copy` (`values=key_values`, `verdicts=None`, `copy="key"`); `_answer_switch.html`, `_reveal_button.html`.
 - Produces: the three types with `SUPPORTS_REVEAL = True`, `INLINE_LESSON_FEEDBACK = True`, `CONTROLS_TEMPLATE` set; each copy wrapped in its own `<div data-dnd>` root; the module constant `KINDS_UNDER_TEST` in `tests/test_quiz_reveal_pr2_flow.py` (Task 4 widens it).
 
 - [ ] **Step 1: Write the failing tests**
@@ -857,6 +857,20 @@ def test_check_answers_whole_element_painted_no_key(client, kind):
     assert "data-answer-key" not in body and "question__reveal" not in body
     assert kit.leak not in body  # only booleans before the lock (spec §2.1)
     assert 'name="reveal"' in body
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", KINDS_UNDER_TEST)
+def test_empty_check_is_a_bare_validation_fragment(client, kind):
+    # Spec §2.4: validation responses stay the feedback fragment (no swap), use no
+    # attempt, and leave the earlier paint in place on resume.
+    unit = _quiz(client)
+    kit, el = _add(unit, kind)
+    _fetch(client, unit, el, kit.half)
+    body = _fetch(client, unit, el, kit.empty).content.decode()
+    assert "<form" not in body and "is-validation" in body
+    assert QuestionResponse.objects.get(element=el).attempt_count == 1
+    assert paint(kind, yours(_page(client, unit))) == ["correct", "incorrect"]
 
 
 @pytest.mark.django_db
@@ -1772,8 +1786,10 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
     # Spec §1.2: the colour stays until the NEXT Check -- re-filling the green part
     # (here with the wrong chip, then back) does not repaint it.
     _drag(q, "gammadis", 0)
+    assert _select_values(q, "[data-answer-yours]")[0] == "gammadis"  # the rebuilt UI is LIVE
     assert "is-correct" in targets.nth(0).get_attribute("class")
     _drag(q, "alphakey", 0)
+    assert _select_values(q, "[data-answer-yours]")[0] == "alphakey"
     if kind == "dragimage":
         # dnd.js hides the zone rows (and their .sr-only verdicts): each painted
         # overlay target must carry its own non-colour cue (spec §2.1).
@@ -1847,7 +1863,7 @@ def test_grid_lock_keeps_the_students_pick_and_paints_rows(browser, live_server,
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("kind", ["dragfill", "matchpair", "dragimage", "choicegrid"])
+@pytest.mark.parametrize("kind", ["dragfill", "matchpair", "dragimage", "choicegrid", "multigrid"])
 def test_lesson_check_repaints_and_rebuilds(browser, live_server, kind):
     # Spec §2.4 / §5a: question.js re-enhances every drag type after its swap
     # (drag onto image goes through the separate overlay builder).
@@ -1859,7 +1875,7 @@ def test_lesson_check_repaints_and_rebuilds(browser, live_server, kind):
     if kind == "dragimage":
         _size_stages(page)
     q = page.locator("[data-question]").first
-    if kind == "choicegrid":
+    if kind in ("choicegrid", "multigrid"):
         q.locator("tbody tr").nth(0).locator("input").nth(0).check()
         q.locator("tbody tr").nth(1).locator("input").nth(0).check()
     else:
@@ -1867,7 +1883,7 @@ def test_lesson_check_repaints_and_rebuilds(browser, live_server, kind):
         _drag(q, "gammadis", 1)
     _check(q)
     q.locator(".question__verdict").wait_for(timeout=6000)
-    if kind == "choicegrid":
+    if kind in ("choicegrid", "multigrid"):
         assert "is-incorrect" in q.locator("tbody tr").nth(1).get_attribute("class")
         # question.js re-wired the swapped-in scroll wrapper.
         assert q.locator("[data-scroll-x]").get_attribute("data-scroll-x-ready") == "1"
@@ -2216,7 +2232,7 @@ git fetch origin && git rebase origin/master
 uv run python manage.py makemessages -l pl --no-obsolete && uv run python manage.py compilemessages -l pl
 ```
 
-Regenerate the `.mo` rather than resolving a binary conflict. If `git status` then shows `locale/` changes, commit them (`git add locale && git commit -m "i18n: regenerate catalog after rebase"`). Re-run the four `tests/test_quiz_reveal_pr2_*.py` files after the rebase.
+Regenerate the `.mo` rather than resolving a binary conflict. If `git status` then shows `locale/` changes, commit them (`git add locale && git commit -m "i18n: regenerate catalog after rebase"`). Re-run the four `tests/test_quiz_reveal_pr2_*.py` files after the rebase, plus `uv run pytest tests/test_e2e_quiz_reveal_pr2.py -m e2e -p no:randomly` (the JS / CSS this PR edits are the likeliest silent merges), plus Task 5 Step 6's CSS guard suites if the rebase touched `courses.css`.
 
 - [ ] **Step 5: Commit gate fixes; stop before pushing**
 
