@@ -2038,6 +2038,11 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 }
 /* Chosen cell tint (progressive enhancement; the radio dot is the fallback). */
 .choicegrid tbody td:has(input:checked) { background: var(--primary-subtle); }
+/* Dark: a disabled (locked) radio / checkbox dot barely shows on a dark cell, so the
+   picked cell's tint alone carries the pick -- make it stronger there. */
+[data-theme="dark"] .choicegrid tbody td:has(input:checked) {
+  background: color-mix(in srgb, var(--brand-primary) 50%, var(--surface-raised));
+}
 /* Hover affordance only on a live (not disabled) grid. */
 .choicegrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
 .choicegrid td input[type="radio"]:disabled { cursor: default; }
@@ -2102,6 +2107,11 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 }
 /* Chosen cell tint (progressive enhancement; the checkbox is the fallback). */
 .multigrid tbody td:has(input:checked) { background: var(--primary-subtle); }
+/* Dark: a disabled (locked) radio / checkbox dot barely shows on a dark cell, so the
+   picked cell's tint alone carries the pick -- make it stronger there. */
+[data-theme="dark"] .multigrid tbody td:has(input:checked) {
+  background: color-mix(in srgb, var(--brand-primary) 50%, var(--surface-raised));
+}
 /* Hover affordance only on a live (not disabled) grid. */
 .multigrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
 .multigrid td input[type="checkbox"]:disabled { cursor: default; }
