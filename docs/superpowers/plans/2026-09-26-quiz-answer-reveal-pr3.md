@@ -18,7 +18,7 @@
 - **Choice's `part_verdicts` is pinned (spec §2.1):** one entry per option in option order — `True` / `False` for a PICKED option, `None` for an unpicked one. Before the lock, nothing on an unpicked option may differ from its pre-Check markup: no marker, no class, no attribute, no feedback text; `mark_result` stays `None` in an unlocked choice render's context. ＋ ("correct answer, not chosen") appears only once locked.
 - `_reveal_button.html` is **not** an answer list and stays. `_reveal_extendedresponse.html` stays. Only these nine are deleted, each after its consumer grep is empty: `_reveal_choice.html`, `_reveal_shorttext.html`, `_reveal_shortnumeric.html`, `_reveal_fillblank.html`, `_reveal_dragfill.html`, `_reveal_matchpair.html`, `_reveal_choicegrid.html`, `_reveal_multigrid.html`, `_reveal_dragimage.html`.
 - `SUPPORTS_REVEAL` stays a class flag with base `False`, and every code path for an unconverted type (the bare-fragment response, the old results list row in `quiz_results.html`, the ineligible reveal) is **kept**. No production type is unconverted after PR 3, so tests of those paths make one with `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` (extended response is the only type that still has a list to show).
-- `views._results_row` keeps every key with its current semantics (spec §5: analytics consumes it). New results-page data is built in `views._results_question_html` only.
+- `views._results_row` keeps every key and every value analytics consumes (`reveal_result`, `marks`, `outcome`, `earned`, `answered`, … — spec §5). Its `reveal_template` / `show_reveal` read `question.REVEAL_TEMPLATE`, so after Task 4 they are `None` / `False` for the nine converted types; only `quiz_results.html`'s unconverted-list branch and (Task 3) the extended-response keyword block read them. New results-page data is built in `views._results_question_html` only.
 - Check (choice) / Submit (extended response) is the **first** submit button in the form (spec §3.1); Show answer comes from the shared `_reveal_button.html`, after it.
 - Tests: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait` first, then `uv run pytest …`. e2e needs `-m e2e`. **Never pass `-q`** (`addopts` has it). Never run two pytest processes at once. Scope runs to the files each task names; the whole-repo sweep is Task 7 only.
 - Template comments: `{# #}` is single-line only; multi-line comments use `{% comment %}…{% endcomment %}`.
@@ -172,6 +172,7 @@ def markers(html):
 Task 1: picks painted from the first Check, nothing on an unpicked option before the
 lock. Task 2 adds Show answer and the results page (same file)."""
 
+import dataclasses
 import re
 
 import pytest
@@ -261,8 +262,11 @@ def test_choice_marks_locked_adds_missed_unless_fully_correct():
     marks = q.choice_marks(choices, picked, wrong, "quiz", True, verdicts=[True, None, False])
     assert marks[kit.b.pk]["kind"] == "missed"
     # §2.6 reverse case (P4): a stored-correct answer shows no ＋ whatever the fresh key.
-    wrong.correct = True
-    marks = q.choice_marks(choices, picked, wrong, "quiz", True, verdicts=[True, None, True])
+    # MarkResult is a frozen dataclass: build the stored-correct result with replace().
+    stored_correct = dataclasses.replace(wrong, correct=True)
+    marks = q.choice_marks(
+        choices, picked, stored_correct, "quiz", True, verdicts=[True, None, True]
+    )
     assert {m["kind"] for m in marks.values()} == {"correct"} and kit.b.pk not in marks
     # Analytics' call (no verdicts): picks from the key, as on master.
     marks = q.choice_marks(choices, picked, q.mark(picked), "quiz", True)
@@ -422,7 +426,7 @@ def test_edited_options_after_answer_render(client):
 - [ ] **Step 3: Run them to verify they fail**
 
 Run: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait` then `uv run pytest tests/test_quiz_reveal_pr3_choice.py -p no:randomly`
-Expected: FAIL — `part_verdicts` returns `None` (base), `choice_marks` has no `verdicts` parameter (`TypeError`), the unlocked Check shows no markers, and the stored-correct key-edit test shows ✗/＋. These PASS already and are guards for Step 4 (do not "fix" them into failing): `test_unlocked_render_context_has_no_mark_result`, `test_option_feedback_waits_for_the_lock`, `test_locked_wrong_marks_all_three_with_no_switch`.
+Expected: FAIL — `part_verdicts` returns `None` (base), `choice_marks` has no `verdicts` parameter (`TypeError`), the unlocked Check shows no markers, and the stored-correct key-edit test shows ✗/＋. These PASS already and are guards for Step 4 (do not "fix" them into failing): `test_unlocked_render_context_has_no_mark_result`, `test_option_feedback_waits_for_the_lock`, `test_locked_wrong_marks_all_three_with_no_switch`, `test_edited_options_after_answer_render`.
 
 - [ ] **Step 4: Implement**
 
@@ -751,6 +755,21 @@ def test_results_nr_choice_rows_show_picks_without_verdicts(client, mode):
 
 
 @pytest.mark.django_db
+def test_results_auto_row_answered_while_not_marked_shows_the_key(client):
+    # Answered while N (no stored fraction), switched to AUTO before Finish:
+    # _results_row reads it "not_answered"; like any unanswered auto row it shows
+    # the key (spec §4) -- ＋ on the correct options, the picks kept.
+    unit = _quiz(client)
+    kit = choice(marking_mode="N")
+    el = add_element(unit, kit.question)
+    _fetch(client, unit, el, kit.half)
+    kit.question.marking_mode = "A"
+    kit.question.save()
+    row = _rows(_results(client, unit))[0]
+    assert markers(row) == LOCKED_HALF and "Not answered" in row
+
+
+@pytest.mark.django_db
 def test_results_option_feedback_shows_on_marked_options(client):
     # The old list printed annotated feedback as question__nudge; the options now do.
     unit = _quiz(client)
@@ -789,8 +808,10 @@ def test_analytics_still_shows_the_choice_key(client, answered):
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `uv run pytest tests/test_quiz_reveal_pr3_choice.py -p no:randomly -k "reveal or results or analytics"`
-Expected: FAIL — no Show answer button (`SUPPORTS_REVEAL` is False), reveal POSTs get 409, the results rows are the old `_reveal_choice.html` list (`question__reveal` present, no `<input>`). `test_analytics_still_shows_the_choice_key` PASSES already (it pins that analytics does not change).
+Run: `uv run pytest tests/test_quiz_reveal_pr3_choice.py -p no:randomly`
+Expected: the Task 1 tests PASS; of the new Task 2 tests these FAIL — `test_show_answer_offered_after_a_wrong_check_check_first`, `test_enrolled_reveal_locks_marks_missed_and_uses_no_attempt`, `test_nojs_reveal_rerenders_the_page_locked`, `test_previewer_and_editor_reveal_lock_ephemerally` (no Show answer button, `SUPPORTS_REVEAL` is False; reveal POSTs get 409 / are processed as a Check), and the four `test_results_*` tests (the rows are the old `_reveal_choice.html` list: `question__reveal` present, no `<input>`). These PASS already and are guards: `test_analytics_still_shows_the_choice_key` (analytics must not change) and `test_not_marked_and_review_choice_never_reveal` (an N/R question locks on its first submit, so the enrolled reveal hits `_quiz_locked_response`'s 409 before `can_reveal`; `can_reveal`'s marking-mode check is pinned by the `("choice", "N", False)` parity case added in Step 5 and by the previewer leg below).
+
+In `test_not_marked_and_review_choice_never_reveal`, add a previewer leg after the enrolled assertions so the refusal path itself is exercised: log in a staff previewer (`make_login(client, f"prev_{mode}")`, `is_staff = True`), build a fresh `choice(marking_mode=mode)` in a new `make_quiz_unit()`, POST `{**kit.half, "reveal": "1", "attempt": "1"}` with the fetch header, and assert `"answer shown" not in body` (an ineligible ephemeral reveal is processed as a normal Check, spec §3.3).
 
 - [ ] **Step 3: Implement**
 
@@ -845,8 +866,13 @@ In `courses/views.py::_results_question_html`, compute the mark result the in-pl
         fully_correct = bool(result.correct)
         mark_result = result
     elif answered:
-        state = quiz_render_state(question, response, None)  # N/R: no verdicts
+        # N/R (no verdicts, no key) -- or an AUTO question answered while it was
+        # N/R (no stored fraction; _results_row reads it as not_answered): that one
+        # shows its key like an unanswered auto row (spec §4, ＋ for choice).
+        state = quiz_render_state(question, response, None)
         fully_correct = False
+        if auto:
+            mark_result = row["reveal_result"]
     else:
         # Unanswered: neutral controls, mark() NOT called here (spec §4). Types
         # with no key copy (choice) read row["reveal_result"] -- _results_row's
@@ -883,6 +909,7 @@ Expected RED only under these rules (each with the `# PR 3 …: replaces …` co
 | `tests/test_element_try.py::test_try_quiz_ineligible_reveal_is_a_plain_check[choice]` | `"answer shown" not in body`, `"2 attempts left" in body`, `"data-quiz-locked" not in body` | (b) → replace the `choice` param with an `extended` one (ER, `max_attempts=3`, a wrong `answer`) under the `SUPPORTS_REVEAL=False` monkeypatch, keeping the three assertions; choice's accepted editor reveal is pinned by `test_previewer_and_editor_reveal_lock_ephemerally` |
 | `tests/test_quiz_results_choice_reveal.py` — its four `question__reveal-mark--*` tests | `M_CORRECT` / `M_WRONG` / `M_MISSED` = `question__reveal-mark--*` | (c) → the constants become `question__choice-marker--correct/--wrong/--missed`, every assertion kept, plus `"question__reveal" not in body` in each; rewrite the module docstring (it names `_reveal_choice.html`) and the stale docstring of its fifth test ("only choice relaxed the gate") |
 | `tests/test_analytics_student_quiz.py::test_t19_student_results_page_shows_the_same_kinds` | `select("li.question__reveal-item")`, `.question__reveal-mark` | (c) → `li.question__choice`, `.question__choice-marker`, text from `.question__choice-text`; the same expected dict |
+| `tests/test_quiz_choice_inline_marking.py::test_a_submitted_quiz_never_renders_its_options_again` (GREEN, docstring false) | its docstring says the results page "renders no options list at all" and names "_choice_marks" | docstring only → the results page now renders the options read-only (spec §4, via `render(mode="results")`); this test pins that the QUIZ page is never shown again for a submitted quiz (the redirect); the helper is `choice_marks` |
 | `tests/test_quiz_reveal_result_line.py::test_incorrect_unconverted_type_gets_new_line_too` (GREEN, premise stale) | builds a choice as "unconverted" | rename to `test_incorrect_choice_gets_the_new_line`, fix its comment; assertions unchanged |
 
 Anything RED outside (b), (c) and the table is a bug in this task — fix the code.
@@ -1818,7 +1845,7 @@ git commit -m "docs(quiz-reveal): multiple choice and extended response in quizz
 | Mutant | Must fail |
 |---|---|
 | `ChoiceQuestionElement.part_verdicts`: `(c.pk in correct)` for EVERY option (drop the picked-only rule) | `test_part_verdicts_one_entry_per_option_picked_only`, `test_unlocked_wrong_check_marks_picks_and_leaks_nothing` |
-| `choice_marks`: the `missed` loop without `locked and` | `test_unlocked_wrong_check_marks_picks_and_leaks_nothing`, `test_choice_marks_unlocked_quiz_reads_verdicts_never_mark_result` |
+| `choice_marks`: the `missed` loop without `locked and` | `test_choice_marks_unlocked_quiz_reads_verdicts_never_mark_result` (every unlocked view path passes `mark_result=None`, so only the direct call sees it) |
 | `choice_marks`: drop `and not mark_result.correct` | `test_stored_correct_then_key_edited_shows_picks_correct_no_missed`, `test_results_stored_correct_key_edited_choice_shows_picks_correct` |
 | `choice_marks`: ignore `verdicts` (always the `elif locked` branch) | `test_unlocked_wrong_check_marks_picks_and_leaks_nothing`, `test_resume_nojs_previewer_and_editor_paint_the_same` |
 | `quiz_render_state`: `"mark_result": result` (drop `if locked`) | `test_unlocked_render_context_has_no_mark_result`, `test_option_feedback_waits_for_the_lock` |
