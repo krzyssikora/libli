@@ -30,7 +30,7 @@
 
 ## Review Focus
 
-1. **A choice option the student picked is deleted (or a new correct option added) after they answered** — resume, the reveal response and the results page render without error; the stale pk simply has no row, the new option is unmarked before the lock and gets ＋ after it if correct. Test in Task 1 (`test_edited_options_after_answer_render`).
+1. **A choice option the student picked is deleted (or a new correct option added) after they answered** — resume, the reveal response and the results page render without error; the stale pk simply has no row, the new option is unmarked before the lock and gets ＋ after it if correct. Tests in Task 1 (`test_edited_options_after_answer_render`: resume + a locking Check) and Task 2 (`test_edited_options_then_reveal_and_results_render`: Show answer + results).
 2. **Author per-option feedback before the lock** — the feedback on a missed correct option ("you missed Lyon") names the key; it must not appear while attempts remain, and appears once locked. Test in Task 1 (`test_option_feedback_waits_for_the_lock`).
 3. **Extended-response text with HTML specials** (`<script>`, `&amp;`) — the new results branch prints the student's text; resume, the reveal response and the results page show it escaped. Test in Task 3 (`test_student_text_is_escaped_everywhere`).
 4. **Extended response in a lesson after the form gains `data-question-inline`** — a lesson Check still answers with the feedback fragment, and question.js must still land it in the feedback box (its no-`<form>` fall-through), with no nested form. Tests in Task 3 (`test_lesson_check_is_unchanged`) and Task 5 (`test_extended_lesson_check_lands_in_the_box`).
@@ -75,7 +75,7 @@
 
 **Files:**
 - Create: `tests/reveal_pr3_kit.py`, `templates/courses/elements/_choicequestion_options.html`
-- Modify: `courses/models.py` (`ChoiceQuestionElement`), `templates/courses/elements/choicequestion.html`
+- Modify: `courses/models.py` (`ChoiceQuestionElement`), `templates/courses/elements/choicequestion.html`, `courses/static/courses/css/courses.css` (one comment)
 - Test: `tests/test_quiz_reveal_pr3_choice.py` (new)
 - Rewrite (allowed, Step 5): existing tests pinning "a choice quiz question with attempts left shows no marks"
 
@@ -572,6 +572,8 @@ stacking, which its per-option feedback indent was tuned against.{% endcomment %
 
 In `choicequestion.html`, replace the `{% comment %}--marked…{% endcomment %}` block and the whole `<ul>…</ul>` with `{% include "courses/elements/_choicequestion_options.html" %}`, and reduce the first line to `{% load i18n %}`.
 
+In `courses/static/courses/css/courses.css`, the comment above `.question__choices--marked .question__choice > label` begins `/* Locked quiz: put the marker INLINE after the option text`. Replace `Locked quiz:` with `A quiz or results list with markers (from the first Check on, not only once locked):`. Leave the rest of the comment as it is. Do not add line numbers, and do not put `*/` mid-comment.
+
 - [ ] **Step 5: Run the new tests, then the suites that pin choice's old quiz behaviour; rewrite what D6 legitimately changes**
 
 Run: `uv run pytest tests/test_quiz_reveal_pr3_choice.py -p no:randomly`
@@ -600,7 +602,7 @@ Anything RED outside (a) and the table is a bug in this task — fix the code.
 ```bash
 # <rewritten> = every existing test file this task rewrote (Step 5)
 uv run ruff check --no-cache --fix courses/models.py tests/reveal_pr3_kit.py tests/test_quiz_reveal_pr3_choice.py <rewritten> && uv run ruff format --no-cache courses/models.py tests/reveal_pr3_kit.py tests/test_quiz_reveal_pr3_choice.py <rewritten> && uv run ruff check --no-cache courses/models.py tests/reveal_pr3_kit.py tests/test_quiz_reveal_pr3_choice.py <rewritten>
-git add courses/models.py templates/courses/elements/choicequestion.html templates/courses/elements/_choicequestion_options.html tests/
+git add courses/models.py courses/static/courses/css/courses.css templates/courses/elements/choicequestion.html templates/courses/elements/_choicequestion_options.html tests/
 git commit -m "feat(quiz-reveal): multiple choice marks its picks from the first Check"
 ```
 
@@ -773,6 +775,26 @@ def test_results_auto_row_answered_while_not_marked_shows_the_key(client):
 
 
 @pytest.mark.django_db
+def test_edited_options_then_reveal_and_results_render(client):
+    # Review Focus 1, the Task 2 paths: a picked option deleted and a correct one
+    # added after the answer -- Show answer and the results page still render.
+    unit = _quiz(client)
+    kit = choice()
+    el = add_element(unit, kit.question)
+    _fetch(client, unit, el, kit.half)
+    kit.c.delete()
+    Choice.objects.create(question=kit.question, text="Deltaopt", is_correct=True)
+    resp = _fetch(client, unit, el, {"reveal": "1"})
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "Gammaopt" not in body
+    assert option(body, "Deltaopt").count("question__choice-marker--missed") == 1
+    row = _rows(_results(client, unit))[0]
+    assert "Gammaopt" not in row
+    assert option(row, "Deltaopt").count("question__choice-marker--missed") == 1
+
+
+@pytest.mark.django_db
 def test_results_option_feedback_shows_on_marked_options(client):
     # The old list printed annotated feedback as question__nudge; the options now do.
     unit = _quiz(client)
@@ -812,7 +834,7 @@ def test_analytics_still_shows_the_choice_key(client, answered):
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_pr3_choice.py -p no:randomly`
-Expected: the Task 1 tests PASS; of the new Task 2 tests these FAIL — `test_show_answer_offered_after_a_wrong_check_check_first`, `test_enrolled_reveal_locks_marks_missed_and_uses_no_attempt`, `test_nojs_reveal_rerenders_the_page_locked`, `test_previewer_and_editor_reveal_lock_ephemerally` (no Show answer button, `SUPPORTS_REVEAL` is False; reveal POSTs get 409 / are processed as a Check), and the five `test_results_*` tests — `test_results_choice_rows_as_they_ended`, `test_results_stored_correct_key_edited_choice_shows_picks_correct`, `test_results_nr_choice_rows_show_picks_without_verdicts` (both params), `test_results_auto_row_answered_while_not_marked_shows_the_key`, `test_results_option_feedback_shows_on_marked_options` (the rows are the old `_reveal_choice.html` list: `question__reveal` present, no `<input>`). Every expected failure is an ASSERTION failure; a `NameError` / `ImportError` means the test file is wrong — fix it before Step 3. These PASS already and are guards: `test_analytics_still_shows_the_choice_key` (analytics must not change) and `test_not_marked_and_review_choice_never_reveal` (an N/R question locks on its first submit, so the enrolled reveal hits `_quiz_locked_response`'s 409 before `can_reveal`; `can_reveal`'s marking-mode check is pinned by the `("choice", "N", False)` parity case added in Step 5 and by the previewer leg below).
+Expected: the Task 1 tests PASS; of the new Task 2 tests these FAIL — `test_show_answer_offered_after_a_wrong_check_check_first`, `test_enrolled_reveal_locks_marks_missed_and_uses_no_attempt`, `test_nojs_reveal_rerenders_the_page_locked`, `test_previewer_and_editor_reveal_lock_ephemerally` (no Show answer button, `SUPPORTS_REVEAL` is False; reveal POSTs get 409 / are processed as a Check), and the five `test_results_*` tests — `test_results_choice_rows_as_they_ended`, `test_results_stored_correct_key_edited_choice_shows_picks_correct`, `test_results_nr_choice_rows_show_picks_without_verdicts` (both params), `test_results_auto_row_answered_while_not_marked_shows_the_key`, `test_results_option_feedback_shows_on_marked_options` (plus `test_edited_options_then_reveal_and_results_render`: its reveal gets a 409) (the rows are the old `_reveal_choice.html` list: `question__reveal` present, no `<input>`). Every expected failure is an ASSERTION failure; a `NameError` / `ImportError` means the test file is wrong — fix it before Step 3. These PASS already and are guards: `test_analytics_still_shows_the_choice_key` (analytics must not change) and `test_not_marked_and_review_choice_never_reveal` (an N/R question locks on its first submit, so the enrolled reveal hits `_quiz_locked_response`'s 409 before `can_reveal`; `can_reveal`'s marking-mode check is pinned by the `("choice", "N", False)` parity case added in Step 5 and by the previewer leg below).
 
 In `test_not_marked_and_review_choice_never_reveal`, add a previewer leg after the enrolled assertions so the refusal path itself is exercised: log in a staff previewer (`make_login(client, f"prev_{mode}")`, `is_staff = True`), build a fresh `choice(marking_mode=mode)` in a new `make_quiz_unit()`, POST `{**kit.half, "reveal": "1", "attempt": "1"}` with the fetch header, and assert `"answer shown" not in body` (an ineligible ephemeral reveal is processed as a normal Check, spec §3.3).
 
@@ -913,9 +935,9 @@ Expected RED only under these rules (each with the `# PR 3 …: replaces …` co
 | Test | Old assertion | Rule → rewrite to |
 |---|---|---|
 | `tests/test_quiz_reveal_helpers.py::test_can_reveal_refuses_unconverted_type` | `can_reveal(ChoiceQuestionElement(...), attempts_made=3, locked=False) is False` | (b) → `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` and the same assertion on an `ExtendedResponseQuestionElement(...)`: add the `monkeypatch` parameter to the test and `from courses.models import ExtendedResponseQuestionElement` (single-line import, isort order) |
-| `tests/test_quiz_reveal_flow.py::test_reveal_refused_for_not_marked_and_unconverted` | the choice half: `_fetch(client, unit, ch, {"reveal": "1"}).status_code == 409` | (b) → keep the N half unchanged; replace the choice half with an `extended()` question built the same way (a `QuestionResponse` with `attempt_count=1`, `latest_answer="x"`) under `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` → still 409 |
+| `tests/test_quiz_reveal_flow.py::test_reveal_refused_for_not_marked_and_unconverted` | the choice half: `_fetch(client, unit, ch, {"reveal": "1"}).status_code == 409` | (b) → keep the N half unchanged. Replace the choice half with a `tests.reveal_pr3_kit.extended()` question, built the same way (a `QuestionResponse` with `attempt_count=1`, `latest_answer="x"`). Add the `monkeypatch` parameter and `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)`. The reveal must still get a 409. The test name stays: both halves still exist |
 | `tests/test_quiz_lock_rule_parity.py` — the `("choice", "A", False)` case of the reveal-eligibility parametrisation | enrolled `status_code == 409`; `b"answer shown" not in ephemeral.content` | (b) → the case becomes `("choice", "A", True)` (eligible on both paths, choice's NEW behaviour); add `("choice", "N", False)` so choice keeps an ineligible leg |
-| `tests/test_element_try.py::test_try_quiz_ineligible_reveal_is_a_plain_check[choice]` | `"answer shown" not in body`, `"2 attempts left" in body`, `"data-quiz-locked" not in body` | (b) → replace the `choice` param with an `extended` one (ER, `max_attempts=3`, a wrong `answer`) under the `SUPPORTS_REVEAL=False` monkeypatch, keeping the three assertions; choice's accepted editor reveal is pinned by `test_previewer_and_editor_reveal_lock_ephemerally` |
+| `tests/test_element_try.py::test_try_quiz_ineligible_reveal_is_a_plain_check[choice]` | `"answer shown" not in body`, `"2 attempts left" in body`, `"data-quiz-locked" not in body` | (b) → replace the `choice` param with an `extended` one. Build the question with `tests.reveal_pr3_kit.extended(max_attempts=3)`. An ER with no keywords marks every answer fully correct, so the kit's keywords are required. Post `ER_WRONG`, and rename the test's `if kind == "choice"` branches to `if kind == "extended"`. Add the `monkeypatch` parameter and `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)`. Keep the three assertions; choice's accepted editor reveal is pinned by `test_previewer_and_editor_reveal_lock_ephemerally` |
 | `tests/test_quiz_results_choice_reveal.py` — its four `question__reveal-mark--*` tests | `M_CORRECT` / `M_WRONG` / `M_MISSED` = `question__reveal-mark--*` | (c) → the constants become `question__choice-marker--correct/--wrong/--missed`, every assertion kept, plus `"question__reveal" not in body` in each; rewrite the module docstring (it names `_reveal_choice.html`) and the stale docstring of its fifth test ("only choice relaxed the gate") |
 | `tests/test_analytics_student_quiz.py::test_t19_student_results_page_shows_the_same_kinds` | `select("li.question__reveal-item")`, `.question__reveal-mark` | (c) → `li.question__choice`, `.question__choice-marker`, text from `.question__choice-text`; the same expected dict |
 | `tests/test_quiz_choice_inline_marking.py::test_a_submitted_quiz_never_renders_its_options_again` (GREEN, docstring false) | its docstring says the results page "renders no options list at all" and names "_choice_marks" | docstring only → the results page now renders the options read-only (spec §4, via `render(mode="results")`); this test pins that the QUIZ page is never shown again for a submitted quiz (the redirect); the helper is `choice_marks` |
@@ -959,7 +981,6 @@ from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import QuestionResponse
-from courses.quiz import reveal_list_template
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -1009,7 +1030,10 @@ def _rows(html):
 
 def test_reveal_list_template_only_for_types_without_an_in_place_view():
     # P6: the keyword block is extended response's view; choice and every key-copy
-    # type have an in-place view instead.
+    # type have an in-place view instead. Imported here so the rest of the file
+    # collects (and reports real RED / GREEN) before the helper exists.
+    from courses.quiz import reveal_list_template
+
     assert reveal_list_template(ExtendedResponseQuestionElement()) == (
         "courses/elements/_reveal_extendedresponse.html"
     )
@@ -1158,7 +1182,11 @@ def test_lesson_check_is_unchanged(client):
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_reveal_pr3_extended.py -p no:randomly`
-Expected: FAIL — `ImportError: cannot import name 'reveal_list_template'`.
+Expected FAIL: `test_reveal_list_template_only_for_types_without_an_in_place_view` fails with an `ImportError` inside the test. These fail on an assertion: `test_check_answers_whole_element_with_show_answer_no_keywords`, because the fragment has no `<form>`. `test_reveal_shows_the_keyword_block_and_uses_no_attempt`, because the reveal gets a 409. `test_nojs_reveal_and_previewer_and_editor`. `test_results_extended_rows_as_they_ended`, because a list row has no `<textarea>`. `test_student_text_is_escaped_everywhere`, because the fragment carries no textarea. `test_lesson_check_is_unchanged`, because the lesson page has no `data-question-inline`.
+
+Expected PASS already. These are guards for Step 3: `test_locked_on_last_attempt_shows_keywords_but_not_when_correct` and `test_not_marked_and_review_never_offer_reveal_or_keywords`. The first one breaks under the naive `SUPPORTS_REVEAL`-only change, which is the quiz.py trap P6 fixes.
+
+Any other failure mode means the test file is wrong. Fix the file before Step 3.
 
 - [ ] **Step 3: Implement**
 
@@ -1278,6 +1306,7 @@ Expected RED only under:
 | Test | Old assertion | Rule → rewrite to |
 |---|---|---|
 | `tests/test_quiz_reveal_result_line.py::test_incorrect_unconverted_non_inline_type_gets_new_line_too` | ER fetch: `"data-question-inline" not in body  # the fragment` | (d) → add `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` (the test's subject is the unconverted-type result line); every assertion kept. Add a sibling `test_incorrect_extended_response_whole_element_line` without the monkeypatch: `"<form" in body`, `'name="reveal"' in body`, `is-incorrect`, "0 / 1", "2 attempts left" |
+| `tests/test_questions_2diii_results.py::test_answered_required_keyword_shows_checkmark_on_results` (GREEN, comment stale) | its comment says `quiz_results.html`'s row include wires `answered=row["answered"]` | comment only → the wiring is now `_results_question_feedback.html`'s `{% include reveal_template … answered=row.answered %}`; add the `# PR 3 …` marker; assertions untouched |
 | `tests/test_quiz_reveal_hooks.py::test_unconverted_type_hooks_are_none` (as rewritten in Task 1) | `ExtendedResponseQuestionElement.SUPPORTS_REVEAL is False` | rename to `test_extended_response_hooks_are_none`; assert `SUPPORTS_REVEAL is True`, keep `part_verdicts(...) is None` and `key_answer() is None` (D7) |
 
 These must stay GREEN unedited: `tests/test_questions_2diii_results.py` (unanswered ER guide on results: `"banned" in body`, `"✓" not in body`; answered keyword block `"✓" in body`; the R badges), the R-mode review / wording / title-math suites (ER-R and choice results rows now go through `render(mode="results")` and `_results_question_feedback.html`). If one goes red on a badge or markup difference, the new results branch is wrong.
@@ -1494,7 +1523,7 @@ Expected: PASS.
 
 - [ ] **Step 6: Run every suite that touches a deleted template or `REVEAL_TEMPLATE`; rewrite**
 
-Run: `uv run pytest tests/test_render_choice_nudge.py tests/test_reveal_choicegrid.py tests/test_quiz_reveal_single_part.py tests/test_questions_2d_models.py tests/test_choice_nudge_paths.py tests/test_questions_2d_reveal.py tests/test_questions_2d_results.py tests/test_questions_2diii_results.py tests/test_quiz_results_choice_reveal.py tests/test_quiz_reveal_flow.py tests/test_quiz_reveal_results.py tests/test_quiz_reveal_pr2_flow.py tests/test_quiz_reveal_pr2_grids.py tests/test_choicegrid_styles.py tests/test_analytics_student_quiz.py -p no:randomly` (a file you delete in Step 6 drops out of the command)
+Run: `uv run pytest tests/test_quiz_reveal_pr3_choice.py tests/test_quiz_reveal_pr3_extended.py tests/test_render_choice_nudge.py tests/test_reveal_choicegrid.py tests/test_quiz_reveal_single_part.py tests/test_questions_2d_models.py tests/test_choice_nudge_paths.py tests/test_questions_2d_reveal.py tests/test_questions_2d_results.py tests/test_questions_2diii_results.py tests/test_quiz_results_choice_reveal.py tests/test_quiz_reveal_flow.py tests/test_quiz_reveal_results.py tests/test_quiz_reveal_pr2_flow.py tests/test_quiz_reveal_pr2_grids.py tests/test_choicegrid_styles.py tests/test_analytics_student_quiz.py -p no:randomly` (a file you delete in Step 6 drops out of the command)
 
 Expected RED only under:
 
@@ -1818,7 +1847,7 @@ Two i18n tests list dropped msgids as parameters and go RED — rewrite (the msg
 
 EN (`quiz-editors.md`):
 
-1. In the quiz paragraph under the editor screenshot, after "…on the question itself." insert: "Multiple choice and extended response show the answer their own way — see their sections below."
+1. At the end of the quiz paragraph under the editor screenshot, after "…and on the results page after the quiz is finished.", append: "Multiple choice and extended response show the answer their own way — see their sections below."
 2. In `{el:choice-single}{el:choice-multi}`, replace the whole "- In a **quiz**, the correct answers are always revealed …" bullet with:
    "- In a **quiz**, every Check marks the options the student ticked with ✓ (right) or ✗ (wrong); a correct option they did not tick is not pointed out while they can still try again. Once the question ends — a correct answer, the last attempt, or **Show answer** — the correct options they missed get ＋, and the results page shows the same marks. There is no Your answer / Correct answer switch for this type: the marks on the options are its answer view. Per-option feedback appears once the question has ended."
 3. At the end of `{el:extended}`, add a paragraph:
