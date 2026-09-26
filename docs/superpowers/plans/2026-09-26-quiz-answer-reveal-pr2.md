@@ -56,7 +56,7 @@
 | File | Responsibility |
 |---|---|
 | `courses/models.py` | the five types: `part_verdicts`, `key_answer` (Task 1); `SUPPORTS_REVEAL`, `INLINE_LESSON_FEEDBACK`, `CONTROLS_TEMPLATE` (Tasks 3, 4) |
-| `courses/verdicts.py` (new) | `state_class(verdict)`, `invalid_attr(verdict)`, `sr_verdict(verdict)`, `part_verdict(verdicts, i, key)` — the one place a verdict becomes markup for the Python-built controls |
+| `courses/verdicts.py` (new) | `state_class(verdict)`, `invalid_attr(verdict)`, `sr_verdict(verdict)`, `part_verdict(verdicts, i, key)` — verdict → markup for the PR 2 builders (drag selects, grid rows). `courses/fillblank.py::render_inputs` keeps its own inline copy of the same logic: it is not touched in PR 2 (its byte-identity is pinned by PR 1's suites); folding it in is a PR 3 clean-up candidate |
 | `courses/dnd.py` | `_render_select(…, verdict=)`; `render_selects` / `render_match_rows` / `render_zone_selects` gain `verdicts=`, `key=` |
 | `courses/templatetags/courses_extras.py` | `render_drag_selects` / `render_match_pairs` / `render_image_selects` / `render_choice_grid` / `render_multigrid` gain `verdicts=`, `copy=`; grid row / cell builders paint |
 | `templates/courses/elements/_dragfillblankquestionelement_controls.html` (new) | dnd root + selects in the stem + pool |
@@ -1819,6 +1819,30 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_multi_paragraph_drag_stem_keeps_its_spacing_in_both_copies(browser, live_server):
+    # The stem's <p>s now sit under .question__stem > [data-dnd]; the prose-rhythm
+    # rule must reach through that root, in "Your answer" and in the key copy.
+    from courses.fillblank import parse
+
+    _student("d_par")
+    course, unit, (kit,) = _seed("d_par", "e2e-d-par", ["dragfill"], max_attempts=1)
+    q_model = kit.question
+    q_model.stem = parse("<p>One {{alphakey}}.</p><p>Two {{betakey}}.</p>")[0]
+    q_model.save()
+    page = browser.new_context().new_page()
+    _login(page, live_server, "d_par")
+    page.goto(_quiz_url(live_server, course, unit))
+    q = page.locator("[data-question]").first
+    _drag(q, "gammadis", 1)
+    _check(q)
+    q.locator("[data-answer-switch]").wait_for(timeout=6000)  # 1 attempt: locked
+    gap = "p => getComputedStyle(p).marginTop"
+    assert q.locator("[data-answer-yours] [data-dnd] > p").nth(1).evaluate(gap) != "0px"
+    q.locator("label:has([data-answer-view='key'])").click()
+    assert q.locator("[data-answer-key] [data-dnd] > p").nth(1).evaluate(gap) != "0px"
+
+
+@pytest.mark.django_db(transaction=True)
 def test_check_on_one_drag_question_leaves_the_other_alone(browser, live_server):
     _student("d_two")
     course, unit, _ = _seed("d_two", "e2e-d-two", ["dragfill", "matchpair"])
@@ -2102,6 +2126,27 @@ select.dnd__select.is-incorrect,
 .dnd__chip:disabled:hover { border-color: var(--border-strong); color: var(--text-primary); }
 ```
 
+Also extend the **prose-rhythm rule near the top of `courses.css`** (the one whose comment begins "Prose rhythm, applied to the contenteditable…"). Its stem branch is a DIRECT-child selector, and Task 3 moved the drag-the-words stem's `<p>` blocks one level down, under `.question__stem > div[data-dnd]` — without this, a multi-paragraph drag stem loses its paragraph spacing in every copy. Change
+
+```css
+.question__stem
+  > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, h2, h3, h4, ul, ol, pre, blockquote) { margin-top: var(--space-3); }
+```
+
+to
+
+```css
+.question__stem
+  > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, h2, h3, h4, ul, ol, pre, blockquote),
+.question__stem > [data-dnd]
+  > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, h2, h3, h4, ul, ol, pre, blockquote) { margin-top: var(--space-3); }
+```
+
+and append one sentence to that comment: "A drag-the-words stem sits one level down, inside its per-copy [data-dnd] root (quiz answer reveal PR 2), so the stem branch reaches through it." Do NOT put `question__stem` on the `[data-dnd]` div instead: `.el--question .question__stem`'s margin-bottom would then land inside the fieldset and move the switch (P5).
+
 - [ ] **Step 6: Run the e2e tests + PR 1's e2e + the dnd / grid e2e suites**
 
 Run: `uv run pytest tests/test_e2e_quiz_reveal_pr2.py tests/test_e2e_quiz_reveal.py tests/test_e2e_questions_2d.py tests/test_e2e_questions_2dii.py tests/test_e2e_questions_2diii.py tests/test_e2e_matchpair_rows.py tests/test_e2e_choicegrid.py tests/test_e2e_multigrid.py tests/test_e2e_widget_restore.py tests/test_e2e_uniform_block_width.py tests/test_e2e_scroll_affordance.py tests/test_e2e_wide_content_scroll.py -m e2e -p no:randomly`
@@ -2194,6 +2239,8 @@ git commit -m "docs(quiz-reveal): lesson in-place feedback for drag, match, imag
 | `quiz.js`: drop the `libliInitScrollAffordance(form)` call | `test_grid_lock_keeps_the_students_pick_and_paints_rows` |
 | `dnd.js`: drop the overlay target's `.sr-only` clone | `test_drag_quiz_check_reveal_inert_copies[dragimage]` |
 | COMBINED: `quiz.js` calls `window.libliEnhanceDnd()` (whole document) AND `enhance()` loses its `dndReady` guard | `test_check_on_one_drag_question_leaves_the_other_alone` (the second question's chips double); either change alone is masked by the other |
+| `courses.css`: drop the new `.question__stem > [data-dnd] > …` prose-rhythm branch | `test_multi_paragraph_drag_stem_keeps_its_spacing_in_both_copies` |
+| `dragfillblankquestionelement.html`: drop `style="margin:0;"` from the key-copy wrapper (both occurrences) | `test_results_page_drag_ui_is_inert` (the switch moves on toggle); if it survives, fix that test before recording the mutant |
 | `quiz_results.html`: drop the dnd.js script | `test_results_page_drag_ui_is_inert` |
 | `dragfillblankquestionelement.html`: put `data-dnd` back on the outer div as well | `test_each_copy_is_its_own_dnd_root` |
 | `courses/verdicts.py`: `part_verdict` ignores `key` | `test_key_paints_every_gap_correct`, `test_locked_wrong_shows_a_neutralised_painted_key_copy` |
@@ -2213,7 +2260,7 @@ Record each mutant's RED test name in the PR description; a survivor is either k
 
 - [ ] **Step 2: Screenshots**
 
-Write a throwaway e2e in `tests/test_e2e_zz_shot_tmp.py` (set `DJANGO_ALLOW_ASYNC_UNSAFE`; set `user.theme` to `"light"`/`"dark"` — the cookie is not enough, memory `dialog-does-not-inherit-the-page-theme`) capturing, for one drag type AND one grid: the partial Check (painted), the locked state on "Your answer", on "Correct answer", a lesson wrong Check, and the results row. Plus drag onto image locked on both switch sides. Read each PNG; judge dark mode separately (memory `verify-ui-with-screenshots`). Delete the file.
+Write a throwaway e2e in `tests/test_e2e_zz_shot_tmp.py` (set `DJANGO_ALLOW_ASYNC_UNSAFE`; set `user.theme` to `"light"`/`"dark"` — the cookie is not enough, memory `dialog-does-not-inherit-the-page-theme`) capturing, for one drag type AND one grid: the partial Check (painted), the locked state on "Your answer", on "Correct answer", a lesson wrong Check, and the results row — with the drag-the-words question's stem set to TWO paragraphs (the kit's stem is one sentence and would hide a spacing regression). Plus drag onto image locked on both switch sides. Read each PNG; judge dark mode separately (memory `verify-ui-with-screenshots`). Delete the file.
 
 - [ ] **Step 3: Full sweep (the branch gate)**
 
