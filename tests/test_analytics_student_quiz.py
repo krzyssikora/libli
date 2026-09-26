@@ -1304,12 +1304,15 @@ def test_t19_student_results_page_shows_the_same_kinds(client):
     )
     assert resp.status_code == 200
     student = {}
-    for li in _soup(resp).select("li.question__reveal-item"):
-        mark = li.select_one(".question__reveal-mark")
+    # PR 3 (spec 2026-09-25 §4, §8): replaces the old `_reveal_choice.html` list
+    # selectors (`li.question__reveal-item`, `.question__reveal-mark`) -- choice's
+    # results row is now the question itself.
+    for li in _soup(resp).select("li.question__choice"):
+        mark = li.select_one(".question__choice-marker")
         kind = None
         if mark is not None:
             kind = next(c.split("--")[1] for c in mark["class"] if "--" in c)
-        student[li.select_one("span").get_text(strip=True)] = kind
+        student[li.select_one(".question__choice-text").get_text(strip=True)] = kind
     assert teacher == student == {"A": "wrong", "B": "correct", "C": "missed"}
 
 

@@ -1866,12 +1866,9 @@ def _results_row(question, response):
         row["reveal_template"] = question.REVEAL_TEMPLATE
         if isinstance(question, ChoiceQuestionElement):
             row["choices"] = list(question.choices.all())
-            # Per-option markers, same vocabulary the locked quiz page uses. Without
-            # these _reveal_choice.html shows the answer KEY only — it was the one
-            # reveal partial of seven that never marked the student's own answer, so
-            # a multi-select row could not distinguish a correct option the student
-            # picked from one they missed. locked=True: a submitted question is
-            # terminal, so the withhold window is over by definition.
+            # Per-option markers for analytics (answer_summary option_marks), same
+            # vocabulary the locked quiz page uses. locked=True: a submitted question
+            # is terminal, so the withhold window is over by definition.
             row["marks"] = question.choice_marks(
                 row["choices"],
                 selected_ids(
@@ -1901,17 +1898,28 @@ def _results_question_html(element, question, response, row):
     consumes _results_row's keys and must not change (spec §5)."""
     answered = row["answered"]
     auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+    mark_result = None
     if answered and auto and response.fraction is not None:
         result = _stored_result(question, response)
         state = quiz_render_state(question, response, result)
         fully_correct = bool(result.correct)
+        mark_result = result
     elif answered:
-        state = quiz_render_state(question, response, None)  # N/R: no verdicts
+        # N/R (no verdicts, no key) -- or an AUTO question answered while it was
+        # N/R (no stored fraction; _results_row reads it as not_answered): that one
+        # shows its key like an unanswered auto row (spec §4, ＋ for choice).
+        state = quiz_render_state(question, response, None)
         fully_correct = False
+        if auto:
+            mark_result = row["reveal_result"]
     else:
-        # Unanswered: neutral controls, mark() NOT called (spec §4).
+        # Unanswered: neutral controls, mark() NOT called here (spec §4). Types
+        # with no key copy (choice) read row["reveal_result"] -- _results_row's
+        # "reveal all" mark, which analytics needs anyway.
         state = dict(BLANK_QUIZ_STATE)
         fully_correct = False
+        if auto:
+            mark_result = row["reveal_result"]
     # Every results row is locked (finalize_submission locks every response).
     key_values = key_view(
         question, mode="results", locked=True, fully_correct=fully_correct
@@ -1927,6 +1935,7 @@ def _results_question_html(element, question, response, row):
             selected_ids=state["selected_ids"],
             submitted_values=state["submitted_values"],
             verdicts=state["verdicts"],
+            mark_result=mark_result,
             key_values=key_values,
             locked=True,
             feedback_html=feedback_html,

@@ -151,11 +151,11 @@ def test_a_submitted_quiz_never_renders_its_options_again(client):
 
     `quiz_submitted` disables every input independently of `locked`, so a question
     the student answered without exhausting its attempts would render disabled AND
-    unmarked — the original invisible-pick defect by another route. It is
-    unreachable only because a submitted quiz redirects to the results page, which
-    renders no options list at all. If that redirect is ever removed, this fails and
-    the marking rule in _choice_marks has to widen from `locked` to
-    `locked or quiz_submitted`.
+    unmarked — the original invisible-pick defect by another route. This test pins
+    that the QUIZ page itself is never shown again for a submitted quiz — it
+    redirects to the results page instead. PR 3 (spec §4): the results page now
+    renders the options read-only too (via `render(mode="results")`), so the
+    marking rule stays in one place: `choice_marks`.
     """
     unit, el, right, wrong = _quiz(client, max_attempts=3)
     _answer(client, unit, el, wrong.pk)  # 2 attempts still remain -> NOT locked

@@ -2432,6 +2432,11 @@ class ChoiceQuestionElement(QuestionElement):
     INLINE_QUIZ_REVEAL = True
     INLINE_LESSON_FEEDBACK = True
 
+    # Quiz answer reveal (spec 2026-09-25 §8 PR 3): Show answer + the results-page
+    # render. Choice keeps its own in-place view (D8: ✓ ✗ ＋ on the options, no
+    # switch, key_answer() stays None).
+    SUPPORTS_REVEAL = True
+
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
 

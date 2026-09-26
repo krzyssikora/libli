@@ -197,7 +197,11 @@ def _reveal(client, unit, el, data, made):
     [
         ("fillblank", "A", True),
         ("fillblank", "N", False),
-        ("choice", "A", False),  # unconverted type
+        # PR 3 (spec 2026-09-25 §8): replaces the ("choice", "A", False)
+        # "unconverted type" case -- choice is now converted, so it becomes
+        # eligible on both paths.
+        ("choice", "A", True),
+        ("choice", "N", False),  # choice keeps an ineligible leg (N/R never reveal)
     ],
 )
 def test_reveal_rule_parity(client, kind, marking_mode, accepted):

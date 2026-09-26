@@ -1,13 +1,22 @@
 {% load i18n %}
 <div class="el el--question" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
-  {% if element %}
+  {% if mode == "results" %}
+  {% comment %}Results (spec §4): read-only, no form, no buttons. The inputs are
+  disabled through `locked` (views._results_question_html passes locked=True);
+  the feedback box holds the results fragment.{% endcomment %}
+  <div class="question__form">
+    {% include "courses/elements/_choicequestion_options.html" %}
+    <div class="question__feedback" data-question-feedback>{{ feedback_html|safe }}</div>
+  </div>
+  {% elif element %}
   <form class="question__form" method="post" data-question-inline
         action="{{ action_url }}">
     {% csrf_token %}
     {% include "courses/elements/_choicequestion_options.html" %}
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+    {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>

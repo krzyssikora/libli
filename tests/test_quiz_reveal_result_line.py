@@ -86,8 +86,10 @@ def test_resume_survives_auto_answer_switched_to_not_marked(client):
 
 
 @pytest.mark.django_db
-def test_incorrect_unconverted_type_gets_new_line_too(client):
-    # Choice stays unconverted through PR 1-2 -- the line is ungated (spec §2.1).
+def test_incorrect_choice_gets_the_new_line(client):
+    # PR 3 (spec 2026-09-25 §8): choice is now converted (SUPPORTS_REVEAL); the
+    # result line was always ungated regardless of that flag (spec §2.1) -- this
+    # pins it stays for choice's own whole-element response too.
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
 
