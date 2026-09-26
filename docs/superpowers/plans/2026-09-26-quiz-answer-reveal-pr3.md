@@ -738,6 +738,8 @@ def test_results_stored_correct_key_edited_choice_shows_picks_correct(client):
     el = add_element(unit, kit.question)
     _fetch(client, unit, el, kit.right)
     Choice.objects.filter(pk=kit.b.pk).update(is_correct=False)
+    # C becomes correct and is unpicked: without P4 it would get ＋ beside "Correct".
+    Choice.objects.filter(pk=kit.c.pk).update(is_correct=True)
     row = _rows(_results(client, unit))[0]
     assert markers(row) == {"Alphaopt": "correct", "Betaopt": "correct", "Gammaopt": None}
     assert "Correct" in row
@@ -899,7 +901,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Run the suites that pin choice as unconverted / its old results row; rewrite what PR 3 legitimately changes**
 
-Run: `uv run pytest tests/test_quiz_reveal_helpers.py tests/test_quiz_reveal_flow.py tests/test_quiz_lock_rule_parity.py tests/test_element_try.py tests/test_quiz_results_choice_reveal.py tests/test_analytics_student_quiz.py tests/test_quiz_reveal_result_line.py tests/test_choice_nudge_paths.py tests/test_quiz_results_render.py tests/test_quiz_reveal_results.py tests/test_title_math_assets.py tests/test_answer_summary.py tests/test_ephemeral_quiz_feedback.py -p no:randomly`
+Run: `uv run pytest tests/test_quiz_choice_inline_marking.py tests/test_quiz_reveal_helpers.py tests/test_quiz_reveal_flow.py tests/test_quiz_lock_rule_parity.py tests/test_element_try.py tests/test_quiz_results_choice_reveal.py tests/test_analytics_student_quiz.py tests/test_quiz_reveal_result_line.py tests/test_choice_nudge_paths.py tests/test_quiz_results_render.py tests/test_quiz_reveal_results.py tests/test_title_math_assets.py tests/test_answer_summary.py tests/test_ephemeral_quiz_feedback.py -p no:randomly`
 
 Expected RED only under these rules (each with the `# PR 3 …: replaces …` comment):
 
@@ -910,7 +912,7 @@ Expected RED only under these rules (each with the `# PR 3 …: replaces …` co
 
 | Test | Old assertion | Rule → rewrite to |
 |---|---|---|
-| `tests/test_quiz_reveal_helpers.py::test_can_reveal_refuses_unconverted_type` | `can_reveal(ChoiceQuestionElement(...), attempts_made=3, locked=False) is False` | (b) → `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` and the same assertion on an `ExtendedResponseQuestionElement(...)` (the file already monkeypatches the flag this way) |
+| `tests/test_quiz_reveal_helpers.py::test_can_reveal_refuses_unconverted_type` | `can_reveal(ChoiceQuestionElement(...), attempts_made=3, locked=False) is False` | (b) → `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` and the same assertion on an `ExtendedResponseQuestionElement(...)`: add the `monkeypatch` parameter to the test and `from courses.models import ExtendedResponseQuestionElement` (single-line import, isort order) |
 | `tests/test_quiz_reveal_flow.py::test_reveal_refused_for_not_marked_and_unconverted` | the choice half: `_fetch(client, unit, ch, {"reveal": "1"}).status_code == 409` | (b) → keep the N half unchanged; replace the choice half with an `extended()` question built the same way (a `QuestionResponse` with `attempt_count=1`, `latest_answer="x"`) under `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` → still 409 |
 | `tests/test_quiz_lock_rule_parity.py` — the `("choice", "A", False)` case of the reveal-eligibility parametrisation | enrolled `status_code == 409`; `b"answer shown" not in ephemeral.content` | (b) → the case becomes `("choice", "A", True)` (eligible on both paths, choice's NEW behaviour); add `("choice", "N", False)` so choice keeps an ineligible leg |
 | `tests/test_element_try.py::test_try_quiz_ineligible_reveal_is_a_plain_check[choice]` | `"answer shown" not in body`, `"2 attempts left" in body`, `"data-quiz-locked" not in body` | (b) → replace the `choice` param with an `extended` one (ER, `max_attempts=3`, a wrong `answer`) under the `SUPPORTS_REVEAL=False` monkeypatch, keeping the three assertions; choice's accepted editor reveal is pinned by `test_previewer_and_editor_reveal_lock_ephemerally` |
@@ -1793,13 +1795,15 @@ PR 3 is designed to add **no new UI string** (choice reuses `MARK_GLYPHS` and PR
 
 - [ ] **Step 1: Extract and verify**
 
+The repo tracks BOTH catalogs (`locale/pl` and `locale/en`; `tests/test_i18n_po_health.py` walks both), so both are regenerated — otherwise `locale/en` keeps `#:` references to the nine deleted files and the six msgids, and the next unrelated `makemessages -l en` drops them in someone else's diff.
+
 ```bash
-uv run python manage.py makemessages -l pl --no-obsolete
+uv run python manage.py makemessages -l pl -l en --no-obsolete
 git diff --stat locale/
 git diff locale/pl/LC_MESSAGES/django.po | tr -d '\r' | grep -E '^[+-](msgid|msgstr|#, fuzzy)' || echo "no msgid changes"
 ```
 
-Expected: no NEW msgid; the msgids that lived only in the deleted templates are dropped (`--no-obsolete`), known at plan time: `Correct token:`, `Correct label:`, `Correct match:`, `Correct answers:`, `Expected:`, `you chose`. `Correct answer:` must SURVIVE (`analytics_student_quiz.html` uses it). For every dropped msgid, `git grep -n "<msgid text>" -- templates courses` must come back empty; a dropped msgid still used somewhere is a bug. If a new msgid appeared, translate it (clear any `#, fuzzy` pre-fill — both the flag and its wrong msgstr) and list it in the PR description. Then `uv run python manage.py compilemessages -l pl`.
+Expected: no NEW msgid; the msgids that lived only in the deleted templates are dropped (`--no-obsolete`), known at plan time: `Correct token:`, `Correct label:`, `Correct match:`, `Correct answers:`, `Expected:`, `you chose`. `Correct answer:` must SURVIVE (`analytics_student_quiz.html` uses it). For every dropped msgid, `git grep -n "<msgid text>" -- templates courses` must come back empty; a dropped msgid still used somewhere is a bug. If a new msgid appeared, translate it (clear any `#, fuzzy` pre-fill — both the flag and its wrong msgstr) and list it in the PR description. Then `uv run python manage.py compilemessages -l pl -l en`.
 
 Two i18n tests list dropped msgids as parameters and go RED — rewrite (the msgid no longer exists, so the parameter is removed; the remaining parameters stay):
 
@@ -1892,7 +1896,7 @@ Run the non-e2e suite in ~4 chunks (one run at a time), then the e2e suite in ch
 
 ```bash
 git fetch origin && git rebase origin/master
-uv run python manage.py makemessages -l pl --no-obsolete && uv run python manage.py compilemessages -l pl
+uv run python manage.py makemessages -l pl -l en --no-obsolete && uv run python manage.py compilemessages -l pl -l en
 ```
 
 Regenerate the `.mo` rather than resolving a binary conflict. If `git status` then shows `locale/` changes, commit them (`git add locale && git commit -m "i18n: regenerate catalog after rebase"`). Re-run the four `tests/test_quiz_reveal_pr3_*.py` / `tests/test_e2e_quiz_reveal_pr3.py` files after the rebase.
