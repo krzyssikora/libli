@@ -31,8 +31,8 @@ one element (the verdict) rather than matching the wrapper too.{% endcomment %}
         {% if outcome == "partial" %}<span class="question__glyph" aria-hidden="true">◐</span>{% trans "Partly correct" %}{% else %}<span class="question__glyph" aria-hidden="true">✗</span>{% trans "Incorrect" %}{% endif %}
         <span class="question__marks"> · {{ earned|marks }} / {{ possible|marks }}</span>{% if attempts_left %} · {% blocktrans count n=attempts_left %}{{ n }} attempt left{% plural %}{{ n }} attempts left{% endblocktrans %}{% endif %}{% if revealed %} · {% trans "answer shown" %}{% endif %}
       </div>
-      {% comment %}The list renders ONLY for unconverted types once locked: reveal_template
-      is None while attempts remain, and always None for SUPPORTS_REVEAL / inline types.{% endcomment %}
+      {% comment %}Only a type with no in-place view has a list here (extended response's
+      keyword block, courses.quiz.reveal_list_template), and only once locked.{% endcomment %}
       {% if reveal_template %}{% include reveal_template %}{% endif %}
       {% if locked and el.explanation %}<div class="question__explanation">{{ el.explanation|safe }}</div>{% endif %}
     </div>

@@ -387,11 +387,8 @@ def test_fillblank_key_copy_keeps_latex_backslashes(db):
 
 
 @pytest.mark.django_db
-def test_numeric_key_copy_tolerance_matches_old_reveal_in_pl(db):
-    from django.template.loader import render_to_string
+def test_numeric_key_copy_tolerance_unfiltered_in_pl(db):
     from django.utils import translation
-
-    from courses.marking import MarkResult
 
     unit = make_quiz_unit()
     q = ShortNumericQuestionElement.objects.create(
@@ -408,22 +405,12 @@ def test_numeric_key_copy_tolerance_matches_old_reveal_in_pl(db):
             key_values="3.5",
             locked=True,
         )
-        old = render_to_string(
-            "courses/elements/_reveal_shortnumeric.html",
-            {
-                "mark_result": MarkResult(
-                    correct=False,
-                    fraction=0.0,
-                    reveal={"value": "3.5", "tolerance": "0.25"},
-                )
-            },
-        )
     key = html.split("data-answer-key")[1].split("data-answer-switch")[0]
     assert 'value="3.5"' in key
-    # Same tolerance text in both renders (no localisation drift, e.g. 0,25).
-    old_tol = re.search(r"± (\S+?)\s*</p>", old).group(1)
-    new_tol = re.search(r"± (\S+?)(\s|<|$)", key).group(1)
-    assert old_tol == new_tol == "0.25"
+    # PR 3 (spec 2026-09-25 §2.2): replaces the old _reveal_shortnumeric.html
+    # comparison -- the key copy's tolerance text is "0.25", unfiltered by pl.
+    tol = re.search(r"± (\S+?)(\s|<|$)", key).group(1)
+    assert tol == "0.25"
 
 
 @pytest.mark.django_db

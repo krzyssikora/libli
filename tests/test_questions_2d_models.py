@@ -16,7 +16,10 @@ def test_dragfill_expected_tokens_in_order():
     q.refresh_from_db()
     assert "￿0￿" in q.stem and "￿1￿" in q.stem
     assert q.expected_tokens() == ["Paris", "Madrid"]
-    assert q.REVEAL_TEMPLATE == "courses/elements/_reveal_dragfill.html"
+    # PR 3 (spec 2026-09-25 §8): replaces the old REVEAL_TEMPLATE string -- the
+    # in-place view replaced the list (test_only_extended_response_keeps_an_
+    # answer_list is the registry guard).
+    assert q.REVEAL_TEMPLATE is None
 
 
 @pytest.mark.django_db
@@ -26,4 +29,7 @@ def test_matchpair_expected_tokens_are_right_in_order():
     MatchPair.objects.create(question=q, left="Spain", right="Madrid")
     assert q.expected_tokens() == ["Paris", "Madrid"]
     assert [p.left for p in q.pairs.all()] == ["France", "Spain"]
-    assert q.REVEAL_TEMPLATE == "courses/elements/_reveal_matchpair.html"
+    # PR 3 (spec 2026-09-25 §8): replaces the old REVEAL_TEMPLATE string -- the
+    # in-place view replaced the list (test_only_extended_response_keeps_an_
+    # answer_list is the registry guard).
+    assert q.REVEAL_TEMPLATE is None

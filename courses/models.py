@@ -2286,7 +2286,8 @@ class QuestionElement(ElementBase):
         self.explanation = normalize_body(self.explanation)
         super().save(*args, **kwargs)
 
-    REVEAL_TEMPLATE = None  # each concrete type sets its per-type reveal include
+    # The answer list of a type with no in-place view (only extended response).
+    REVEAL_TEMPLATE = None
 
     def render(
         self,
@@ -2425,10 +2426,8 @@ class ChoiceQuestionElement(QuestionElement):
 
     RESTORABLE_IN_LESSON = True
 
-    # A locked quiz marks its OPTIONS LIST inline (see choice_marks), so the bottom
-    # reveal list would echo the same answer key twice — and echo it detached from the
-    # options. The lesson path already suppresses it via render()'s reveal_template
-    # override below; this is the quiz half of the same rule.
+    # A locked quiz marks its OPTIONS LIST inline (see choice_marks) -- its
+    # in-place view (courses.quiz.reveal_list_template).
     INLINE_QUIZ_REVEAL = True
     INLINE_LESSON_FEEDBACK = True
 
@@ -2439,8 +2438,6 @@ class ChoiceQuestionElement(QuestionElement):
 
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_choice.html"
 
     def correct_ids(self):
         return frozenset(
@@ -2626,11 +2623,8 @@ class ChoiceQuestionElement(QuestionElement):
                 "can_reveal": can_reveal,
                 "reveal_earned": reveal_earned,
                 "revealed": revealed,
-                # Lesson: per-option feedback renders INLINE in the choices list, so
-                # the bottom reveal list is suppressed (this override only — the base
-                # QuestionElement.render must keep REVEAL_TEMPLATE for other types'
-                # no-JS path).
-                "reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,
+                # No answer list: the options are marked in place.
+                "reveal_template": None,
                 "mode": mode,
                 "action_url": action_url,
                 "feedback_partial": feedback_partial,
@@ -2682,8 +2676,6 @@ class ShortTextQuestionElement(QuestionElement):
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_shorttextquestionelement_controls.html"
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
 
     accepted = models.TextField(blank=True)  # newline-delimited accepted answers
     case_sensitive = models.BooleanField(default=False)
@@ -2762,8 +2754,6 @@ class ShortNumericQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_shortnumericquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
-
     value = models.CharField(max_length=64, validators=[validate_numeric_text])
     tolerance = models.CharField(
         max_length=64, blank=True, default="", validators=[validate_tolerance_text]
@@ -2824,8 +2814,6 @@ class FillBlankQuestionElement(QuestionElement):
 
     # Lesson: each blank turns green/red in place; the answer list is quiz-only.
     INLINE_LESSON_FEEDBACK = True
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_fillblankquestionelement_controls.html"
@@ -2894,8 +2882,6 @@ class DragFillBlankQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_dragfillblankquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_dragfill.html"
-
     distractors = models.TextField(blank=True)  # newline-delimited extra (wrong) tokens
     elements = GenericRelation(Element)
 
@@ -2961,8 +2947,6 @@ class MatchPairQuestionElement(QuestionElement):
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_matchpairquestionelement_controls.html"
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_matchpair.html"
 
     distractors = models.TextField(blank=True)  # newline-delimited extra right-items
     elements = GenericRelation(Element)
@@ -3031,7 +3015,6 @@ class ChoiceGridQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_choicegridquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
 
     def delete(self, *args, **kwargs):
@@ -3136,7 +3119,6 @@ class MultiGridQuestionElement(QuestionElement):
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_multigridquestionelement_controls.html"
 
-    REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"
     elements = GenericRelation(Element)
 
     def build_answer(self, post):
@@ -3242,8 +3224,6 @@ class DragToImageQuestionElement(QuestionElement):
 
     SUPPORTS_REVEAL = True
     CONTROLS_TEMPLATE = "courses/elements/_dragtoimagequestionelement_controls.html"
-
-    REVEAL_TEMPLATE = "courses/elements/_reveal_dragimage.html"
 
     media = models.ForeignKey(
         "MediaAsset", on_delete=models.PROTECT, limit_choices_to={"kind": "image"}

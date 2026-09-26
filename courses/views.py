@@ -1853,11 +1853,8 @@ def _results_row(question, response):
             earned = earned_marks(response.fraction, question.max_marks)
             row["earned"] = earned
             row["outcome"] = outcome(earned, question.max_marks)
-        # `reveal` is the correct-answer payload. Mark the STUDENT'S answer when one
-        # exists so the per-blank ✓/✗ in _reveal_fillblank reflects what they entered
-        # (marking an empty answer would show every blank wrong even when correct);
-        # for an unanswered question, mark an empty answer (shows the correct answers,
-        # all blanks ✗ — acceptable, it was not answered).
+        # The student's answer is marked when one exists (analytics' per-part ✓/✗
+        # reads it); an unanswered question marks an empty answer ("reveal all").
         if response is not None and response.latest_answer is not None:
             row["reveal_result"] = question.mark(
                 answer_from_json(question, response.latest_answer)
