@@ -66,7 +66,7 @@
 | `templates/courses/elements/_multigridquestionelement_controls.html` (new) | scroll wrappers + table |
 | `templates/courses/elements/{dragfillblank,matchpair,dragtoimage,choicegrid,multigrid}questionelement.html` | results branch, `data-answer-scope`, `data-answer-yours`, key copy + switch, Show answer button, `data-question-inline`; `data-dnd` off the outer div |
 | `courses/static/courses/js/dnd.js` | `select[data-slot]`, inert UI, verdict class onto slots / targets |
-| `courses/static/courses/js/quiz.js`, `question.js`, `editor.js` | `libliEnhanceDnd(form)` after each form-body swap |
+| `courses/static/courses/js/quiz.js`, `question.js`, `editor.js` | `libliEnhanceDnd(form)` + `libliInitScrollAffordance(form)` (grid `.scroll-x` wrappers) after each form-body swap |
 | `templates/courses/quiz_results.html` | loads dnd.js |
 | `courses/static/courses/css/courses.css` | drag + grid verdict colours |
 | `tests/reveal_pr2_kit.py` (new) | builders + HTML part parsers shared by every PR 2 test |
@@ -1656,7 +1656,7 @@ git commit -m "feat(quiz-reveal): choice grid + multi grid converted (quiz, resu
 
 **Interfaces:**
 - Consumes: Tasks 3–4 markup: one `[data-dnd]` root per copy inside the form / results scope; key-copy selects nameless, `disabled`, with `data-slot`; the student's locked controls disabled through their fieldset; painted selects / rows carry `is-correct` / `is-incorrect`.
-- Produces: `window.libliEnhanceDnd(root)` (unchanged name) builds, per root: live chips + targets when the root's selects are enabled; an **inert** display-only UI when any of them matches `:disabled` or the root sits inside `[data-answer-key]`; slots / overlay targets copy their select's verdict class.
+- Produces: `window.libliEnhanceDnd(root)` (unchanged name) builds, per root: live chips + targets when the root's selects are enabled; an **inert** display-only UI when any of them matches `:disabled` or the root sits inside `[data-answer-key]`; slots / overlay targets copy their select's verdict class. quiz.js / question.js / editor.js (try-it) call `libliEnhanceDnd` and `libliInitScrollAffordance` on the swapped form.
 
 - [ ] **Step 1: Write the failing e2e tests**
 
@@ -1816,6 +1816,17 @@ def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
     key_targets.nth(1).click(force=True)
     _drop(key_targets.nth(1), "alphakey")
     assert _select_values(q, "[data-answer-key]") == key_before == ["alphakey", "betakey"]
+    # Spec §2.2: a locked "Your answer" on RESUME is inert too -- no script froze it,
+    # only the server's disabled fieldset does.
+    page.reload()
+    if kind == "dragimage":
+        _size_stages(page)
+    q = page.locator("[data-question]").first
+    before = _select_values(q, "[data-answer-yours]")
+    live = q.locator("[data-answer-yours] .dnd__slot, [data-answer-yours] .dragimage__target").nth(0)
+    live.click(force=True)
+    _drop(live)
+    assert _select_values(q, "[data-answer-yours]") == before
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2204,6 +2215,7 @@ In BOTH help files, append one paragraph at the end of each of these five sectio
 - EN, match pairs: "In a **lesson**, checking an answer turns each pair green (right) or red (wrong) in place; the correct answers are not shown."
 - EN, both grids: "In a **lesson**, checking an answer turns each row green (right) or red (wrong) in place; the correct answers are not shown."
 - PL, luki: "W **lekcji** po sprawdzeniu odpowiedzi każda luka zmienia kolor na zielony (dobrze) lub czerwony (źle); poprawne odpowiedzi nie są pokazywane." (obraz: "każde pole", pary: "każda para", siatki: "każdy wiersz")
+- Every paragraph above then ends with fill in the blanks' authoring tip (D11: "an author can add a spoiler"), verbatim from its master paragraph — EN: "If you want students to be able to look them up, put them in a Spoiler under the question."; PL: "Jeśli uczniowie mają móc je podejrzeć, umieść je w elemencie Rozwijana treść pod pytaniem."
 
 The quiz behaviour needs no per-type text: PR 1's type-agnostic "In a **quiz**, …" paragraph above the first question section already covers it (spec §8). Flag the Polish help text for the owner's review in the PR description.
 
@@ -2239,6 +2251,7 @@ git commit -m "docs(quiz-reveal): lesson in-place feedback for drag, match, imag
 | `quiz.js`: drop the `libliInitScrollAffordance(form)` call | `test_grid_lock_keeps_the_students_pick_and_paints_rows` |
 | `dnd.js`: drop the overlay target's `.sr-only` clone | `test_drag_quiz_check_reveal_inert_copies[dragimage]` |
 | COMBINED: `quiz.js` calls `window.libliEnhanceDnd()` (whole document) AND `enhance()` loses its `dndReady` guard | `test_check_on_one_drag_question_leaves_the_other_alone` (the second question's chips double); either change alone is masked by the other |
+| `courses.css`: drop the drag + grid verdict colour block | `test_drag_quiz_check_reveal_inert_copies` (computed background), `test_grid_lock_keeps_the_students_pick_and_paints_rows` |
 | `courses.css`: drop the new `.question__stem > [data-dnd] > …` prose-rhythm branch | `test_multi_paragraph_drag_stem_keeps_its_spacing_in_both_copies` |
 | `dragfillblankquestionelement.html`: drop `style="margin:0;"` from the key-copy wrapper (both occurrences) | `test_results_page_drag_ui_is_inert` (the switch moves on toggle); if it survives, fix that test before recording the mutant |
 | `quiz_results.html`: drop the dnd.js script | `test_results_page_drag_ui_is_inert` |
