@@ -37,8 +37,9 @@ def test_courses_css_defines_choicegrid_student_surface():
     assert "accent-color: var(--primary)" in css
     assert ".choicegrid tbody td:has(input:checked)" in css
     assert "var(--primary-subtle)" in css
-    # Reveal reuses the shared answer verdict vocabulary, scoped to the grid.
-    assert ".question__reveal--grid" in css
+    # Verdicts paint the row's statement cell (quiz answer reveal PR 2, P1).
+    # Replaces `.question__reveal--grid`: that results list was deleted in PR 3.
+    assert ".choicegrid tbody tr.is-incorrect td.choicegrid__stmt" in css
 
 
 def test_editor_css_defines_choicegrid_editor_surface():
