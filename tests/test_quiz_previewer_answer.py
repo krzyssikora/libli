@@ -132,6 +132,12 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     assert "is-incorrect" in body
     assert "Correct token:" not in body
     assert "question__reveal" not in body
+    # PR 2 (spec 2026-09-25 §2.1, §7): replaces relying on the two list markers
+    # above alone -- the "Correct token:" list is gone for every path, so they can
+    # no longer fail. Before the lock the key copy must not render, and the wrong
+    # gap's select must not show the key token selected.
+    assert "data-answer-key" not in body
+    assert 'value="Paris" selected' not in body
     _assert_nothing_persisted()
 
 
