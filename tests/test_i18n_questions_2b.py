@@ -11,7 +11,6 @@ from django.utils import translation
         "Accepted answers (one per line)",
         "Correct value",
         "Correct answer:",
-        "Expected:",
         "Enter a number or fraction (e.g. 3.14, 3,14 or 3/2).",
         "That number is too long (at most 64 characters once normalised).",
         "3.14, 3/2 or 1 1/2",

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 03:48+0200\n"
+"POT-Creation-Date: 2026-09-26 17:31+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1215,36 +1215,36 @@ msgstr "Nieoceniane"
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2466
+#: .\courses\models.py:2479
 msgid "your answer, correct"
 msgstr "twoja odpowiedź, poprawna"
 
-#: .\courses\models.py:2467
+#: .\courses\models.py:2480
 msgid "your answer, incorrect"
 msgstr "twoja odpowiedź, niepoprawna"
 
-#: .\courses\models.py:2468
+#: .\courses\models.py:2481
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:3270
+#: .\courses\models.py:3289
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:3272
+#: .\courses\models.py:3291
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:3277
+#: .\courses\models.py:3296
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:3348
+#: .\courses\models.py:3367
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:3349
+#: .\courses\models.py:3368
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1280,7 +1280,7 @@ msgstr "Twoja odpowiedź"
 #: .\courses\templatetags\courses_extras.py:524
 #: .\courses\templatetags\courses_extras.py:624
 #: .\templates\courses\elements\choicegridquestionelement.html:30
-#: .\templates\courses\elements\choicequestion.html:51
+#: .\templates\courses\elements\choicequestion.html:19
 #: .\templates\courses\elements\dragfillblankquestionelement.html:31
 #: .\templates\courses\elements\dragtoimagequestionelement.html:32
 #: .\templates\courses\elements\fillblankquestionelement.html:44
@@ -2659,15 +2659,15 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1505
+#: .\courses\views.py:1506
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1514
+#: .\courses\views.py:1515
 msgid "Show answer is not available for this question."
 msgstr "Pokazanie odpowiedzi nie jest dostępne dla tego pytania."
 
-#: .\courses\views.py:2025
+#: .\courses\views.py:2040
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -5653,38 +5653,6 @@ msgstr ""
 msgid "Show answer"
 msgstr "Pokaż odpowiedź"
 
-#: .\templates\courses\elements\_reveal_choicegrid.html:11
-#: .\templates\courses\elements\_reveal_fillblank.html:9
-#: .\templates\courses\elements\_reveal_shorttext.html:2
-#: .\templates\courses\manage\analytics_student_quiz.html:136
-msgid "Correct answer:"
-msgstr "Poprawna odpowiedź:"
-
-#: .\templates\courses\elements\_reveal_choicegrid.html:13
-#: .\templates\courses\elements\_reveal_multigrid.html:13
-msgid "you chose"
-msgstr "wybrano"
-
-#: .\templates\courses\elements\_reveal_dragfill.html:9
-msgid "Correct token:"
-msgstr "Poprawny token:"
-
-#: .\templates\courses\elements\_reveal_dragimage.html:10
-msgid "Correct label:"
-msgstr "Poprawna etykieta:"
-
-#: .\templates\courses\elements\_reveal_matchpair.html:10
-msgid "Correct match:"
-msgstr "Poprawne dopasowanie:"
-
-#: .\templates\courses\elements\_reveal_multigrid.html:11
-msgid "Correct answers:"
-msgstr "Poprawne odpowiedzi:"
-
-#: .\templates\courses\elements\_reveal_shortnumeric.html:2
-msgid "Expected:"
-msgstr "Oczekiwano:"
-
 #: .\templates\courses\elements\beforeafterelement.html:13
 msgid "Switch content"
 msgstr "Zmień treść"
@@ -5699,7 +5667,7 @@ msgstr "Przed"
 msgid "After"
 msgstr "Po"
 
-#: .\templates\courses\elements\extendedresponsequestionelement.html:11
+#: .\templates\courses\elements\extendedresponsequestionelement.html:21
 msgid "Submit"
 msgstr "Wyślij"
 
@@ -6508,6 +6476,10 @@ msgstr "wybrana"
 #: .\templates\courses\manage\analytics_student_quiz.html:121
 msgid "Student's answer:"
 msgstr "Odpowiedź ucznia:"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:136
+msgid "Correct answer:"
+msgstr "Poprawna odpowiedź:"
 
 #: .\templates\courses\manage\analytics_student_quiz.html:140
 msgid "(this question no longer has any parts)"

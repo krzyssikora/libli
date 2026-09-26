@@ -30,7 +30,8 @@ Check, and a **Show answer** button appears after the first Check. Pressing it (
 a confirmation) ends the question at the marks the student has, and the student can
 then switch between **Your answer** and **Correct answer** on the question itself.
 The same switch appears when a question locks on its last attempt, and on the results
-page after the quiz is finished.
+page after the quiz is finished. Multiple choice and extended response show the
+answer their own way — see their sections below.
 
 ## {el:choice-single}{el:choice-multi} Single / Multiple choice
 
@@ -53,9 +54,13 @@ This changes what a wrong answer shows, and it differs by unit type:
   correct one they missed) are marked inline and show their feedback text —
   but only those annotated choices; there's no separate list of the correct
   answers.
-- In a **quiz**, the correct answers are always revealed once the student is
-  locked out of further attempts (on the last wrong attempt, or afterwards at
-  results/review) — independently of whether any choice has feedback text.
+- In a **quiz**, every Check marks the options the student ticked with ✓
+  (right) or ✗ (wrong); a correct option they did not tick is not pointed out
+  while they can still try again. Once the question ends — a correct answer,
+  the last attempt, or **Show answer** — the correct options they missed get
+  ＋, and the results page shows the same marks. There is no Your answer /
+  Correct answer switch for this type: the marks on the options are its
+  answer view. Per-option feedback appears once the question has ended.
 
 ## {el:shorttext} Short text
 
@@ -154,6 +159,13 @@ A long free-text answer (essay-length). It can be marked automatically by
 **required** and **forbidden keyword** lists (one per line), or set to
 **Requires review** so a teacher reads and scores it manually afterwards, or
 **Not marked** if you just want to collect responses without scoring them.
+
+In a **quiz**, an auto-marked extended response has **Show answer** too. It
+ends the question and shows the keyword list — which required keywords the
+answer contains and which forbidden ones it uses — instead of a Your answer /
+Correct answer switch. The same list appears when the question ends on its
+last attempt without full marks, and on the results page. In a **lesson**
+nothing changes.
 
 ## Where questions live
 
