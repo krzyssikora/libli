@@ -45,7 +45,7 @@
 | P1 | Choice adds **no `aria-invalid`**: its non-colour cue stays the visible ✓/✗/＋ glyph plus the existing `.sr-only` `MARK_GLYPHS` label on each marked option. | Spec §2.1 "Choice keeps its existing `MARK_GLYPHS` labels"; the glyph is already a non-colour cue. |
 | P2 | Per-option author feedback shows only once the question is locked (unlocked, `mark_result` is `None`, so the template's `c.pk in mark_result.annotated` is False). | A missed correct option's feedback names the key (spec §2.1 no-leak). |
 | P3 | An unlocked choice question with markers uses the inline "`--marked`" row layout (option text then marker); the picked-option tint (`--picked`) stays locked-only. | Unlocked inputs are live, so the native dot still shows the pick; the marker must sit on the option's line, not below it. |
-| P4 | A locked choice whose **stored** answer was fully correct shows ✓ on every pick and **no ＋**, even if a later key edit makes the fresh mark disagree; ＋ appears only when the locked answer is not fully correct. | Spec §2.6 reverse case, applied to choice's parts. |
+| P4 | A locked choice whose **stored** answer was fully correct shows ✓ on every pick and **no ＋**, even if a later key edit makes the fresh mark disagree; ＋ appears only when the locked answer is not fully correct. Per-option author feedback never prints beside a ✓ (it is written for a wrong selection). | Spec §2.6 reverse case, applied to choice's parts. |
 | P5 | Extended response's form carries `data-question-inline` **unconditionally**, like every other converted type. | The editor preview renders lesson markup even in a quiz unit, and the quiz try-it now answers with the whole element; lesson Checks (still fragments for this type) take the scripts' existing no-`<form>` branch. |
 | P6 | One helper, `courses.quiz.reveal_list_template(question)`, returns `REVEAL_TEMPLATE` unless the type has an in-place view (`INLINE_QUIZ_REVEAL` or a `CONTROLS_TEMPLATE`), else `None`. It replaces the `INLINE_QUIZ_REVEAL or SUPPORTS_REVEAL` test in `quiz_feedback_context` and decides the results fragment's keyword block. | Spec §2.1 "`reveal_template = None` iff the type has an in-place view"; the flag test would drop extended response's keyword block the moment it is converted. |
 | P7 | The results-page keyword block follows `_results_row`'s `show_reveal` (not shown on a fully correct row), as the live locked-correct panel already does. | Today's list page and the live panel agree on this; D10 "as it ended". |
@@ -309,10 +309,14 @@ def test_unlocked_render_context_has_no_mark_result(client):
         if template.name == "courses/elements/choicequestion.html":
             seen.append(context.get("mark_result"))
 
+    unit2 = make_quiz_unit(course=unit.course)
+    kit2 = choice()
+    el2 = add_element(unit2, kit2.question)
     template_rendered.connect(grab)
     try:
-        _fetch(client, unit, el, kit.half)
-        _page(client, unit)
+        _fetch(client, unit, el, kit.half)  # fetch Check
+        _page(client, unit)  # resume
+        client.post(_url(unit2, el2), kit2.half)  # no-JS re-render
     finally:
         template_rendered.disconnect(grab)
     assert seen and all(m is None for m in seen)
@@ -401,6 +405,9 @@ def test_stored_correct_then_key_edited_shows_picks_correct_no_missed(client):
     Choice.objects.filter(pk=kit.c.pk).update(is_correct=True)
     page = _page(client, unit)
     assert markers(page) == {"Alphaopt": "correct", "Betaopt": "correct", "Gammaopt": None}
+    # B is now wrong-and-picked, so it is in the fresh `annotated`; its feedback
+    # (written for a wrong pick) must not print beside the ✓ (P4).
+    assert "Betafb" not in page
 
 
 @pytest.mark.django_db
@@ -559,9 +566,12 @@ stacking, which its per-option feedback indent was tuned against.{% endcomment %
       {% endif %}
       {% comment %}Gated on `mk` AND mark_result: an unlocked quiz render has no
       mark_result, so author feedback (which can name a missed correct option) waits
-      for the lock (P2). The quiz used to show this text in the bottom reveal list
-      (question__nudge); that list is gone for this type.{% endcomment %}
-      {% if mk and c.pk in mark_result.annotated %}
+      for the lock (P2). Never beside a ✓: a stored-correct pick painted correct
+      after a key edit (P4) can sit in the fresh `annotated`, and feedback written
+      for a wrong selection must not print next to "correct". The quiz used to show
+      this text in the bottom reveal list (question__nudge); that list is gone for
+      this type.{% endcomment %}
+      {% if mk and mk.kind != "correct" and c.pk in mark_result.annotated %}
         <p class="question__choice-feedback">{{ c.feedback }}</p>
       {% endif %}
     </li>
@@ -744,7 +754,7 @@ def test_results_stored_correct_key_edited_choice_shows_picks_correct(client):
     Choice.objects.filter(pk=kit.c.pk).update(is_correct=True)
     row = _rows(_results(client, unit))[0]
     assert markers(row) == {"Alphaopt": "correct", "Betaopt": "correct", "Gammaopt": None}
-    assert "Correct" in row
+    assert "Correct" in row and "Betafb" not in row  # no wrong-pick feedback by a ✓
 
 
 @pytest.mark.django_db
@@ -1204,9 +1214,10 @@ def reveal_list_template(question):
     return question.REVEAL_TEMPLATE
 ```
 
-In `quiz_feedback_context`, replace
+In `quiz_feedback_context`, replace (starting at the comment line above `ctx.update`, so it is swapped rather than stacked)
 
 ```python
+        # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
         ctx.update(question.feedback_context(result))
         if question.INLINE_QUIZ_REVEAL or question.SUPPORTS_REVEAL:
             # … (the whole comment)
@@ -1305,7 +1316,7 @@ Expected RED only under:
 
 | Test | Old assertion | Rule → rewrite to |
 |---|---|---|
-| `tests/test_quiz_reveal_result_line.py::test_incorrect_unconverted_non_inline_type_gets_new_line_too` | ER fetch: `"data-question-inline" not in body  # the fragment` | (d) → add `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` (the test's subject is the unconverted-type result line); every assertion kept. Add a sibling `test_incorrect_extended_response_whole_element_line` without the monkeypatch: `"<form" in body`, `'name="reveal"' in body`, `is-incorrect`, "0 / 1", "2 attempts left" |
+| `tests/test_quiz_reveal_result_line.py::test_incorrect_unconverted_non_inline_type_gets_new_line_too` | ER fetch: `"data-question-inline" not in body  # the fragment` | (d) → add the `monkeypatch` parameter, `from courses.models import ExtendedResponseQuestionElement` (function-local, next to its factory import) and `monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)` (the test's subject is the unconverted-type result line); every assertion kept. Add a sibling `test_incorrect_extended_response_whole_element_line` without the monkeypatch — same setup (`ExtendedResponseQuestionElementFactory(required_keywords="alpha", max_attempts=3)`, answered with `{"answer": "beta"}`) — asserting: `"<form" in body`, `'name="reveal"' in body`, `is-incorrect`, "0 / 1", "2 attempts left" |
 | `tests/test_questions_2diii_results.py::test_answered_required_keyword_shows_checkmark_on_results` (GREEN, comment stale) | its comment says `quiz_results.html`'s row include wires `answered=row["answered"]` | comment only → the wiring is now `_results_question_feedback.html`'s `{% include reveal_template … answered=row.answered %}`; add the `# PR 3 …` marker; assertions untouched |
 | `tests/test_quiz_reveal_hooks.py::test_unconverted_type_hooks_are_none` (as rewritten in Task 1) | `ExtendedResponseQuestionElement.SUPPORTS_REVEAL is False` | rename to `test_extended_response_hooks_are_none`; assert `SUPPORTS_REVEAL is True`, keep `part_verdicts(...) is None` and `key_answer() is None` (D7) |
 
@@ -1869,7 +1880,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-uv run ruff check --no-cache --fix tests/test_i18n_questions_2b.py tests/test_i18n_questions_2dii.py && uv run ruff format --no-cache tests/test_i18n_questions_2b.py tests/test_i18n_questions_2dii.py
+uv run ruff check --no-cache --fix tests/test_i18n_questions_2b.py tests/test_i18n_questions_2dii.py && uv run ruff format --no-cache tests/test_i18n_questions_2b.py tests/test_i18n_questions_2dii.py && uv run ruff check --no-cache tests/test_i18n_questions_2b.py tests/test_i18n_questions_2dii.py
 git add locale docs/help tests/test_i18n_questions_2b.py tests/test_i18n_questions_2dii.py
 git commit -m "docs(quiz-reveal): multiple choice and extended response in quizzes; drop the deleted lists' msgids"
 ```
