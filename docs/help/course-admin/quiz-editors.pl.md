@@ -69,7 +69,7 @@ dodaj każdy wariant pisowni/sformułowania, który chcesz zaakceptować).
 Włącz opcję **rozróżniaj wielkość liter**, jeśli wielkość liter musi się
 zgadzać dokładnie; domyślnie porównanie ignoruje wielkość liter i skrajne
 białe znaki.
-Na **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast
+W **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast
 pokazywać poprawną odpowiedź; w **quizie** odpowiedź jest dostępna przez
 **Pokaż odpowiedź**.
 
@@ -83,7 +83,7 @@ mieszaną (`1 1/2`) — akceptowana jest każda wartość równa docelowej, wię
 wymagać dopasowania dokładnego**; użyj tego typu dla odpowiedzi
 obliczeniowych, gdy zamiast tego chcesz akceptować niewielkie różnice
 zaokrągleń.
-Na **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast
+W **lekcji** błędna odpowiedź zmienia kolor pola na czerwony zamiast
 pokazywać poprawną odpowiedź; w **quizie** odpowiedź jest dostępna przez
 **Pokaż odpowiedź**.
 
