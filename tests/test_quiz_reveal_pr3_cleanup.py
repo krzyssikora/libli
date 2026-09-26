@@ -69,6 +69,23 @@ def test_only_the_keyword_list_and_the_button_remain_on_disk():
     ]
 
 
+def test_no_stylesheet_styles_the_deleted_lists():
+    # The follow-up to the clean-up (plan P8): no markup emits these classes any
+    # more, so a rule for one is dead weight. Extended response's keyword block and
+    # guide (question__reveal-keywords / -guide) are excluded by _LIST.
+    root = Path(settings.BASE_DIR)
+    dead = re.compile(_LIST.pattern + r"|answer-correct|answer-wrong")
+    sheets = sorted(root.glob("courses/static/**/*.css")) + sorted(
+        root.glob("static/**/*.css")
+    )
+    assert sheets
+    found = {
+        str(p.relative_to(root)): sorted(set(dead.findall(p.read_text("utf-8"))))
+        for p in sheets
+    }
+    assert {k: v for k, v in found.items() if v} == {}
+
+
 def _simple(kind, **kw):
     """(question, wrong POST) for the five non-PR-2 types."""
     kw.setdefault("max_attempts", 1)
