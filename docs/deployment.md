@@ -878,8 +878,10 @@ Three repo secrets, all distinct from libli.pl's:
   Codes are `school-NN`. The code → school mapping lives only in your own notes: nothing
   in the repo, the run logs or the UI names a customer (D4). `domain` is the school's
   **registrable domain**, and every name in the box's `SITE_ADDRESS` and its
-  `DJANGO_SITE_DOMAIN` must contain it — it exists only to be masked in logs. Keep the
-  JSON file outside the repo and set it with
+  `DJANGO_SITE_DOMAIN` must contain it — it exists only to be masked in logs. `host`
+  should be the box's IP address, not a DNS name: ssh's own error messages (e.g.
+  "Connection closed by 203.0.113.10 port 22") print the resolved IP, which only the
+  entry's `host` value masks. Keep the JSON file outside the repo and set it with
   `gh secret set SCHOOL_HOSTS --repo krzyssikora/libli < school_hosts.json`.
 - **`HEALTHCHECKS_SCHOOL_DEPLOY_URL`** — a new healthchecks.io check *libli school
   deploys*, period set to the maximum. School deploys are rare and manual, so the absence
