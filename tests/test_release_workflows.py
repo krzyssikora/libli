@@ -61,8 +61,12 @@ def step_index(step_list, needle):
 
 
 def run_blocks(text):
-    blocks = re.findall(r"run: \|\n((?:\s{10,}.*\n|\s*\n)+)", text)
-    blocks += re.findall(r"run: (?!\|)(.+)", text)
+    """Every run: body, block or one-line. Any block scalar header counts --
+    `|`, `>`, with a chomping (`-`/`+`) or indentation indicator, or a trailing
+    comment -- so no header spelling lets a body escape the guards."""
+    header = r"run:[ \t]+[|>][-+0-9]*[ \t]*(?:#.*)?\n"
+    blocks = re.findall(header + r"((?:\s{10,}.*\n|\s*\n)+)", text)
+    blocks += re.findall(r"run:[ \t]+(?![ \t|>])(.+)", text)
     return blocks
 
 
@@ -160,8 +164,16 @@ def test_the_commit_input_reaches_the_shell_through_env():
 
 
 def test_ssh_box_pins_every_option():
-    """Mutants: drop any option; add accept-new or StrictHostKeyChecking=no."""
+    """Mutants: drop any option; add accept-new or StrictHostKeyChecking=no;
+    change =yes to =off (or =No); add a lax -o before the =yes one (ssh keeps
+    the FIRST value of an option)."""
     text = SSH_BOX.read_text(encoding="utf-8")
+    code = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+    # An allowlist, not a denylist: option names are case-insensitive to ssh,
+    # so count them case-insensitively, and the single use must be =yes.
+    shkc = re.findall(r"stricthostkeychecking", code, re.IGNORECASE)
+    assert len(shkc) == 1, f"StrictHostKeyChecking must occur once, found {len(shkc)}"
+    assert re.search(r"-o StrictHostKeyChecking=yes(?=\s)", code)
     for opt in (
         "BatchMode=yes",
         "ConnectTimeout=15",
@@ -171,7 +183,7 @@ def test_ssh_box_pins_every_option():
         'UserKnownHostsFile="$dir/known_hosts"',
         "IdentitiesOnly=yes",
     ):
-        assert f"-o {opt}" in text, opt
+        assert f"-o {opt}" in code, opt
     assert "accept-new" not in text and "StrictHostKeyChecking=no" not in text
 
 
