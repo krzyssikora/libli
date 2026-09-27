@@ -4,18 +4,24 @@ Textual, like test_deploy_wiring.py: pyyaml is not a dependency, and every
 property here (a key's presence, one step preceding another) survives a regex.
 """
 
+import os
 import re
+import subprocess
+import sys
 
 import pytest
 
+from tests.release_harness import BASH
 from tests.release_harness import ROOT
+from tests.release_harness import posix
+from tests.release_harness import write
 
 CUT = ROOT / ".github/workflows/cut-release.yml"
 DEPLOY_RELEASE = ROOT / ".github/workflows/deploy-release.yml"
 DEPLOY_YML = ROOT / ".github/workflows/deploy.yml"
 SSH_BOX = ROOT / "scripts/release/ssh_box.sh"
 MASTER = "github.ref == 'refs/heads/master'"
-NEW_WORKFLOWS = [CUT]  # Task 12 adds DEPLOY_RELEASE
+NEW_WORKFLOWS = [CUT, DEPLOY_RELEASE]
 
 
 def jobs(text):
@@ -228,3 +234,216 @@ def test_release_shell_scripts_stop_on_the_first_error(name):
     code = [ln for ln in lines[1:] if ln.strip() and not ln.lstrip().startswith("#")]
     real = code[0]
     assert real == "set -euo pipefail", real
+
+
+def _dr():
+    return DEPLOY_RELEASE.read_text(encoding="utf-8")
+
+
+def test_report_runs_always_but_only_on_master():
+    """One expression. Mutants: drop `always()` (report is skipped exactly when
+    plan refused or a leg failed); drop the ref check."""
+    expr = job_if(jobs(_dr())["report"])
+    assert "always()" in expr and MASTER in expr
+
+
+def test_plan_orders_its_checks():
+    s = steps(jobs(_dr())["plan"])
+    assert step_index(s, "Validate the version") == 0
+    checkout = step_index(s, "actions/checkout")
+    assert step_index(s, "release_checks.py tag") == checkout + 1
+    assert (
+        checkout
+        < step_index(s, "canary_guard.py")
+        < step_index(s, "release_checks.py containment")
+    )
+    assert step_index(s, "release_checks.py containment") < step_index(
+        s, "inventory.py plan"
+    )
+
+
+def test_plan_passes_the_tags_run_id_to_the_canary_guard():
+    step = steps(jobs(_dr())["plan"])[
+        step_index(steps(jobs(_dr())["plan"]), "canary_guard.py")
+    ]
+    assert "RUN_ID: ${{ steps.tag.outputs.run_id }}" in step
+    assert '"$SHA" "$RUN_ID"' in step
+
+
+def test_the_deploy_matrix_is_isolated_per_school():
+    joined = "\n".join(jobs(_dr())["deploy"])
+    assert "fail-fast: false" in joined
+    assert "code: ${{ fromJSON(needs.plan.outputs.codes) }}" in joined
+    assert "group: deploy-school-${{ matrix.code }}" in joined
+    assert "cancel-in-progress: false" in joined
+    assert "timeout-minutes: 45" in joined
+
+
+def test_masks_come_before_any_ssh():
+    """Mutant: move the inventory step below pre-flight."""
+    s = steps(jobs(_dr())["deploy"])
+    entry = step_index(s, "inventory.py entry")
+    assert "ssh_box.sh" not in s[entry]
+    assert all(i > entry for i, st in enumerate(s) if "ssh_box.sh" in st)
+
+
+def test_no_step_before_the_mask_carries_the_inventory():
+    """Mutant: put SCHOOL_HOSTS in the checkout step's env: (its values would
+    be in the log before any ::add-mask::)."""
+    s = steps(jobs(_dr())["deploy"])
+    entry = step_index(s, "inventory.py entry")
+    assert not any("SCHOOL_HOSTS" in st for st in s[:entry])
+
+
+def test_plan_and_deploy_call_the_release_scripts_rather_than_inlining_them():
+    """Every run: step except the version check delegates to scripts/release/.
+    Mutant: inline a guard's logic into a run: block."""
+    for job in ("plan", "deploy"):
+        for st in steps(jobs(_dr())[job]):
+            if "run:" in st and "Validate the version" not in st:
+                assert "scripts/release/" in st, st
+
+
+def test_no_value_is_handed_on_through_the_environment_file():
+    """A value in $GITHUB_ENV appears in every later step's env: header,
+    printed before that step's commands -- before any mask. Checked on the
+    whole file, comments included, so comments must not name it either.
+    Mutant: `echo "HOST=..." >> "$GITHUB_ENV"` in any step."""
+    assert "GITHUB_ENV" not in _dr()
+
+
+def test_every_ssh_goes_through_the_pinned_helper():
+    """Mutant: a step calls `ssh -o StrictHostKeyChecking=accept-new root@...`
+    directly (or reads now_on with plain ssh)."""
+    text = _dr()
+    assert "accept-new" not in text and "StrictHostKeyChecking=no" not in text
+    for block in run_blocks(text):
+        stripped = block.replace("scripts/release/ssh_box.sh", "")
+        assert not re.search(r"(?<![\w/.-])ssh\s", stripped), block
+
+
+def test_the_box_env_file_never_leaves_the_box():
+    """Whole file, comments included.
+    Mutant: `scp root@...:/opt/libli/.env.production .`"""
+    text = _dr()
+    assert "scp" not in text and ".env.production" not in text
+    assert "< scripts/release/preflight.sh" in text
+
+
+def test_the_deploy_leg_runs_the_guard_and_the_detached_bootstrap():
+    s = steps(jobs(_dr())["deploy"])
+    guard = step_index(s, "migration_guard.sh")
+    deploy = step_index(s, "remote_deploy.sh")
+    assert step_index(s, "preflight.sh") < guard < deploy
+    assert "id: deploy" in s[deploy]
+
+
+def test_the_outcome_is_always_recorded_and_uploaded():
+    s = steps(jobs(_dr())["deploy"])
+    rec = s[step_index(s, "report.py outcome")]
+    assert "if: always()" in rec
+    assert "DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}" in rec
+    assert (
+        'if [ "$MASKED" = success ]' in rec
+        and "MASKED: ${{ steps.entry.outcome }}" in rec
+    )
+    up = s[step_index(s, "actions/upload-artifact")]
+    assert "if: always()" in up and "overwrite: true" in up
+    assert "name: outcome-${{ matrix.code }}" in up
+
+
+def test_report_tolerates_zero_artifacts():
+    s = steps(jobs(_dr())["report"])
+    assert "continue-on-error: true" in s[step_index(s, "actions/download-artifact")]
+
+
+def test_job_permissions_are_least_privilege():
+    j = jobs(_dr())
+    assert "      contents: read\n      actions: read" in "\n".join(j["plan"])
+    deploy = "\n".join(j["deploy"])
+    assert "      contents: read" in deploy and "actions:" not in deploy
+    assert "      contents: read\n      actions: read" in "\n".join(j["report"])
+
+
+def test_libli_and_schools_never_share_secrets():
+    """Mutant: aim either workflow at the other's host or key."""
+    school = ("SCHOOL_HOSTS", "SCHOOLS_SSH_KEY", "HEALTHCHECKS_SCHOOL_DEPLOY_URL")
+    assert not any(s in DEPLOY_YML.read_text(encoding="utf-8") for s in school)
+    assert not re.search(r"secrets\.SSH_(HOST|KEY)\b", _dr())
+
+
+def _report_script(tmp_path):
+    s = steps(jobs(_dr())["report"])
+    step = s[step_index(s, "report.py summarise")]
+    body = step.split("run: |\n", 1)[1]
+    lines = [
+        ln[10:] if ln.startswith(" " * 10) else ln.strip() for ln in body.splitlines()
+    ]
+    return "\n".join(lines).replace(
+        "scripts/release/report.py", posix(ROOT / "scripts/release/report.py")
+    )
+
+
+@pytest.mark.skipif(BASH is None, reason="bash not on PATH")
+@pytest.mark.parametrize(
+    "plan_result,codes,hc_url,expect_ping",
+    [
+        ("failure", "", "https://hc.example/u", "https://hc.example/u/fail"),
+        (
+            "success",
+            '["school-01"]',
+            "https://hc.example/u",
+            "https://hc.example/u/fail",
+        ),
+        ("failure", "", "", None),
+        ("success", '["school-01"]', "https://hc.example/u", "https://hc.example/u"),
+    ],
+)
+def test_the_report_shell_pings_fail_on_a_refusal(
+    tmp_path, plan_result, codes, hc_url, expect_ping
+):
+    """A plan refusal (no matrix, no artifacts) must still produce a summary
+    row and a /fail ping; no artifact for a planned code is a /fail; an unset
+    secret pings nothing and does not fail; and a fully green run pings the
+    PLAIN url (the last row writes a this-attempt ✅ artifact).
+    Mutant: hard-code `endpoint="$HC_URL/fail"` -- the check could then never
+    recover from its first failure."""
+    summary = tmp_path / "summary.md"
+    write(summary, "")
+    if expect_ping == "https://hc.example/u":
+        write(
+            tmp_path / "outcomes/outcome-school-01.json",
+            '{"code": "school-01", "run_attempt": 1, "from": "sha-a", '
+            '"to": "v1.1.0", "result": "success", "now_on": "sha-b"}',
+        )
+    calls = tmp_path / "curl"
+    write(calls, "")
+    prelude = (
+        f'python3() {{ "{posix(sys.executable)}" "$@"; }}\n'
+        f'curl() {{ echo "$@" >> "{posix(calls)}"; return 7; }}\n'
+    )
+    env = dict(
+        os.environ,
+        PLAN_RESULT=plan_result,
+        CODES=codes,
+        RUN_ATTEMPT="1",
+        HC_URL=hc_url,
+        RUN_URL="https://run/1",
+        GITHUB_STEP_SUMMARY=str(summary),
+    )
+    result = subprocess.run(  # noqa: S603 -- fixed argv, generated script
+        [BASH, "-e", "-c", prelude + _report_script(tmp_path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    if expect_ping:
+        assert calls.read_text().strip().endswith(expect_ping)
+        if not expect_ping.endswith("/fail"):
+            assert "/fail" not in calls.read_text()
+    else:
+        assert calls.read_text().strip() == ""
+    if plan_result == "failure":
+        assert "plan refused" in summary.read_text(encoding="utf-8")

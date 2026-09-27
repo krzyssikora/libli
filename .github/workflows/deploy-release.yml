@@ -1,0 +1,209 @@
+name: deploy-release
+
+# B2: deploy a release tag to one school box, or all of them
+# (docs/superpowers/specs/2026-09-27-b2-release-deploys-design.md §2; runbook
+# docs/deployment.md §9). The ONLY way a school changes version (D1);
+# rollback is this button with an older version.
+#
+# Master-only: workflow_dispatch can run this file from any branch, and the
+# guard scripts come from that branch's checkout. Nothing here names a school:
+# boxes are opaque codes (D4), and every host and domain is masked before any
+# command could print it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      school:
+        description: "School code (school-NN), or all"
+        required: true
+      version:
+        description: "Release tag, vX.Y.Z"
+        required: true
+
+permissions: {}
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      codes: ${{ steps.inventory.outputs.codes }}
+      target_sha: ${{ steps.tag.outputs.target_sha }}
+    steps:
+      # Before anything uses the value: it is later spliced into a root shell.
+      - name: Validate the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "refuse: version must be vX.Y.Z" >&2
+            echo "**refuse: version must be vX.Y.Z**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Inspect the release tag
+        id: tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python3 scripts/release/release_checks.py tag "$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Canary guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.tag.outputs.target_sha }}
+          RUN_ID: ${{ steps.tag.outputs.run_id }}
+        run: python3 scripts/release/canary_guard.py "$SHA" "$RUN_ID"
+
+      - name: B2 containment
+        env:
+          SHA: ${{ steps.tag.outputs.target_sha }}
+        run: python3 scripts/release/release_checks.py containment "$SHA"
+
+      - name: Resolve the schools
+        id: inventory
+        env:
+          SCHOOL_HOSTS: ${{ secrets.SCHOOL_HOSTS }}
+          SCHOOL: ${{ inputs.school }}
+        run: python3 scripts/release/inventory.py plan "$SCHOOL" --output "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: plan
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    # deploy.yml's command_timeout (30m) plus headroom for pre-flight retries
+    # and deploy.sh waiting on the lock behind a running backup. A timed-out leg
+    # is NOT proof of a failed deploy: the run is detached on the box.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        code: ${{ fromJSON(needs.plan.outputs.codes) }}
+    # A deploy interrupted mid-migrate is worse than one that finishes late.
+    concurrency:
+      group: deploy-school-${{ matrix.code }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Read AND mask in one step: a value handed to a later step via the
+      # workflow's environment file would be printed in that step's env:
+      # header before any mask. (Tests forbid the file's variable name here.)
+      - name: Read and mask the inventory entry
+        id: entry
+        env:
+          SCHOOL_HOSTS: ${{ secrets.SCHOOL_HOSTS }}
+          SCHOOLS_SSH_KEY: ${{ secrets.SCHOOLS_SSH_KEY }}
+          CODE: ${{ matrix.code }}
+        run: |
+          python3 scripts/release/inventory.py entry "$CODE" --dir "$RUNNER_TEMP/box"
+          printf '%s\n' "$SCHOOLS_SSH_KEY" > "$RUNNER_TEMP/box/key"
+          chmod 600 "$RUNNER_TEMP/box/key"
+
+      # The box's env file is parsed ON THE BOX; only validated values come back.
+      - name: Pre-flight
+        id: preflight
+        env:
+          VERSION: ${{ inputs.version }}
+          TARGET_SHA: ${{ needs.plan.outputs.target_sha }}
+        run: |
+          if ! out="$(bash scripts/release/ssh_box.sh "$RUNNER_TEMP/box" bash -s -- "$VERSION" "$TARGET_SHA" < scripts/release/preflight.sh)"; then
+            printf '%s\n' "$out" >&2
+            exit 1
+          fi
+          image_tag="$(printf '%s\n' "$out" | sed -n 's/^image_tag=//p')"
+          echo "from=$image_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Migration guard
+        env:
+          FROM: ${{ steps.preflight.outputs.from }}
+          TARGET_SHA: ${{ needs.plan.outputs.target_sha }}
+        run: bash scripts/release/migration_guard.sh "${FROM#sha-}" "$TARGET_SHA"
+
+      - name: Deploy
+        id: deploy
+        env:
+          VERSION: ${{ inputs.version }}
+          TARGET_SHA: ${{ needs.plan.outputs.target_sha }}
+        run: bash scripts/release/ssh_box.sh "$RUNNER_TEMP/box" bash -s -- "$VERSION" "$TARGET_SHA" < scripts/release/remote_deploy.sh
+
+      - name: Record the outcome
+        if: always()
+        env:
+          CODE: ${{ matrix.code }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          FROM: ${{ steps.preflight.outputs.from }}
+          VERSION: ${{ inputs.version }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          MASKED: ${{ steps.entry.outcome }}
+        run: |
+          now_on=unknown
+          # Never connect before the mask exists: a connection error prints the host.
+          if [ "$MASKED" = success ]; then
+            if out="$(bash scripts/release/ssh_box.sh "$RUNNER_TEMP/box" bash -s -- --read-only < scripts/release/preflight.sh)"; then
+              now_on="${out#image_tag=}"
+            fi
+          fi
+          python3 scripts/release/report.py outcome --code "$CODE" --attempt "$RUN_ATTEMPT" \
+            --from "${FROM:-unknown}" --to "$VERSION" --deploy-outcome "$DEPLOY_OUTCOME" \
+            --now-on "$now_on" > "outcome-$CODE.json"
+
+      - name: Upload the outcome
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: outcome-${{ matrix.code }}
+          path: outcome-${{ matrix.code }}.json
+          overwrite: true
+
+  report:
+    needs: [plan, deploy]
+    # One expression: the ref check alone reintroduces the implicit success()
+    # and would skip this job exactly when plan refused or a leg failed.
+    if: always() && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Zero artifacts (a plan refusal, every leg dead early) must not fail
+      # the job: those are the runs whose /fail ping matters most.
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: outcome-*
+          path: outcomes
+          merge-multiple: true
+
+      - name: Summarise and report
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          CODES: ${{ needs.plan.outputs.codes }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HC_URL: ${{ secrets.HEALTHCHECKS_SCHOOL_DEPLOY_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          verdict="$(python3 scripts/release/report.py summarise --plan-result "$PLAN_RESULT" --codes "$CODES" --attempt "$RUN_ATTEMPT" --dir outcomes --summary "$GITHUB_STEP_SUMMARY")"
+          echo "verdict: $verdict"
+          if [ -z "$HC_URL" ]; then
+            echo "HEALTHCHECKS_SCHOOL_DEPLOY_URL is unset; not reporting this run"
+            exit 0
+          fi
+          endpoint="$HC_URL"
+          if [ "$verdict" != success ]; then
+            endpoint="$HC_URL/fail"
+          fi
+          curl -fsS -m 10 --retry 3 -o /dev/null --data-raw "$RUN_URL" "$endpoint" \
+            || echo "healthchecks ping failed; the check's own period is the backstop"
