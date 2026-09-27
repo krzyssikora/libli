@@ -171,7 +171,7 @@ def test_deploy_script_waits_for_health():
     Mutant: drop `--wait` from the `compose up` line.
     """
     text = DEPLOY_SH.read_text(encoding="utf-8")
-    match = re.search(r"^compose up .*$", text, re.MULTILINE)
+    match = re.search(r"^\s*compose up .*$", text, re.MULTILINE)
     assert match, "deploy.sh no longer brings the stack up"
     assert "--wait" in match.group(0), match.group(0)
     # `--build` was removed when the box switched to pulling a published image;
@@ -324,14 +324,15 @@ def test_deploy_script_retries_a_fetch_that_fails(tmp_path):
     then dies on "could not read Username" because there is no tty. Nothing is
     wrong with the checkout -- in #296 the fetch 440 ms earlier had SUCCEEDED.
 
-    Mutant: drop the loop and call `git fetch origin master` once. The stub fails
-    twice, so a single attempt returns 128 and the function reports failure.
+    Mutant: drop the loop in `git_fetch_retry` and call `git fetch origin` once.
+    The stub fails twice, so a single attempt returns 128 and the function
+    reports failure.
     """
     calls = tmp_path / "calls"
     calls.write_text("")
     result = _run_bash(
         f"set -euo pipefail\n{_harness(calls, 2)}\n{_sh_settings()}\n"
-        f"{_sh_function('fetch_master')}\nfetch_master"
+        f"{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\nfetch_master"
     )
     assert result.returncode == 0, result.stderr
     assert calls.read_text().count("fetch") == 3, calls.read_text()
@@ -350,7 +351,7 @@ def test_deploy_script_gives_up_rather_than_retrying_forever(tmp_path):
     calls.write_text("")
     result = _run_bash(
         f"set -uo pipefail\n{_harness(calls, 99)}\n{_sh_settings()}\n"
-        f"{_sh_function('fetch_master')}\nfetch_master"
+        f"{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\nfetch_master"
     )
     assert result.returncode != 0, "an exhausted retry must fail the deploy"
     attempts = calls.read_text().count("fetch")
@@ -371,7 +372,7 @@ def test_deploy_script_skips_its_own_fetch_when_ci_already_fetched(tmp_path):
     calls.write_text("")
     result = _run_bash(
         f"set -euo pipefail\n{_harness(calls, 0)}\n"
-        f"{_sh_settings()}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
+        f"{_sh_settings()}\n{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
         "LIBLI_DEPLOY_SKIP_FETCH=1 sync_working_tree"
     )
     assert result.returncode == 0, result.stderr
@@ -383,9 +384,10 @@ def test_deploy_script_skips_its_own_fetch_when_ci_already_fetched(tmp_path):
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
 def test_deploy_script_still_fetches_when_run_by_hand(tmp_path):
-    """The rollback path in docs/deployment.md is `bash deploy.sh` on the box,
-    with no CI to have fetched first. Skipping the fetch there would silently
-    deploy whatever origin/master pointed at last time.
+    """A by-hand `bash deploy.sh` on the box (the §8 rollback is now
+    `LIBLI_DEPLOY_REF=<sha> bash deploy.sh`), with no CI to have fetched first.
+    Skipping the fetch there would silently deploy whatever origin/master
+    pointed at last time.
 
     Mutant: skip the fetch unconditionally, or default the guard the other way.
     """
@@ -393,7 +395,7 @@ def test_deploy_script_still_fetches_when_run_by_hand(tmp_path):
     calls.write_text("")
     result = _run_bash(
         f"set -euo pipefail\n{_harness(calls, 0)}\n"
-        f"{_sh_settings()}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
+        f"{_sh_settings()}\n{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
         "sync_working_tree"
     )
     assert result.returncode == 0, result.stderr
