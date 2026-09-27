@@ -306,12 +306,17 @@ def _deploy_yml_script():
     return "\n".join(out)
 
 
-def _yml_script_for(tmp_path, stub):
-    """deploy.yml's script with the host paths pointed at tmp_path. The retry
-    loop itself runs exactly as shipped."""
+FAKE_RUN_SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+def _yml_script_for(tmp_path, stub, run_sha=FAKE_RUN_SHA):
+    """deploy.yml's script with the host paths pointed at tmp_path and the
+    `${{ github.sha }}` expression Actions would substitute replaced by
+    `run_sha`. The retry loop itself runs exactly as shipped."""
     app = _app_dir()
     return (
         _deploy_yml_script()
+        .replace("${{ github.sha }}", run_sha)
         .replace(f"bash {app}/deploy.sh", f'bash "{str(stub).replace(chr(92), "/")}"')
         .replace(f"cd {app}", f'cd "{str(tmp_path).replace(chr(92), "/")}"')
     )
@@ -639,3 +644,54 @@ def test_no_workflow_expression_survives_into_the_ping_script():
     Mutant: inline ${{ secrets.HEALTHCHECKS_DEPLOY_URL }} at the curl call.
     """
     assert "${{" not in _ping_script(), _ping_script()
+
+
+# ---- D9: a run deploys only its own commit --------------------------------
+
+
+def test_d9_the_runs_own_sha_is_exported_inside_the_remote_script():
+    """appleboy/ssh-action passes a step's env: to the remote only when it is
+    also listed in `envs:`, so the value must be exported INSIDE `script:`.
+    Without it deploy.sh sees nothing, D9 is silently off, and the canary
+    guard reads a green deploy job for X that actually deployed Y.
+
+    Mutants: delete the export line; move the value to the step's `env:` only.
+    """
+    script = _deploy_yml_script()
+    export = re.search(
+        r"^export LIBLI_DEPLOY_EXPECT_SHA='\$\{\{ github\.sha \}\}'$",
+        script,
+        re.MULTILINE,
+    )
+    invoke = re.search(r"^\s*(?:\S+=\S+ )?bash \S+/deploy\.sh$", script, re.MULTILINE)
+    assert export, "deploy.yml's script no longer exports LIBLI_DEPLOY_EXPECT_SHA"
+    assert invoke and export.start() < invoke.start()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+@pytest.mark.parametrize("bad", ["", "abc", "g" * 40, "0" * 39])
+def test_d9_a_missing_or_malformed_sha_fails_closed(tmp_path, bad):
+    """Mutant: delete the fail-closed check -- deploy.sh would then run with
+    an empty value, treat it as unset, and deploy whatever master is."""
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    marker = tmp_path / "deployed"
+    stub = tmp_path / "stub-deploy.sh"
+    stub.write_bytes(f'touch "{str(marker).replace(chr(92), "/")}"\n'.encode())
+    result = _run_bash(f"{_harness(calls, 0)}\n{_yml_script_for(tmp_path, stub, bad)}")
+    assert result.returncode != 0
+    assert not marker.exists(), "deployed with no verified sha"
+
+
+def test_d9_the_deploy_job_keeps_its_bare_id_as_its_name():
+    """The canary guard finds the job named `deploy` in the jobs API, which
+    reports the display name -- the job id only while the job has no `name:`.
+    Mutant: add `name: Deploy` to the deploy job."""
+    lines = DEPLOY_YML.read_text(encoding="utf-8").splitlines()
+    start = lines.index("  deploy:")
+    block = []
+    for ln in lines[start + 1 :]:
+        if ln.startswith("  ") and not ln.startswith("   ") and ln.strip():
+            break
+        block.append(ln)
+    assert not [ln for ln in block if re.match(r"^    name:", ln)], block
