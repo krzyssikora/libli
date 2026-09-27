@@ -20,6 +20,7 @@ def entry(host="203.0.113.10", domain="szkola.pl", host_key=KEY):
 def _run(raw, *args):
     env = dict(os.environ)
     env["SCHOOL_HOSTS"] = raw
+    env.pop("GITHUB_STEP_SUMMARY", None)
     return subprocess.run(  # noqa: S603 -- fixed argv
         [sys.executable, str(INV), *args], capture_output=True, text=True, env=env
     )

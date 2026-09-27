@@ -1,5 +1,6 @@
 """scripts/release/release_checks.py -- version, tag and B2-containment checks."""
 
+import os
 import subprocess
 import sys
 
@@ -15,8 +16,14 @@ CHECKS = ROOT / "scripts/release/release_checks.py"
 
 
 def _run(repo, *args):
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)
     return subprocess.run(  # noqa: S603 -- fixed argv
-        [sys.executable, str(CHECKS), *args], cwd=repo, capture_output=True, text=True
+        [sys.executable, str(CHECKS), *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
     )
 
 

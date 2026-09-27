@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 
@@ -70,6 +71,12 @@ def test_an_earlier_attempts_green_is_marked_and_does_not_count():
     )
 
 
+def _env():
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    return env
+
+
 def test_summarise_cli_tolerates_a_missing_outcomes_directory(tmp_path):
     summary = tmp_path / "summary.md"
     write(summary, "")
@@ -91,6 +98,7 @@ def test_summarise_cli_tolerates_a_missing_outcomes_directory(tmp_path):
         ],
         capture_output=True,
         text=True,
+        env=_env(),
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "fail"
@@ -120,6 +128,7 @@ def test_summarise_cli_reads_the_artifacts(tmp_path):
         ],
         capture_output=True,
         text=True,
+        env=_env(),
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "success"
