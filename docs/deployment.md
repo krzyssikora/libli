@@ -985,8 +985,8 @@ guard (both the current and the target copy) but **not** the canary guard. Plain
 
 ### Going private
 
-1. libli.pl gets its read-only deploy key and fetches over SSH (§8 *Fetching over SSH*)
-   **before** the flip — or its first deploy after it fails at the fetch.
+1. libli.pl already fetches over SSH with its read-only deploy key (§8 *Fetching over
+   SSH*; done 2026-09-04). Check `git remote -v` in `/opt/libli` shows `git@github.com:`.
 2. Every school box has its own deploy key (step 1 above; GitHub does not reuse a deploy
    key across boxes).
 3. Flip the repo to private. GHCR is already private and every box already logs in.
