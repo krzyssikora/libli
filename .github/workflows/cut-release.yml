@@ -1,0 +1,79 @@
+name: cut-release
+
+# B2: make a release tag (docs/superpowers/specs/2026-09-27-b2-release-deploys-design.md
+# §1; runbook docs/deployment.md §9). Pushing the tag does nothing by itself
+# (D1) -- a tag pushed with GITHUB_TOKEN triggers no workflow. A release is only
+# ever made of a commit libli.pl deployed green (D2).
+#
+# Master-only: workflow_dispatch can run this file from any branch, and the
+# guard scripts come from that branch's checkout.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, vX.Y.Z"
+        required: true
+      commit:
+        description: "Commit to release (default: the tip of master)"
+        required: false
+        default: ""
+
+permissions: {}
+
+jobs:
+  cut:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Validate the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "refuse: version must be vX.Y.Z (e.g. v1.0.0), with no spaces" >&2
+            echo "**refuse: version must be vX.Y.Z**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      # Full history and tags: the ancestry and containment checks need them,
+      # and a depth-1 clone makes merge-base --is-ancestor misreport.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the commit
+        id: resolve
+        env:
+          VERSION: ${{ inputs.version }}
+          COMMIT: ${{ inputs.commit }}
+        run: python3 scripts/release/release_checks.py resolve "$VERSION" "${COMMIT:-origin/master}" >> "$GITHUB_OUTPUT"
+
+      - name: Canary guard
+        id: canary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          run_id="$(python3 scripts/release/canary_guard.py "$SHA")"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: B2 containment
+        env:
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: python3 scripts/release/release_checks.py containment "$SHA"
+
+      - name: Tag and push
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+          RUN_ID: ${{ steps.canary.outputs.run_id }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$VERSION" "$SHA" -m "Release $VERSION" -m "canary-run: $RUN_ID"
+          git push origin "refs/tags/$VERSION"
+          echo "Tagged $VERSION at $SHA (canary run $RUN_ID)" >> "$GITHUB_STEP_SUMMARY"

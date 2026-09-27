@@ -107,8 +107,9 @@ jobs:
           # which makes a broken change surface one merge away from its cause.
           #
           # deploy.sh keeps its own reset so that running it by hand on the box
-          # (the rollback path in docs/deployment.md §8) is still correct on its
-          # own. Re-running it here costs one no-op fetch.
+          # (a by-hand run; the §8 rollback is `LIBLI_DEPLOY_REF=<sha> bash
+          # deploy.sh`) is still correct on its own. Re-running it here costs
+          # one no-op fetch.
           #
           # The retry: GitHub intermittently answers an ANONYMOUS fetch of this
           # PUBLIC repo with a 401 challenge, and git dies on "could not read
@@ -120,10 +121,25 @@ jobs:
           #
           # LIBLI_DEPLOY_SKIP_FETCH tells deploy.sh this fetch already happened,
           # so it resets without asking github.com a second time inside a second.
-          # deploy.sh keeps its own fetch for the by-hand rollback path.
+          # deploy.sh keeps its own fetch for a by-hand run.
+          #
+          # D9 (spec 2026-09-27-b2-release-deploys-design.md): deploy.sh refuses
+          # when origin/master is no longer this run's commit, so a green deploy
+          # job proves libli.pl ran THIS commit -- which the release canary guard
+          # relies on. The value is exported inside the script because a step
+          # env: reaches the remote only via `envs:`. `${{ github.sha }}` is 40 hex
+          # that Actions controls, so the no-expressions-in-scripts rule (which
+          # exists for secrets and untrusted input) does not apply; the check
+          # after it fails closed if it is ever empty. A superseded run goes red
+          # and harmless -- docs/deployment.md §8.
           script: |
             set -e
             cd /opt/libli
+            export LIBLI_DEPLOY_EXPECT_SHA='${{ github.sha }}'
+            case "$LIBLI_DEPLOY_EXPECT_SHA" in
+              *[!0-9a-f]*|'') echo "LIBLI_DEPLOY_EXPECT_SHA is not a 40-hex sha; refusing" >&2; exit 1 ;;
+            esac
+            [ "${#LIBLI_DEPLOY_EXPECT_SHA}" -eq 40 ] || { echo "LIBLI_DEPLOY_EXPECT_SHA is not a 40-hex sha; refusing" >&2; exit 1; }
             for attempt in 1 2 3; do
               if git fetch origin master; then break; fi
               if [ "$attempt" -eq 3 ]; then

@@ -6,6 +6,7 @@ where a step exists to catch a specific failure, that failure is named.
 
 **Scope.** One host, one `app` container. That constraint is what makes `migrate` in the
 entrypoint safe and lets `TRANSFER_STAGING_DIR` be a local volume. Do not scale `app`.
+School boxes are the same install, one per school, updated only by release tags — see §9.
 
 ---
 
@@ -794,40 +795,56 @@ fix, and is worth applying if this signature shows up again.
 
 Past that point `deploy.sh` fails loudly at four places, in order: the Caddyfile does not
 parse, **the GHCR login or the pull fails**, the app container never reports healthy
-(`--wait`), or the public URL does not answer `/healthz/`. The first leaves the running site
-untouched. The other three do not: the old container is already gone, so a red run means the
-site is **down**, not merely un-updated.
+(`--wait`), or the public URL does not answer `/healthz/`. The first two happen before
+`up`: the running site is untouched, and `deploy.sh` puts the checkout back to the commit
+the running image was built from. The last two happen after `up` started: the old
+container is already gone, so a red run there means the site is **down**, not merely
+un-updated.
 
 (The second point used to be "the build fails". The box no longer builds — it pulls a
 published image — so a failure there is now a registry or credential problem, not a
 compilation one.)
 
-There is no automatic rollback. Recovery is manual and takes one pull:
+**A red run ending in `superseded by <sha>; the newer run deploys it` is benign.**
+Master moved on while this run waited in the queue (D9). `deploy.yml` had reset the
+checkout to the newer commit; `deploy.sh` refused before touching any container and put
+the checkout back to the commit the running image was built from. The site stays on its
+previous version until the newer run deploys, and the deploy alert clears when that run
+goes green. Nothing to do. (Why it refuses rather than deploying: a release may only be
+cut from a commit libli.pl ran, and a green deploy job must mean exactly that commit.)
+
+There is no automatic rollback. Recovery on libli.pl is manual and takes one pull:
 
 ```bash
 ssh root@<ip>
 cd /opt/libli
-git reset --hard <last-good-sha>
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --wait
+LIBLI_DEPLOY_REF=<last-good-sha> bash deploy.sh
 ```
 
-`git reset --hard <sha>` still does what it always did — `deploy.sh` derives
-`LIBLI_IMAGE_TAG` from the checkout, so moving the checkout moves the image.
+A full 40-hex sha. `deploy.sh` checks it out, pulls `sha-<it>` and persists the tag. Do
+not `git reset` and `compose up` by hand: a bare `up` starts whatever `LIBLI_IMAGE_TAG`
+already says, not the reset commit's image — and plain `bash deploy.sh` resets straight
+back to master. The next ordinary deploy re-attaches the checkout to `master`.
+
+**A school box is never recovered by hand** — use *Deploy release* with the previous
+version (§9). By-hand `bash deploy.sh` on a school box is refused.
 
 A migration that fails part-way is the case that needs care — the schema may be ahead of
-the code you just reset to. Read `logs app | grep '==>'` before assuming a rebuild fixes it.
+the version you just rolled back to (`deploy.sh` does not undo a migration). Read
+`logs app | grep '==>'` first; if the schema is ahead, the path is a restore.
 
 ### Two things about `deploy.sh` worth knowing
 
 - **The reset happens twice, on purpose — the fetch no longer does.** `deploy.yml` resets
   the checkout before it runs `deploy.sh`, and `deploy.sh` resets again. The workflow copy
   bootstraps a host that has no `deploy.sh` yet and guarantees bash parses the version this
-  commit ships; the script copy is what makes running `bash deploy.sh` by hand -- the
-  rollback path below -- correct on its own. Deleting either one breaks a case the other
-  does not cover. The **fetch** is a different matter: two requests to github.com inside a
-  second is what tripped #296, so `deploy.yml` sets `LIBLI_DEPLOY_SKIP_FETCH=1` and
-  `deploy.sh` resets to the ref CI just fetched. Run by hand the variable is unset, so the
-  fetch happens — which is exactly what the rollback path needs.
+  commit ships; the script copy is what makes a by-hand `bash deploy.sh` correct on its own
+  (plain, it resets to master; the rollback is `LIBLI_DEPLOY_REF=<sha> bash deploy.sh`,
+  above). Deleting either one breaks a case the other does not cover. The **fetch** is a
+  different matter: two requests to github.com inside a second is what tripped #296, so
+  `deploy.yml` sets `LIBLI_DEPLOY_SKIP_FETCH=1` and `deploy.sh` resets to the ref CI just
+  fetched. Run by hand the variable is unset, so the fetch happens — which is exactly what
+  a by-hand run needs.
 - **It resets, it does not pull.** `.env.production` is untracked, so the reset cannot
   destroy the host's only copy of the secrets — but any *tracked* file edited on the box
   is discarded without warning. Edit files here, not there.
@@ -835,6 +852,144 @@ the code you just reset to. Read `logs app | grep '==>'` before assuming a rebui
 `tests/test_deploy_wiring.py` guards the parts of this that no other test touches: the
 paths agreeing across `deploy.yml`, `deploy.sh` and this document; `--wait` still being
 passed; `ci.yml` not regrowing a `master` trigger.
+
+---
+
+## 9. Schools
+
+School boxes run **release tags**, never `master`. libli.pl is the canary: a release can
+only be made of a commit libli.pl deployed green (D2), and a school changes version only
+when you press *Deploy release* (D1). Design and every rule's reason:
+`docs/superpowers/specs/2026-09-27-b2-release-deploys-design.md`.
+
+### School secrets (one-time setup)
+
+Three repo secrets, all distinct from libli.pl's:
+
+- **`SCHOOLS_SSH_KEY`** — one key for every school box, never libli.pl's `SSH_KEY`:
+  ```bash
+  ssh-keygen -t ed25519 -f ~/.ssh/libli_schools -C "github-actions-libli-schools" -N ""
+  gh secret set SCHOOLS_SSH_KEY --repo krzyssikora/libli < ~/.ssh/libli_schools
+  ```
+- **`SCHOOL_HOSTS`** — JSON, one entry per box, keyed by an **opaque code**:
+  ```json
+  {"school-01": {"host": "203.0.113.10", "host_key": "ssh-ed25519 AAAA...", "domain": "szkola.pl"}}
+  ```
+  Codes are `school-NN`. The code → school mapping lives only in your own notes: nothing
+  in the repo, the run logs or the UI names a customer (D4). `domain` is the school's
+  **registrable domain**, and every name in the box's `SITE_ADDRESS` and its
+  `DJANGO_SITE_DOMAIN` must contain it — it exists only to be masked in logs. `host`
+  should be the box's IP address, not a DNS name: ssh's own error messages (e.g.
+  "Connection closed by 203.0.113.10 port 22") print the resolved IP, which only the
+  entry's `host` value masks. Keep the JSON file outside the repo and set it with
+  `gh secret set SCHOOL_HOSTS --repo krzyssikora/libli < school_hosts.json`.
+- **`HEALTHCHECKS_SCHOOL_DEPLOY_URL`** — a new healthchecks.io check *libli school
+  deploys*, period set to the maximum. School deploys are rare and manual, so the absence
+  alert is only a yearly liveness check; the `/fail` ping is the alert.
+
+### Provisioning a school box
+
+§1–§4 as for libli.pl, with these differences, **in this order** — it is the only order in
+which no step resets the school to `master`:
+
+1. **Deploy key first.** Give the box its own read-only deploy key (§8 *Fetching over
+   SSH*, host side) and clone over SSH: `git clone git@github.com:krzyssikora/libli.git
+   /opt/libli`. A full clone, never `--depth`: the migration guard reads history.
+2. **Check out a release tag**, not master: `git checkout --detach v1.0.0`. The tag must
+   already exist and must have been made by *cut-release* (see *Cutting a release*
+   below) — for the very first school, cut `v1.0.0` before provisioning.
+3. In `.env.production`, set `LIBLI_IMAGE_TAG=sha-<40 hex>` by hand — the value of
+   `git rev-parse 'v1.0.0^{commit}'` — as exactly one line in exactly that form. Do **not**
+   add the channel line yet.
+4. First boot as §3 (`up -d`) and the §4 checks. This deliberately does not use
+   `deploy.sh`: until step 5 adds the channel line, `deploy.sh` treats the box like
+   libli.pl and resets it to master.
+   Then **§5** (Platform Admin, first-run wizard) and **§7** (scheduled jobs, including
+   the nightly backup cron) exactly as for libli.pl. A school box without backups has
+   nothing to restore from when the migration guard refuses a rollback (below).
+5. **Then** add `LIBLI_DEPLOY_CHANNEL=release` to `.env.production` — exactly that: no
+   `export`, no spaces, LF line endings.
+6. Runner access: `ssh-copy-id -i ~/.ssh/libli_schools.pub root@<ip>`. Capture the host
+   key with `ssh-keyscan -t ed25519 <ip>` and keep only the `ssh-ed25519 AAAA...` part
+   for `host_key`.
+7. Add the entry to `SCHOOL_HOSTS`.
+8. Run *Deploy release* for the box with the same tag — a same-version pass that proves
+   the workflow reaches it.
+
+### Cutting a release
+
+Actions → *cut-release* → *Run workflow*: a version `vX.Y.Z` and, optionally, a commit
+(default: master's tip). It refuses unless libli.pl's deploy of that commit went green.
+Hotfix path: merge, let libli.pl deploy, then cut. Tags are created **only** here — the
+by-hand path on a box cannot re-check D2.
+
+**Never delete a `deploy.yml` run that a release tag cites** (the tag's `canary-run:`
+line). Every deploy of that release, rollbacks included, re-checks that run; if it is
+gone, cut a new release on a later green commit.
+
+### Deploying and rolling back
+
+Actions → *deploy-release*: a school code or `all`, and a version. Rollback is the same
+button with an older version. Per school the run masks the box's names, runs pre-flight
+on the box, runs the migration guard, and deploys **detached** from the ssh session —
+the log stays on the box in `/var/log/libli-deploy/` (newest 20 kept).
+
+Reading the summary:
+
+- **`❌ no result`** — the leg died before recording, or a later dispatch for the same
+  school superseded it (GitHub keeps one pending run per school).
+- **`(attempt N)`** — a row from an earlier attempt, not this one. After "Re-run failed
+  jobs" the ping is `/fail` even if every row is ✅; dispatch a fresh *Deploy release*
+  (a same-version pass for schools already on it) for a clean ping.
+- **A timed-out leg is not a failed deploy.** The run is detached and may have finished:
+  read the box's `LIBLI_IMAGE_TAG` and the newest log in `/var/log/libli-deploy/`.
+
+### What each refusal means
+
+| Refusal | Site | What to do |
+|---|---|---|
+| canary guard / B2 containment (plan) | untouched | release a commit libli.pl deployed green |
+| unknown code / malformed `SCHOOL_HOSTS` | untouched | fix the secret |
+| host key mismatch / ssh unreachable | untouched | check the box; re-capture `host_key` only if the box was rebuilt |
+| `LIBLI_DEPLOY_CHANNEL is not exactly 'release'` | untouched | fix `.env.production` (a CRLF file is reported as such) |
+| `LIBLI_IMAGE_TAG absent` / `malformed` | untouched | one line `LIBLI_IMAGE_TAG=sha-<40 hex>` |
+| tag resolves to a different commit | untouched | the tag on origin no longer matches what `plan` checked: dispatch a fresh *Deploy release* (a re-run reuses the old check), and treat a tag not made by *cut-release* as untrusted |
+| cannot fetch the tag | untouched | re-run (GitHub refusal) or fix the box's deploy key |
+| migration guard | untouched | restore (below) |
+| failure inside `deploy.sh` before `up` | untouched, checkout restored | fix the cause, re-deploy the same version |
+| `up --wait` / `/healthz/` failure | **down** | fix the cause, re-deploy **the same version**; the previous version only if no migration lies between |
+| prune failure after `/healthz/` passed | up on the new version | ignore, or re-deploy the same version |
+
+### Rolling back across a migration: restore in place
+
+The migration guard refuses a rollback that crosses a migration, a `uv.lock` change or a
+postgres major version (D3). The path is a restore from a backup taken before the newer
+version (`docs/backup-and-restore.md`), in place on the existing box:
+
+```bash
+cd /opt/libli
+git fetch origin '+refs/tags/*:refs/tags/*'
+git checkout --force --detach <manifest git_sha>
+# then restore.sh exactly as docs/backup-and-restore.md describes
+```
+
+No `deploy.sh` and no *Deploy release* is involved. `restore.sh` writes the restored image
+into `LIBLI_IMAGE_TAG`, and the backup's `.env.production` keeps the channel line, so the
+next *Deploy release* treats the restored version as current.
+
+### By hand on a box
+
+`LIBLI_DEPLOY_REF=vX.Y.Z bash /opt/libli/deploy.sh` — tags only. It runs the migration
+guard (both the current and the target copy) but **not** the canary guard. Plain
+`bash deploy.sh` is refused on a school box.
+
+### Going private
+
+1. libli.pl already fetches over SSH with its read-only deploy key (§8 *Fetching over
+   SSH*; done 2026-09-04). Check `git remote -v` in `/opt/libli` shows `git@github.com:`.
+2. Every school box has its own deploy key (step 1 above; GitHub does not reuse a deploy
+   key across boxes).
+3. Flip the repo to private. GHCR is already private and every box already logs in.
 
 ---
 
@@ -864,10 +1019,12 @@ passed; `ci.yml` not regrowing a `master` trigger.
   Still a real outage: the window itself is unchanged, writes in flight are still lost,
   and the deploy that changes the Caddyfile recreates Caddy too, so that one deploy shows
   a connection error instead. Screenshots: `docs/superpowers/screenshots/maintenance-*`.
-- **Rollback is one pull.** `git reset --hard <last-good-sha>` then `bash deploy.sh`: the
-  tag follows the checkout, so the previous image is pulled rather than rebuilt. What this
-  cannot undo is an **already-applied migration** — the schema stays ahead of the code, and
-  that case needs a restore from `docs/backup-and-restore.md`, not a rollback.
+- **Rollback is one pull.** On libli.pl, `LIBLI_DEPLOY_REF=<last-good-sha> bash deploy.sh`
+  pulls the previous image rather than rebuilding it; on a school, *Deploy release* with the
+  older version. What this cannot undo is an **already-applied migration** — the schema
+  stays ahead of the code, and that case needs a restore from `docs/backup-and-restore.md`,
+  not a rollback. On a school box the migration guard refuses such a rollback outright and
+  points to the restore (§9).
 - **The container runs as root.** Accepted for now: the four named volumes are created
   root-owned on first `up`, so adding a non-root `USER` without also fixing volume
   ownership produces a container that cannot write `media/`. Revisit before this carries

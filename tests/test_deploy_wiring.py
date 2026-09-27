@@ -171,7 +171,7 @@ def test_deploy_script_waits_for_health():
     Mutant: drop `--wait` from the `compose up` line.
     """
     text = DEPLOY_SH.read_text(encoding="utf-8")
-    match = re.search(r"^compose up .*$", text, re.MULTILINE)
+    match = re.search(r"^\s*compose up .*$", text, re.MULTILINE)
     assert match, "deploy.sh no longer brings the stack up"
     assert "--wait" in match.group(0), match.group(0)
     # `--build` was removed when the box switched to pulling a published image;
@@ -306,12 +306,17 @@ def _deploy_yml_script():
     return "\n".join(out)
 
 
-def _yml_script_for(tmp_path, stub):
-    """deploy.yml's script with the host paths pointed at tmp_path. The retry
-    loop itself runs exactly as shipped."""
+FAKE_RUN_SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+def _yml_script_for(tmp_path, stub, run_sha=FAKE_RUN_SHA):
+    """deploy.yml's script with the host paths pointed at tmp_path and the
+    `${{ github.sha }}` expression Actions would substitute replaced by
+    `run_sha`. The retry loop itself runs exactly as shipped."""
     app = _app_dir()
     return (
         _deploy_yml_script()
+        .replace("${{ github.sha }}", run_sha)
         .replace(f"bash {app}/deploy.sh", f'bash "{str(stub).replace(chr(92), "/")}"')
         .replace(f"cd {app}", f'cd "{str(tmp_path).replace(chr(92), "/")}"')
     )
@@ -324,14 +329,15 @@ def test_deploy_script_retries_a_fetch_that_fails(tmp_path):
     then dies on "could not read Username" because there is no tty. Nothing is
     wrong with the checkout -- in #296 the fetch 440 ms earlier had SUCCEEDED.
 
-    Mutant: drop the loop and call `git fetch origin master` once. The stub fails
-    twice, so a single attempt returns 128 and the function reports failure.
+    Mutant: drop the loop in `git_fetch_retry` and call `git fetch origin` once.
+    The stub fails twice, so a single attempt returns 128 and the function
+    reports failure.
     """
     calls = tmp_path / "calls"
     calls.write_text("")
     result = _run_bash(
         f"set -euo pipefail\n{_harness(calls, 2)}\n{_sh_settings()}\n"
-        f"{_sh_function('fetch_master')}\nfetch_master"
+        f"{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\nfetch_master"
     )
     assert result.returncode == 0, result.stderr
     assert calls.read_text().count("fetch") == 3, calls.read_text()
@@ -350,7 +356,7 @@ def test_deploy_script_gives_up_rather_than_retrying_forever(tmp_path):
     calls.write_text("")
     result = _run_bash(
         f"set -uo pipefail\n{_harness(calls, 99)}\n{_sh_settings()}\n"
-        f"{_sh_function('fetch_master')}\nfetch_master"
+        f"{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\nfetch_master"
     )
     assert result.returncode != 0, "an exhausted retry must fail the deploy"
     attempts = calls.read_text().count("fetch")
@@ -371,7 +377,7 @@ def test_deploy_script_skips_its_own_fetch_when_ci_already_fetched(tmp_path):
     calls.write_text("")
     result = _run_bash(
         f"set -euo pipefail\n{_harness(calls, 0)}\n"
-        f"{_sh_settings()}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
+        f"{_sh_settings()}\n{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
         "LIBLI_DEPLOY_SKIP_FETCH=1 sync_working_tree"
     )
     assert result.returncode == 0, result.stderr
@@ -383,9 +389,10 @@ def test_deploy_script_skips_its_own_fetch_when_ci_already_fetched(tmp_path):
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
 def test_deploy_script_still_fetches_when_run_by_hand(tmp_path):
-    """The rollback path in docs/deployment.md is `bash deploy.sh` on the box,
-    with no CI to have fetched first. Skipping the fetch there would silently
-    deploy whatever origin/master pointed at last time.
+    """A by-hand `bash deploy.sh` on the box (the §8 rollback is now
+    `LIBLI_DEPLOY_REF=<sha> bash deploy.sh`), with no CI to have fetched first.
+    Skipping the fetch there would silently deploy whatever origin/master
+    pointed at last time.
 
     Mutant: skip the fetch unconditionally, or default the guard the other way.
     """
@@ -393,7 +400,7 @@ def test_deploy_script_still_fetches_when_run_by_hand(tmp_path):
     calls.write_text("")
     result = _run_bash(
         f"set -euo pipefail\n{_harness(calls, 0)}\n"
-        f"{_sh_settings()}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
+        f"{_sh_settings()}\n{_sh_function('git_fetch_retry')}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
         "sync_working_tree"
     )
     assert result.returncode == 0, result.stderr
@@ -637,3 +644,54 @@ def test_no_workflow_expression_survives_into_the_ping_script():
     Mutant: inline ${{ secrets.HEALTHCHECKS_DEPLOY_URL }} at the curl call.
     """
     assert "${{" not in _ping_script(), _ping_script()
+
+
+# ---- D9: a run deploys only its own commit --------------------------------
+
+
+def test_d9_the_runs_own_sha_is_exported_inside_the_remote_script():
+    """appleboy/ssh-action passes a step's env: to the remote only when it is
+    also listed in `envs:`, so the value must be exported INSIDE `script:`.
+    Without it deploy.sh sees nothing, D9 is silently off, and the canary
+    guard reads a green deploy job for X that actually deployed Y.
+
+    Mutants: delete the export line; move the value to the step's `env:` only.
+    """
+    script = _deploy_yml_script()
+    export = re.search(
+        r"^export LIBLI_DEPLOY_EXPECT_SHA='\$\{\{ github\.sha \}\}'$",
+        script,
+        re.MULTILINE,
+    )
+    invoke = re.search(r"^\s*(?:\S+=\S+ )?bash \S+/deploy\.sh$", script, re.MULTILINE)
+    assert export, "deploy.yml's script no longer exports LIBLI_DEPLOY_EXPECT_SHA"
+    assert invoke and export.start() < invoke.start()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+@pytest.mark.parametrize("bad", ["", "abc", "g" * 40, "0" * 39])
+def test_d9_a_missing_or_malformed_sha_fails_closed(tmp_path, bad):
+    """Mutant: delete the fail-closed check -- deploy.sh would then run with
+    an empty value, treat it as unset, and deploy whatever master is."""
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    marker = tmp_path / "deployed"
+    stub = tmp_path / "stub-deploy.sh"
+    stub.write_bytes(f'touch "{str(marker).replace(chr(92), "/")}"\n'.encode())
+    result = _run_bash(f"{_harness(calls, 0)}\n{_yml_script_for(tmp_path, stub, bad)}")
+    assert result.returncode != 0
+    assert not marker.exists(), "deployed with no verified sha"
+
+
+def test_d9_the_deploy_job_keeps_its_bare_id_as_its_name():
+    """The canary guard finds the job named `deploy` in the jobs API, which
+    reports the display name -- the job id only while the job has no `name:`.
+    Mutant: add `name: Deploy` to the deploy job."""
+    lines = DEPLOY_YML.read_text(encoding="utf-8").splitlines()
+    start = lines.index("  deploy:")
+    block = []
+    for ln in lines[start + 1 :]:
+        if ln.startswith("  ") and not ln.startswith("   ") and ln.strip():
+            break
+        block.append(ln)
+    assert not [ln for ln in block if re.match(r"^    name:", ln)], block
