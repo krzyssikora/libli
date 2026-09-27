@@ -9,6 +9,7 @@ import pytest
 from tests.release_fixtures import CHANNEL_CASES
 from tests.release_fixtures import IMAGE_TAG_CASES
 from tests.release_fixtures import env_file
+from tests.release_fixtures import extract_function
 from tests.release_fixtures import run_function
 from tests.release_harness import BASH
 from tests.release_harness import ROOT
@@ -35,6 +36,20 @@ def _mark_crlf(cases):
         pytest.param(*case, marks=_win_crlf_skip) if case[0] == "crlf" else case
         for case in cases
     ]
+
+
+@pytest.mark.parametrize("name", ["channel_state", "image_tag_read", "image_tag_state"])
+def test_the_read_rule_functions_are_textually_identical(name):
+    """A shared case list only catches a divergence its cases happen to exercise
+    (e.g. dropping the optional whitespace before `=` in one copy's regex changes
+    the verdict only on a `KEY =value` line paired with a valid one -- a shape most
+    case lists never think to add). Textual identity closes that gap outright.
+
+    Mutant: in preflight.sh's channel_state, drop `[[:space:]]*` before the `=` in
+    `LIBLI_DEPLOY_CHANNEL[[:space:]]*=` (same edit works for image_tag_read's
+    `LIBLI_IMAGE_TAG[[:space:]]*=`).
+    """
+    assert extract_function(PREFLIGHT, name) == extract_function(DEPLOY_SH, name)
 
 
 @pytest.mark.parametrize(

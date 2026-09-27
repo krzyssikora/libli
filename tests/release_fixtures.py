@@ -31,6 +31,11 @@ CHANNEL_CASES = [
         "LIBLI_DEPLOY_CHANNEL=release\nLIBLI_DEPLOY_CHANNEL=release\n",
         "invalid",
     ),
+    (
+        "space-before-equals-duplicate",
+        "LIBLI_DEPLOY_CHANNEL=release\nLIBLI_DEPLOY_CHANNEL =nope\n",
+        "invalid",
+    ),
 ]
 
 IMAGE_TAG_CASES = [
@@ -42,6 +47,11 @@ IMAGE_TAG_CASES = [
     ("crlf", f"LIBLI_IMAGE_TAG=sha-{SHA}\r\n", "invalid"),
     ("short", "LIBLI_IMAGE_TAG=sha-0123abc\n", "invalid"),
     ("tag-name", "LIBLI_IMAGE_TAG=sha-v1.0.0\n", "invalid"),
+    (
+        "space-before-equals-duplicate",
+        f"LIBLI_IMAGE_TAG=sha-{SHA}\nLIBLI_IMAGE_TAG =nope\n",
+        "invalid",
+    ),
 ]
 
 
