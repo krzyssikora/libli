@@ -900,7 +900,8 @@ which no step resets the school to `master`:
    `git rev-parse 'v1.0.0^{commit}'` — as exactly one line in exactly that form. Do **not**
    add the channel line yet.
 4. First boot as §3 (`up -d`) and the §4 checks. This deliberately does not use
-   `deploy.sh`: on a release-channel box it refuses a box with no persisted tag.
+   `deploy.sh`: until step 5 adds the channel line, `deploy.sh` treats the box like
+   libli.pl and resets it to master.
    Then **§5** (Platform Admin, first-run wizard) and **§7** (scheduled jobs, including
    the nightly backup cron) exactly as for libli.pl. A school box without backups has
    nothing to restore from when the migration guard refuses a rollback (below).

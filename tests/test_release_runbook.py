@@ -37,6 +37,20 @@ def test_first_boot_adds_the_channel_line_only_after_up():
     assert s.index("up -d") < s.index("LIBLI_DEPLOY_CHANNEL=release")
 
 
+def test_step_4_gives_the_true_reason_deploy_sh_is_not_used():
+    """At step 4, LIBLI_IMAGE_TAG is already set (step 3) but LIBLI_DEPLOY_CHANNEL is
+    not yet (step 5) -- deploy.sh (deploy.sh:261-329) does not refuse that box; with
+    no channel line and no LIBLI_DEPLOY_REF it runs sync_working_tree and resets the
+    checkout to origin/master, silently undoing step 2's tag checkout.
+
+    Mutant: revert to the old, wrong reason ("it refuses a box with no persisted
+    tag").
+    """
+    s = _section("## 9. Schools")
+    assert "resets it to master" in s
+    assert "refuses a box with no persisted tag" not in s
+
+
 def test_provisioning_includes_the_admin_and_the_backup_cron():
     """Mutant: drop the §5/§7 sentence -- a box built by §9 alone has no
     admin and no backups, so D3's restore path has nothing to restore."""
