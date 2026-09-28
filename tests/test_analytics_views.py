@@ -313,7 +313,7 @@ def test_matrix_expand_renders_nested_header(client):
     html = resp.content.decode()
     assert "analytics__group" in html  # the spanning header cell
     assert "analytics__collapse" in html  # ✕ collapse on the spanning cell
-    assert ">Ch<" in html and ">Sec ▸<" in html  # own titles, sub-column expandable
+    assert ">Ch<" in html and ">Sec</span> ▸<" in html  # own titles; Sec expandable
 
 
 @pytest.mark.django_db
