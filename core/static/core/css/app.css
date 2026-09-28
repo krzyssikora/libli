@@ -459,6 +459,17 @@ input[type=number] {
 .catalog__field { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; }
 .catalog__field > span { font-size: .75rem; font-weight: 600; color: var(--text-tertiary); }
 .catalog__field select, .catalog__field input { min-width: 11rem; }
+/* Filter-bar search boxes. `type=search` is not in the global form-control rule
+   above, so without this the field keeps the UA's white fill under dark mode's
+   near-white text (same fix as .builder__filter in builder.css). Scoped per
+   filter bar, not added to the global list: a global `input[type=search]`
+   (0,1,1) would beat `.input` on the media picker / link dialog. Values mirror
+   the global rule; `width` is NOT copied — each bar owns its own sizing. */
+.catalog__field input[type="search"], .manage__field input[type="search"],
+.roster-filter input[type="search"], .alloc-grid__filter-field input[type="search"] {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
 .catalog__filters .btn { margin-left: auto; }
 
 /* card grid */
