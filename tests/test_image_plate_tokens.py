@@ -91,3 +91,19 @@ def test_print_reset_follows_the_screen_plate_rule():
         "the @media print reset must come after the screen rule -- they tie on "
         "specificity, so an earlier print block loses and the plate padding prints"
     )
+
+
+CELL_SCREEN_RULE = re.compile(r'^\[data-theme="dark"\]\s+\.cell-img\s*\{', re.M)
+CELL_PRINT_RULE = re.compile(r'^[ \t]+\[data-theme="dark"\]\s+\.cell-img\s*\{', re.M)
+
+
+def test_cell_image_print_reset_follows_the_screen_plate_rule():
+    """Same invariant as above, for the table/fill-table cell plate."""
+    source = COURSES_CSS.read_text(encoding="utf-8")
+    screens = list(CELL_SCREEN_RULE.finditer(source))
+    assert len(screens) == 1, "courses.css must declare the dark-theme cell plate once"
+    prints = list(CELL_PRINT_RULE.finditer(source))
+    assert len(prints) == 1, f"expected one cell print reset, got {len(prints)}"
+    assert prints[0].start() > screens[0].start(), (
+        "the cell plate's @media print reset must come after the screen rule"
+    )
