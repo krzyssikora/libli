@@ -139,15 +139,17 @@ def test_print_restates_every_dark_callout_accent_with_the_light_value():
     """--callout-accent is declared in courses.css, a LATER sheet at (0,2,0), so
     tokens.css's print block cannot reach it. Without its own print block a
     dark-theme lesson with callouts prints #7db0f7 headings on white (2.23:1)."""
-    # Whitespace-exact by necessity, and unique in courses.css today (checked
-    # against all 8 existing @media print blocks). If a reformat ever breaks it,
-    # the failure reads "no @media print block" rather than "wrong value" -- so
-    # check the marker before believing that message.
-    marker = '@media print {\n  [data-theme="dark"]'
+    # Whitespace-exact by necessity. Names the CALLOUT selector, not just the dark
+    # attribute: other dark print resets (image plates) also open with
+    # `[data-theme="dark"]`, and a shorter marker matched the first of them. If a
+    # reformat ever breaks it, the failure reads "no @media print block" rather
+    # than "wrong value" -- so check the marker before believing that message.
+    marker = '@media print {\n  [data-theme="dark"] .callout--'
     screen, sep, printed = COURSES_CSS.partition(marker)
     assert sep, (
         "courses.css must have an @media print block scoped to [data-theme=dark]"
     )
+    printed = sep + printed  # the marker ends mid-selector of the first rule
 
     # Light values live on the bare modifier classes; dark ones on the
     # [data-theme="dark"] .callout--KIND rules. Split the screen half on the

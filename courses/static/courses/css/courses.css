@@ -691,6 +691,16 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   line-height: 0; /* kill the inline-img baseline gap so the overlay aligns */
 }
 .dragimage__img { display: block; max-width: 100%; height: auto; }
+/* Dark-theme image plate (see `[data-theme="dark"] .el--image img`), BACKGROUND ONLY.
+   Never padding, a radius or a border: the badges and the JS drop targets are placed
+   as fractions of the stage, which is this <img>'s box, so anything that insets the
+   picture inside that box misplaces every zone relative to the diagram it marks. Same
+   rule as `.imgzoom__img`, with the same side effect: an opaque image is unchanged.
+   Also covers the teacher analytics page, which reuses this class. */
+[data-theme="dark"] .dragimage__img { background: var(--image-plate); }
+@media print {
+  [data-theme="dark"] .dragimage__img { background: none; }
+}
 .dragimage__badge {
   position: absolute; transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; justify-content: center;
@@ -2150,6 +2160,19 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   overflow: hidden;
 }
 .el--gallery .gallery__frame img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Dark-theme image plate, as `[data-theme="dark"] .el--image img`. On the <img>, NOT
+   the frame: the frame is a fixed 4:3 box, so plating it would turn the letterbox
+   around every non-4:3 picture into a bright slab. The padding is inside the img's
+   max-width/max-height (border-box), so the frame's size -- which gallery.js measures
+   for the stable-frame reservation -- is unchanged. */
+[data-theme="dark"] .el--gallery .gallery__frame img {
+  background: var(--image-plate);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+@media print {
+  [data-theme="dark"] .el--gallery .gallery__frame img { background: none; padding: 0; }
+}
 
 .el--gallery .gallery__desc { text-align: center; color: var(--text-secondary); font-size: .95rem; }
 .el--gallery .gallery__frame + .gallery__desc,

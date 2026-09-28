@@ -162,7 +162,16 @@ def _lesson_url(live_server, unit):
     return f"{live_server.url}{path}"
 
 
-def _sample(page, live_server, unit, user, theme, tmp_path, selector=".el--image img"):
+def _sample(
+    page,
+    live_server,
+    unit,
+    user,
+    theme,
+    tmp_path,
+    selector=".el--image img",
+    frames=None,
+):
     """Re-open the lesson under `theme` and return (corner_rgb, centre_rgb).
 
     Expects an already-authenticated page: both tests sample the SAME fixture
@@ -202,6 +211,8 @@ def _sample(page, live_server, unit, user, theme, tmp_path, selector=".el--image
     w, h = frame.size
     corner = frame.getpixel((int(w * CORNER_FRAC), int(h * CORNER_FRAC)))
     centre = frame.getpixel((int(w * CENTRE_FRAC), int(h * CENTRE_FRAC)))
+    if frames is not None:
+        frames[theme] = frame
     return corner, centre
 
 
@@ -372,3 +383,135 @@ def test_transparent_cell_image_reads_the_same_in_both_themes(
     assert all(
         abs(a - b) <= TOL for a, b in zip(dark_centre, light_centre, strict=True)
     ), f"ink renders differently in dark {dark_centre} vs light {light_centre}"
+
+
+def _assert_reads_the_same(light, dark, what, ground=None):
+    """The (a)-(c) A/B of test_transparent_image_reads_the_same_in_both_themes.
+
+    `ground` replaces the light corner as the colour the dark plate must match, for
+    a surface whose light-theme ground is NOT the page ground (see the dragimage
+    test)."""
+    (light_corner, light_centre), (dark_corner, dark_centre) = light, dark
+    expected_ground = ground or light_corner
+    assert _luminance(light_corner) > 0.7, f"control: light corner {light_corner}"
+    assert _luminance(light_centre) < 0.15, f"control: light centre {light_centre}"
+    assert _luminance(dark_corner) > 0.7, (
+        f"transparent {what} got no light plate in dark mode: {dark_corner}"
+    )
+    assert _luminance(dark_centre) < 0.15, (
+        f"the {what}'s dark ink did not survive dark mode: {dark_centre}"
+    )
+    assert all(
+        abs(a - b) <= TOL for a, b in zip(dark_corner, expected_ground, strict=True)
+    ), f"plate {dark_corner} does not match the ground {expected_ground}"
+    assert all(
+        abs(a - b) <= TOL for a, b in zip(dark_centre, light_centre, strict=True)
+    ), f"ink renders differently in dark {dark_centre} vs light {light_centre}"
+
+
+def _enrolled_lesson(username):
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    user = make_verified_user(
+        username=username,
+        email=f"{username}@test.example.com",
+        password=TEST_PASSWORD,
+    )
+    EnrollmentFactory(course=course, student=user)
+    return course, unit, user
+
+
+def test_transparent_gallery_image_reads_the_same_in_both_themes(
+    page, live_server, db, tmp_path
+):
+    """The gallery frame is painted --surface-sunken, dark in dark mode, so the ink
+    of a transparent figure vanished into the frame."""
+    from courses.models import GalleryElement
+
+    course, unit, user = _enrolled_lesson("plate-gallery-student")
+    asset = make_image_asset(
+        course, filename="transparent-gallery.png", raw=_transparent_ink_png()
+    )
+    add_element(
+        unit,
+        GalleryElement.objects.create(
+            data={"images": [{"media": asset.pk, "desc": ""}], "desc_pos": "below"}
+        ),
+    )
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    sel = ".gallery__frame img"
+    light = _sample(page, live_server, unit, user, "light", tmp_path, selector=sel)
+    dark = _sample(page, live_server, unit, user, "dark", tmp_path, selector=sel)
+    _assert_reads_the_same(light, dark, "gallery image")
+
+
+def _ink_edges(frame):
+    """(left, right, top, bottom) of the ink square, scanned along the centre row
+    and column. Those two lines clear the zone badge and drop target, which sit in
+    the bottom-right quarter (see the fixture), so only the picture is measured."""
+    w, h = frame.size
+
+    def run(pixels):
+        dark = [i for i, p in enumerate(pixels) if _luminance(p) < 0.15]
+        return dark[0], dark[-1]
+
+    left, right = run([frame.getpixel((x, h // 2)) for x in range(w)])
+    top, bottom = run([frame.getpixel((w // 2, y)) for y in range(h)])
+    return left, right, top, bottom
+
+
+def test_transparent_dragimage_reads_the_same_and_does_not_move(
+    page, live_server, db, tmp_path
+):
+    """Drag-to-image gets the plate as a BACKGROUND ONLY.
+
+    The colour A/B is the same as for every other surface. The second half is what
+    is specific here: badges and drop targets are placed as fractions of the img's
+    box, so the picture must occupy the SAME pixels of that box in both themes. A
+    padded plate (the lesson rule's shape) keeps the box and shrinks the picture
+    inside it, and every zone then marks the wrong part of the diagram.
+    """
+    from courses.models import DragToImageQuestionElement
+    from courses.models import DragZone
+
+    course, unit, user = _enrolled_lesson("plate-dragimage-student")
+    asset = make_image_asset(
+        course, filename="transparent-dragimage.png", raw=_transparent_ink_png()
+    )
+    q = DragToImageQuestionElement.objects.create(media=asset, alt="Diagram")
+    # Bottom-right quarter: clear of the corner sampler, the centre sampler and the
+    # centre row/column _ink_edges scans. The badge sits at the zone's top-left.
+    DragZone.objects.create(
+        question=q, correct_label="A", x=0.75, y=0.75, w=0.2, h=0.2, order=0
+    )
+    add_element(unit, q)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    frames = {}
+    sel = ".dragimage__img"
+    light = _sample(
+        page, live_server, unit, user, "light", tmp_path, selector=sel, frames=frames
+    )
+    dark = _sample(
+        page, live_server, unit, user, "dark", tmp_path, selector=sel, frames=frames
+    )
+    # A question sits on a --surface-raised card, which is WHITE in the light theme,
+    # so the light control is #FFFFFF, not the page ground. The plate stays the one
+    # paper colour used by every image surface -- the difference is 11-21 per
+    # channel, over TOL -- so the dark corner is checked against the token itself.
+    plate = page.evaluate(
+        "getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--image-plate').trim()"
+    )
+    ground = tuple(int(plate.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    _assert_reads_the_same(light, dark, "drag-to-image picture", ground=ground)
+
+    assert frames["light"].size == frames["dark"].size, (
+        f"the img box changed size: {frames['light'].size} -> {frames['dark'].size}"
+    )
+    light_edges, dark_edges = _ink_edges(frames["light"]), _ink_edges(frames["dark"])
+    assert all(abs(a - b) <= 1 for a, b in zip(light_edges, dark_edges, strict=True)), (
+        f"the picture moved inside its box: ink edges {light_edges} (light) vs "
+        f"{dark_edges} (dark) -- every drop zone is now misplaced"
+    )
