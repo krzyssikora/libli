@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The school inventory (B2, spec §6), read from the SCHOOL_HOSTS secret:
 
-    {"school-01": {"host": "<ip-or-name>", "host_key": "ssh-ed25519 AAAA...",
+    {"school-01": {"host": "<ip>", "host_key": "ssh-ed25519 AAAA...",
                    "domain": "<registrable domain>"}, ...}
 
     inventory.py plan <school|all> --output <file>   masks all; codes=<json>

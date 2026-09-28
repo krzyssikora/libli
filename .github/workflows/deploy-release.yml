@@ -47,6 +47,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Inspect the release tag
         id: tag
@@ -95,6 +96,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       # Read AND mask in one step: a value handed to a later step via the
       # workflow's environment file would be printed in that step's env:
@@ -160,7 +162,7 @@ jobs:
 
       - name: Upload the outcome
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: outcome-${{ matrix.code }}
           path: outcome-${{ matrix.code }}.json
@@ -177,10 +179,12 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       # Zero artifacts (a plan refusal, every leg dead early) must not fail
       # the job: those are the runs whose /fail ping matters most.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           pattern: outcome-*
