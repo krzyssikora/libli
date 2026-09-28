@@ -162,7 +162,7 @@ def _lesson_url(live_server, unit):
     return f"{live_server.url}{path}"
 
 
-def _sample(page, live_server, unit, user, theme, tmp_path):
+def _sample(page, live_server, unit, user, theme, tmp_path, selector=".el--image img"):
     """Re-open the lesson under `theme` and return (corner_rgb, centre_rgb).
 
     Expects an already-authenticated page: both tests sample the SAME fixture
@@ -182,7 +182,7 @@ def _sample(page, live_server, unit, user, theme, tmp_path):
     # theme twice and compare a page against itself.
     assert page.evaluate("document.documentElement.dataset.theme") == theme
 
-    img = page.locator(".el--image img")
+    img = page.locator(selector)
     img.wait_for()
     # state="visible" only needs a non-empty box, and an <img> whose bytes have
     # not arrived still gets one from its alt text -- so measuring here can catch
@@ -285,3 +285,90 @@ def test_plate_matches_the_light_page_ground(page, live_server, plate_lesson, tm
     assert all(abs(a - b) <= TOL for a, b in zip(dark_corner, expected, strict=True)), (
         f"plate {dark_corner} is not the light page ground {expected}"
     )
+
+
+# Table and fill-table cells render their images through their own templates
+# (_table_cell.html, _filltable_cell.html) as `.cell-img`, outside `.el--image`, so
+# the lesson rule never reached them. Both kinds are seeded: they share the class,
+# but a template that drops it would unplate one kind silently.
+def _cell(kind, asset):
+    return {
+        "kind": kind,
+        **(
+            {"media": asset.pk, "alt": "A labelled diagram", "size": "large"}
+            if kind == "image"
+            else {"answer": "x"}
+        ),
+        "halign": "left",
+        "valign": "top",
+    }
+
+
+@pytest.fixture(params=["table", "filltable"])
+def plate_table_lesson(request, db, _isolated_media):
+    from courses.models import FillTableElement
+    from courses.models import TableElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    asset = make_image_asset(
+        course, filename="transparent-cell.png", raw=_transparent_ink_png()
+    )
+    grid = {"header_row": False, "header_col": False, "border": "grid"}
+    if request.param == "table":
+        el = TableElement.objects.create(
+            data=TableElement.normalize_data(
+                {**grid, "cells": [[_cell("image", asset)]]}
+            )
+        )
+    else:
+        # FillTableElement needs an answer cell to be a valid element at all.
+        el = FillTableElement.objects.create(
+            data=FillTableElement.normalize_data(
+                {
+                    **grid,
+                    "prompt": "",
+                    "case_sensitive": False,
+                    "cells": [[_cell("image", asset), _cell("answer", asset)]],
+                }
+            )
+        )
+    add_element(unit, el)
+    user = make_verified_user(
+        username="plate-cell-student",
+        email="plate-cell-student@test.example.com",
+        password=TEST_PASSWORD,
+    )
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+def test_transparent_cell_image_reads_the_same_in_both_themes(
+    page, live_server, plate_table_lesson, tmp_path
+):
+    """The lesson-image A/B, on a table cell image. Same three halves (a)-(c)."""
+    unit, user = plate_table_lesson
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+
+    light_corner, light_centre = _sample(
+        page, live_server, unit, user, "light", tmp_path, selector=".cell-img"
+    )
+    dark_corner, dark_centre = _sample(
+        page, live_server, unit, user, "dark", tmp_path, selector=".cell-img"
+    )
+
+    assert _luminance(light_corner) > 0.7, f"control: light corner {light_corner}"
+    assert _luminance(light_centre) < 0.15, f"control: light centre {light_centre}"
+    assert _luminance(dark_corner) > 0.7, (
+        f"transparent cell image got no light plate in dark mode: {dark_corner}"
+    )
+    assert _luminance(dark_centre) < 0.15, (
+        f"the cell image's dark ink did not survive dark mode: {dark_centre}"
+    )
+    assert all(
+        abs(a - b) <= TOL for a, b in zip(dark_corner, light_corner, strict=True)
+    ), f"plate {dark_corner} does not match the light ground {light_corner}"
+    assert all(
+        abs(a - b) <= TOL for a, b in zip(dark_centre, light_centre, strict=True)
+    ), f"ink renders differently in dark {dark_centre} vs light {light_centre}"

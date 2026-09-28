@@ -1712,6 +1712,20 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .ta-center > .cell-img { margin-inline: auto; }
 .ta-right  > .cell-img { margin-inline: auto 0; }
 
+/* The dark-theme image plate, for table and fill-table cell images. Same defect and
+   same fix as `[data-theme="dark"] .el--image img` (see the long note there): a
+   transparent Open edX PNG's dark ink vanishes into the dark page, and the plate
+   restores the light ground it was drawn against. On the <img>, like that rule.
+
+   Padding is --space-2, not the lesson rule's --space-3: it sits INSIDE the bare
+   absolute caps above (border-box), and 2*12px would take 30% off a Small (80px)
+   image. Same deliberate dark-narrower-than-light trade as the lesson plate. */
+[data-theme="dark"] .cell-img {
+  background: var(--image-plate);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
 /* dvh not vh, per C1: vh resolves against the toolbar-collapsed viewport, so a vh
    cap can still fall below the fold on a phone. AGGREGATE height is accepted: the
    60dvh bound is per image, so a five-row table of tall `full` images is still
@@ -1723,6 +1737,9 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    Small/Medium/Large are already absolute and need no print counterpart. */
 @media print {
   .cell-img--full { max-height: 170mm; }
+  /* Undo the cell plate on paper -- same reason, and same source-order-only win
+     (both (0,2,0)), as the lesson plate's print reset. */
+  [data-theme="dark"] .cell-img { background: none; padding: 0; }
 }
 
 /* Fill-table editor preview. max-width leaves the BASE for the same equal-specificity
@@ -1739,6 +1756,13 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .filltable-editor__img--full   { max-width: 200px; max-height: 200px; }
 .ta-center > .filltable-editor__img { margin-inline: auto; }
 .ta-right  > .filltable-editor__img { margin-inline: auto 0; }
+/* Dark-theme plate, as on the student `.cell-img`; --space-1 because these caps are
+   half the student ones. Twin of `.table-editor__img` in editor.css. */
+[data-theme="dark"] .filltable-editor__img {
+  background: var(--image-plate);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
 /* `position: relative` IS LOAD-BEARING, and it is not about z-order. Overflow
    clipping does not reach an absolutely positioned descendant whose containing
    block is OUTSIDE the clipper, and a static scroller is nobody's containing

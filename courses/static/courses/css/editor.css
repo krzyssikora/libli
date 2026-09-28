@@ -1032,6 +1032,13 @@ button.asset-cell:hover { border-color: var(--primary); }
 .table-editor__img--full   { max-width: 200px; max-height: 200px; }
 .ta-center > .table-editor__img { margin-inline: auto; }
 .ta-right  > .table-editor__img { margin-inline: auto 0; }
+/* Dark-theme plate, as on the student `.cell-img`; --space-1 because these caps are
+   half the student ones. Twin of `.filltable-editor__img` in courses.css. */
+[data-theme="dark"] .table-editor__img {
+  background: var(--image-plate);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
 
 /* The BUTTON needs this: `.rte-btn` declares display:inline-flex, and an author display
    beats the UA [hidden]{display:none} rule REGARDLESS of specificity - the same trap this
