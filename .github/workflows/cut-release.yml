@@ -41,7 +41,7 @@ jobs:
 
       # Full history and tags: the ancestry and containment checks need them,
       # and a depth-1 clone makes merge-base --is-ancestor misreport.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 

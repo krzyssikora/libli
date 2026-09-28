@@ -44,7 +44,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -92,7 +92,7 @@ jobs:
       group: deploy-school-${{ matrix.code }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -176,7 +176,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Zero artifacts (a plan refusal, every leg dead early) must not fail
       # the job: those are the runs whose /fail ping matters most.

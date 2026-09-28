@@ -150,7 +150,7 @@ git clone <repo-url> /opt/libli && cd /opt/libli
 cp .env.production.example .env.production
 python3 -c "import secrets; print(secrets.token_urlsafe(64))"   # DJANGO_SECRET_KEY
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"   # POSTGRES_PASSWORD
-nano .env.production      # fill every blank AND replace every example hostname
+nano .env.production      # fill every blank but INIT_ADMIN_* (§5); replace every example hostname
 chmod 600 .env.production
 ```
 
@@ -895,9 +895,14 @@ which no step resets the school to `master`:
 1. **Deploy key first.** Give the box its own read-only deploy key (§8 *Fetching over
    SSH*, host side) and clone over SSH: `git clone git@github.com:krzyssikora/libli.git
    /opt/libli`. A full clone, never `--depth`: the migration guard reads history.
-2. **Check out a release tag**, not master: `git checkout --detach v1.0.0`. The tag must
-   already exist and must have been made by *cut-release* (see *Cutting a release*
-   below) — for the very first school, cut `v1.0.0` before provisioning.
+2. **Check out a release tag**, not master. Fetch it first — a clone made before the tag
+   was cut does not have it, and `checkout` then reads the tag as a path:
+   ```bash
+   git fetch origin '+refs/tags/v1.0.0:refs/tags/v1.0.0'
+   git checkout --detach v1.0.0
+   ```
+   The tag must have been made by *cut-release* (see *Cutting a release* below) — for the
+   very first school, cut `v1.0.0` before provisioning.
 3. In `.env.production`, set `LIBLI_IMAGE_TAG=sha-<40 hex>` by hand — the value of
    `git rev-parse 'v1.0.0^{commit}'` — as exactly one line in exactly that form. Do **not**
    add the channel line yet.
