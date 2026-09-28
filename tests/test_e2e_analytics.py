@@ -262,3 +262,104 @@ def test_group_teacher_drills_from_the_matrix_to_one_answer(page, live_server, c
     expect(item).to_contain_text("Correct answer: 5/6")
     page.locator("section.answers .manage__head").get_by_role("link").click()
     expect(page.locator(".breakdown .manage__title")).to_contain_text("Ada L.")
+
+
+_LONG_TITLE = "Rozdział 1: Liczby rzeczywiste i działania"
+
+# Centre of the first body row's first SCORE cell's text, and what the browser
+# actually paints there. On phones the pinned Student + Overall columns used to
+# leave a sliver so narrow that the number sat underneath Overall (or past the
+# scroll box's edge) -- the cell's colour showed, its value never did.
+_FIRST_SCORE_PAINTED = """() => {
+  const td = document.querySelector('.analytics__matrix tbody tr td:nth-child(2)');
+  const range = document.createRange();
+  range.selectNodeContents(td);
+  const r = range.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const at = (px) => {
+    const hit = document.elementFromPoint(px, y);
+    return hit === td || td.contains(hit);
+  };
+  // the number itself, and BOTH edges of its cell: a whole score column must
+  // fit beside the (frozen) Student column, not just a sliver of it
+  const c = td.getBoundingClientRect();
+  return {text: td.textContent.trim(), painted: at(x),
+          whole_cell: at(c.left + 2) && at(c.right - 2)};
+}"""
+
+
+def _long_titled_results_course(client, username):
+    from decimal import Decimal
+
+    from courses.models import Enrollment
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import UserFactory
+
+    owner = make_pa(client, username)
+    course = CourseFactory(owner=owner)
+    for i in range(3):
+        ch = ContentNodeFactory(
+            course=course,
+            kind="chapter",
+            unit_type=None,
+            parent=None,
+            title=_LONG_TITLE if i == 0 else f"Rozdział {i + 1}: Funkcje",
+        )
+        quiz = ContentNodeFactory(
+            course=course, kind="unit", unit_type="quiz", parent=ch
+        )
+        for name in ("Krystyna Jankowska", "Elżbieta Michalska"):
+            student, _ = UserFactory._meta.model.objects.get_or_create(
+                username=name.replace(" ", "").lower(),
+                defaults={
+                    "display_name": name,
+                    "first_name": name.split()[0],
+                    "last_name": name.split()[1],
+                },
+            )
+            Enrollment.objects.get_or_create(student=student, course=course)
+            QuizSubmission.objects.create(
+                student=student,
+                unit=quiz,
+                status="submitted",
+                score=Decimal("7"),
+                max_score=Decimal("10"),
+            )
+    return course
+
+
+@pytest.mark.parametrize("width", [320, 375])
+@pytest.mark.django_db(transaction=True)
+def test_phone_width_shows_a_score_between_the_frozen_columns(
+    page, live_server, client, width
+):
+    course = _long_titled_results_course(client, "e2emobile")
+    _login(page, live_server, "e2emobile")
+    page.set_viewport_size({"width": width, "height": 800})
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results")
+    page.locator(".analytics__matrix").scroll_into_view_if_needed()
+    got = page.evaluate(_FIRST_SCORE_PAINTED)
+    assert got == {"text": "70%", "painted": True, "whole_cell": True}
+    # Overall stops pinning right, but its header still sticks to the top
+    head = page.locator(".analytics__matrix th.analytics__overall")
+    assert head.evaluate("e => getComputedStyle(e).position") == "sticky"
+    assert head.evaluate("e => getComputedStyle(e).right") == "auto"
+    # the long header is cut short with an ellipsis, full text kept as a tooltip
+    title = page.locator(".analytics__coltitle", has_text="Rozdział 1").first
+    assert title.get_attribute("title") == _LONG_TITLE
+    assert title.evaluate("e => e.scrollWidth > e.clientWidth")
+    assert title.evaluate("e => getComputedStyle(e).textOverflow") == "ellipsis"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_desktop_width_keeps_full_headers_and_frozen_overall(page, live_server, client):
+    course = _long_titled_results_course(client, "e2edesk")
+    _login(page, live_server, "e2edesk")
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results")
+    title = page.locator(".analytics__coltitle", has_text="Rozdział 1").first
+    assert title.evaluate("e => e.scrollWidth <= e.clientWidth")
+    overall = page.locator(".analytics__matrix td.analytics__overall").first
+    assert overall.evaluate("e => getComputedStyle(e).position") == "sticky"

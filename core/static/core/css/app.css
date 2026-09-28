@@ -1015,6 +1015,22 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .analytics__matrix tbody tr:hover td,
 .analytics__matrix tbody tr:hover th{box-shadow:inset 0 0 0 9999px rgba(127,127,127,.16)}
 .analytics__matrix tbody tr:hover .analytics__rowhead{font-weight:700}
+/* Phones: the two frozen columns plus nowrap headers left the scores a sliver
+   too narrow to show a number (the value sat under the frozen Overall column).
+   So on a narrow screen: the Student column narrows and wraps names (still
+   frozen -- whose row it is must stay readable); Overall stops pinning to the
+   right and scrolls as the last column (right:auto, NOT position:static: its
+   header cell must still stick to the top); long column titles are cut with
+   an ellipsis (full title in the title="" tooltip) so a score column is not
+   15rem wide. Header height
+   is untouched: titles still sit on ONE line, which the stacked sticky header
+   rows (top: --ahead-h * row) depend on. */
+@media (max-width: 640px) {
+  .analytics__matrix .analytics__rowhead{white-space:normal;width:7.5rem;min-width:7.5rem}
+  .analytics__matrix .analytics__overall{right:auto;box-shadow:none}
+  .analytics__coltitle{display:inline-block;max-width:7.5rem;overflow:hidden;
+    text-overflow:ellipsis;vertical-align:bottom}
+}
 
 /* --- Export panel (Task 9) --- */
 /* <details>/<summary> dropdown, matching the .menu pattern: the summary is a
