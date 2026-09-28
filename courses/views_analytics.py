@@ -31,7 +31,10 @@ from courses.rollups import _quiz_review_maps
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
+from courses.rollups import is_obligatory_lesson
+from courses.rollups import is_quiz_unit
 from courses.rollups import tree_titles_have_math
+from courses.rollups import units_in_order
 from courses.views import _question_has_math
 from courses.views import _results_row
 from courses.views import prefetch_question_children
@@ -111,7 +114,6 @@ def analytics_matrix(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not scoping.can_review_course(request.user, course):
         raise Http404
-    mode = "results" if request.GET.get("mode") == "results" else "progress"
     values = "raw" if request.GET.get("values") == "raw" else "percent"
     scope = request.GET.get("scope", "all")
     scope_rendered = request.GET.get("scope_rendered")
@@ -130,6 +132,7 @@ def analytics_matrix(request, slug):
         pool.filter(pk__in=subset_pks) if subset_pks else pool
     )
     with_data = _with_data_for(course)
+    mode = _matrix_mode(request, course, with_data)
     if mode == "results":
         matrix = build_results_matrix(
             course,
@@ -166,6 +169,12 @@ def analytics_matrix(request, slug):
     has_math = titles_have_math(
         c["title"] for row in matrix["header_rows"] for c in row
     )
+    # Each mode drops the columns it cannot measure, so no columns no longer
+    # means no content: tell "no quizzes / no tracked lessons yet" apart from an
+    # empty course. Only queried on that (rare) empty path.
+    has_content = bool(matrix["columns"]) or bool(
+        units_in_order(course, drafts="keep-with-data", with_data=with_data)
+    )
     return render(
         request,
         "courses/manage/analytics_matrix.html",
@@ -189,8 +198,23 @@ def analytics_matrix(request, slug):
             "percent_url": f"{matrix_path}?{percent_qs}",
             "raw_url": f"{matrix_path}?{raw_qs}",
             "has_math": has_math,
+            "has_content": has_content,
         },
     )
+
+
+def _matrix_mode(request, course, with_data):
+    """The URL's mode, else Progress -- unless Progress has nothing to measure
+    and Results does. Each mode shows only the columns it can measure, so a
+    quiz-only course would open on an empty Progress view with no student rows
+    to drill from. An EXPLICIT ?mode= is always honoured."""
+    requested = request.GET.get("mode")
+    if requested is not None:
+        return "results" if requested == "results" else "progress"
+    units = units_in_order(course, drafts="keep-with-data", with_data=with_data)
+    if not any(map(is_obligatory_lesson, units)) and any(map(is_quiz_unit, units)):
+        return "results"
+    return "progress"
 
 
 def _matrix_redirect(course, request):

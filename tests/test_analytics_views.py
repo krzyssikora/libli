@@ -686,44 +686,93 @@ def test_toggle_and_export_label_render(client):
 
 
 @pytest.mark.django_db
-def test_badges_and_caption(client):
+def test_each_mode_shows_only_measurable_columns(client):
     from courses.models import Enrollment
 
     owner = make_login(client, "owner")
     course = CourseFactory(owner=owner)
     ch_l = ContentNodeFactory(
-        course=course, kind="chapter", unit_type=None, parent=None, title="Lessons"
+        course=course, kind="chapter", unit_type=None, parent=None, title="LessonCh"
     )
     ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=ch_l, obligatory=True
     )
     ch_q = ContentNodeFactory(
-        course=course, kind="chapter", unit_type=None, parent=None, title="Quizzes"
+        course=course, kind="chapter", unit_type=None, parent=None, title="QuizCh"
     )
     ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch_q)
     Enrollment.objects.create(student=UserFactory(), course=course)
     r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
-    assert b"Not scored in this view" in r.content
+    assert b"QuizCh" in r.content and b"LessonCh" not in r.content
     assert b"not attempted yet" in r.content
+    assert b"analytics__badge" not in r.content
     p = client.get(f"/manage/courses/{course.slug}/analytics/?mode=progress")
-    assert b"Not part of progress tracking" in p.content
-    assert b"not tracked as progress" in p.content
+    assert b"LessonCh" in p.content and b"QuizCh" not in p.content
+    assert b"analytics__badge" not in p.content
 
 
 @pytest.mark.django_db
-def test_badge_suppressed_and_progress_empty_state(client):
+def test_mode_empty_states_when_nothing_is_measurable(client):
     from courses.models import Enrollment
 
     owner = make_login(client, "owner")
     course, ch, les = _course_with_lesson(owner)
     Enrollment.objects.create(student=UserFactory(), course=course)
     r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
-    assert b"Not scored in this view" not in r.content
     assert b"No quizzes in this course yet." in r.content
+    assert b"No content in this course yet." not in r.content
+    assert b"analytics__matrix" not in r.content
     q = CourseFactory(owner=owner)
     chq = ContentNodeFactory(course=q, kind="chapter", unit_type=None, parent=None)
     ContentNodeFactory(course=q, kind="unit", unit_type="quiz", parent=chq)
     Enrollment.objects.create(student=UserFactory(), course=q)
     pg = client.get(f"/manage/courses/{q.slug}/analytics/?mode=progress")
     assert b"No progress-tracked lessons in this course yet." in pg.content
-    assert b"Not part of progress tracking" not in pg.content
+    assert b"No content in this course yet." not in pg.content
+    empty = CourseFactory(owner=owner)
+    Enrollment.objects.create(student=UserFactory(), course=empty)
+    for mode in ("results", "progress"):
+        e = client.get(f"/manage/courses/{empty.slug}/analytics/?mode={mode}")
+        assert b"No content in this course yet." in e.content
+
+
+@pytest.mark.django_db
+def test_default_mode_opens_results_when_progress_has_nothing(client):
+    # Progress is the default view, but a quiz-only course has no Progress
+    # column -- and with no table there are no student links to drill from. So
+    # with NO mode in the URL, open on the view that can measure something.
+    owner = make_login(client, "owner")
+    course, ch, qz = _course_with_quiz(owner)
+    Enrollment.objects.create(student=UserFactory(display_name="Ada L."), course=course)
+    url = f"/manage/courses/{course.slug}/analytics/"
+    r = client.get(url)
+    assert r.context["mode"] == "results"
+    assert b"analytics__matrix" in r.content and b"Ada L." in r.content
+    # an explicit choice is honoured, empty state and all
+    p = client.get(url + "?mode=progress")
+    assert p.context["mode"] == "progress"
+    assert b"No progress-tracked lessons in this course yet." in p.content
+
+
+@pytest.mark.django_db
+def test_default_mode_stays_progress_when_progress_can_measure(client):
+    owner = make_login(client, "owner")
+    course, ch, les = _course_with_lesson(owner)
+    Enrollment.objects.create(student=UserFactory(), course=course)
+    assert (
+        client.get(f"/manage/courses/{course.slug}/analytics/").context["mode"]
+        == "progress"
+    )
+    # mixed course: Progress can measure, so it stays the default
+    ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch)
+    assert (
+        client.get(f"/manage/courses/{course.slug}/analytics/").context["mode"]
+        == "progress"
+    )
+    # empty course: nothing either way -- keep the usual default
+    empty = CourseFactory(owner=owner)
+    Enrollment.objects.create(student=UserFactory(), course=empty)
+    assert (
+        client.get(f"/manage/courses/{empty.slug}/analytics/").context["mode"]
+        == "progress"
+    )

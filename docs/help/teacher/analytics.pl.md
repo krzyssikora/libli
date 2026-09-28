@@ -14,7 +14,8 @@ również, jeśli możesz przeglądać kurs tej kolekcji.
   nazwiska, a potem imienia, alfabetycznie. Uczeń, któremu na koncie brakuje imienia
   lub nazwiska, jest umieszczony według nazwy wyświetlanej.
 - **Kolumny** odzwierciedlają strukturę kursu — części, rozdziały, sekcje i
-  jednostki, w tej samej kolejności co konspekt w kreatorze.
+  jednostki, w tej samej kolejności co konspekt w kreatorze — ale każdy widok
+  pokazuje tylko te fragmenty, które może zmierzyć (zob. niżej).
 - Kliknij nagłówek kolumny, aby **rozwinąć** ją głębiej: kolumna części
   rozwija się w rozdziały, rozdział w jednostki i tak dalej, bez opuszczania
   strony.
@@ -44,6 +45,11 @@ Użyj przełącznika nad siatką, aby zmienić, co pokazuje macierz:
 
 - **Postęp** — ile z danej jednostki uczeń już przerobił.
 - **Wyniki** — jaki wynik uczeń uzyskał w jednostkach ocenianych.
+
+Każdy widok pokazuje tylko kolumny, które może zmierzyć: **Postęp** ukrywa
+fragmenty kursu bez lekcji obowiązkowych, a **Wyniki** — fragmenty bez quizów.
+Kurs, który ma quizy, ale nie ma lekcji obowiązkowych, otwiera się w widoku
+**Wyniki**.
 
 ## Zawężanie widoku
 

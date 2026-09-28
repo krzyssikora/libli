@@ -15,7 +15,8 @@ collection's course.
   name, alphabetically. A student whose account lacks either a first name or a
   surname is placed by their display name.
 - **Columns** mirror the course structure — parts, chapters, sections, and
-  units, in the same order as the builder outline.
+  units, in the same order as the builder outline — but each view shows only
+  the parts it can measure (see below).
 - Click a column header to **drill down**: a part column expands into its
   chapters, a chapter into its units, and so on, without leaving the page.
 
@@ -44,6 +45,10 @@ Use the toggle above the grid to switch what the matrix measures:
 
 - **Progress** — how much of each unit a student has worked through.
 - **Results** — the score a student achieved, for graded units.
+
+Each view shows only the columns it can measure: **Progress** hides parts of
+the course with no required lessons, and **Results** hides parts with no
+quizzes. A course with quizzes but no required lessons opens on **Results**.
 
 ## Narrowing the view
 

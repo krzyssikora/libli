@@ -236,3 +236,21 @@ def test_quiz_gradebook_no_quizzes_and_empty_students():
         course, [UserFactory()], numbers_only=False, drafts="keep"
     )
     assert empty["columns"] == [] and empty["rows"][0]["cells"] == []
+
+
+@pytest.mark.django_db
+def test_build_matrix_table_drops_columns_the_mode_cannot_measure():
+    course = CourseFactory()
+    ch_l = _chapter(course, title="L")
+    _lesson(course, ch_l)
+    ch_q = _chapter(course, title="Q")
+    _quiz(course, ch_q)
+    s1 = UserFactory()
+    res = build_matrix_table(
+        course, [s1], mode="results", expanded=frozenset(), drafts="keep"
+    )
+    assert [c["label"] for c in res["columns"]] == ["Q"]
+    prog = build_matrix_table(
+        course, [s1], mode="progress", expanded=frozenset(), drafts="keep"
+    )
+    assert [c["label"] for c in prog["columns"]] == ["L"]

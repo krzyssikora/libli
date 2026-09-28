@@ -650,7 +650,9 @@ def _stamp_results(nodes, rows_by_unit):
     }
 
 
-def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):
+def frontier_columns(
+    course, expanded_pks, *, drafts="keep", with_data=None, measure=None
+):
     """Recursive drill-down columns + a nested header structure (spec §1).
 
     One `course.nodes` query + a parent_id-grouped recursion. A node whose pk is
@@ -684,8 +686,15 @@ def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):
     positionally coupled. A post-filter would leave a stale `<th>` and an
     over-counted `colspan` in `header_rows`, silently shifting every column
     header off its data for the rest of the row.
+
+    `measure` ("quizzes" / "lessons" / None) drops, by the same in-walk rule, a
+    node whose subtree holds no VISIBLE quiz / obligatory lesson: the column
+    the active matrix mode cannot measure, which would only ever render "—".
+    None (the default, for the test-only callers) keeps every column.
     """
     _check_drafts(drafts, with_data)
+    if measure not in (None, "quizzes", "lessons"):
+        raise ValueError(f"unknown measure {measure!r}")
     nodes = list(course.nodes.all())
     children = {}
     for n in nodes:
@@ -739,6 +748,12 @@ def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):
             if total and not visible:
                 # Suppresses columns.append, cells_by_depth AND leaves together.
                 continue
+            lesson_pks, quiz_pks = subtree_pks(node)
+            if (measure == "quizzes" and not quiz_pks) or (
+                measure == "lessons" and not lesson_pks
+            ):
+                # Same suppression, same place: nothing here the mode measures.
+                continue
             kids = children.get(node.pk, [])
             if node.pk in expanded_pks and kids:
                 expanded_nodes.append({"node": node, "pk": node.pk})
@@ -753,7 +768,6 @@ def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):
                 cell["colspan"] = walk(node.pk, depth + 1)
                 leaves += cell["colspan"]
             else:
-                lesson_pks, quiz_pks = subtree_pks(node)
                 has_lessons = bool(lesson_pks)
                 has_quizzes = bool(quiz_pks)
                 columns.append(
@@ -948,7 +962,9 @@ def build_progress_matrix(
     """
     _check_drafts(drafts, with_data)
     students = list(students)
-    fc = frontier_columns(course, expanded, drafts=drafts, with_data=with_data)
+    fc = frontier_columns(
+        course, expanded, drafts=drafts, with_data=with_data, measure="lessons"
+    )
     columns = fc["columns"]
     all_lesson_pks = set()
     for c in columns:
@@ -1006,7 +1022,9 @@ def build_results_matrix(
     """
     _check_drafts(drafts, with_data)
     students = list(students)
-    fc = frontier_columns(course, expanded, drafts=drafts, with_data=with_data)
+    fc = frontier_columns(
+        course, expanded, drafts=drafts, with_data=with_data, measure="quizzes"
+    )
     columns = fc["columns"]
     all_quiz_pks = set()
     for c in columns:

@@ -140,7 +140,9 @@ def test_export_panel_forwards_onscreen_state(client):
     matrix_url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     resp = client.get(
         matrix_url,
-        {"scope": "all", "mode": "results", "expand": ch.pk, "student": a.pk},
+        # progress, not results: a lesson-only chapter has no Results column, so
+        # its expand pk would (correctly) not round-trip there
+        {"scope": "all", "mode": "progress", "expand": ch.pk, "student": a.pk},
     )
     body = resp.content.decode()
     export_action = reverse(
@@ -150,7 +152,7 @@ def test_export_panel_forwards_onscreen_state(client):
     # everything from the export form's action up to its closing </form>
     form = body.split(export_action, 1)[1].split("</form>", 1)[0]
     assert 'name="scope"' in form
-    assert 'name="mode"' in form and 'value="results"' in form
+    assert 'name="mode"' in form and 'value="progress"' in form
     assert f'name="expand" value="{ch.pk}"' in form
     assert f'name="student" value="{a.pk}"' in form
 

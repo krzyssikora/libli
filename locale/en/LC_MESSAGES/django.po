@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 17:31+0200\n"
+"POT-Creation-Date: 2026-09-28 20:14+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -953,12 +953,12 @@ msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr ""
 
 #: .\courses\gradebook.py:51 .\courses\gradebook.py:142
-#: .\templates\courses\manage\analytics_matrix.html:161
+#: .\templates\courses\manage\analytics_matrix.html:158
 msgid "Average"
 msgstr ""
 
 #: .\courses\gradebook.py:61
-#: .\templates\courses\manage\analytics_matrix.html:135
+#: .\templates\courses\manage\analytics_matrix.html:132
 msgid "Overall"
 msgstr ""
 
@@ -1173,24 +1173,24 @@ msgstr ""
 msgid "correct answer, not chosen"
 msgstr ""
 
-#: .\courses\models.py:3289
+#: .\courses\models.py:3293
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:3291
+#: .\courses\models.py:3295
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:3296
+#: .\courses\models.py:3300
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:3367
+#: .\courses\models.py:3371
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:3368
+#: .\courses\models.py:3372
 msgid "Submitted"
 msgstr ""
 
@@ -2545,16 +2545,16 @@ msgstr ""
 msgid "Show answer is not available for this question."
 msgstr ""
 
-#: .\courses\views.py:2040
+#: .\courses\views.py:2042
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
 
-#: .\courses\views_analytics.py:472
+#: .\courses\views_analytics.py:480
 msgid "Colours reset to defaults."
 msgstr ""
 
-#: .\courses\views_analytics.py:478
+#: .\courses\views_analytics.py:486
 msgid "Colours saved."
 msgstr ""
 
@@ -2729,7 +2729,7 @@ msgstr ""
 #: .\courses\views_manage.py:2270
 #: .\templates\courses\manage\editor\_add_menu.html:101
 #: .\templates\courses\manage\editor\_add_menu.html:113
-#: .\tests\test_i18n_questions_2b.py:35
+#: .\tests\test_i18n_questions_2b.py:34
 msgid "Fill in the blanks"
 msgstr ""
 
@@ -3309,7 +3309,7 @@ msgid "Leave blank to omit the allowance sentence from the page."
 msgstr ""
 
 #: .\institution\roles.py:19
-#: .\templates\courses\manage\analytics_matrix.html:110
+#: .\templates\courses\manage\analytics_matrix.html:115
 #: .\templates\grouping\allocation_assign.html:55
 msgid "Student"
 msgstr ""
@@ -6043,27 +6043,11 @@ msgstr ""
 msgid "Raw"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:87
-msgid ""
-"— = not attempted yet, or awaiting review (badged columns aren't scored in "
-"this view)."
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:87
+#: .\templates\courses\manage\analytics_matrix.html:89
 msgid "— = not attempted yet, or awaiting review."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:89
-msgid ""
-"— = not tracked as progress here (badged columns aren't part of progress; "
-"quiz scores appear under Results)."
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:89
-msgid "— = not tracked as progress here; quiz scores appear under Results."
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:94
+#: .\templates\courses\manage\analytics_matrix.html:93
 msgid "No students in this scope."
 msgstr ""
 
@@ -6071,53 +6055,43 @@ msgstr ""
 msgid "No content in this course yet."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:109
+#: .\templates\courses\manage\analytics_matrix.html:98
+msgid "No quizzes in this course yet."
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:100
+msgid "No progress-tracked lessons in this course yet."
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:114
 msgid "Select all students"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:122
-#: .\templates\courses\manage\analytics_matrix.html:123
-msgid "Not part of progress tracking"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:126
-#: .\templates\courses\manage\analytics_matrix.html:127
-msgid "Not scored in this view"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:131
+#: .\templates\courses\manage\analytics_matrix.html:128
 msgid "Collapse"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:146
+#: .\templates\courses\manage\analytics_matrix.html:143
 #, python-format
 msgid "Select %(name)s"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:180
+#: .\templates\courses\manage\analytics_matrix.html:177
 msgid "Apply selection"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:181
+#: .\templates\courses\manage\analytics_matrix.html:178
 msgid "Tick students in the table above, then apply to show just them."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:182
+#: .\templates\courses\manage\analytics_matrix.html:179
 msgctxt "analytics subset"
 msgid "Show all"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:183
+#: .\templates\courses\manage\analytics_matrix.html:180
 #, python-format
 msgid "%(n)s selected"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:186
-msgid "No quizzes in this course yet."
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:188
-msgid "No progress-tracked lessons in this course yet."
 msgstr ""
 
 #: .\templates\courses\manage\analytics_student.html:37
