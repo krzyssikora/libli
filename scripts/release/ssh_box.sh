@@ -2,7 +2,9 @@
 # The one ssh invocation for release deploys (B2; spec §2). Every option is
 # pinned here so no workflow step can quietly drop one:
 #   BatchMode, ConnectTimeout, ServerAlive*   fail fast and legibly, never hang
-#   StrictHostKeyChecking=yes + UserKnownHostsFile
+#   StrictHostKeyChecking=yes + UserKnownHostsFile (+ GlobalKnownHostsFile
+#                                             emptied, so the runner image's
+#                                             own list vouches for nothing)
 #                                             enforce the host_key pinned in
 #                                             SCHOOL_HOSTS; never the lax
 #                                             StrictHostKeyChecking modes,
@@ -19,6 +21,6 @@ shift
 host="$(head -n 1 "$dir/host")"
 exec ssh -i "$dir/key" \
   -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=4 \
-  -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$dir/known_hosts" \
+  -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
   -o IdentitiesOnly=yes \
   "root@$host" "$@"

@@ -125,6 +125,19 @@ def test_every_guard_checkout_has_full_history(path):
             assert "fetch-depth: 0" in joined, name
 
 
+def test_every_deploy_release_checkout_drops_its_credentials():
+    """Nothing in deploy-release fetches or pushes after the checkout, so no
+    job keeps the token in .git/config beside the SSH key. Derived per job:
+    a new job's checkout is covered too. Mutant: drop any one of the lines."""
+    seen = 0
+    for name, block in jobs(_dr()).items():
+        for step in steps(block):
+            if "actions/checkout" in step:
+                seen += 1
+                assert "persist-credentials: false" in step, name
+    assert seen >= 3
+
+
 def test_cut_release_is_a_button_only():
     text = CUT.read_text(encoding="utf-8")
     on = text[text.index("\non:") : text.index("\npermissions:")]
@@ -187,6 +200,7 @@ def test_ssh_box_pins_every_option():
         "ServerAliveCountMax=4",
         "StrictHostKeyChecking=yes",
         'UserKnownHostsFile="$dir/known_hosts"',
+        "GlobalKnownHostsFile=/dev/null",
         "IdentitiesOnly=yes",
     ):
         assert f"-o {opt}" in code, opt
