@@ -175,6 +175,12 @@ nothing is badged; use the plain form (Results: *"— = not attempted yet, or aw
 Progress: *"— = not tracked as progress here; quiz scores appear under Results."*) so the
 caption doesn't narrate badges that aren't rendered.
 
+> **Superseded 2026-09-28 (owner decision):** badging turned a lesson-heavy course's
+> Results view into a wall of empty badged columns. Each mode now **hides** the columns it
+> cannot measure (`frontier_columns(measure=...)`), in the page and the gradebook export alike;
+> the badges and the Progress caption are gone, and a URL with no `mode` opens on Results when
+> Progress has nothing to measure but Results does. The text below is kept as history.
+
 **B) Badge the columns a mode structurally can't measure.** Each **leaf** analytics column
 derives from a frontier node carrying `lesson_pks` (obligatory lessons only — non-obligatory
 lessons are in *neither* set) and `quiz_pks`. Expose two booleans per leaf column —

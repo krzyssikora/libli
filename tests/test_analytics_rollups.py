@@ -95,15 +95,15 @@ def test_progress_matrix_cells_overall_and_average():
 
 
 @pytest.mark.django_db
-def test_progress_column_with_no_obligatory_lessons_is_none():
+def test_progress_column_with_no_obligatory_lessons_is_dropped():
     course = CourseFactory()
     ch = _chapter(course)
     _quiz(course, ch)  # all-quiz chapter -> no obligatory lessons
     s1 = UserFactory()
     m = build_progress_matrix(course, [s1], drafts="keep")
-    assert m["rows"][0]["cells"][0]["percent"] is None
-    assert m["rows"][0]["cells"][0]["label"] == "—"
-    assert m["averages"][0]["percent"] is None  # mean of zero defined cells
+    # once an all-"—" column; Progress now shows only what it measures
+    assert m["columns"] == [] and m["rows"][0]["cells"] == []
+    assert m["rows"][0]["overall"]["percent"] is None
 
 
 @pytest.mark.django_db
@@ -457,7 +457,7 @@ def test_results_partition_invariant_under_expansion():
 def test_builders_expose_expanded_nodes_and_expandable():
     course = CourseFactory()
     ch = _chapter(course)
-    _section(course, ch)
+    _lesson(course, _section(course, ch))  # a measurable child, so ch stays
     m = build_progress_matrix(course, [], drafts="keep")
     assert m["expanded_nodes"] == []
     assert m["columns"][0]["expandable"] is True
@@ -893,3 +893,73 @@ def test_rt_quiz_score_view_is_the_grids_rule(row, expected):
     assert got == expected
     assert isinstance(view["score"], Decimal)
     assert isinstance(view["max_score"], Decimal)
+
+
+# --- Each mode shows only the columns it can measure ------------------------
+# Results keeps a column iff its subtree holds a visible quiz; Progress iff it
+# holds a visible OBLIGATORY lesson. A dropped column always rendered "—" in
+# every row, so no figure changes -- only empty columns go.
+
+
+def _mixed_course():
+    course = CourseFactory()
+    ch_l = _chapter(course, title="Lessons only")
+    _lesson(course, ch_l)
+    ch_q = _chapter(course, title="Quizzes only")
+    _quiz(course, ch_q)
+    ch_o = _chapter(course, title="Optional only")
+    _lesson(course, ch_o, obligatory=False)
+    ch_m = _chapter(course, title="Mixed")
+    sec_l = _section(course, ch_m, title="Mixed / lessons")
+    _lesson(course, sec_l)
+    sec_q = _section(course, ch_m, title="Mixed / quizzes")
+    _quiz(course, sec_q)
+    return course, ch_l, ch_q, ch_o, ch_m, sec_l, sec_q
+
+
+@pytest.mark.django_db
+def test_results_matrix_drops_columns_without_quizzes():
+    course, ch_l, ch_q, ch_o, ch_m, _, _ = _mixed_course()
+    m = build_results_matrix(course, [UserFactory()], drafts="keep")
+    assert [c["node"].pk for c in m["columns"]] == [ch_q.pk, ch_m.pk]
+    assert len(m["rows"][0]["cells"]) == len(m["averages"]) == 2
+
+
+@pytest.mark.django_db
+def test_progress_matrix_drops_columns_without_obligatory_lessons():
+    course, ch_l, ch_q, ch_o, ch_m, _, _ = _mixed_course()
+    m = build_progress_matrix(course, [UserFactory()], drafts="keep")
+    # quiz-only AND optional-lesson-only chapters both go
+    assert [c["node"].pk for c in m["columns"]] == [ch_l.pk, ch_m.pk]
+    assert len(m["rows"][0]["cells"]) == len(m["averages"]) == 2
+
+
+@pytest.mark.django_db
+def test_expanded_mixed_chapter_shows_only_measurable_children():
+    course, ch_l, ch_q, _, ch_m, sec_l, sec_q = _mixed_course()
+    res = build_results_matrix(course, [], {ch_m.pk}, drafts="keep")
+    assert [c["node"].pk for c in res["columns"]] == [ch_q.pk, sec_q.pk]
+    prog = build_progress_matrix(course, [], {ch_m.pk}, drafts="keep")
+    assert [c["node"].pk for c in prog["columns"]] == [ch_l.pk, sec_l.pk]
+    # the spanning header's colspan counts KEPT leaves only, else every header
+    # after it would sit over the wrong data column
+    for m in (res, prog):
+        group = next(c for c in m["header_rows"][0] if not c["is_leaf"])
+        assert group["node"].pk == ch_m.pk and group["colspan"] == 1
+        assert sum(c["colspan"] for c in m["header_rows"][0]) == len(m["columns"])
+
+
+@pytest.mark.django_db
+def test_expanded_chapter_with_nothing_measurable_is_dropped():
+    course, ch_l, *_ = _mixed_course()
+    m = build_results_matrix(course, [], {ch_l.pk}, drafts="keep")
+    assert ch_l.pk not in [c["node"].pk for c in m["columns"]]
+    assert m["expanded_nodes"] == []
+    assert all(c["node"].pk != ch_l.pk for row in m["header_rows"] for c in row)
+
+
+@pytest.mark.django_db
+def test_frontier_columns_without_measure_keeps_every_column():
+    course, ch_l, ch_q, ch_o, ch_m, _, _ = _mixed_course()
+    cols = frontier_columns(course, frozenset())["columns"]
+    assert [c["node"].pk for c in cols] == [ch_l.pk, ch_q.pk, ch_o.pk, ch_m.pk]

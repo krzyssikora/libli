@@ -46,6 +46,9 @@ def test_teacher_views_matrix_toggles_mode_and_edits_a_band(page, live_server, c
     les = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
     )
+    # A quiz too: Results shows only quiz-bearing columns, and the band save
+    # lands back on Results, which must still draw a table.
+    ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch)
     student = UserFactory(display_name="Ada L.")
     Enrollment.objects.create(student=student, course=course)
     UnitProgressFactory(student=student, unit=les, completed=True)
