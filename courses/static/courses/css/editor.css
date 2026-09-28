@@ -757,6 +757,10 @@ button.asset-cell:hover { border-color: var(--primary); }
 .zone-row--selected .zone-row__badge { box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--primary); }
 .zone-row__del { flex: none; display: inline-flex; align-items: center; gap: 4px;
   font-size: .8rem; color: var(--text-tertiary); white-space: nowrap; }
+/* Zone-canvas image (zone-editor.js): the dark-theme plate, BACKGROUND ONLY -- the
+   overlay drawing the zones is inset:0 on the img's box, so padding would misplace
+   every zone, exactly as on the student `.dragimage__img`. */
+[data-theme="dark"] .zone-stage__img { background: var(--image-plate); }
 
 /* --- WS3 media manager restyle --- */
 .page-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); }
@@ -1108,6 +1112,9 @@ button.asset-cell:hover { border-color: var(--primary); }
   border-radius: var(--radius-sm); flex: 0 0 auto;
   background: var(--surface-base);
 }
+/* --surface-base is dark in dark mode, so a transparent diagram's ink vanished into
+   its own thumbnail. The theme-invariant plate, as on the student-side images. */
+[data-theme="dark"] .el-editor--gallery .gallery-editor__thumb { background: var(--image-plate); }
 .el-editor--gallery .gallery-editor__desc {
   flex: 1 1 auto; min-height: 2.5rem;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
