@@ -80,8 +80,10 @@ speed, then offline use (not built).
   (the first row of the table), `offline_branding()` (§4), `cache_static()` (§2) and the
   passthrough constants of §2. "The storage has a manifest" is decided in ONE place:
   `_manifest_bytes()` returns the manifest file's bytes when the configured staticfiles
-  storage has a `manifest_name` attribute and that file exists in the storage, else
-  `b"nomanifest"`; `cache_static()` is `_manifest_bytes() != b"nomanifest" or
+  storage has a `manifest_name` attribute and
+  `(getattr(storage, "manifest_storage", None) or storage).exists(storage.manifest_name)`
+  (read through the same object — Django's `ManifestFilesMixin` reads the manifest via
+  `manifest_storage`), else `b"nomanifest"`; `cache_static()` is `_manifest_bytes() != b"nomanifest" or
   settings.PWA_CACHE_UNHASHED_STATIC`.
 
 ### 2. `/sw.js` — the worker, rendered by a view
@@ -143,8 +145,10 @@ speed, then offline use (not built).
   `respondWith` (browser default):
   0. Not `GET`, not same-origin, or `new URL(request.url).pathname` starts with a
      `PASSTHROUGH_PREFIXES` entry or ends with a `PASSTHROUGH_SUFFIXES` entry → pass.
-     Matching is on the PATHNAME only, query ignored: the real archive download is
-     `…/export/?confirm=1`, which a test on the full URL would miss. This runs BEFORE the navigate rule, so a
+     Matching is on the PATHNAME only, query ignored: the archive download is either a
+     plain `…/export/` GET (no problems or limit breaches) or `…/export/?confirm=1` after
+     the preview page, and a test on the full URL would miss the latter. The suffix also
+     catches `manage/courses/<slug>/analytics/export/` (the CSV download) — intended. This runs BEFORE the navigate rule, so a
      `/media/` URL opened in a tab (an image, a PDF, a video) and an archive download are
      never intercepted either. `/media/` passthrough keeps HTTP Range working for video
      seeking and keeps GBs of media out of the cache.
@@ -192,7 +196,9 @@ speed, then offline use (not built).
   --force-recreate app`. Never `docker compose restart`: it reuses the container's
   existing environment and does not re-read `env_file`, so the switch would silently
   never take effect. Verify from anywhere: `curl -s https://<host>/sw.js | grep -c
-  unregister` prints ≥ 1 with the switch on and 0 after undoing.
+  LIBLI_SW_KILL` prints 1 with the switch on and 0 after undoing. `LIBLI_SW_KILL` is a
+  marker comment only `sw_kill.js` carries; a source test asserts it is in `sw_kill.js`
+  and absent from `sw.js`, so the check cannot read "on" in both states.
 - Runbook (`docs/deployment.md`) gains a short "PWA kill switch" section carrying exactly
   those commands and the curl check;
   `.env.production.example` gains `LIBLI_PWA_KILL_SWITCH=` (blank) with a one-line comment.
@@ -369,7 +375,14 @@ registration if needed):
    the variable applies to the whole Playwright driver: the spike records where it is set
    and either shows the rest of the e2e suite still passes with it, or runs the PWA e2e
    module in its own pytest invocation (and says so in the plan and CI).
-3. A 404 URL while controlled shows the real 404 page, not the offline page. Also, an
+3. A 404 URL while controlled shows the real 404 page, not the offline page. A fetch of
+   `/static/core/nonexistent-<uuid>.css` returns 404 and, polled after it,
+   `libli-static-<v>` has no match for that URL (store guard). A form POST — the
+   language switch — is observed with `from_service_worker == False` (GET-only guard).
+   The same-origin half of the filter is guarded only if the implementer finds a
+   cross-origin subresource on a controlled page (e.g. a GeoGebra embed) and asserts it
+   was not served by the worker; otherwise that half is recorded in the plan as
+   deliberately unguarded. Also, an
    anonymous visit to the login page while controlled logs no console error.
 4. `/media/` passthrough, as both a subresource and a navigation: load a real in-scope
    page on the live server whose markup contains an `<img src="/media/…">` — a published
@@ -380,13 +393,21 @@ registration if needed):
    `from_service_worker == False`, and the test asserts that at least one subresource and
    one navigation response WERE observed (so it cannot pass over zero responses). Then,
    logged in as the course's manager, navigate to the small test course's
-   `…/export/?confirm=1` and assert the observed download response has
-   `from_service_worker == False` (Playwright's download event; the course is the
-   factory-built one, so the archive is tiny).
+   `…/export/?confirm=1`. A Playwright `Download` has no response, and whether
+   `page.on("response")` fires for a navigation that turns into a download is
+   unverified, so the observation mechanism is part of the spike: either
+   `context.on("request")` with the experimental service-worker network events,
+   asserting that no request for the export path has `request.service_worker` set, or a
+   `context.on("response")` filter on the export path with `from_service_worker ==
+   False`. Either way EXACTLY one export request/response must be observed. If neither
+   mechanism works, the pathname rule is guarded by a source test asserting rule 0 reads
+   `new URL(request.url).pathname`, recorded in the plan as the weaker guard.
 5. Update: rename the institution → navigate → poll until
    `navigator.serviceWorker.controller` is non-null, `caches.keys()` CONTAINS
    `libli-offline-<new worker_version()>`, and every `libli-` key ends in the new
-   version (the containment clause keeps an empty list from passing) (both already-true-safe conditions; never wait for
+   version (the containment clause keeps an empty list from passing). The page reached
+   by that second navigation shows the NEW institution name in its header (guards
+   "navigations served from cache") (both already-true-safe conditions; never wait for
    a `controllerchange` event attached after load, which may already have fired).
 6. Kill switch: turn it on → navigate → poll until `getRegistrations()` is empty and no
    `libli-` cache remains.
@@ -414,8 +435,16 @@ body; the offline page extending `base.html`; the `.menu__item[hidden]` rule rem
 
 **Manual device checklist** (Krzysztof, on real devices). Service workers and installs
 need HTTPS, and phones cannot reach the dev server as `localhost`, so it runs on
-**libli.pl right after merge**, with the kill switch (§3) as the fallback — libli.pl has
-a single staff user today, so a bad worker reaches nobody else. No *Deploy release* to a
+**libli.pl right after merge**, with the kill switch (§3) as the fallback. Exposure,
+stated honestly: `pwa.js` loads on every `base.html` page, anonymous ones included, so
+from the merge every visitor to libli.pl installs the worker — the staff user, demo-kit
+teachers and pupils, and anonymous readers of `/for-schools/`, `/privacy/`,
+`/getting-started/`. The bound on the damage: the browser fetches `/sw.js` for its
+update check itself, outside any fetch handler, so a broken worker cannot block its own
+replacement — every RETURN visit picks up a fixed release or the kill switch, and a
+one-time visitor who never returns is never affected again. Accepted (owner to confirm
+at spec review); the alternative would be a staff-only canary gate, which this spec
+does not build. No *Deploy release* to a
 school box carries C1 until every item passes. Items:
 Android Chrome install; iPhone Safari install (name and icon right); desktop Chrome/Edge
 install; airplane mode → offline page; a second navigation after the phone has sat idle
