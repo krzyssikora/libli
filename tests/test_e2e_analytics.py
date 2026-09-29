@@ -597,3 +597,131 @@ def test_full_screen_is_desktop_only(page, live_server, client):
     page.evaluate("() => localStorage.setItem('libli:analytics-full-screen', '1')")
     page.reload()
     assert not page.evaluate(_SECTION_BOX)["covers_header"]
+
+
+# --- Vertical headers (desktop toggle) ---------------------------------------
+# A register-style option: leaf column titles rotate to read bottom-to-top, so
+# a column is only as wide as its values. Section headers stay horizontal, and
+# so does a title with STACKED maths (x^2, a/b, roots, accents -- KaTeX builds
+# them on a .vlist, which comes apart when rotated); simple maths (pi, y) turns.
+
+_SIMPLE_MATH = r"Pole koła \(\pi r\)"
+_STACKED_MATH = r"Równanie \(x^2-5x+6=0\)"
+
+_LEAF = "th.analytics__colhead:not(.analytics__group)"
+
+_ORIENTATION = """(needle) => {
+  const th = [...document.querySelectorAll('LEAF')]
+    .find(t => t.textContent.includes(needle));
+  const title = th.querySelector('.analytics__coltitle');
+  return {mode: getComputedStyle(title.closest('a') || title).writingMode,
+          width: th.getBoundingClientRect().width};
+}""".replace("LEAF", _LEAF)
+
+
+def _vertical_headers_course(client, username):
+    from decimal import Decimal
+
+    from courses.models import Enrollment
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import UserFactory
+
+    owner = make_pa(client, username)
+    course = CourseFactory(owner=owner)
+
+    def chapter(title, parent=None, kind="chapter"):
+        return ContentNodeFactory(
+            course=course, kind=kind, unit_type=None, parent=parent, title=title
+        )
+
+    algebra = chapter("Algebra")
+    formulas = chapter("Wzory", parent=algebra, kind="section")
+    titles = [_QUIZ_TITLE, _SIMPLE_MATH, _STACKED_MATH]
+    quizzes = [
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="quiz", parent=formulas, title=t
+        )
+        for t in titles
+    ]
+    quizzes.append(
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="quiz", parent=chapter("Funkcje")
+        )
+    )
+    for n in range(30):
+        student = UserFactory(display_name=f"Uczeń {n:02d}")
+        Enrollment.objects.create(student=student, course=course)
+        for quiz in quizzes:
+            QuizSubmission.objects.create(
+                student=student,
+                unit=quiz,
+                status="submitted",
+                score=Decimal("9.5"),
+                max_score=Decimal("20"),
+            )
+    return course, algebra, formulas
+
+
+@pytest.mark.django_db(transaction=True)
+def test_vertical_headers_rotate_titles_and_survive_a_drill_down(
+    page, live_server, client
+):
+    course, algebra, formulas = _vertical_headers_course(client, "e2evert")
+    _login(page, live_server, "e2evert")
+    page.set_viewport_size({"width": 1280, "height": 800})
+    base = f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results"
+    page.goto(f"{base}&values=raw&expand={algebra.pk}")
+    rem = page.evaluate(
+        "parseFloat(getComputedStyle(document.documentElement).fontSize)"
+    )
+    assert page.evaluate(_ORIENTATION, "Wzory")["mode"] == "horizontal-tb"
+
+    toggle = page.get_by_role("button", name="Vertical headers")
+    expect(toggle).to_have_attribute("aria-pressed", "false")
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-pressed", "true")
+    plain = page.evaluate(_ORIENTATION, "Wzory")
+    assert plain["mode"] == "vertical-rl"
+    # the column is only as wide as its values ("28.5/60" here), narrower than
+    # the two-line layout's fixed 6.5rem
+    assert plain["width"] < 6.5 * rem - 4
+
+    # a drill-down is a navigation: the choice must survive it -- and with
+    # THREE header rows the pinned rows must still stack, at rest and scrolled
+    page.locator(f"{_LEAF} a.analytics__expand", has_text="Wzory").click()
+    expect(page).to_have_url(re.compile(rf"expand={formulas.pk}"))
+    assert page.locator(".analytics__matrix thead tr").count() == 3
+    assert page.evaluate(_ORIENTATION, "Wzory skr")["mode"] == "vertical-rl"
+    assert page.evaluate(_HEADER_ROWS_STACKED)
+    page.locator(".analytics__scroll").evaluate("e => { e.scrollTop = 300; }")
+    assert page.evaluate(_HEADER_ROWS_STACKED)
+
+    # simple maths rotates with the rest; stacked maths stays horizontal (B's
+    # two-line layout) once KaTeX has typeset it
+    expect(page.locator("thead .katex").first).to_be_attached()
+    assert page.evaluate(_ORIENTATION, "Pole")["mode"] == "vertical-rl"
+    stacked = page.evaluate(_ORIENTATION, "Równanie")
+    assert stacked["mode"] == "horizontal-tb"
+    assert stacked["width"] <= 6.5 * rem + 1
+
+    # off again, and that sticks across a reload
+    page.get_by_role("button", name="Vertical headers").click()
+    assert page.evaluate(_ORIENTATION, "Wzory skr")["mode"] == "horizontal-tb"
+    page.reload()
+    assert page.evaluate(_ORIENTATION, "Wzory skr")["mode"] == "horizontal-tb"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_vertical_headers_are_desktop_only(page, live_server, client):
+    course, algebra, _ = _vertical_headers_course(client, "e2evertphone")
+    _login(page, live_server, "e2evertphone")
+    page.set_viewport_size({"width": 375, "height": 800})
+    url = f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results"
+    page.goto(f"{url}&expand={algebra.pk}")
+    expect(page.get_by_role("button", name="Vertical headers")).to_be_hidden()
+    # a choice remembered from a desktop session must not rotate a phone's headers
+    page.evaluate("() => localStorage.setItem('libli:analytics-vertical-headers', '1')")
+    page.reload()
+    assert page.evaluate(_ORIENTATION, "Wzory")["mode"] == "horizontal-tb"

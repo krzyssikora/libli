@@ -50,6 +50,16 @@ Each view shows only the columns it can measure: **Progress** hides parts of
 the course with no required lessons, and **Results** hides parts with no
 quizzes. A course with quizzes but no required lessons opens on **Results**.
 
+## Vertical headers
+
+On a computer, long column titles wrap onto two lines so each column stays
+narrow; hover over a title to see all of it. If you prefer the look of a paper
+register, press **Vertical headers**: titles turn to read from bottom to top and
+each column becomes only as wide as its results. Press it again to go back — your
+browser remembers the choice. A title with a formula that has a superscript,
+fraction or root (such as x²) stays horizontal, because such formulas cannot be
+turned sideways.
+
 ## Full screen
 
 On a computer, press **Full screen** above the matrix to let it use the whole

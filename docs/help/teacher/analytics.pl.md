@@ -51,6 +51,16 @@ fragmenty kursu bez lekcji obowiązkowych, a **Wyniki** — fragmenty bez quizó
 Kurs, który ma quizy, ale nie ma lekcji obowiązkowych, otwiera się w widoku
 **Wyniki**.
 
+## Pionowe nagłówki
+
+Na komputerze długie tytuły kolumn zawijają się w dwa wiersze, dzięki czemu
+kolumny pozostają wąskie; najedź na tytuł, aby zobaczyć go w całości. Jeśli
+wolisz wygląd papierowego dziennika, naciśnij **Pionowe nagłówki**: tytuły
+obrócą się tak, by czytać je od dołu do góry, a każda kolumna będzie tylko tak
+szeroka jak jej wyniki. Naciśnij ponownie, aby wrócić — przeglądarka zapamięta
+wybór. Tytuł ze wzorem zawierającym potęgę, ułamek lub pierwiastek (np. x²)
+pozostaje poziomy, bo takich wzorów nie da się obrócić.
+
 ## Pełny ekran
 
 Na komputerze naciśnij **Pełny ekran** nad macierzą, aby zajęła całe okno

@@ -1067,6 +1067,43 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
   .analytics__grouphead .analytics__collapse{margin-left:0;flex:none}
 }
 
+/* --- Vertical headers (desktop toggle) --- */
+/* A register-style option to the two-line titles above: leaf column titles
+   rotate to read bottom-to-top, so a column is only as wide as its values.
+   Only the LAST header row grows tall (to its longest title, capped at 9rem):
+   the rows above hold opened sections (horizontal, --ahead-h tall), and every
+   pinned row sits at top = row * --ahead-h, so the offsets stay right. A leaf
+   from a shallower row rowspans down into the tall row. Toggled like full screen (button +
+   localStorage); desktop only, and the button is hidden on a phone. */
+.analytics__vertical[hidden]{display:none}
+.analytics__vertical[aria-pressed="true"]{background:var(--primary);
+  border-color:var(--primary);color:var(--text-inverse)}
+@media (min-width: 641px) {
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group){
+    width:auto;min-width:0;vertical-align:bottom;text-align:center;padding:.4rem .5rem}
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group) .analytics__expand,
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group) > .analytics__coltitle{
+    writing-mode:vertical-rl;transform:rotate(180deg);display:inline-flex;align-items:center}
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group) .analytics__coltitle{
+    display:inline-block;-webkit-line-clamp:unset;line-clamp:none;max-inline-size:9rem;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* STACKED maths (superscripts, fractions, roots, accents -- KaTeX builds them
+     all on a .vlist) comes apart when rotated, so such a title stays horizontal
+     in the two-line layout. Simple maths (pi, y, a+b=c) has no .vlist and
+     turns with the rest. */
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group):has(.vlist){
+    width:6.5rem;min-width:6.5rem;vertical-align:top;text-align:left;padding:.4rem .6rem}
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group):has(.vlist) .analytics__expand,
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group):has(.vlist) > .analytics__coltitle{
+    writing-mode:horizontal-tb;transform:none;display:flex}
+  .analytics--vertical .analytics__matrix thead th.analytics__colhead:not(.analytics__group):has(.vlist) .analytics__coltitle{
+    display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;max-inline-size:none;
+    white-space:normal}
+}
+@media (max-width: 640px) {
+  .analytics__vertical{display:none}
+}
+
 /* --- Full-screen mode (desktop) --- */
 /* The analytics section covers the whole window (site header included) so a
    wide matrix gets the screen, not a 52rem column. Toggled by the header button

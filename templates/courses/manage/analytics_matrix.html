@@ -4,21 +4,27 @@
 {% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <section class="manage analytics" data-analytics>
-  {% comment %}Applied BEFORE the rest of the page paints, so a remembered full-screen
-  choice never flashes the narrow layout first. The CSS only honours the class on a
-  desktop-width viewport, so a stored "1" cannot take over a phone.{% endcomment %}
+  {% comment %}The two view toggles (full screen, vertical headers), re-applied BEFORE the
+  rest of the page paints so a remembered choice never flashes the default layout
+  first. Each pair must match its button's data-store / data-view-toggle below. The
+  CSS only honours these classes on a desktop-width viewport, so a stored "1" cannot
+  take over a phone.{% endcomment %}
   <script>
     try {
-      if (localStorage.getItem("libli:analytics-full-screen") === "1") {
-        document.querySelector("[data-analytics]").classList.add("analytics--full");
-      }
-    } catch (e) { /* storage blocked: normal layout */ }
+      [["libli:analytics-full-screen", "analytics--full"],
+       ["libli:analytics-vertical-headers", "analytics--vertical"]].forEach(function (t) {
+        if (localStorage.getItem(t[0]) === "1") {
+          document.querySelector("[data-analytics]").classList.add(t[1]);
+        }
+      });
+    } catch (e) { /* storage blocked: default layout */ }
   </script>
   <header class="manage__head">
     <h1 class="manage__title">{% trans "Analytics" %} — {{ course.title }}</h1>
     {% comment %}Hidden until the script below wires it: without JS it would do nothing.{% endcomment %}
     <button type="button" class="btn btn--ghost btn--small analytics__fullscreen" hidden
-            aria-pressed="false" data-full-screen
+            aria-pressed="false" data-view-toggle="analytics--full"
+            data-store="libli:analytics-full-screen" data-escape
             data-label-on="{% trans 'Full screen' %}"
             data-label-off="{% trans 'Exit full screen' %}">{% trans "Full screen" %}</button>
     {% if can_edit_bands %}
@@ -87,6 +93,9 @@
            href="{{ raw_url }}">{% trans "Raw" %}</a>
       </span>
       {% endif %}
+      <button type="button" class="btn btn--ghost btn--small analytics__vertical" hidden
+              aria-pressed="false" data-view-toggle="analytics--vertical"
+              data-store="libli:analytics-vertical-headers">{% trans "Vertical headers" %}</button>
     </div>
 
     <ul class="analytics__legend">
@@ -227,32 +236,37 @@
   })();
 </script>
 <script>
-  // Full-screen mode: the section covers the window (see app.css). In-page, not
-  // the Fullscreen API -- every drill-down/mode/scope change is a navigation,
-  // which would drop a real fullscreen; localStorage carries it across instead.
+  // View toggles (full screen, vertical headers): each button flips a class on
+  // the section (see app.css) and remembers it in localStorage. In-page state,
+  // not a URL param or the Fullscreen API -- every drill-down/mode/scope change
+  // is a navigation; the inline script at the top re-applies the class.
   (function () {
     var section = document.querySelector("[data-analytics]");
-    var btn = document.querySelector("[data-full-screen]");
-    if (!section || !btn) return;
-    var KEY = "libli:analytics-full-screen";
-    function render() {
-      var on = section.classList.contains("analytics--full");
-      btn.setAttribute("aria-pressed", on ? "true" : "false");
-      btn.textContent = on ? btn.dataset.labelOff : btn.dataset.labelOn;
-    }
-    function set(on) {
-      section.classList.toggle("analytics--full", on);
-      try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (e) { /* session only */ }
+    if (!section) return;
+    document.querySelectorAll("[data-view-toggle]").forEach(function (btn) {
+      var cls = btn.dataset.viewToggle;
+      function isOn() { return section.classList.contains(cls); }
+      function render() {
+        btn.setAttribute("aria-pressed", isOn() ? "true" : "false");
+        if (btn.dataset.labelOn) {
+          btn.textContent = isOn() ? btn.dataset.labelOff : btn.dataset.labelOn;
+        }
+      }
+      function set(on) {
+        section.classList.toggle(cls, on);
+        try { localStorage.setItem(btn.dataset.store, on ? "1" : "0"); }
+        catch (e) { /* storage blocked: this page only */ }
+        render();
+      }
+      btn.addEventListener("click", function () { set(!isOn()); });
+      if ("escape" in btn.dataset) {
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && isOn()) set(false);
+        });
+      }
+      btn.hidden = false;
       render();
-    }
-    btn.addEventListener("click", function () {
-      set(!section.classList.contains("analytics--full"));
     });
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && section.classList.contains("analytics--full")) set(false);
-    });
-    btn.hidden = false;
-    render();
   })();
 </script>
 <script>
