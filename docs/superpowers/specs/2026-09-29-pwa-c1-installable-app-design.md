@@ -28,6 +28,8 @@ speed, then offline use (not built).
 | D6 | Pages (HTML) and `/media/` are never cached by the worker. |
 | D7 | Worker off in dev and in the test suite by default; on in production. |
 | D8 | Kill switch via an environment variable. |
+| D9 | (2026-09-30) The manual device checklist runs on libli.pl right after merge, kill switch as fallback; no school release carries C1 until it passes (escape hatch: kill switch set on that box). |
+| D10 | (2026-09-30) Accepted: every libli.pl visitor (anonymous and demo users included) gets the worker from merge day; no staff-only canary gate. |
 
 ## Current state (verified 2026-09-29)
 
@@ -466,8 +468,7 @@ teachers and pupils, and anonymous readers of `/for-schools/`, `/privacy/`,
 `/getting-started/`. The bound on the damage: the browser fetches `/sw.js` for its
 update check itself, outside any fetch handler, so a broken worker cannot block its own
 replacement — every RETURN visit picks up a fixed release or the kill switch, and a
-one-time visitor who never returns is never affected again. Accepted (owner to confirm
-at spec review); the alternative would be a staff-only canary gate, which this spec
+one-time visitor who never returns is never affected again. Accepted by the owner (D10); the alternative would be a staff-only canary gate, which this spec
 does not build. No *Deploy release* to a
 school box carries C1 until every item passes. Items:
 Android Chrome install; iPhone Safari install (name and icon right); desktop Chrome/Edge
