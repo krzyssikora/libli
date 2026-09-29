@@ -571,7 +571,9 @@ def test_full_screen_fills_the_window_and_survives_a_drill_down(
 
     # a drill-down is a full navigation; the mode must survive it
     page.locator("a.analytics__expand").first.click()
-    expect(page).to_have_url(re.compile(r"expand="))
+    # the URL flips when navigation STARTS: wait for the new page instead
+    expect(page.locator("th.analytics__group")).to_have_count(1)
+    page.wait_for_load_state("load")
     after = page.evaluate(_SECTION_BOX)
     assert after["width"] == 1400 and after["covers_header"]
 
@@ -691,8 +693,10 @@ def test_vertical_headers_rotate_titles_and_survive_a_drill_down(
     # a drill-down is a navigation: the choice must survive it -- and with
     # THREE header rows the pinned rows must still stack, at rest and scrolled
     page.locator(f"{_LEAF} a.analytics__expand", has_text="Wzory").click()
-    expect(page).to_have_url(re.compile(rf"expand={formulas.pk}"))
-    assert page.locator(".analytics__matrix thead tr").count() == 3
+    # the URL flips when navigation STARTS: wait for the new page's DOM and its
+    # stylesheets (computed styles are read below), not for the URL
+    expect(page.locator(".analytics__matrix thead tr")).to_have_count(3)
+    page.wait_for_load_state("load")
     assert page.evaluate(_ORIENTATION, "Wzory skr")["mode"] == "vertical-rl"
     assert page.evaluate(_HEADER_ROWS_STACKED)
     page.locator(".analytics__scroll").evaluate("e => { e.scrollTop = 300; }")
