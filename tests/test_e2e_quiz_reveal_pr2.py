@@ -103,6 +103,51 @@ def _select_values(q, scope):
     return q.locator(f"{scope} select").evaluate_all("els => els.map(e => e.value)")
 
 
+# The layout around a row's answer switch: the switch, and every element above it
+# inside the row (its earlier siblings, then each ancestor's earlier siblings, up
+# to the row), plus the page state a late layout change would depend on. Taken
+# before and after a view change so a failing "the switch stays" check says WHAT
+# moved. (Added after a one-off CI failure, 3px, that nothing reproduced locally:
+# fonts, scrolling, CPU throttling and CSS motion were all ruled out.)
+_SWITCH_LAYOUT = """row => {
+  const sw = row.querySelector('[data-answer-switch]');
+  const name = e => e.tagName.toLowerCase()
+    + (e.className && typeof e.className === 'string'
+       ? '.' + e.className.trim().split(/\\s+/).join('.') : '')
+    + [...e.attributes].filter(a => a.name.startsWith('data-'))
+        .map(a => '[' + a.name + ']').join('');
+  const box = e => { const b = e.getBoundingClientRect();
+    return {top: b.top, height: b.height}; };
+  const above = [];
+  for (let e = sw; e && e !== row.parentElement; e = e.parentElement) {
+    for (let s = e.previousElementSibling; s; s = s.previousElementSibling) {
+      above.push([name(s), box(s)]);
+    }
+    above.push([name(e), box(e)]);
+  }
+  const s = sw.getBoundingClientRect();
+  return {x: s.x, y: s.y, above: above, scrollY: window.scrollY,
+          readyState: document.readyState, fonts: document.fonts.status,
+          ms: Math.round(performance.now())};
+}"""
+
+
+def _assert_switch_stayed(before, after):
+    if (after["x"], after["y"]) == (before["x"], before["y"]):
+        return
+    moved = [
+        f"  {n}: top {a['top']} -> {b['top']}, height {a['height']} -> {b['height']}"
+        for (n, a), (_, b) in zip(before["above"], after["above"], strict=False)
+        if a != b
+    ]
+    state = {k: (before[k], after[k]) for k in ("scrollY", "readyState", "fonts", "ms")}
+    raise AssertionError(
+        f"the answer switch moved from ({before['x']}, {before['y']}) to "
+        f"({after['x']}, {after['y']}); page state before -> after: {state}; "
+        "elements above it that changed:\n" + ("\n".join(moved) or "  (none)")
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("kind", ["dragfill", "matchpair", "dragimage"])
 def test_drag_quiz_check_reveal_inert_copies(browser, live_server, kind):
@@ -322,15 +367,13 @@ def test_results_page_drag_ui_is_inert(browser, live_server):
     row.locator("[data-answer-yours] .dnd__slot").nth(1).click(force=True)
     _drop(row.locator("[data-answer-yours] .dnd__slot").nth(1), "alphakey")
     assert _select_values(row, "[data-answer-yours]") == before
-    switch = row.locator("[data-answer-switch]")
-    pos = switch.bounding_box()
+    pos = row.evaluate(_SWITCH_LAYOUT)
     row.locator("label:has([data-answer-view='key'])").click()
     assert (
         row.locator("[data-answer-key] .dnd__slot").nth(1).inner_text().strip()
         == "betakey"
     )
-    after = switch.bounding_box()
-    assert (after["x"], after["y"]) == (pos["x"], pos["y"])  # P5: the switch stays
+    _assert_switch_stayed(pos, row.evaluate(_SWITCH_LAYOUT))  # P5: the switch stays
     # P5 without JS: dnd.js never unhides the chip pool, whose bottom margin
     # otherwise masks the key wrapper's own (it collapses through the wrapper, but
     # stays inside the "yours" fieldset) -- so only here does the key-copy
@@ -340,12 +383,10 @@ def test_results_page_drag_ui_is_inert(browser, live_server):
     ).new_page()
     nojs.goto(page.url)
     row = nojs.locator(".quiz-results__item").first
-    switch = row.locator("[data-answer-switch]")
-    pos = switch.bounding_box()
+    pos = row.evaluate(_SWITCH_LAYOUT)
     row.locator("label:has([data-answer-view='key'])").click()
     assert row.locator("[data-answer-key]").is_visible()
-    after = switch.bounding_box()
-    assert (after["x"], after["y"]) == (pos["x"], pos["y"])
+    _assert_switch_stayed(pos, row.evaluate(_SWITCH_LAYOUT))
 
 
 @pytest.mark.django_db(transaction=True)
