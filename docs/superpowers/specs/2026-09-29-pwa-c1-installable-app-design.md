@@ -179,6 +179,10 @@ speed, then offline use (not built).
   tens of milliseconds, measured on a real phone in the device checklist. A source test
   asserts the worker template does not contain `navigationPreload`, so it cannot be
   switched on without revisiting this.
+- Accepted: while offline, a form POST (a quiz submission, a settings save) and a
+  passthrough navigation (`/media/…`, `…/export/`) show the browser's own error page,
+  not the offline page — a POST cannot be replayed safely, and passthrough paths must
+  never be intercepted. Rule 0 stays ahead of rule 2 on purpose.
 - No user data ever enters a cache (static assets and an anonymous page only), so logout
   clears nothing.
 
@@ -345,8 +349,11 @@ speed, then offline use (not built).
 - Head tags on a rendered page: `apple-mobile-web-app-title`, `mobile-web-app-capable`.
 - Account menu: the `data-install-app` link points at `/install-app/`.
 - `/install-app/`: anonymous 200 in EN and PL; footer link present on a public page.
-- Any existing test that iterates `PAGES` must stay green with the new page (check the
-  overrides-panel and content-guard tests).
+- `tests/test_public_pages.py`'s exact `set(PAGES) == {…}` pin is UPDATED to include
+  `install-app`, and a new assertion pins that `install-app` is in neither
+  `DEMO_NOTICE_SLUGS` nor `VENDOR_ONLY_SLUGS` (the `test_for_schools_route.py` pins of
+  those two sets stay unchanged). Tests that iterate `PAGES` (overrides panel, content
+  guard) must stay green with the new page.
 
 **Playwright e2e** (`-m e2e`, Chromium, `override_settings(PWA_ENABLED=True,
 PWA_CACHE_UNHASHED_STATIC=True)`), each syncing on conditions, never sleeps. Every test
@@ -413,8 +420,11 @@ registration if needed):
    `new URL(request.url).pathname`, recorded in the plan as the weaker guard.
 5. Update: rename the institution with `.save()` (so the in-process `post_save`
    invalidation clears `get_site_config()` and the server really renders the new name)
-   → navigate to `/privacy/` → poll until
-   `navigator.serviceWorker.controller` is non-null, `caches.keys()` CONTAINS
+   → navigate to `/privacy/` (the FIRST post-rename navigation; the `<title>` assertion
+   below reads THIS document, with no reload or second navigation before it — a later
+   navigation would come from the network after the new worker's activate deleted the
+   old caches, and the mutant would pass) → poll until `caches.keys()` (the real sync
+   point) CONTAINS
    `libli-offline-<new worker_version()>`, and every `libli-` key ends in the new
    version (the containment clause keeps an empty list from passing). `/privacy/` was
    ALSO visited while controlled before the rename; after it, its `<title>`
@@ -469,7 +479,12 @@ the installed app; uninstall.
 ## Rollout
 
 libli.pl gets it first (canary) on merge and runs the manual device checklist; school
-boxes through a normal *Deploy release* only after it passes.
+boxes through a normal *Deploy release* only after it passes. Escape hatch: an urgent
+unrelated fix may still go to a school box before the checklist passes, with
+`LIBLI_PWA_KILL_SWITCH=true` (or `LIBLI_PWA_ENABLED=false`) set in that box's
+`.env.production` first. `.env.production.example` documents `LIBLI_PWA_ENABLED` as a
+COMMENTED line explaining "unset = on in production; a blank value parses as off"
+(django-environ), next to the `LIBLI_PWA_KILL_SWITCH=` line.
 No migration, no new dependency, no `deploy.sh` change.
 
 ## Risks
