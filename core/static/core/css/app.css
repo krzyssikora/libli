@@ -1055,14 +1055,16 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
     overflow:hidden;overflow-wrap:break-word;text-align:left}
   .analytics__expand .analytics__coltitle{text-decoration:underline dotted;
     text-underline-offset:.2em}
-  /* An opened section's title spans its columns. Out of flow, so a long one
-     cannot widen them (auto table layout sizes columns to content); the
-     sticky <th> is its containing block, and only the ✕ stays in flow. */
-  .analytics__matrix thead th.analytics__group{text-align:right}
-  .analytics__matrix thead th.analytics__group .analytics__group-title{position:absolute;
-    inset:.4rem 1.6rem .4rem .6rem;display:-webkit-box;-webkit-box-orient:vertical;
-    -webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;
-    white-space:normal;text-align:left}
+  /* An opened section's title spans its columns. It WRAPS (the nowrap one-line
+     title is what used to widen them: its min-content was the whole title),
+     and the ✕ follows it -- not pushed to the far end of a wide section, where
+     it hides under the frozen Overall column. */
+  .analytics__grouphead{display:flex;align-items:flex-start;
+    gap:.4rem;white-space:normal;text-align:left}
+  .analytics__grouphead .analytics__group-title{min-width:0;display:-webkit-box;
+    -webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;
+    overflow-wrap:anywhere}
+  .analytics__grouphead .analytics__collapse{margin-left:0;flex:none}
 }
 
 /* --- Full-screen mode (desktop) --- */

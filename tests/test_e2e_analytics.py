@@ -412,6 +412,18 @@ def _narrow_columns_course(client, username):
             title="Potęgi",
         ),
     ]
+    # enough columns that the opened section is wider than the page column,
+    # so its collapse ✕ can end up under the frozen Overall column
+    quizzes += [
+        ContentNodeFactory(
+            course=course,
+            kind="unit",
+            unit_type="quiz",
+            parent=algebra,
+            title=f"Sprawdzian {n}",
+        )
+        for n in range(1, 9)
+    ]
     # a word longer than 6.5rem, in an EXPANDABLE (flex-row) header
     geometry = ContentNodeFactory(
         course=course,
@@ -425,6 +437,18 @@ def _narrow_columns_course(client, username):
             course=course, kind="unit", unit_type="quiz", parent=geometry
         )
     )
+    # a NARROW opened section (one column) with a long title: it wraps to two
+    # lines, which its pinned header row must have room for
+    shapes = ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        unit_type=None,
+        parent=None,
+        title="Geometria: figury płaskie, trójkąty i czworokąty",
+    )
+    quizzes.append(
+        ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=shapes)
+    )
     for n in range(30):
         student = UserFactory(display_name=f"Uczeń {n:02d}")
         Enrollment.objects.create(student=student, course=course)
@@ -436,16 +460,16 @@ def _narrow_columns_course(client, username):
                 score=Decimal("3"),
                 max_score=Decimal("3"),
             )
-    return course, algebra
+    return course, algebra, shapes
 
 
 @pytest.mark.django_db(transaction=True)
 def test_desktop_columns_are_narrow_with_two_line_titles(page, live_server, client):
-    course, algebra = _narrow_columns_course(client, "e2edesk")
+    course, algebra, shapes = _narrow_columns_course(client, "e2edesk")
     _login(page, live_server, "e2edesk")
     page.set_viewport_size({"width": 1280, "height": 800})
     base = f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results"
-    page.goto(f"{base}&values=raw&expand={algebra.pk}")
+    page.goto(f"{base}&values=raw&expand={algebra.pk}&expand={shapes.pk}")
     leaf = "th.analytics__colhead:not(.analytics__group)"
     th = page.locator(leaf, has_text="Wzory")
     rem = page.evaluate(
@@ -489,8 +513,24 @@ def test_desktop_columns_are_narrow_with_two_line_titles(page, live_server, clie
     assert overall.evaluate("e => e.getBoundingClientRect().width") <= 6.5 * rem + 1
     # an opened section's title has room for its two lines (its header row is
     # a fixed --ahead-h tall, and the title is out of flow inside it)
-    group = page.locator("th.analytics__group .analytics__group-title")
-    assert group.evaluate("e => e.clientHeight") >= 2 * line - 0.5
+    narrow = page.locator(".analytics__group-title", has_text="Geometria")
+    assert narrow.evaluate("e => e.getBoundingClientRect().height") >= 1.9 * line
+    # ...and does not widen the one column it spans
+    assert (
+        narrow.evaluate("e => e.closest('th').getBoundingClientRect().width")
+        <= 6.5 * rem + 1
+    )
+    # its collapse ✕ follows the title and is really there to click -- not
+    # pushed to the far end of a wide section, under the frozen Overall column
+    assert page.evaluate(
+        """() => {
+          const x = document.querySelector('th.analytics__group .analytics__collapse');
+          const b = x.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            b.left + b.width / 2, b.top + b.height / 2);
+          return hit === x || x.contains(hit);
+        }"""
+    )
 
 
 # --- Full-screen mode (desktop) ----------------------------------------------
