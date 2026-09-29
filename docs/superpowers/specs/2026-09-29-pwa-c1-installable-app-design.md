@@ -195,7 +195,10 @@ speed, then offline use (not built).
   `docker compose -f docker-compose.prod.yml --env-file .env.production up -d
   --force-recreate app`. Never `docker compose restart`: it reuses the container's
   existing environment and does not re-read `env_file`, so the switch would silently
-  never take effect. Verify from anywhere: `curl -s https://<host>/sw.js | grep -c
+  never take effect. Expect the usual ~24 s maintenance page while the container is
+  recreated (same as a deploy) — apply outside lesson time where possible; devices that
+  navigate during the gap get a 503 on their update check and pick up the switch on a
+  later visit. Run the curl check only once `/sw.js` answers 200 again. Verify from anywhere: `curl -s https://<host>/sw.js | grep -c
   LIBLI_SW_KILL` prints 1 with the switch on and 0 after undoing. `LIBLI_SW_KILL` is a
   marker comment only `sw_kill.js` carries; a source test asserts it is in `sw_kill.js`
   and absent from `sw.js`, so the check cannot read "on" in both states.
@@ -244,9 +247,13 @@ speed, then offline use (not built).
 `core/static/core/js/pwa.js`, included from `base.html` with `defer` only when
 `pwa_enabled`.
 
-- Registration runs first and independently of the install item. Every install-item
-  handler returns immediately when `[data-install-app]` is absent (anonymous, login and
-  public pages render no account menu), so no page throws.
+- Registration runs first and independently of the install item. The
+  `beforeinstallprompt` listener ALWAYS calls `preventDefault()` first, on every page,
+  item or no item — otherwise Chrome for Android may show its own install mini-infobar on
+  the anonymous landing, login and public pages, the banner D3 rules out. Only what
+  follows (keeping the event, switching to prompt mode) and every other install-item
+  handler return early when `[data-install-app]` is absent (those pages render no
+  account menu), so no page throws.
 - If `"serviceWorker" in navigator`: `navigator.serviceWorker.register("/sw.js",
   {scope: "/", updateViaCache: "none"})`, errors logged to the console and otherwise
   ignored (the site works without a worker).
@@ -383,7 +390,9 @@ registration if needed):
    cross-origin subresource on a controlled page (e.g. a GeoGebra embed) and asserts it
    was not served by the worker; otherwise that half is recorded in the plan as
    deliberately unguarded. Also, an
-   anonymous visit to the login page while controlled logs no console error.
+   anonymous visit to the login page while controlled logs no console error, and a
+   synthetic `beforeinstallprompt` dispatched there ends with `defaultPrevented ===
+   true` even though the page has no install item.
 4. `/media/` passthrough, as both a subresource and a navigation: load a real in-scope
    page on the live server whose markup contains an `<img src="/media/…">` — a published
    lesson with an image element built by the existing factories (never `page.set_content`,
@@ -402,12 +411,16 @@ registration if needed):
    False`. Either way EXACTLY one export request/response must be observed. If neither
    mechanism works, the pathname rule is guarded by a source test asserting rule 0 reads
    `new URL(request.url).pathname`, recorded in the plan as the weaker guard.
-5. Update: rename the institution → navigate → poll until
+5. Update: rename the institution with `.save()` (so the in-process `post_save`
+   invalidation clears `get_site_config()` and the server really renders the new name)
+   → navigate to `/privacy/` → poll until
    `navigator.serviceWorker.controller` is non-null, `caches.keys()` CONTAINS
    `libli-offline-<new worker_version()>`, and every `libli-` key ends in the new
-   version (the containment clause keeps an empty list from passing). The page reached
-   by that second navigation shows the NEW institution name in its header (guards
-   "navigations served from cache") (both already-true-safe conditions; never wait for
+   version (the containment clause keeps an empty list from passing). `/privacy/` was
+   ALSO visited while controlled before the rename; after it, its `<title>`
+   (`{{ title }} · {{ site.name }}`) carries the NEW name — the header never renders the
+   name (logo `alt` or the literal `libli.`), so the title is the surface. Guards
+   "navigations served from cache" (both already-true-safe conditions; never wait for
    a `controllerchange` event attached after load, which may already have fired).
 6. Kill switch: turn it on → navigate → poll until `getRegistrations()` is empty and no
    `libli-` cache remains.
@@ -430,7 +443,8 @@ passthrough matched on the full URL instead of the pathname (e2e 4's `?confirm=1
 navigation); `navigationPreload` enabled (source test); the `status === 200`/`basic`
 store guard removed; the GET-only/same-origin filter removed;
 the activate cleanup removed; `offline_branding()` reading `get_site_config()` (the
-signal-free rename test); the kept prompt event not dropped after use (e2e 7a); `VERSION` made constant; `respondWith` left in the kill
+signal-free rename test); the kept prompt event not dropped after use (e2e 7a); the absent-item early return moved
+above `preventDefault()` (e2e 3's login-page `defaultPrevented`); `VERSION` made constant; `respondWith` left in the kill
 body; the offline page extending `base.html`; the `.menu__item[hidden]` rule removed.
 
 **Manual device checklist** (Krzysztof, on real devices). Service workers and installs
