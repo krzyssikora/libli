@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-28 20:14+0200\n"
+"POT-Creation-Date: 2026-09-29 12:11+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -953,12 +953,12 @@ msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr ""
 
 #: .\courses\gradebook.py:51 .\courses\gradebook.py:142
-#: .\templates\courses\manage\analytics_matrix.html:158
+#: .\templates\courses\manage\analytics_matrix.html:175
 msgid "Average"
 msgstr ""
 
 #: .\courses\gradebook.py:61
-#: .\templates\courses\manage\analytics_matrix.html:132
+#: .\templates\courses\manage\analytics_matrix.html:149
 msgid "Overall"
 msgstr ""
 
@@ -2550,11 +2550,11 @@ msgstr ""
 msgid "You're now enrolled in %(course)s."
 msgstr ""
 
-#: .\courses\views_analytics.py:480
+#: .\courses\views_analytics.py:496
 msgid "Colours reset to defaults."
 msgstr ""
 
-#: .\courses\views_analytics.py:486
+#: .\courses\views_analytics.py:502
 msgid "Colours saved."
 msgstr ""
 
@@ -2567,7 +2567,7 @@ msgid "Quiz gradebook"
 msgstr ""
 
 #: .\courses\views_export.py:73
-#: .\templates\courses\manage\analytics_matrix.html:66
+#: .\templates\courses\manage\analytics_matrix.html:83
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:12
 #: .\templates\courses\manage\analytics_student.html:22
@@ -2577,7 +2577,7 @@ msgid "Results"
 msgstr ""
 
 #: .\courses\views_export.py:73
-#: .\templates\courses\manage\analytics_matrix.html:64
+#: .\templates\courses\manage\analytics_matrix.html:81
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:12
 #: .\templates\courses\manage\analytics_student.html:21
@@ -3309,7 +3309,7 @@ msgid "Leave blank to omit the allowance sentence from the page."
 msgstr ""
 
 #: .\institution\roles.py:19
-#: .\templates\courses\manage\analytics_matrix.html:115
+#: .\templates\courses\manage\analytics_matrix.html:132
 #: .\templates\grouping\allocation_assign.html:55
 msgid "Student"
 msgstr ""
@@ -4830,7 +4830,7 @@ msgstr ""
 #: .\templates\core\home.html:35
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
-#: .\templates\courses\manage\analytics_matrix.html:8
+#: .\templates\courses\manage\analytics_matrix.html:19
 #: .\templates\courses\manage\analytics_student.html:13
 #: .\templates\grouping\collection_detail.html:9
 #: .\templates\grouping\group_detail.html:9
@@ -5185,7 +5185,7 @@ msgid "Close"
 msgstr ""
 
 #: .\templates\courses\_unit_strip.html:9
-#: .\templates\courses\manage\analytics_matrix.html:37
+#: .\templates\courses\manage\analytics_matrix.html:54
 #: .\templates\courses\manage\gradebook_print.html:48
 msgid "Print"
 msgstr ""
@@ -5962,7 +5962,7 @@ msgid "Open editor →"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_bands.html:4
-#: .\templates\courses\manage\analytics_matrix.html:11
+#: .\templates\courses\manage\analytics_matrix.html:28
 msgid "Configure colours"
 msgstr ""
 
@@ -5984,112 +5984,121 @@ msgstr ""
 msgid "Reset to defaults"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:14
+#: .\templates\courses\manage\analytics_matrix.html:24
+#: .\templates\courses\manage\analytics_matrix.html:25
+msgid "Full screen"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:25
+msgid "Exit full screen"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:31
 #: .\templates\courses\manage\builder.html:26
 #: .\templates\courses\manage\course_list.html:63
 msgid "Export"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:23
+#: .\templates\courses\manage\analytics_matrix.html:40
 msgid "What to export"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:25
+#: .\templates\courses\manage\analytics_matrix.html:42
 msgid "This matrix view (percentages)"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:27
+#: .\templates\courses\manage\analytics_matrix.html:44
 msgid "Quiz gradebook (raw marks)"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:31
+#: .\templates\courses\manage\analytics_matrix.html:48
 msgid "Only numbers"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:32
+#: .\templates\courses\manage\analytics_matrix.html:49
 msgid ""
 "Leave marks blank for not-taken / in-progress / awaiting-review, so the file "
 "imports cleanly into a register."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:35
+#: .\templates\courses\manage\analytics_matrix.html:52
 msgid "CSV"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:36
+#: .\templates\courses\manage\analytics_matrix.html:53
 msgid "Excel (.xlsx)"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:55
+#: .\templates\courses\manage\analytics_matrix.html:72
 #: .\templates\grouping\allocation_assign.html:27
 #: .\templates\grouping\group_form.html:28
 msgid "Students"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:62
+#: .\templates\courses\manage\analytics_matrix.html:79
 #: .\templates\courses\manage\analytics_student.html:19
 msgid "Metric"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:69
+#: .\templates\courses\manage\analytics_matrix.html:86
 msgid "Number format"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:71
+#: .\templates\courses\manage\analytics_matrix.html:88
 msgid "Percent"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:73
+#: .\templates\courses\manage\analytics_matrix.html:90
 msgid "Raw"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:89
+#: .\templates\courses\manage\analytics_matrix.html:106
 msgid "— = not attempted yet, or awaiting review."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:93
+#: .\templates\courses\manage\analytics_matrix.html:110
 msgid "No students in this scope."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:96
+#: .\templates\courses\manage\analytics_matrix.html:113
 msgid "No content in this course yet."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:98
+#: .\templates\courses\manage\analytics_matrix.html:115
 msgid "No quizzes in this course yet."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:100
+#: .\templates\courses\manage\analytics_matrix.html:117
 msgid "No progress-tracked lessons in this course yet."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:114
+#: .\templates\courses\manage\analytics_matrix.html:131
 msgid "Select all students"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:128
+#: .\templates\courses\manage\analytics_matrix.html:145
 msgid "Collapse"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:143
+#: .\templates\courses\manage\analytics_matrix.html:160
 #, python-format
 msgid "Select %(name)s"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:177
+#: .\templates\courses\manage\analytics_matrix.html:194
 msgid "Apply selection"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:178
+#: .\templates\courses\manage\analytics_matrix.html:195
 msgid "Tick students in the table above, then apply to show just them."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:179
+#: .\templates\courses\manage\analytics_matrix.html:196
 msgctxt "analytics subset"
 msgid "Show all"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:180
+#: .\templates\courses\manage\analytics_matrix.html:197
 #, python-format
 msgid "%(n)s selected"
 msgstr ""

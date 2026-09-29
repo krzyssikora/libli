@@ -50,6 +50,14 @@ Each view shows only the columns it can measure: **Progress** hides parts of
 the course with no required lessons, and **Results** hides parts with no
 quizzes. A course with quizzes but no required lessons opens on **Results**.
 
+## Full screen
+
+On a computer, press **Full screen** above the matrix to let it use the whole
+browser window instead of the usual page column. It stays on while you drill
+into columns or switch views, and your browser remembers it for next time.
+Press **Exit full screen** or the **Esc** key to go back. On a phone the
+matrix already uses the whole width, so the button isn't shown.
+
 ## Narrowing the view
 
 Tick the checkbox in front of one or more student rows, then press **Apply

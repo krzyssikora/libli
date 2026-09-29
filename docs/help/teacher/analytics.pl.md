@@ -51,6 +51,14 @@ fragmenty kursu bez lekcji obowiązkowych, a **Wyniki** — fragmenty bez quizó
 Kurs, który ma quizy, ale nie ma lekcji obowiązkowych, otwiera się w widoku
 **Wyniki**.
 
+## Pełny ekran
+
+Na komputerze naciśnij **Pełny ekran** nad macierzą, aby zajęła całe okno
+przeglądarki zamiast zwykłej kolumny strony. Tryb pozostaje włączony, gdy
+rozwijasz kolumny lub przełączasz widoki, a przeglądarka zapamiętuje go na
+następny raz. Naciśnij **Zamknij pełny ekran** lub klawisz **Esc**, aby wrócić.
+Na telefonie macierz i tak zajmuje całą szerokość, więc przycisku nie widać.
+
 ## Zawężanie widoku
 
 Zaznacz pole wyboru przy jednym lub kilku wierszach uczniów, a następnie
