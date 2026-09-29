@@ -91,6 +91,9 @@ speed, then offline use (not built).
 - Public (no login). `Content-Type: text/javascript; charset=utf-8`,
   `Cache-Control: no-cache`.
 - Rendered from `templates/core/sw.js` (the kill body from `templates/core/sw_kill.js`).
+  The JS body of each template sits inside `{% verbatim %}` blocks; only the value slots
+  are outside them, so a `{#`, `{{` or `{%` in worker code can never be eaten by the
+  template engine.
   Every value below reaches the JS as a `json.dumps(...)` string computed in the view and
   emitted with `|safe` (autoescape would otherwise turn `"` into `&quot;` and a Python
   `True` is not JS). A client test asserts the body contains `["/media/"]` verbatim.
@@ -101,8 +104,13 @@ speed, then offline use (not built).
     memoised per process because it cannot change without a restart), the SOURCE of the
     `core/sw.js` and `core/offline.html` templates, and the two values
     `offline_branding()` returns (§4). Computed per request otherwise.
-    `offline_branding()` reads the `Institution` row directly (one single-row query),
-    NOT `get_site_config()`: that cache is per-process LocMem with a 300 s TTL and is
+    `offline_branding()` reads the database directly —
+    `Institution.objects.filter(pk=1).prefetch_related("brand_colors").first()`, the
+    primary colour being the `brand_colors` row with key `primary` passed through
+    `_safe_color` and then `effective_primary({"primary": value})`; a missing row yields
+    `(default_name(), PRIMARY_DEFAULT)`. It must NEVER call `Institution.load()` (that is
+    `get_or_create`: a database write on an anonymous GET). It deliberately bypasses
+    `get_site_config()`: that cache is per-process LocMem with a 300 s TTL and is
     invalidated only in the process that saved, so after a rename different gunicorn
     workers would serve different `/sw.js` bytes for up to 5 minutes and a device could
     flip v2 → v1 → v2, each activate deleting the other's caches. `/sw.js` is fetched once
@@ -183,9 +191,11 @@ speed, then offline use (not built).
 - Inline CSS with light/dark via `prefers-color-scheme`; the default libli mark inlined as
   SVG (the favicon override lives under `/media/`, which the worker never caches, so the
   page never shows a broken image). Renders exactly the two values of
-  `core.pwa.offline_branding()`: the name (`Institution.name.strip()` or
-  `default_name()`, the manifest's fallback) as the heading's context line, and
-  `effective_primary` of the row's primary colour as the Try again button's colour. No
+  `core.pwa.offline_branding()`: the name (`(name or "").strip()` or `default_name()`,
+  the manifest's fallback) as the heading's context line, and the effective primary as
+  the Try again button's BORDER only. The button is outlined: its label uses the page's
+  own text colour (light and dark variants), so contrast is AA whatever colour a school
+  picked — there is no on-primary contrast helper to reuse. No
   other institution field appears, so VERSION tracks everything the page shows.
 - Copy (EN + PL): heading "You're offline", line "Check your connection and try again.",
   a **Try again** button (`location.reload()`); an `online` event listener reloads too.
@@ -209,6 +219,9 @@ speed, then offline use (not built).
 `core/static/core/js/pwa.js`, included from `base.html` with `defer` only when
 `pwa_enabled`.
 
+- Registration runs first and independently of the install item. Every install-item
+  handler returns immediately when `[data-install-app]` is absent (anonymous, login and
+  public pages render no account menu), so no page throws.
 - If `"serviceWorker" in navigator`: `navigator.serviceWorker.register("/sw.js",
   {scope: "/", updateViaCache: "none"})`, errors logged to the console and otherwise
   ignored (the site works without a worker).
@@ -266,8 +279,10 @@ speed, then offline use (not built).
   anonymous 200, `text/javascript`, `no-cache`; the body contains
   `core.pwa.worker_version()`'s value and `/offline/`. `worker_version()` changes when
   (a) the manifest bytes change (patched storage + `_manifest_bytes.cache_clear()`
-  fixture), (b) the institution name changes, (c) the primary colour changes — and is
-  stable across two calls with nothing changed.
+  fixture), (b) the institution name changes, (c) the `BrandColor` row with key
+  `primary` changes — and is stable across two calls with nothing changed. With no
+  `Institution` row, `offline_branding()` returns `(default_name(), PRIMARY_DEFAULT)` and
+  creates no row.
 - `/sw.js` for the other three rows of the §1 table (each row its own case): 200, the
   body contains `unregister`, `caches.delete` and `libli-`, and no `respondWith`; a
   rendered page has no `pwa.js`. First row: a rendered page includes `pwa.js`.
@@ -278,8 +293,13 @@ speed, then offline use (not built).
   entry, and `settings.MEDIA_URL` starts with a `PASSTHROUGH_PREFIXES` entry — so renaming
   a route cannot silently route a GB download through the worker.
 - `core/offline.html` source contains neither `{% include` nor `{% extends`.
-- `offline_branding()` reflects a rename immediately even with a warm `get_site_config()`
-  cache (reads the row, not the cache); `/offline/` shows the new name.
+- `offline_branding()` reads the database, not the cache: warm `get_site_config()`, then
+  rename with a SIGNAL-FREE write (`Institution.objects.filter(pk=1).update(name=…)`,
+  and likewise a `BrandColor` queryset `update`) so the cache really is stale — a
+  `.save()` would fire the `post_save` invalidation in-process and the test could not
+  fail. `offline_branding()` and `/offline/` show the new values.
+- An anonymous page (the login page) renders with `pwa_enabled` and no account menu; the
+  e2e suite's anonymous visit in e2e 3 asserts no console error from `pwa.js`.
 - `/offline/`: anonymous 200, `no-store`, `noindex`; fetched as a logged-in user the
   response contains neither the username, the email nor the bell markup; it references no
   `/static/` URL.
@@ -296,6 +316,7 @@ PWA_CACHE_UNHASHED_STATIC=True)`), each syncing on conditions, never sleeps. Eve
 first waits until `navigator.serviceWorker.controller` is non-null (reloading once after
 registration if needed):
 1. Static is really cached, not merely passed through `respondWith`: after a reload,
+   poll (with a timeout — the `put` is fire-and-forget) until
    `caches.open("libli-static-<worker_version()>")` → `match(<a /static/ URL the page
    loaded>)` is non-empty (`from_service_worker` alone is true for any `respondWith`, so it
    is not the assertion).
@@ -306,7 +327,14 @@ registration if needed):
    b. Outage emulated by a `context.route` abort → navigate → offline page text →
       `unroute` (fires no `online` event) → click Try again → the real page (covers the
       button).
-   **Spike first** (the plan's first e2e task): confirm on the pinned Chromium that
+   **Spike first** (the plan's first e2e task). Try, in order: (i) Playwright with
+   `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1` (service-worker routing and network
+   events in Chromium are gated behind it); (ii) `Network.emulateNetworkConditions`
+   (offline) through a CDP session attached to the service-worker target; (iii) stopping
+   the live server's listener for the offline window. If none makes the worker's own
+   fetch reject, STOP and ask Krzysztof whether e2e 2 and its mutants move to the manual
+   device checklist; do not ship a test that cannot fail. Within the working option,
+   confirm on the pinned Chromium that
    `set_offline` fails fetches made from INSIDE the worker, and find a `context.route`
    filter that catches the worker's inner fetch. That fetch is a new Request whose mode
    is not `navigate`, so the filter keys on the target URL path (plus
@@ -314,9 +342,12 @@ registration if needed):
    fetches), never on `is_navigation_request()`. If `set_offline` does not reach the
    worker, case (a) also uses the route abort and fires `online` by
    `set_offline(True)`/`set_offline(False)` around the unroute.
-3. A 404 URL while controlled shows the real 404 page, not the offline page.
-4. `/media/` passthrough, as both a subresource and a navigation: load a page containing
-   an `<img src="/media/…">` and then navigate the tab to a `/media/…` URL. The test
+3. A 404 URL while controlled shows the real 404 page, not the offline page. Also, an
+   anonymous visit to the login page while controlled logs no console error.
+4. `/media/` passthrough, as both a subresource and a navigation: load a real in-scope
+   page on the live server whose markup contains an `<img src="/media/…">` — a published
+   lesson with an image element built by the existing factories (never `page.set_content`,
+   whose `about:blank` document is not controlled by the worker) and then navigate the tab to a `/media/…` URL. The test
    settings have `DEBUG=False`, so Django answers 404 — which is fine, because the
    property is interception, not content: each observed `/media/` response must have
    `from_service_worker == False`, and the test asserts that at least one subresource and
@@ -327,17 +358,22 @@ registration if needed):
    a `controllerchange` event attached after load, which may already have fired).
 6. Kill switch: turn it on → navigate → poll until `getRegistrations()` is empty and no
    `libli-` cache remains.
-7. Install item: a synthetic `beforeinstallprompt` (with a stub `prompt`) switches it to
-   prompt mode and a click calls the stub; with `matchMedia` stubbed to standalone via an
-   init script, the item is not visible (`to_be_hidden()` — real visibility, not the
-   attribute).
+7. Install item — every assertion made with the account menu OPEN and a sibling item
+   ("Settings") asserted visible first, since a closed `.menu__panel` hides everything
+   and would make a hidden-check vacuous:
+   a. A synthetic `beforeinstallprompt` (stub `prompt`) switches it to prompt mode; a
+      click calls the stub once and stays on the page; a second click navigates to
+      `/install-app/` (the event is single-use).
+   b. A synthetic `appinstalled` hides it (`to_be_hidden()`).
+   c. With `matchMedia` stubbed to standalone via an init script, it is hidden on load.
 
 Each guard gets a mutant shown RED, with the test that turns red named in the plan:
 rule 1 made network-only or its `put` removed (e2e 1); the `online` listener or the Try again handler removed (e2e 2a / 2b); navigations served from cache; the navigate fallback on any non-ok response (a 503
 becomes the offline page); the offline match done by the navigation request instead of
 `"/offline/"`; `/media/` cached; the passthrough check moved after the navigate rule;
 the `status === 200`/`basic` store guard removed; the GET-only/same-origin filter removed;
-the activate cleanup removed; `VERSION` made constant; `respondWith` left in the kill
+the activate cleanup removed; `offline_branding()` reading `get_site_config()` (the
+signal-free rename test); the kept prompt event not dropped after use (e2e 7a); `VERSION` made constant; `respondWith` left in the kill
 body; the offline page extending `base.html`; the `.menu__item[hidden]` rule removed.
 
 **Manual device checklist** (Krzysztof, on real devices, before the PR merges):
