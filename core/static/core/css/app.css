@@ -1032,6 +1032,39 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
     text-overflow:ellipsis;vertical-align:bottom}
 }
 
+/* --- Narrow score columns (desktop) --- */
+/* A register-like grid: every score column is 6.5rem, whatever its title. Two
+   things kept columns wide: nowrap titles (a column was as wide as its title on
+   one line) and width:100%, which stretched a few columns across the page. So
+   on desktop the table sizes to its columns, and a leaf title wraps onto at
+   most TWO lines (full title in the title="" tooltip). Words are never split
+   (break-word, NOT anywhere: "Statystyk|a" read badly), so a column with one
+   long word grows just enough for it. The header rows are
+   pinned at top = row * --ahead-h, so --ahead-h grows to fit two lines: a
+   title taller than its row would overlap the next pinned row. Phones keep the
+   one-line ellipsis (see the 640px block above) and the 2.4rem rows. */
+@media (min-width: 641px) {
+  .analytics{--ahead-h:3.5rem}
+  .analytics__matrix{width:auto}
+  .analytics__matrix thead th.analytics__colhead:not(.analytics__group){
+    width:6.5rem;min-width:6.5rem;white-space:normal}
+  .analytics__matrix thead th.analytics__colhead .analytics__expand{display:flex;
+    align-items:flex-end;gap:.2rem;border-bottom:0}
+  .analytics__matrix thead th.analytics__colhead:not(.analytics__group) .analytics__coltitle{
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
+    overflow:hidden;overflow-wrap:break-word;text-align:left}
+  .analytics__expand .analytics__coltitle{text-decoration:underline dotted;
+    text-underline-offset:.2em}
+  /* An opened section's title spans its columns. Out of flow, so a long one
+     cannot widen them (auto table layout sizes columns to content); the
+     sticky <th> is its containing block, and only the ✕ stays in flow. */
+  .analytics__matrix thead th.analytics__group{text-align:right}
+  .analytics__matrix thead th.analytics__group .analytics__group-title{position:absolute;
+    inset:.4rem 1.6rem .4rem .6rem;display:-webkit-box;-webkit-box-orient:vertical;
+    -webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;
+    white-space:normal;text-align:left}
+}
+
 /* --- Full-screen mode (desktop) --- */
 /* The analytics section covers the whole window (site header included) so a
    wide matrix gets the screen, not a 52rem column. Toggled by the header button
