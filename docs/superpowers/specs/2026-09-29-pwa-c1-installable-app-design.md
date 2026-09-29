@@ -141,8 +141,10 @@ speed, then offline use (not built).
   two current names; then `clients.claim()`.
 - **fetch** — evaluated in this order; "pass" means the handler returns without calling
   `respondWith` (browser default):
-  0. Not `GET`, not same-origin, path starts with a `PASSTHROUGH_PREFIXES` entry, or ends
-     with a `PASSTHROUGH_SUFFIXES` entry → pass. This runs BEFORE the navigate rule, so a
+  0. Not `GET`, not same-origin, or `new URL(request.url).pathname` starts with a
+     `PASSTHROUGH_PREFIXES` entry or ends with a `PASSTHROUGH_SUFFIXES` entry → pass.
+     Matching is on the PATHNAME only, query ignored: the real archive download is
+     `…/export/?confirm=1`, which a test on the full URL would miss. This runs BEFORE the navigate rule, so a
      `/media/` URL opened in a tab (an image, a PDF, a video) and an archive download are
      never intercepted either. `/media/` passthrough keeps HTTP Range working for video
      seeking and keeps GBs of media out of the cache.
@@ -164,6 +166,15 @@ speed, then offline use (not built).
      503 maintenance, 404, 500, a redirect to login — passes through unchanged.
   3. Everything else (`/sw.js`, `/site.webmanifest`, JSON/fragment endpoints, `/static/`
      when `CACHE_STATIC` is false) → pass.
+- **No navigation preload** (decision). `registration.navigationPreload` stays off:
+  with preload on, a rule-0 passthrough navigation (`/export/`, `/media/`) that never
+  consumes `event.preloadResponse` can make the browser issue the request twice — for an
+  export, building a GB archive twice. Accepted cost: while the worker is stopped (browsers
+  stop an idle worker after ~30 s), the next navigation or fragment request from a
+  controlled page waits for the worker to start before rule 0/3 can pass it — typically
+  tens of milliseconds, measured on a real phone in the device checklist. A source test
+  asserts the worker template does not contain `navigationPreload`, so it cannot be
+  switched on without revisiting this.
 - No user data ever enters a cache (static assets and an anonymous page only), so logout
   clears nothing.
 
@@ -175,9 +186,15 @@ speed, then offline use (not built).
 - `pwa.js` is not included while the switch is on (via `pwa_enabled`), so nothing
   re-registers.
 - Every browser revalidates `/sw.js` on navigation (`no-cache` + `updateViaCache:
-  "none"`), so the switch reaches every device on its next visit. Undo: unset the var and
-  restart the stack.
-- Runbook (`docs/deployment.md`) gains a short "PWA kill switch" section;
+  "none"`), so the switch reaches every device on its next visit. To switch on (and to undo,
+  with the var blanked): edit `.env.production`, then RECREATE the app container —
+  `docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+  --force-recreate app`. Never `docker compose restart`: it reuses the container's
+  existing environment and does not re-read `env_file`, so the switch would silently
+  never take effect. Verify from anywhere: `curl -s https://<host>/sw.js | grep -c
+  unregister` prints ≥ 1 with the switch on and 0 after undoing.
+- Runbook (`docs/deployment.md`) gains a short "PWA kill switch" section carrying exactly
+  those commands and the curl check;
   `.env.production.example` gains `LIBLI_PWA_KILL_SWITCH=` (blank) with a one-line comment.
 
 ### 4. `/offline/`
@@ -211,7 +228,9 @@ speed, then offline use (not built).
   always in the language `lang` declares, whatever the requesting session's language.
   Existing fields and icons unchanged.
 - `{% favicon_links %}` adds `<meta name="apple-mobile-web-app-title" content="<short
-  name>">` (the same `_short_name` the manifest uses) and
+  name>">` (the same `_short_name` the manifest uses — moved from `core/views.py` to
+  `core/services.py`, next to `default_name`, so the template tag never imports the views
+  module; `tests/test_favicon_render.py::test_short_name_boundaries` follows it) and
   `<meta name="mobile-web-app-capable" content="yes">`.
 
 ### 6. `pwa.js`
@@ -226,8 +245,10 @@ speed, then offline use (not built).
   {scope: "/", updateViaCache: "none"})`, errors logged to the console and otherwise
   ignored (the site works without a worker).
 - Install item (§7): on `beforeinstallprompt`, `preventDefault()`, keep the event, and
-  switch the item to prompt mode. On click in prompt mode, call `event.prompt()`, then
-  drop the event (it is single-use) and return the item to link mode. On `appinstalled`,
+  switch the item to prompt mode. On click in prompt mode, call `event.prompt()` and,
+  synchronously in the same handler, drop the event (it is single-use) and return the
+  item to link mode. `pwa.js` never awaits `prompt()`'s promise or reads `userChoice`,
+  so its behaviour does not depend on them. On `appinstalled`,
   hide the item.
 - Standalone detection: `matchMedia("(display-mode: standalone)").matches ||
   navigator.standalone === true` ⇒ hide the item.
@@ -288,7 +309,10 @@ speed, then offline use (not built).
   rendered page has no `pwa.js`. First row: a rendered page includes `pwa.js`.
 - `CACHE_STATIC`: false under the suite's plain storage; true with
   `PWA_CACHE_UNHASHED_STATIC=True`; true with a storage that reports a manifest.
-- Passthrough: `reverse("courses:manage_course_export", …)` and
+- Passthrough (the JS matches on pathname; the query-string form `?confirm=1` is covered
+  by that rule, and the e2e mutant "match on the full URL" is caught by a navigation to
+  `…/export/?confirm=1` observed with `from_service_worker == False` in e2e 4):
+  `reverse("courses:manage_course_export", …)` and
   `reverse("courses:manage_node_export", …)` each end with a `PASSTHROUGH_SUFFIXES`
   entry, and `settings.MEDIA_URL` starts with a `PASSTHROUGH_PREFIXES` entry — so renaming
   a route cannot silently route a GB download through the worker.
@@ -341,7 +365,10 @@ registration if needed):
    `resource_type == "document"` only if the spike shows it holds for worker-originated
    fetches), never on `is_navigation_request()`. If `set_offline` does not reach the
    worker, case (a) also uses the route abort and fires `online` by
-   `set_offline(True)`/`set_offline(False)` around the unroute.
+   `set_offline(True)`/`set_offline(False)` around the unroute. If option (i) is used,
+   the variable applies to the whole Playwright driver: the spike records where it is set
+   and either shows the rest of the e2e suite still passes with it, or runs the PWA e2e
+   module in its own pytest invocation (and says so in the plan and CI).
 3. A 404 URL while controlled shows the real 404 page, not the offline page. Also, an
    anonymous visit to the login page while controlled logs no console error.
 4. `/media/` passthrough, as both a subresource and a navigation: load a real in-scope
@@ -351,17 +378,24 @@ registration if needed):
    settings have `DEBUG=False`, so Django answers 404 — which is fine, because the
    property is interception, not content: each observed `/media/` response must have
    `from_service_worker == False`, and the test asserts that at least one subresource and
-   one navigation response WERE observed (so it cannot pass over zero responses).
+   one navigation response WERE observed (so it cannot pass over zero responses). Then,
+   logged in as the course's manager, navigate to the small test course's
+   `…/export/?confirm=1` and assert the observed download response has
+   `from_service_worker == False` (Playwright's download event; the course is the
+   factory-built one, so the archive is tiny).
 5. Update: rename the institution → navigate → poll until
-   `navigator.serviceWorker.controller` is non-null and `caches.keys()` holds only names
-   ending in the new `worker_version()` (both already-true-safe conditions; never wait for
+   `navigator.serviceWorker.controller` is non-null, `caches.keys()` CONTAINS
+   `libli-offline-<new worker_version()>`, and every `libli-` key ends in the new
+   version (the containment clause keeps an empty list from passing) (both already-true-safe conditions; never wait for
    a `controllerchange` event attached after load, which may already have fired).
 6. Kill switch: turn it on → navigate → poll until `getRegistrations()` is empty and no
    `libli-` cache remains.
 7. Install item — every assertion made with the account menu OPEN and a sibling item
    ("Settings") asserted visible first, since a closed `.menu__panel` hides everything
    and would make a hidden-check vacuous:
-   a. A synthetic `beforeinstallprompt` (stub `prompt`) switches it to prompt mode; a
+   a. A synthetic `beforeinstallprompt` whose `prompt` stub returns
+      `Promise.resolve({outcome: "accepted"})` and which carries a resolved `userChoice`
+      (the real shapes) switches it to prompt mode; a
       click calls the stub once and stays on the page; a second click navigates to
       `/install-app/` (the event is single-use).
    b. A synthetic `appinstalled` hides it (`to_be_hidden()`).
@@ -371,20 +405,28 @@ Each guard gets a mutant shown RED, with the test that turns red named in the pl
 rule 1 made network-only or its `put` removed (e2e 1); the `online` listener or the Try again handler removed (e2e 2a / 2b); navigations served from cache; the navigate fallback on any non-ok response (a 503
 becomes the offline page); the offline match done by the navigation request instead of
 `"/offline/"`; `/media/` cached; the passthrough check moved after the navigate rule;
-the `status === 200`/`basic` store guard removed; the GET-only/same-origin filter removed;
+passthrough matched on the full URL instead of the pathname (e2e 4's `?confirm=1`
+navigation); `navigationPreload` enabled (source test); the `status === 200`/`basic`
+store guard removed; the GET-only/same-origin filter removed;
 the activate cleanup removed; `offline_branding()` reading `get_site_config()` (the
 signal-free rename test); the kept prompt event not dropped after use (e2e 7a); `VERSION` made constant; `respondWith` left in the kill
 body; the offline page extending `base.html`; the `.menu__item[hidden]` rule removed.
 
-**Manual device checklist** (Krzysztof, on real devices, before the PR merges):
+**Manual device checklist** (Krzysztof, on real devices). Service workers and installs
+need HTTPS, and phones cannot reach the dev server as `localhost`, so it runs on
+**libli.pl right after merge**, with the kill switch (§3) as the fallback — libli.pl has
+a single staff user today, so a bad worker reaches nobody else. No *Deploy release* to a
+school box carries C1 until every item passes. Items:
 Android Chrome install; iPhone Safari install (name and icon right); desktop Chrome/Edge
-install; airplane mode → offline page; iOS standalone back-navigation walk (a unit, a
+install; airplane mode → offline page; a second navigation after the phone has sat idle
+for a minute feels no slower than before (the accepted worker-start cost, §2); iOS standalone back-navigation walk (a unit, a
 quiz, settings — any dead end is written down, not fixed in this PR); SSO login inside
 the installed app; uninstall.
 
 ## Rollout
 
-libli.pl gets it first (canary) on merge; school boxes through a normal *Deploy release*.
+libli.pl gets it first (canary) on merge and runs the manual device checklist; school
+boxes through a normal *Deploy release* only after it passes.
 No migration, no new dependency, no `deploy.sh` change.
 
 ## Risks
