@@ -1032,6 +1032,28 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
     text-overflow:ellipsis;vertical-align:bottom}
 }
 
+/* --- Full-screen mode (desktop) --- */
+/* The analytics section covers the whole window (site header included) so a
+   wide matrix gets the screen, not a 52rem column. Toggled by the header button
+   and remembered in localStorage (see analytics_matrix.html). Desktop only: on
+   a phone the class is inert and the button hidden. The section is a flex
+   column so the table's scroll box takes all the height left under the
+   controls, instead of its usual 72vh. */
+.analytics__fullscreen[hidden]{display:none}
+/* .manage__head .btn is margin-left:auto (push the actions right); only the
+   FIRST visible action may take the auto margin, or the free space splits. */
+.manage__head .analytics__fullscreen:not([hidden]) ~ .btn{margin-left:0}
+@media (min-width: 641px) {
+  .analytics--full{position:fixed;inset:0;z-index:45;max-width:none;margin:0;
+    padding:var(--space-4) var(--space-5);background:var(--surface-base);
+    display:flex;flex-direction:column;overflow:hidden}
+  .analytics--full > form{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .analytics--full .analytics__scroll{flex:1 1 auto;min-height:0;max-height:none}
+}
+@media (max-width: 640px) {
+  .analytics__fullscreen{display:none}
+}
+
 /* --- Export panel (Task 9) --- */
 /* <details>/<summary> dropdown, matching the .menu pattern: the summary is a
    ghost-button trigger, the form floats as a raised panel underneath it so

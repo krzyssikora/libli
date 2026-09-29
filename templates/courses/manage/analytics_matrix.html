@@ -3,9 +3,24 @@
 {% block head_title %}{% trans "Analytics" %} · {{ course.title }} · libli{% endblock %}
 {% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
-<section class="manage analytics">
+<section class="manage analytics" data-analytics>
+  {% comment %}Applied BEFORE the rest of the page paints, so a remembered full-screen
+  choice never flashes the narrow layout first. The CSS only honours the class on a
+  desktop-width viewport, so a stored "1" cannot take over a phone.{% endcomment %}
+  <script>
+    try {
+      if (localStorage.getItem("libli:analytics-full-screen") === "1") {
+        document.querySelector("[data-analytics]").classList.add("analytics--full");
+      }
+    } catch (e) { /* storage blocked: normal layout */ }
+  </script>
   <header class="manage__head">
     <h1 class="manage__title">{% trans "Analytics" %} — {{ course.title }}</h1>
+    {% comment %}Hidden until the script below wires it: without JS it would do nothing.{% endcomment %}
+    <button type="button" class="btn btn--ghost btn--small analytics__fullscreen" hidden
+            aria-pressed="false" data-full-screen
+            data-label-on="{% trans 'Full screen' %}"
+            data-label-off="{% trans 'Exit full screen' %}">{% trans "Full screen" %}</button>
     {% if can_edit_bands %}
       <a class="btn btn--ghost btn--small" href="{{ colours_url }}">
         {% trans "Configure colours" %}</a>
@@ -209,6 +224,35 @@
       cb.addEventListener("change", sync);
     });
     sync();
+  })();
+</script>
+<script>
+  // Full-screen mode: the section covers the window (see app.css). In-page, not
+  // the Fullscreen API -- every drill-down/mode/scope change is a navigation,
+  // which would drop a real fullscreen; localStorage carries it across instead.
+  (function () {
+    var section = document.querySelector("[data-analytics]");
+    var btn = document.querySelector("[data-full-screen]");
+    if (!section || !btn) return;
+    var KEY = "libli:analytics-full-screen";
+    function render() {
+      var on = section.classList.contains("analytics--full");
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.textContent = on ? btn.dataset.labelOff : btn.dataset.labelOn;
+    }
+    function set(on) {
+      section.classList.toggle("analytics--full", on);
+      try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (e) { /* session only */ }
+      render();
+    }
+    btn.addEventListener("click", function () {
+      set(!section.classList.contains("analytics--full"));
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && section.classList.contains("analytics--full")) set(false);
+    });
+    btn.hidden = false;
+    render();
   })();
 </script>
 <script>

@@ -363,3 +363,69 @@ def test_desktop_width_keeps_full_headers_and_frozen_overall(page, live_server, 
     assert title.evaluate("e => e.scrollWidth <= e.clientWidth")
     overall = page.locator(".analytics__matrix td.analytics__overall").first
     assert overall.evaluate("e => getComputedStyle(e).position") == "sticky"
+
+
+# --- Full-screen mode (desktop) ----------------------------------------------
+# An in-page mode, not the browser Fullscreen API: every drill-down / mode /
+# scope change is a full navigation, which would drop a real fullscreen. So the
+# section covers the window and the choice is remembered in localStorage.
+
+_SECTION_BOX = """() => {
+  const s = document.querySelector('section.analytics');
+  const b = s.getBoundingClientRect();
+  const hit = document.elementFromPoint(5, 5);
+  return {left: b.left, top: b.top, width: b.width,
+          covers_header: s.contains(hit),
+          scroll_bottom: document.querySelector('.analytics__scroll')
+            .getBoundingClientRect().bottom};
+}"""
+
+
+@pytest.mark.django_db(transaction=True)
+def test_full_screen_fills_the_window_and_survives_a_drill_down(
+    page, live_server, client
+):
+    course = _long_titled_results_course(client, "e2efull")
+    _login(page, live_server, "e2efull")
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results")
+    normal = page.evaluate(_SECTION_BOX)
+    assert normal["width"] < 1000 and not normal["covers_header"]
+
+    page.get_by_role("button", name="Full screen").click()
+    full = page.evaluate(_SECTION_BOX)
+    assert full["left"] == 0 and full["top"] == 0 and full["width"] == 1400
+    assert full["covers_header"]  # the site header is covered, not just pushed
+    # the table's scroll box runs (nearly) to the bottom of the window
+    assert full["scroll_bottom"] > 900 - 80
+    toggle = page.get_by_role("button", name="Exit full screen")
+    expect(toggle).to_have_attribute("aria-pressed", "true")
+
+    # a drill-down is a full navigation; the mode must survive it
+    page.locator("a.analytics__expand").first.click()
+    expect(page).to_have_url(re.compile(r"expand="))
+    after = page.evaluate(_SECTION_BOX)
+    assert after["width"] == 1400 and after["covers_header"]
+
+    # Esc leaves it, and the choice sticks across a reload
+    page.keyboard.press("Escape")
+    assert page.evaluate(_SECTION_BOX)["width"] < 1000
+    expect(page.get_by_role("button", name="Full screen")).to_have_attribute(
+        "aria-pressed", "false"
+    )
+    page.reload()
+    assert page.evaluate(_SECTION_BOX)["width"] < 1000
+
+
+@pytest.mark.django_db(transaction=True)
+def test_full_screen_is_desktop_only(page, live_server, client):
+    course = _long_titled_results_course(client, "e2efullphone")
+    _login(page, live_server, "e2efullphone")
+    page.set_viewport_size({"width": 375, "height": 800})
+    url = f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results"
+    page.goto(url)
+    expect(page.get_by_role("button", name="Full screen")).to_be_hidden()
+    # a choice remembered from a desktop session must not take over a phone
+    page.evaluate("() => localStorage.setItem('libli:analytics-full-screen', '1')")
+    page.reload()
+    assert not page.evaluate(_SECTION_BOX)["covers_header"]
