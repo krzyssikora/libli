@@ -353,16 +353,184 @@ def test_phone_width_shows_a_score_between_the_frozen_columns(
     assert title.evaluate("e => getComputedStyle(e).textOverflow") == "ellipsis"
 
 
+_QUIZ_TITLE = "Wzory skróconego mnożenia - quiz"
+
+# Every header row's cells must sit in their own band: row k's bottom edge at
+# or above row k+1's top. The header rows are pinned at top = k * --ahead-h, so
+# a title taller than its row would overlap the next pinned row.
+_HEADER_ROWS_STACKED = """() => {
+  const rows = [...document.querySelectorAll('.analytics__matrix thead tr')];
+  const bands = rows.map(tr => [...tr.children]
+    .filter(th => th.rowSpan === 1)
+    .map(th => { const b = th.getBoundingClientRect(); return [b.top, b.bottom]; }));
+  for (let k = 0; k + 1 < bands.length; k++) {
+    const bottom = Math.max(...bands[k].map(b => b[1]));
+    const top = Math.min(...bands[k + 1].map(b => b[0]));
+    if (bottom > top + 0.5) return false;
+  }
+  // and every title fits inside its own header cell
+  return [...document.querySelectorAll('.analytics__coltitle')].every(t => {
+    const th = t.closest('th').getBoundingClientRect(), b = t.getBoundingClientRect();
+    return b.bottom <= th.bottom + 0.5 && b.top >= th.top - 0.5;
+  });
+}"""
+
+
+def _narrow_columns_course(client, username):
+    from decimal import Decimal
+
+    from courses.models import Enrollment
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import UserFactory
+
+    owner = make_pa(client, username)
+    course = CourseFactory(owner=owner)
+    algebra = ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        unit_type=None,
+        parent=None,
+        # long on purpose: an opened section's title spans its columns and must
+        # not widen them
+        title="Algebra: wyrażenia algebraiczne i wzory skróconego mnożenia",
+    )
+    quizzes = [
+        ContentNodeFactory(
+            course=course,
+            kind="unit",
+            unit_type="quiz",
+            parent=algebra,
+            title=_QUIZ_TITLE,
+        ),
+        ContentNodeFactory(
+            course=course,
+            kind="unit",
+            unit_type="quiz",
+            parent=algebra,
+            title="Potęgi",
+        ),
+    ]
+    # enough columns that the opened section is wider than the page column,
+    # so its collapse ✕ can end up under the frozen Overall column
+    quizzes += [
+        ContentNodeFactory(
+            course=course,
+            kind="unit",
+            unit_type="quiz",
+            parent=algebra,
+            title=f"Sprawdzian {n}",
+        )
+        for n in range(1, 9)
+    ]
+    # a word longer than 6.5rem, in an EXPANDABLE (flex-row) header
+    geometry = ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        unit_type=None,
+        parent=None,
+        title="Planimetria - trójkąty",
+    )
+    quizzes.append(
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="quiz", parent=geometry
+        )
+    )
+    # a NARROW opened section (one column) with a long title: it wraps to two
+    # lines, which its pinned header row must have room for
+    shapes = ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        unit_type=None,
+        parent=None,
+        title="Geometria: figury płaskie, trójkąty i czworokąty",
+    )
+    quizzes.append(
+        ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=shapes)
+    )
+    for n in range(30):
+        student = UserFactory(display_name=f"Uczeń {n:02d}")
+        Enrollment.objects.create(student=student, course=course)
+        for quiz in quizzes:
+            QuizSubmission.objects.create(
+                student=student,
+                unit=quiz,
+                status="submitted",
+                score=Decimal("3"),
+                max_score=Decimal("3"),
+            )
+    return course, algebra, shapes
+
+
 @pytest.mark.django_db(transaction=True)
-def test_desktop_width_keeps_full_headers_and_frozen_overall(page, live_server, client):
-    course = _long_titled_results_course(client, "e2edesk")
+def test_desktop_columns_are_narrow_with_two_line_titles(page, live_server, client):
+    course, algebra, shapes = _narrow_columns_course(client, "e2edesk")
     _login(page, live_server, "e2edesk")
     page.set_viewport_size({"width": 1280, "height": 800})
-    page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results")
-    title = page.locator(".analytics__coltitle", has_text="Rozdział 1").first
-    assert title.evaluate("e => e.scrollWidth <= e.clientWidth")
+    base = f"{live_server.url}/manage/courses/{course.slug}/analytics/?mode=results"
+    page.goto(f"{base}&values=raw&expand={algebra.pk}&expand={shapes.pk}")
+    leaf = "th.analytics__colhead:not(.analytics__group)"
+    th = page.locator(leaf, has_text="Wzory")
+    rem = page.evaluate(
+        "parseFloat(getComputedStyle(document.documentElement).fontSize)"
+    )
+    # a "3/3" column, not a 250px one: 6.5rem plus its 1px border
+    assert th.evaluate("e => e.getBoundingClientRect().width") <= 6.5 * rem + 1
+    title = page.locator(f"{leaf} .analytics__coltitle", has_text="Wzory")
+    line = title.evaluate("e => parseFloat(getComputedStyle(e).lineHeight)")
+    assert title.evaluate("e => e.getBoundingClientRect().height") >= 1.9 * line
+    assert title.get_attribute("title") == _QUIZ_TITLE
+    # a short title is not cut
+    short = page.locator(".analytics__coltitle", has_text="Potęgi")
+    assert short.evaluate("e => e.scrollHeight <= e.clientHeight")
+    # words are never split: each title's longest word fits its title's width
+    # (break-word only splits a word that doesn't fit -- so measure the word,
+    # not the overflow, which break-word never produces)
+    split = page.evaluate(
+        """() => [...document.querySelectorAll(
+          'th.analytics__colhead:not(.analytics__group) .analytics__coltitle')]
+          .filter(t => {
+            const word = t.textContent.split(/\s+/)
+              .reduce((a, w) => (w.length > a.length ? w : a), '');
+            const probe = document.createElement('span');
+            probe.style.whiteSpace = 'nowrap';
+            probe.textContent = word;
+            t.appendChild(probe);
+            const wide = probe.getBoundingClientRect().width > t.clientWidth + 0.5;
+            probe.remove();
+            return wide;
+          }).map(t => t.textContent)"""
+    )
+    assert split == []
+    assert page.evaluate(_HEADER_ROWS_STACKED)
+    page.locator(".analytics__scroll").evaluate("e => { e.scrollTop = 300; }")
+    assert page.evaluate(_HEADER_ROWS_STACKED)
     overall = page.locator(".analytics__matrix td.analytics__overall").first
     assert overall.evaluate("e => getComputedStyle(e).position") == "sticky"
+    # the table sizes to its columns: with fixed score columns, a stretched
+    # (width:100%) table hands the spare width to Overall, the auto column
+    assert overall.evaluate("e => e.getBoundingClientRect().width") <= 6.5 * rem + 1
+    # an opened section's title has room for its two lines (its header row is
+    # a fixed --ahead-h tall, and the title is out of flow inside it)
+    narrow = page.locator(".analytics__group-title", has_text="Geometria")
+    assert narrow.evaluate("e => e.getBoundingClientRect().height") >= 1.9 * line
+    # ...and does not widen the one column it spans
+    assert (
+        narrow.evaluate("e => e.closest('th').getBoundingClientRect().width")
+        <= 6.5 * rem + 1
+    )
+    # its collapse ✕ follows the title and is really there to click -- not
+    # pushed to the far end of a wide section, under the frozen Overall column
+    assert page.evaluate(
+        """() => {
+          const x = document.querySelector('th.analytics__group .analytics__collapse');
+          const b = x.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            b.left + b.width / 2, b.top + b.height / 2);
+          return hit === x || x.contains(hit);
+        }"""
+    )
 
 
 # --- Full-screen mode (desktop) ----------------------------------------------

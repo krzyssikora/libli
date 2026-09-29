@@ -134,10 +134,10 @@
                       {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
                          lang="{{ course.language }}" data-math-title><span class="analytics__coltitle" title="{{ cell.title }}">{{ cell.title }}</span> ▸</a>{% else %}<span
                          class="analytics__coltitle" title="{{ cell.title }}" lang="{{ course.language }}" data-math-title>{{ cell.title }}</span>{% endif %}
-                    {% else %}<span class="analytics__group-title analytics__coltitle"
+                    {% else %}<div class="analytics__grouphead"><span class="analytics__group-title analytics__coltitle"
                          title="{{ cell.title }}" lang="{{ course.language }}" data-math-title>{{ cell.title }}</span><a
                          class="analytics__collapse" href="{{ cell.collapse_url }}"
-                         aria-label="{% trans 'Collapse' %}">✕</a>{% endif %}
+                         aria-label="{% trans 'Collapse' %}">✕</a></div>{% endif %}
                   </th>
                 {% endfor %}
                 {% if forloop.first %}
