@@ -77,7 +77,12 @@ speed, then offline use (not built).
 - Module `core/pwa.py` holds the logic: `worker_version()` (VERSION, §2),
   `_manifest_bytes()` (memoised with `functools.lru_cache(maxsize=1)`; tests that patch
   the storage call `_manifest_bytes.cache_clear()` through a fixture), `serve_normal()`
-  (the first row of the table), and the passthrough constants of §2.
+  (the first row of the table), `offline_branding()` (§4), `cache_static()` (§2) and the
+  passthrough constants of §2. "The storage has a manifest" is decided in ONE place:
+  `_manifest_bytes()` returns the manifest file's bytes when the configured staticfiles
+  storage has a `manifest_name` attribute and that file exists in the storage, else
+  `b"nomanifest"`; `cache_static()` is `_manifest_bytes() != b"nomanifest" or
+  settings.PWA_CACHE_UNHASHED_STATIC`.
 
 ### 2. `/sw.js` — the worker, rendered by a view
 
@@ -85,14 +90,23 @@ speed, then offline use (not built).
   (root path ⇒ default scope `/`; no `Service-Worker-Allowed` header needed).
 - Public (no login). `Content-Type: text/javascript; charset=utf-8`,
   `Cache-Control: no-cache`.
-- Rendered from `templates/core/sw.js` (the kill body from `templates/core/sw_kill.js`)
-  with these values:
+- Rendered from `templates/core/sw.js` (the kill body from `templates/core/sw_kill.js`).
+  Every value below reaches the JS as a `json.dumps(...)` string computed in the view and
+  emitted with `|safe` (autoescape would otherwise turn `"` into `&quot;` and a Python
+  `True` is not JS). A client test asserts the body contains `["/media/"]` verbatim.
+  Values:
   - **`VERSION`** = `core.pwa.worker_version()`: the first 12 hex chars of a SHA-256
     over, in order: `_manifest_bytes()` (the staticfiles manifest read through the
     storage; the literal `b"nomanifest"` when the storage has none, as in dev and tests;
     memoised per process because it cannot change without a restart), the SOURCE of the
-    `core/sw.js` and `core/offline.html` templates, and the site-config fields the offline
-    page renders (`name`, `primary`). Computed per request otherwise. Any static change,
+    `core/sw.js` and `core/offline.html` templates, and the two values
+    `offline_branding()` returns (§4). Computed per request otherwise.
+    `offline_branding()` reads the `Institution` row directly (one single-row query),
+    NOT `get_site_config()`: that cache is per-process LocMem with a 300 s TTL and is
+    invalidated only in the process that saved, so after a rename different gunicorn
+    workers would serve different `/sw.js` bytes for up to 5 minutes and a device could
+    flip v2 → v1 → v2, each activate deleting the other's caches. `/sw.js` is fetched once
+    per navigation at most, so the query is cheap. Any static change,
     worker or offline-page template change, or rename/recolour yields a new worker, and
     browsers update on their next navigation. No deploy change is needed.
     `core/offline.html` must not `{% include %}` or `{% extends %}` anything, or a change
@@ -101,9 +115,9 @@ speed, then offline use (not built).
     until the next VERSION change.
   - **`PRECACHE`**: `["/offline/"]`. The offline page is self-contained (§4), so nothing
     else is needed.
-  - **`CACHE_STATIC`**: true iff the static storage has a manifest (production), or
-    `settings.PWA_CACHE_UNHASHED_STATIC` is true (default False; only the e2e tests set
-    it). Without a manifest, VERSION does not track static content, so caching `/static/`
+  - **`CACHE_STATIC`** = `core.pwa.cache_static()`: true iff the static storage has a
+    manifest (production), or `settings.PWA_CACHE_UNHASHED_STATIC` is true (default
+    False; only the e2e tests set it). Without a manifest, VERSION does not track static content, so caching `/static/`
     would freeze a developer's JS/CSS edits — exactly the stale-worker trap. With
     `CACHE_STATIC` false, rule 1 below is skipped and `/static/` goes to the network.
   - **`PASSTHROUGH_PREFIXES`** = `["/media/"]` and **`PASSTHROUGH_SUFFIXES`** =
@@ -131,7 +145,9 @@ speed, then offline use (not built).
      caught and ignored. In production this is safe even for an unhashed `/static/` URL,
      because `VERSION` covers the whole manifest: any change to any static file retires
      the entire cache.
-  2. `request.mode === "navigate"`: `fetch(request)`; **only** when the fetch rejects
+  2. `request.mode === "navigate"` and `request.destination === "document"` (top-level
+     only — a same-origin iframe that fails offline shows the browser's own frame error,
+     not a full offline page inside the frame): `fetch(request)`; **only** when the fetch rejects
      (a network failure) respond with
      `caches.match("/offline/", {cacheName: "libli-offline-<VERSION>", ignoreVary: true})`
      — matched by the literal `/offline/` URL, never by the navigation request (whose URL
@@ -166,7 +182,11 @@ speed, then offline use (not built).
   depend on the request's user at all.
 - Inline CSS with light/dark via `prefers-color-scheme`; the default libli mark inlined as
   SVG (the favicon override lives under `/media/`, which the worker never caches, so the
-  page never shows a broken image). Shows the school's `name`.
+  page never shows a broken image). Renders exactly the two values of
+  `core.pwa.offline_branding()`: the name (`Institution.name.strip()` or
+  `default_name()`, the manifest's fallback) as the heading's context line, and
+  `effective_primary` of the row's primary colour as the Try again button's colour. No
+  other institution field appears, so VERSION tracks everything the page shows.
 - Copy (EN + PL): heading "You're offline", line "Check your connection and try again.",
   a **Try again** button (`location.reload()`); an `online` event listener reloads too.
   A small inline script is allowed; the page loads nothing external.
@@ -258,6 +278,8 @@ speed, then offline use (not built).
   entry, and `settings.MEDIA_URL` starts with a `PASSTHROUGH_PREFIXES` entry — so renaming
   a route cannot silently route a GB download through the worker.
 - `core/offline.html` source contains neither `{% include` nor `{% extends`.
+- `offline_branding()` reflects a rename immediately even with a warm `get_site_config()`
+  cache (reads the row, not the cache); `/offline/` shows the new name.
 - `/offline/`: anonymous 200, `no-store`, `noindex`; fetched as a logged-in user the
   response contains neither the username, the email nor the bell markup; it references no
   `/static/` URL.
@@ -273,12 +295,25 @@ speed, then offline use (not built).
 PWA_CACHE_UNHASHED_STATIC=True)`), each syncing on conditions, never sleeps. Every test
 first waits until `navigator.serviceWorker.controller` is non-null (reloading once after
 registration if needed):
-1. A reload's `/static/` response reports `from_service_worker`.
-2. Offline: `context.set_offline(True)` → navigate → offline page text; back online →
-   Try again → the real page. **Spike first** (the plan's first e2e task): confirm that
-   `set_offline` also fails fetches made from INSIDE the worker on the pinned Chromium; if
-   it does not, emulate the outage with `context.route("**/*", lambda r: r.abort())`
-   limited to navigation requests instead.
+1. Static is really cached, not merely passed through `respondWith`: after a reload,
+   `caches.open("libli-static-<worker_version()>")` → `match(<a /static/ URL the page
+   loaded>)` is non-empty (`from_service_worker` alone is true for any `respondWith`, so it
+   is not the assertion).
+2. Offline, two recovery paths tested separately (either handler deleted turns exactly
+   one red):
+   a. `context.set_offline(True)` → navigate → offline page text → `set_offline(False)`
+      with NO click → wait for the real page (covers the `online` listener).
+   b. Outage emulated by a `context.route` abort → navigate → offline page text →
+      `unroute` (fires no `online` event) → click Try again → the real page (covers the
+      button).
+   **Spike first** (the plan's first e2e task): confirm on the pinned Chromium that
+   `set_offline` fails fetches made from INSIDE the worker, and find a `context.route`
+   filter that catches the worker's inner fetch. That fetch is a new Request whose mode
+   is not `navigate`, so the filter keys on the target URL path (plus
+   `resource_type == "document"` only if the spike shows it holds for worker-originated
+   fetches), never on `is_navigation_request()`. If `set_offline` does not reach the
+   worker, case (a) also uses the route abort and fires `online` by
+   `set_offline(True)`/`set_offline(False)` around the unroute.
 3. A 404 URL while controlled shows the real 404 page, not the offline page.
 4. `/media/` passthrough, as both a subresource and a navigation: load a page containing
    an `<img src="/media/…">` and then navigate the tab to a `/media/…` URL. The test
@@ -286,9 +321,10 @@ registration if needed):
    property is interception, not content: each observed `/media/` response must have
    `from_service_worker == False`, and the test asserts that at least one subresource and
    one navigation response WERE observed (so it cannot pass over zero responses).
-5. Update: rename the institution → navigate → wait for the page's `controllerchange`
-   event, then poll `caches.keys()` until it holds only names ending in the new
-   `worker_version()`.
+5. Update: rename the institution → navigate → poll until
+   `navigator.serviceWorker.controller` is non-null and `caches.keys()` holds only names
+   ending in the new `worker_version()` (both already-true-safe conditions; never wait for
+   a `controllerchange` event attached after load, which may already have fired).
 6. Kill switch: turn it on → navigate → poll until `getRegistrations()` is empty and no
    `libli-` cache remains.
 7. Install item: a synthetic `beforeinstallprompt` (with a stub `prompt`) switches it to
@@ -297,7 +333,7 @@ registration if needed):
    attribute).
 
 Each guard gets a mutant shown RED, with the test that turns red named in the plan:
-navigations served from cache; the navigate fallback on any non-ok response (a 503
+rule 1 made network-only or its `put` removed (e2e 1); the `online` listener or the Try again handler removed (e2e 2a / 2b); navigations served from cache; the navigate fallback on any non-ok response (a 503
 becomes the offline page); the offline match done by the navigation request instead of
 `"/offline/"`; `/media/` cached; the passthrough check moved after the navigate rule;
 the `status === 200`/`basic` store guard removed; the GET-only/same-origin filter removed;
