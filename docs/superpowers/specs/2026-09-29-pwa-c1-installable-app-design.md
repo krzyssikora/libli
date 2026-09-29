@@ -55,10 +55,29 @@ speed, then offline use (not built).
 - `base.py`: `PWA_ENABLED = env.bool("LIBLI_PWA_ENABLED", default=False)` and
   `PWA_KILL_SWITCH = env.bool("LIBLI_PWA_KILL_SWITCH", default=False)`.
 - `production.py`: `PWA_ENABLED = env.bool("LIBLI_PWA_ENABLED", default=True)`.
+- `base.py`: `PWA_CACHE_UNHASHED_STATIC = False` (not read from the environment; a
+  test-only override, see §2 `CACHE_STATIC`).
 - `test.py`: pin `PWA_ENABLED = False` and `PWA_KILL_SWITCH = False` (pinned, not
   inherited, for the same reason as `VENDOR_INSTANCE`: `base.py` reads a developer's
   `.env`). Tests opt in with `override_settings`.
 - A context processor exposes `pwa_enabled` = `PWA_ENABLED and not PWA_KILL_SWITCH`.
+- What `/sw.js` serves, for every combination (always HTTP 200 — a 404 would make the
+  browser keep whatever worker it already has, forever):
+
+  | `PWA_ENABLED` | `PWA_KILL_SWITCH` | `/sw.js` body | `pwa.js` included |
+  |---|---|---|---|
+  | on | off | normal worker (§2) | yes |
+  | on | on | kill worker (§3) | no |
+  | off | off | kill worker (§3) | no |
+  | off | on | kill worker (§3) | no |
+
+  So "off" is not merely "stop registering": it also removes the worker from any device
+  that already has one. The kill switch exists separately so an operator can recall the
+  worker on a production box without touching `LIBLI_PWA_ENABLED`.
+- Module `core/pwa.py` holds the logic: `worker_version()` (VERSION, §2),
+  `_manifest_bytes()` (memoised with `functools.lru_cache(maxsize=1)`; tests that patch
+  the storage call `_manifest_bytes.cache_clear()` through a fixture), `serve_normal()`
+  (the first row of the table), and the passthrough constants of §2.
 
 ### 2. `/sw.js` — the worker, rendered by a view
 
@@ -66,41 +85,67 @@ speed, then offline use (not built).
   (root path ⇒ default scope `/`; no `Service-Worker-Allowed` header needed).
 - Public (no login). `Content-Type: text/javascript; charset=utf-8`,
   `Cache-Control: no-cache`.
-- Rendered from `templates/core/sw.js` with two values:
-  - **`VERSION`**: the first 12 hex chars of a SHA-256 over, in order: the staticfiles
-    manifest's bytes (read through the storage; the literal `"nomanifest"` when the
-    storage has none, as in dev and tests), the SOURCE of `core/sw.js` and
-    `core/offline.html` templates, and the site-config fields the offline page renders
-    (`name`, `primary`). Computed per request (cheap; the manifest bytes may be cached at
-    process level since they cannot change without a restart). Any static change, worker
-    or offline-page template change, or rename/recolour yields a new worker, and browsers
-    update on their next navigation. No deploy change is needed.
+- Rendered from `templates/core/sw.js` (the kill body from `templates/core/sw_kill.js`)
+  with these values:
+  - **`VERSION`** = `core.pwa.worker_version()`: the first 12 hex chars of a SHA-256
+    over, in order: `_manifest_bytes()` (the staticfiles manifest read through the
+    storage; the literal `b"nomanifest"` when the storage has none, as in dev and tests;
+    memoised per process because it cannot change without a restart), the SOURCE of the
+    `core/sw.js` and `core/offline.html` templates, and the site-config fields the offline
+    page renders (`name`, `primary`). Computed per request otherwise. Any static change,
+    worker or offline-page template change, or rename/recolour yields a new worker, and
+    browsers update on their next navigation. No deploy change is needed.
+    `core/offline.html` must not `{% include %}` or `{% extends %}` anything, or a change
+    in the included file would not move VERSION (a test asserts it). Accepted: a release
+    that changes ONLY the offline page's translations leaves devices on the old wording
+    until the next VERSION change.
   - **`PRECACHE`**: `["/offline/"]`. The offline page is self-contained (§4), so nothing
     else is needed.
+  - **`CACHE_STATIC`**: true iff the static storage has a manifest (production), or
+    `settings.PWA_CACHE_UNHASHED_STATIC` is true (default False; only the e2e tests set
+    it). Without a manifest, VERSION does not track static content, so caching `/static/`
+    would freeze a developer's JS/CSS edits — exactly the stale-worker trap. With
+    `CACHE_STATIC` false, rule 1 below is skipped and `/static/` goes to the network.
+  - **`PASSTHROUGH_PREFIXES`** = `["/media/"]` and **`PASSTHROUGH_SUFFIXES`** =
+    `["/export/"]` (constants in `core/pwa.py`): paths the worker never touches, not even
+    as navigations. `/export/` covers the course and subtree archive downloads
+    (`courses:manage_course_export`, `courses:manage_node_export`), GET navigations of up
+    to ~1 GiB that must not be streamed through the worker.
 - Cache names: `libli-static-<VERSION>` and `libli-offline-<VERSION>`. Every libli cache
   starts with `libli-`.
 - **install**: open `libli-offline-<VERSION>`, `add("/offline/")`, then `skipWaiting()`.
   If the precache fetch fails, install fails and the previous worker stays in charge.
 - **activate**: delete every cache whose name starts with `libli-` and is not one of the
   two current names; then `clients.claim()`.
-- **fetch** — only `GET` and same-origin requests are considered; for anything else the
-  handler returns without calling `respondWith` (browser default):
-  1. `/static/…`: cache-first from `libli-static-<VERSION>`; on a miss, fetch, and store
-     the response only if `response.ok` and `response.type === "basic"`. Safe even for an
-     unhashed `/static/` URL, because `VERSION` covers the whole manifest: any change to
-     any static file retires the entire cache.
+- **fetch** — evaluated in this order; "pass" means the handler returns without calling
+  `respondWith` (browser default):
+  0. Not `GET`, not same-origin, path starts with a `PASSTHROUGH_PREFIXES` entry, or ends
+     with a `PASSTHROUGH_SUFFIXES` entry → pass. This runs BEFORE the navigate rule, so a
+     `/media/` URL opened in a tab (an image, a PDF, a video) and an archive download are
+     never intercepted either. `/media/` passthrough keeps HTTP Range working for video
+     seeking and keeps GBs of media out of the cache.
+  1. `CACHE_STATIC` and path starts with `/static/`: cache-first from
+     `libli-static-<VERSION>`; on a miss, fetch and return the response, and store a
+     clone only if `response.status === 200` and `response.type === "basic"` (a 206
+     cannot be `put`). The `put` is fire-and-forget (`event.waitUntil`), its rejection
+     caught and ignored. In production this is safe even for an unhashed `/static/` URL,
+     because `VERSION` covers the whole manifest: any change to any static file retires
+     the entire cache.
   2. `request.mode === "navigate"`: `fetch(request)`; **only** when the fetch rejects
-     (a network failure) respond with the cached `/offline/`. Every HTTP response —
+     (a network failure) respond with
+     `caches.match("/offline/", {cacheName: "libli-offline-<VERSION>", ignoreVary: true})`
+     — matched by the literal `/offline/` URL, never by the navigation request (whose URL
+     differs), and with `ignoreVary` because the response carries `Vary: Cookie,
+     Accept-Language`. If that match is empty, `Response.error()`. Every HTTP response —
      503 maintenance, 404, 500, a redirect to login — passes through unchanged.
-  3. Everything else — `/media/` (keeps HTTP Range for video seeking; GBs of media never
-     enter the cache), `/sw.js`, `/site.webmanifest`, JSON/fragment endpoints — is not
-     intercepted.
+  3. Everything else (`/sw.js`, `/site.webmanifest`, JSON/fragment endpoints, `/static/`
+     when `CACHE_STATIC` is false) → pass.
 - No user data ever enters a cache (static assets and an anonymous page only), so logout
   clears nothing.
 
 ### 3. Kill switch
 
-- With `PWA_KILL_SWITCH` on, `/sw.js` serves a different body: on `install`,
+- Whenever the table in §1 says so, `/sw.js` serves `templates/core/sw_kill.js`: on `install`,
   `skipWaiting()`; on `activate`, delete every cache whose name starts with `libli-`, then
   `self.registration.unregister()`. No fetch handler.
 - `pwa.js` is not included while the switch is on (via `pwa_enabled`), so nothing
@@ -132,7 +177,9 @@ speed, then offline use (not built).
 
 - `webmanifest` adds `"id": "/"`, `"scope": "/"`, `"lang": cfg["default_language"]`,
   and `"description"`: a new short msgid `_("Lessons and courses from your school")`
-  (EN + PL). Existing fields and icons unchanged.
+  (EN + PL), rendered inside `translation.override(cfg["default_language"])` so it is
+  always in the language `lang` declares, whatever the requesting session's language.
+  Existing fields and icons unchanged.
 - `{% favicon_links %}` adds `<meta name="apple-mobile-web-app-title" content="<short
   name>">` (the same `_short_name` the manifest uses) and
   `<meta name="mobile-web-app-capable" content="yes">`.
@@ -151,6 +198,13 @@ speed, then offline use (not built).
   hide the item.
 - Standalone detection: `matchMedia("(display-mode: standalone)").matches ||
   navigator.standalone === true` ⇒ hide the item.
+- "Hide" means setting the `hidden` attribute AND a new `app.css` rule
+  `.menu__item[hidden] { display: none; }`: `.menu__item { display: block }`
+  (`app.css:291`) otherwise beats the UA `[hidden]` rule and the item stays visible —
+  the same reason `app.css` already re-asserts `[hidden]` for four other components.
+- Accepted: Chrome may fire `beforeinstallprompt` before the deferred `pwa.js` attaches
+  its listener. The item then stays in link mode, which is a working path (the guide), so
+  no early inline listener is added.
 
 ### 7. "Install app" in the account menu
 
@@ -187,43 +241,68 @@ speed, then offline use (not built).
 
 `PWA_ENABLED` is off in the suite (§1), so existing tests never run under a worker.
 
-**Django-client tests**
-- `/sw.js`: anonymous 200, `text/javascript`, `no-cache`; body contains the `VERSION` and
-  `/offline/`. `VERSION` changes when (a) the manifest bytes change (patched storage),
-  (b) the institution name changes, (c) the primary colour changes — and is stable across
-  two requests with nothing changed.
-- Kill switch on: body contains `unregister` and no `respondWith`; `pwa.js` absent from a
-  rendered page. `PWA_ENABLED` off: `pwa.js` absent. On: present.
+**Django-client tests** (each names the settings it runs under)
+- `/sw.js`, under `override_settings(PWA_ENABLED=True, PWA_KILL_SWITCH=False)`:
+  anonymous 200, `text/javascript`, `no-cache`; the body contains
+  `core.pwa.worker_version()`'s value and `/offline/`. `worker_version()` changes when
+  (a) the manifest bytes change (patched storage + `_manifest_bytes.cache_clear()`
+  fixture), (b) the institution name changes, (c) the primary colour changes — and is
+  stable across two calls with nothing changed.
+- `/sw.js` for the other three rows of the §1 table (each row its own case): 200, the
+  body contains `unregister`, `caches.delete` and `libli-`, and no `respondWith`; a
+  rendered page has no `pwa.js`. First row: a rendered page includes `pwa.js`.
+- `CACHE_STATIC`: false under the suite's plain storage; true with
+  `PWA_CACHE_UNHASHED_STATIC=True`; true with a storage that reports a manifest.
+- Passthrough: `reverse("courses:manage_course_export", …)` and
+  `reverse("courses:manage_node_export", …)` each end with a `PASSTHROUGH_SUFFIXES`
+  entry, and `settings.MEDIA_URL` starts with a `PASSTHROUGH_PREFIXES` entry — so renaming
+  a route cannot silently route a GB download through the worker.
+- `core/offline.html` source contains neither `{% include` nor `{% extends`.
 - `/offline/`: anonymous 200, `no-store`, `noindex`; fetched as a logged-in user the
   response contains neither the username, the email nor the bell markup; it references no
   `/static/` URL.
-- Manifest: `id`, `scope`, `lang` (follows `default_language`), `description`.
+- Manifest: `id`, `scope`, `lang` (follows `default_language`), `description` in
+  `default_language` even when the request's session language differs.
 - Head tags on a rendered page: `apple-mobile-web-app-title`, `mobile-web-app-capable`.
 - Account menu: the `data-install-app` link points at `/install-app/`.
 - `/install-app/`: anonymous 200 in EN and PL; footer link present on a public page.
 - Any existing test that iterates `PAGES` must stay green with the new page (check the
   overrides-panel and content-guard tests).
 
-**Playwright e2e** (`-m e2e`, Chromium, `override_settings(PWA_ENABLED=True)`), each
-syncing on conditions, never sleeps:
-1. The worker registers and controls the page (`navigator.serviceWorker.controller`);
-   a reload's static response reports `from_service_worker`.
+**Playwright e2e** (`-m e2e`, Chromium, `override_settings(PWA_ENABLED=True,
+PWA_CACHE_UNHASHED_STATIC=True)`), each syncing on conditions, never sleeps. Every test
+first waits until `navigator.serviceWorker.controller` is non-null (reloading once after
+registration if needed):
+1. A reload's `/static/` response reports `from_service_worker`.
 2. Offline: `context.set_offline(True)` → navigate → offline page text; back online →
-   Try again → the real page.
+   Try again → the real page. **Spike first** (the plan's first e2e task): confirm that
+   `set_offline` also fails fetches made from INSIDE the worker on the pinned Chromium; if
+   it does not, emulate the outage with `context.route("**/*", lambda r: r.abort())`
+   limited to navigation requests instead.
 3. A 404 URL while controlled shows the real 404 page, not the offline page.
-4. A `/media/` response is never `from_service_worker`.
-5. Update: rename the institution → navigate → a new worker controls the page and
-   `caches.keys()` holds only the new `VERSION`'s names.
-6. Kill switch: turn it on → navigate → `getRegistrations()` is empty and no `libli-`
-   cache remains.
+4. `/media/` passthrough, as both a subresource and a navigation: load a page containing
+   an `<img src="/media/…">` and then navigate the tab to a `/media/…` URL. The test
+   settings have `DEBUG=False`, so Django answers 404 — which is fine, because the
+   property is interception, not content: each observed `/media/` response must have
+   `from_service_worker == False`, and the test asserts that at least one subresource and
+   one navigation response WERE observed (so it cannot pass over zero responses).
+5. Update: rename the institution → navigate → wait for the page's `controllerchange`
+   event, then poll `caches.keys()` until it holds only names ending in the new
+   `worker_version()`.
+6. Kill switch: turn it on → navigate → poll until `getRegistrations()` is empty and no
+   `libli-` cache remains.
 7. Install item: a synthetic `beforeinstallprompt` (with a stub `prompt`) switches it to
    prompt mode and a click calls the stub; with `matchMedia` stubbed to standalone via an
-   init script, the item is hidden.
+   init script, the item is not visible (`to_be_hidden()` — real visibility, not the
+   attribute).
 
-Each guard gets a mutant shown RED: navigations served from cache; the `navigate`
-fallback on any non-ok response (a 503 becomes the offline page); `/media/` cached; the
-activate cleanup removed; `VERSION` made constant; `respondWith` left in the kill body;
-the offline page extending `base.html`.
+Each guard gets a mutant shown RED, with the test that turns red named in the plan:
+navigations served from cache; the navigate fallback on any non-ok response (a 503
+becomes the offline page); the offline match done by the navigation request instead of
+`"/offline/"`; `/media/` cached; the passthrough check moved after the navigate rule;
+the `status === 200`/`basic` store guard removed; the GET-only/same-origin filter removed;
+the activate cleanup removed; `VERSION` made constant; `respondWith` left in the kill
+body; the offline page extending `base.html`; the `.menu__item[hidden]` rule removed.
 
 **Manual device checklist** (Krzysztof, on real devices, before the PR merges):
 Android Chrome install; iPhone Safari install (name and icon right); desktop Chrome/Edge
