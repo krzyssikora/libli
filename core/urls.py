@@ -24,4 +24,5 @@ urlpatterns = [
     path("privacy/", views_public.privacy, name="privacy"),
     path("getting-started/", views_public.getting_started, name="getting_started"),
     path("for-schools/", views_public.for_schools, name="for_schools"),
+    path("install-app/", views_public.install_app, name="install_app"),
 ]

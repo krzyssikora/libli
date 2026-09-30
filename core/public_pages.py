@@ -81,6 +81,12 @@ PAGES = {
             "and what it costs."
         ),
     ),
+    "install-app": Page(
+        "install-app",
+        "public/install-app.md",
+        _("Install the app"),
+        _("How to add libli to your phone, tablet or computer as an app."),
+    ),
 }
 
 # TWO sets, deliberately separate. They coincide today only because /for-schools/

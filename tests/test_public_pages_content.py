@@ -18,6 +18,8 @@ SHIPPED = [
     "public/getting-started.pl.md",
     "public/for-schools.md",
     "public/for-schools.pl.md",
+    "public/install-app.md",
+    "public/install-app.pl.md",
 ]
 
 # The subset of SHIPPED that must carry {libli:demo_notice} -- for-schools is

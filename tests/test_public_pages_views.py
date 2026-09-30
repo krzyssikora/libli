@@ -69,7 +69,11 @@ def test_controller_name_from_settings_reaches_the_page(client):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "slug,name",
-    [("privacy", "core:privacy"), ("getting-started", "core:getting_started")],
+    [
+        ("privacy", "core:privacy"),
+        ("getting-started", "core:getting_started"),
+        ("install-app", "core:install_app"),
+    ],
 )
 def test_page_emits_its_real_description_title_and_one_h1(client, slug, name):
     from core.public_pages import PAGES

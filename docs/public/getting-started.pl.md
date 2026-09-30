@@ -34,3 +34,6 @@ Jeśli odpowiadasz w szkole za ochronę danych osobowych, zacznij od strony
 [informacja o ochronie danych osobowych](/privacy/). Opisuje, co jest przechowywane o uczniu, kto
 ma do tego wgląd, jak długo dane są przechowywane i jak korzystać z praw osoby, której dane
 dotyczą.
+
+Aby korzystać z libli jak z aplikacji na telefonie, tablecie lub komputerze, zobacz
+[jak ją zainstalować](/install-app/).
