@@ -291,6 +291,7 @@ input[type=number] {
 .menu__item { display: block; width: 100%; text-align: left; padding: var(--space-2) var(--space-3);
   background: transparent; border: 0; border-radius: var(--radius-sm); color: var(--text-primary);
   text-decoration: none; cursor: pointer; }
+.menu__item[hidden] { display: none; }  /* .menu__item's display:block beats the UA [hidden] rule */
 .menu__item:hover { background: var(--surface-sunken); }
 
 .lang-switch { display: inline-flex; gap: var(--space-1); }
