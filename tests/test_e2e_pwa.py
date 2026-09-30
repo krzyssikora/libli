@@ -194,6 +194,8 @@ def test_real_errors_and_posts_pass_through(page, live_server):
 def test_anonymous_login_page_is_quiet_and_suppresses_the_banner(page, live_server):
     errors = []
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    # An uncaught exception is a `pageerror`, never a `console` message.
+    page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{live_server.url}/accounts/login/")
     wait_controlled(page)
     prevented = page.evaluate(
@@ -382,8 +384,12 @@ def test_appinstalled_hides_the_item(page, live_server, member):
     _login(page, live_server, member)
     page.goto(f"{live_server.url}/home/")
     _open_account_menu(page)
+    item = page.locator("[data-install-app]")
+    assert item.is_visible()  # shown before the event, so hiding is the event's doing
     page.evaluate("() => window.dispatchEvent(new Event('appinstalled'))")
-    assert page.locator("[data-install-app]").is_hidden()
+    # The menu is still open: a closed menu would hide the item vacuously.
+    assert page.get_by_role("link", name="Settings").is_visible()
+    assert item.is_hidden()
 
 
 def test_standalone_hides_the_item_on_load(page, live_server, member):
@@ -403,4 +409,6 @@ def test_standalone_hides_the_item_on_load(page, live_server, member):
     _login(page, live_server, member)
     page.goto(f"{live_server.url}/home/")
     _open_account_menu(page)
+    # The menu is still open: a closed menu would hide the item vacuously.
+    assert page.get_by_role("link", name="Settings").is_visible()
     assert page.locator("[data-install-app]").is_hidden()
