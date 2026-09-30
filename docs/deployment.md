@@ -1009,10 +1009,11 @@ device: set the switch, then RECREATE the app container.
 if grep -q '^LIBLI_PWA_KILL_SWITCH=' .env.production; then
   sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=true/' .env.production
 else
+  [ -n "$(tail -c1 .env.production)" ] && echo >> .env.production   # end the last line first
   echo 'LIBLI_PWA_KILL_SWITCH=true' >> .env.production
 fi
-grep '^LIBLI_PWA_KILL_SWITCH=' .env.production   # MUST print LIBLI_PWA_KILL_SWITCH=true
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+grep -x 'LIBLI_PWA_KILL_SWITCH=true' .env.production \
+  && docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
 ```
 
 Never `docker compose restart`: it keeps the container's old environment and does not re-read

@@ -21,6 +21,8 @@ def test_runbook_recreates_rather_than_restarts():
     assert "grep -c LIBLI_SW_KILL" in section
     # a box provisioned before the worker shipped has no line: the command appends
     assert "echo 'LIBLI_PWA_KILL_SWITCH=true' >> .env.production" in section
+    assert '[ -n "$(tail -c1 .env.production)" ] && echo >> .env.production' in section
+    assert "grep -x 'LIBLI_PWA_KILL_SWITCH=true' .env.production" in section
 
 
 def test_env_example_documents_both_variables():
