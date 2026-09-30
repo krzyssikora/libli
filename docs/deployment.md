@@ -998,6 +998,38 @@ guard (both the current and the target copy) but **not** the canary guard. Plain
 
 ---
 
+### PWA kill switch
+
+Every page registers a service worker (`/sw.js`). If it ever misbehaves, recall it from every
+device: set the switch, then RECREATE the app container.
+
+```bash
+# on the box, in /opt/libli -- a box provisioned before the worker shipped has no
+# LIBLI_PWA_KILL_SWITCH line at all, so replace it if present, append it if not
+if grep -q '^LIBLI_PWA_KILL_SWITCH=' .env.production; then
+  sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=true/' .env.production
+else
+  echo 'LIBLI_PWA_KILL_SWITCH=true' >> .env.production
+fi
+grep '^LIBLI_PWA_KILL_SWITCH=' .env.production   # MUST print LIBLI_PWA_KILL_SWITCH=true
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
+
+Never `docker compose restart`: it keeps the container's old environment and does not re-read
+`.env.production`, so the switch silently never takes effect. Recreating shows the usual ~24 s
+maintenance page, like a deploy, so do it outside lesson time where possible.
+
+Once `/sw.js` answers 200 again, verify from anywhere:
+
+```bash
+curl -s https://<host>/sw.js | grep -c LIBLI_SW_KILL
+# 1 = the kill worker is being served; each device drops the worker and its caches on its next visit
+```
+
+To undo, blank the value (`LIBLI_PWA_KILL_SWITCH=`), recreate the same way, and check that the
+same `curl` prints `0`. A school box may take a release that carries the worker before it has
+been checked on libli.pl, but only with this switch set first.
+
 ## Known constraints
 
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local
