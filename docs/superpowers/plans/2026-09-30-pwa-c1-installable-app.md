@@ -184,17 +184,23 @@ def test_offline_branding_strips_and_falls_back_on_a_blank_name():
     assert pwa.offline_branding()[0] == default_name()
 
 
+def _set_primary(inst, value):
+    # institution/migrations/0002_seed_branding.py SEEDS the primary row and
+    # BrandColor is unique on (institution, key): update it, never create() it.
+    # update() is also signal-free, so the site-config cache is left stale.
+    BrandColor.objects.filter(institution=inst, key="primary").update(value=value)
+
+
 def test_offline_branding_reads_the_primary_brand_colour():
     inst = Institution.load()
-    BrandColor.objects.create(institution=inst, key="primary", value="#123456")
+    _set_primary(inst, "#123456")
     assert pwa.offline_branding()[1] == "#123456"
 
 
 def test_offline_branding_rejects_an_invalid_colour():
     inst = Institution.load()
-    BrandColor.objects.create(institution=inst, key="primary", value="#123456")
     # Signal-free write of a value the validator would refuse.
-    BrandColor.objects.filter(institution=inst, key="primary").update(value="red;}")
+    _set_primary(inst, "red;}")
     assert pwa.offline_branding()[1] == PRIMARY_DEFAULT
 
 
@@ -213,10 +219,10 @@ def test_version_follows_a_signal_free_rename():
 
 def test_version_follows_a_signal_free_recolour():
     inst = Institution.load()
-    BrandColor.objects.create(institution=inst, key="primary", value="#112233")
+    _set_primary(inst, "#112233")
     get_site_config()  # warm
     before = pwa.worker_version()
-    BrandColor.objects.filter(institution=inst, key="primary").update(value="#445566")
+    _set_primary(inst, "#445566")
     assert pwa.offline_branding()[1] == "#445566"
     assert pwa.worker_version() != before
 
@@ -1172,6 +1178,8 @@ Aby korzystać z libli jak z aplikacji na telefonie, tablecie lub komputerze, zo
 [jak ją zainstalować](/install-app/).
 ```
 
+The landing page (`templates/core/landing.html`) has its OWN `landing-footer`, which this task deliberately does NOT touch: the spec lists `_public_footer.html` only, and extending it is an owner question raised at plan handoff. Do not add it silently.
+
 In `templates/core/_public_footer.html`, after the `Help` link line, add:
 
 ```html
@@ -1181,7 +1189,7 @@ In `templates/core/_public_footer.html`, after the `Help` link line, add:
 In `templates/help/index.html`, directly after `<h1>{% trans "Help" %}</h1>`, add:
 
 ```html
-  <p class="help-index__install"><a href="{% url 'core:install_app' %}">{% trans "Install libli as an app" %}</a></p>
+  <p><a href="{% url 'core:install_app' %}">{% trans "Install libli as an app" %}</a></p>
 ```
 
 - [ ] **Step 6: Run to verify pass**
@@ -1826,9 +1834,9 @@ from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import make_course_with_unit  # export half
 from tests.factories import make_image_asset
 from tests.factories import make_verified_user
-from tests.factories import make_course_with_unit  # export half
 from tests.pwa_e2e import enable_pwa
 from tests.pwa_e2e import export_observer  # drop if the Findings omit it
 from tests.pwa_e2e import outage
@@ -1874,6 +1882,20 @@ def _poll_cache_has(page, cache_name, url, timeout=5000):
         arg=[cache_name, url],
         timeout=timeout,
     )
+
+
+def _warm_static(page, version):
+    """Wait until every /static/ file the current page loaded is in the static
+    cache. Without it, the old worker's fire-and-forget puts on the NEXT
+    navigation can land after a new (or kill) worker's activate deleted the old
+    cache and recreate it -- and a poll on caches.keys() times out."""
+    urls = page.evaluate(
+        "() => [...document.querySelectorAll('script[src],link[rel=stylesheet]')]"
+        ".map(e => e.src || e.href).filter(u => u.includes('/static/'))"
+    )
+    assert urls, "non-vacuity: the page loaded no /static/ file"
+    for url in urls:
+        _poll_cache_has(page, f"libli-static-{version}", url)
 
 
 def test_static_is_really_cached(page, live_server):
@@ -1924,9 +1946,10 @@ def test_real_errors_and_posts_pass_through(page, live_server):
     assert status == 404
     # Positive control, fetched AFTER the missing file: once IT is cached, the
     # worker has had the same chance to (wrongly) store the 404. It must be a file
-    # /privacy/ never requests (pwa.js or ui.js would already be cached and the
-    # poll would return before the 404's put could land).
-    control = f"{live_server.url}/static/core/img/favicon/icon-192.png"
+    # neither /privacy/ nor the web manifest requests (pwa.js, ui.js or a manifest
+    # icon could already be cached, and the poll would return before the 404's put
+    # could land): doc-page.css is loaded only by the staff help pages.
+    control = f"{live_server.url}/static/core/css/doc-page.css"
     page.evaluate("async (u) => { await fetch(u); }", control)
     _poll_cache_has(page, f"libli-static-{worker_version()}", control)
     has = page.evaluate(
@@ -1980,6 +2003,7 @@ def test_media_is_never_intercepted(page, live_server, context, image_lesson):
     page.on("response", lambda r: seen.append(r) if "/media/" in r.url else None)
     page.goto(f"{live_server.url}{url}")
     wait_controlled(page)
+    seen.clear()  # only CONTROLLED loads count toward the non-emptiness checks
     page.reload()
     page.wait_for_function(
         "() => [...document.images]"
@@ -2012,12 +2036,7 @@ def test_rename_reaches_the_next_navigation(page, live_server):
     # old worker's late puts on the next navigation can recreate the old static
     # cache after the new worker's activate deleted it (the poll below then times
     # out). Same warm-up as the kill-switch test.
-    old = worker_version()
-    for src in page.evaluate(
-        "() => [...document.querySelectorAll('script[src],link[rel=stylesheet]')]"
-        ".map(e => e.src || e.href).filter(u => u.includes('/static/'))"
-    ):
-        _poll_cache_has(page, f"libli-static-{old}", src)
+    _warm_static(page, worker_version())
     inst.name = "After School"
     inst.save()  # post_save clears the in-process site-config cache
     new = worker_version()
@@ -2043,10 +2062,7 @@ def test_kill_switch_recalls_the_worker(page, live_server, settings):
     # worker issues no fire-and-forget put that could land after the kill worker's
     # delete and recreate an orphan cache (the poll below would time out).
     page.reload()
-    ui_js = page.evaluate(
-        "() => document.querySelector('script[src*=\"core/js/ui.js\"]').src"
-    )
-    _poll_cache_has(page, f"libli-static-{worker_version()}", ui_js)
+    _warm_static(page, worker_version())
     settings.PWA_KILL_SWITCH = True
     page.goto(f"{live_server.url}/privacy/")
     page.wait_for_function(
@@ -2063,10 +2079,21 @@ def _open_account_menu(page):
     page.get_by_role("link", name="Settings").wait_for(state="visible")
 
 
+# Chromium may fire a REAL beforeinstallprompt (the page is installable); it
+# would replace the fake as the kept event. This init script, registered before
+# pwa.js, swallows every such event not flagged as the test's own.
+SWALLOW_REAL_PROMPTS = """window.addEventListener("beforeinstallprompt", (e) => {
+    if (!e.__fake) e.stopImmediatePropagation();
+}, true);"""
+
 FAKE_PROMPT = """() => {
     window.__promptCalls = 0;
     const e = new Event("beforeinstallprompt", { cancelable: true });
-    e.prompt = () => { window.__promptCalls += 1; return Promise.resolve({ outcome: "accepted" }); };
+    e.__fake = true;
+    e.prompt = () => {
+        window.__promptCalls += 1;
+        return Promise.resolve({ outcome: "accepted" });
+    };
     e.userChoice = Promise.resolve({ outcome: "accepted" });
     window.dispatchEvent(e);
 }"""
@@ -2078,6 +2105,7 @@ def member(transactional_db):
 
 
 def test_install_item_prompt_is_single_use(page, live_server, member):
+    page.add_init_script(SWALLOW_REAL_PROMPTS)
     _login(page, live_server, member)
     page.goto(f"{live_server.url}/home/")
     item = page.locator("[data-install-app]")
@@ -2106,9 +2134,14 @@ def test_standalone_hides_the_item_on_load(page, live_server, member):
     page.add_init_script(
         """(() => {
             const real = window.matchMedia.bind(window);
-            window.matchMedia = (q) => q.includes("display-mode: standalone")
-                ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} }
-                : real(q);
+            const standalone = {
+                matches: true,
+                media: "(display-mode: standalone)",
+                addEventListener() {},
+                removeEventListener() {},
+            };
+            window.matchMedia = (q) =>
+                q.includes("display-mode: standalone") ? standalone : real(q);
         })();"""
     )
     _login(page, live_server, member)
@@ -2135,7 +2168,7 @@ Expected: all PASS. A failure that appears as a TIMEOUT is first checked against
 | rule 2: serve navigations cache-first (`caches.match(request).then(h => h || fetch(request))` and `put` every navigation) | `test_rename_reaches_the_next_navigation` |
 | rule 2: `fetch(request).then(r => r.ok ? r : offlinePage())` | `test_real_errors_and_posts_pass_through` |
 | `offlinePage`: `caches.match(event.request...)` (by the navigation request) — pass `request` into it | `test_offline_then_back_online_without_a_click` |
-| delete `PASSTHROUGH_PREFIXES.some(...) \|\|` (media no longer passes) | `test_media_is_never_intercepted` |
+| replace the two-line `return PASSTHROUGH_PREFIXES.some(...) \|\| PASSTHROUGH_SUFFIXES.some(...);` with exactly `return PASSTHROUGH_SUFFIXES.some((suffix) => path.endsWith(suffix));` (deleting only the first operand would leave a bare `return` that ASI turns into `return;`) | `test_media_is_never_intercepted` |
 | move the `if (passthrough(request)) return;` line below rule 2 | `test_media_is_never_intercepted` |
 | rule 0: `const path = url.pathname + url.search;` (the variant that breaks `?confirm=1`) | export half of `test_media_is_never_intercepted`, AND `test_passthrough_matches_on_the_pathname_only` (Task 3) |
 | store guard: `if (true)` instead of `response.status === 200 && ...` | `test_real_errors_and_posts_pass_through` |
