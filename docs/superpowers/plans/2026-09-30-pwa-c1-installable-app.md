@@ -370,6 +370,9 @@ def offline_branding():
 
 
 def worker_version():
+    # Not hashed: the compiled .mo catalogs. A release that changes ONLY the
+    # offline page's translations leaves devices on the old wording until the next
+    # VERSION change -- accepted in the spec (§2, beside the language-switch note).
     h = hashlib.sha256()
     h.update(_manifest_bytes())
     for name in _VERSIONED_TEMPLATES:
@@ -1347,7 +1350,7 @@ Expected: all PASS.
 
 - [ ] **Step 7: Mutant**
 
-Remove the `with translation.override(...)` wrapper (compute `description` with the ambient language) → RED: `test_manifest_description_follows_default_language_not_the_session` stays GREEN until Task 7 adds the pl catalog entry — so this mutant is re-run in Task 7 Step 6, not here. Record that in the commit message body.
+Remove the `with translation.override(...)` wrapper (compute `description` with the ambient language) → the manifest tests stay GREEN here: with no pl catalog entry yet, the description is English in every language, so neither manifest test can tell. This mutant is run in Task 7 Step 5 instead, where it turns `test_manifest_description_in_the_default_language_pl` RED. Record that in the commit message body.
 
 - [ ] **Step 8: Commit**
 
@@ -1780,7 +1783,7 @@ This task produces HELPERS, not tests. Its output is `tests/pwa_e2e.py` plus a f
 - Produces (`tests/pwa_e2e.py`):
   - `enable_pwa(settings) -> None` — sets `PWA_ENABLED=True`, `PWA_KILL_SWITCH=False`, `PWA_CACHE_UNHASHED_STATIC=True`.
   - `wait_controlled(page) -> None` — waits until `navigator.serviceWorker.controller` is non-null, reloading once after `navigator.serviceWorker.ready` if needed.
-  - `outage(context, page, *, fires_online: bool)` — a context manager: inside it, the worker's own `fetch()` rejects; on exit the network is back, firing the `online` event iff `fires_online`.
+  - `outage(context, page, *, fires_online: bool)` — a context manager: inside it, EVERY same-origin request the worker makes rejects, whatever its path (e2e 2 navigates to a page it has not visited before, `/getting-started/`); on exit the network is back, firing the `online` event iff `fires_online`.
   - `export_observer(context) -> list` — starts recording what the spike found observable for requests whose path ends with `/export/`; each recorded item exposes `.served_by_worker: bool`.
   - `PWA_ENV: dict[str, str]` — env vars the PWA e2e module needs (empty if none).
 
@@ -1788,8 +1791,8 @@ This task produces HELPERS, not tests. Its output is `tests/pwa_e2e.py` plus a f
 
 Create `tests/test_e2e_pwa_spike.py` (NOT committed) that:
 1. enables the PWA via the `settings` fixture, logs in nobody, opens `/privacy/`, waits controlled;
-2. tries each outage option in order, and after each, navigates to `/privacy/` and checks whether the offline page text `You're offline` appears:
-   - (i) re-run the file with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1` exported, then `context.set_offline(True)`; also try `context.route("**/privacy/", lambda r: r.abort())` and record whether the route handler is called for the WORKER's fetch (log `route.request.service_worker`);
+2. tries each outage option in order, and after each, navigates to a DIFFERENT page, `/getting-started/` (exactly as e2e 2 does), and checks whether the offline page text `You're offline` appears; a route-based option must use a path-agnostic pattern (`**/*`, narrowed only by origin) so any page is covered:
+   - (i) re-run the file with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1` exported, then `context.set_offline(True)`; also try `context.route("**/*", lambda r: r.abort())` and record whether the route handler is called for the WORKER's fetch (log `route.request.service_worker`);
    - (ii) `cdp = context.new_cdp_session(page)`; `cdp.send("Target.setAutoAttach", {"autoAttach": True, "waitForDebuggerOnStart": False, "flatten": True})`, find the service-worker target via `cdp.send("Target.getTargets")`, attach, `Network.enable`, `Network.emulateNetworkConditions` with `offline: True`;
    - (iii) stop the live server's listener: `live_server.thread.httpd.shutdown()` is session-scoped — do NOT do this in the real module unless it can be restarted; record only whether it works;
 3. for the export: seed a small course with `make_course_with_unit(owner=make_verified_user(username="pwa-owner", email="pwa-owner@probe.example.com"))` (a bare `make_course_with_unit()` owner is a `UserFactory` user whose password is not `TEST_PASSWORD` and who has no verified email, so it cannot log in under mandatory verification; ownership alone grants `can_manage_course`), log in as that owner, navigate to `…/export/?confirm=1` with `page.expect_download()`, and record which of `context.on("request")` (with option (i)'s env var) / `context.on("response")` observed the request, and whether `request.service_worker` / `response.from_service_worker` is readable.
@@ -1827,7 +1830,9 @@ git commit -m "test(pwa): e2e helpers from the offline/export observation spike"
 Create `tests/test_e2e_pwa.py`. Skeleton and every test (fill `outage`/`export_observer` calls exactly as `tests/pwa_e2e.py` defines them):
 
 ```python
-"""e2e: the PWA worker (spec docs/superpowers/specs/2026-09-29-pwa-c1-installable-app-design.md).
+"""e2e: the PWA worker.
+
+Spec: docs/superpowers/specs/2026-09-29-pwa-c1-installable-app-design.md
 
 Marked e2e (excluded by default). Run focused and in the FOREGROUND:
     uv run python -m pytest tests/test_e2e_pwa.py -m e2e
@@ -2050,7 +2055,8 @@ def test_media_is_never_intercepted(page, live_server, context, image_lesson):
     # navigate a course manager to .../export/?confirm=1 under page.expect_download(),
     # assert EXACTLY one export observation and that it was not served by the worker.
     # If the Findings say no observation works, this half is omitted and the module
-    # docstring names test_normal_worker_source_guards as the (weaker) guard.
+    # docstring names test_passthrough_matches_on_the_pathname_only (Task 3) as
+    # the (weaker) guard.
 
 
 def test_rename_reaches_the_next_navigation(page, live_server):
@@ -2077,7 +2083,8 @@ def test_rename_reaches_the_next_navigation(page, live_server):
         """async (v) => {
             const keys = await caches.keys();
             const ours = keys.filter(k => k.startsWith("libli-"));
-            return ours.includes("libli-offline-" + v) && ours.every(k => k.endsWith(v));
+            return ours.includes("libli-offline-" + v)
+                && ours.every(k => k.endsWith(v));
         }""",
         arg=new,
     )
