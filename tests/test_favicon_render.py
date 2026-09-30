@@ -183,9 +183,9 @@ def test_manifest_theme_color_falls_back(client, monkeypatch, bad):
     ],
 )
 def test_short_name_boundaries(name, expected):
-    from core.views import _short_name
+    from core.services import short_name
 
-    assert _short_name(name) == expected
+    assert short_name(name) == expected
 
 
 def test_manifest_with_an_override_has_one_icon(client, settings, tmp_path):

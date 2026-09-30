@@ -1,0 +1,46 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{% trans "You're offline" %} · {{ school_name }}</title>
+  {% comment %}
+  Standalone on purpose (spec §4): no base.html, no include, no static file. The
+  worker caches this page and shows it to whoever holds the device, and VERSION
+  hashes this file's source -- an included file would change without moving it.
+  {% endcomment %}
+  <style>
+    :root { --bg: #F4F1EA; --text: #1A1816; --muted: #5B5650; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1A1816; --text: #F4F1EA; --muted: #B8B2A8; }
+    }
+    html, body { margin: 0; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 28rem; margin: 18vh auto 0; padding: 0 1.5rem; text-align: center; }
+    svg { width: 4rem; height: 4rem; }
+    .school { color: var(--muted); margin: 1rem 0 0; }
+    h1 { font-size: 1.5rem; margin: 0.5rem 0; }
+    p { line-height: 1.5; }
+    button { margin-top: 1rem; padding: 0.6rem 1.4rem; font: inherit; cursor: pointer;
+      background: transparent; color: var(--text); border: 2px solid; border-radius: 0.5rem;
+      border-color: {{ primary }}; }
+  </style>
+</head>
+<body>
+  <main>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
+      <rect x="0" y="0" width="512" height="512" rx="112" fill="#147E78"/>
+      <rect x="172" y="129" width="64" height="254" rx="32" fill="#FFFFFF"/>
+      <circle cx="298" cy="341" r="42" fill="#C77B2A"/>
+    </svg>
+    <p class="school">{{ school_name }}</p>
+    <h1>{% trans "You're offline" %}</h1>
+    <p>{% trans "Check your connection and try again." %}</p>
+    <button type="button" onclick="location.reload()">{% trans "Try again" %}</button>
+  </main>
+  <script>
+    window.addEventListener("online", function () { location.reload(); });
+  </script>
+</body>
+</html>

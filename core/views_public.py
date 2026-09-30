@@ -45,3 +45,7 @@ def for_schools(request):
     if not settings.VENDOR_INSTANCE:
         raise Http404
     return _public_page(request, "for-schools")
+
+
+def install_app(request):
+    return _public_page(request, "install-app")

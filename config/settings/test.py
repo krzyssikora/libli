@@ -36,6 +36,11 @@ GEOGEBRA_API_LOOKUP = False
 # -- never through the environment.
 VENDOR_INSTANCE = False
 
+# Pinned for the same reason as VENDOR_INSTANCE: base.py reads a developer's .env.
+# Tests that exercise the worker opt in with the settings fixture.
+PWA_ENABLED = False
+PWA_KILL_SWITCH = False
+
 # REPLACES the production list rather than extending it -- with the Wikimedia hosts
 # still present, a unit test whose transport mock failed to intercept could reach the
 # real network. Both spellings: pytest-django resolves live_server to "localhost" by

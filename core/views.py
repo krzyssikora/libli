@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
@@ -6,8 +8,10 @@ from django.http import HttpResponseBadRequest
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils import translation
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
@@ -16,10 +20,18 @@ from core.context_processors import COOKIE_THEME
 from core.context_processors import THEME_VALUES
 from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
+from core.pwa import PASSTHROUGH_PREFIXES
+from core.pwa import PASSTHROUGH_SUFFIXES
+from core.pwa import PRECACHE
+from core.pwa import cache_static
+from core.pwa import offline_branding
+from core.pwa import serve_normal
+from core.pwa import worker_version
 from core.services import FAVICON_DIR
 from core.services import default_name
 from core.services import effective_primary
 from core.services import get_site_config
+from core.services import short_name
 
 
 @login_required
@@ -205,20 +217,6 @@ def institution_settings(request):
 MANIFEST_BACKGROUND = "#F4F1EA"  # the app's light surface; a white splash would flash
 
 
-def _short_name(name):
-    """<= 12 chars, truncated on an ASCII space, right-stripped.
-
-    There is deliberately no empty-result branch: for any stripped non-empty name,
-    name[:12].rsplit(" ", 1)[0] is never empty (with no space in the first 12
-    characters rsplit returns the whole slice), so a hard-truncate fallback would
-    be dead code whose test passes with the branch deleted.
-    """
-    name = (name or "").strip() or default_name()
-    if len(name) <= 12:
-        return name
-    return name[:12].rsplit(" ", 1)[0].rstrip()
-
-
 def _manifest_icons(cfg):
     url = cfg.get("favicon_url")
     if url:
@@ -254,10 +252,17 @@ def webmanifest(request):
     institution state. Public -- the browser fetches it regardless of session."""
     cfg = get_site_config()
     name = (cfg["name"] or "").strip() or default_name()
+    # In the language `lang` declares, whatever the requesting session's language.
+    with translation.override(cfg["default_language"]):
+        description = str(_("Lessons and courses from your school"))
     return JsonResponse(
         {
             "name": name,
-            "short_name": _short_name(name),
+            "short_name": short_name(name),
+            "id": "/",
+            "scope": "/",
+            "lang": cfg["default_language"],
+            "description": description,
             # "/" not "/home/": landing already bounces authenticated users to the
             # dashboard, while an anonymous launch keeps the landing page's SSO entry.
             "start_url": "/",
@@ -280,3 +285,39 @@ def favicon_ico(request):
     """
     cfg = get_site_config()
     return redirect(cfg.get("favicon_url") or static(FAVICON_DIR + "favicon.ico"))
+
+
+def offline(request):
+    """The worker's offline fallback (spec §4). Rendered WITHOUT the request, so
+    no context processor runs and nothing about the user can reach the page: it is
+    cached on the device and shown to whoever uses it next."""
+    name, primary = offline_branding()
+    html = render_to_string(
+        "core/offline.html", {"school_name": name, "primary": primary}
+    )
+    response = HttpResponse(html)
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex"
+    return response
+
+
+def service_worker(request):
+    """/sw.js (spec §1 table). ALWAYS 200: a 404 would make the browser keep the
+    worker it already has, forever. no-cache so every navigation revalidates it --
+    that is what makes the kill switch and every fix reach devices."""
+    if serve_normal():
+        body = render_to_string(
+            "core/sw.js",
+            {
+                "version_json": json.dumps(worker_version()),
+                "precache_json": json.dumps(list(PRECACHE)),
+                "cache_static_json": json.dumps(cache_static()),
+                "prefixes_json": json.dumps(list(PASSTHROUGH_PREFIXES)),
+                "suffixes_json": json.dumps(list(PASSTHROUGH_SUFFIXES)),
+            },
+        )
+    else:
+        body = render_to_string("core/sw_kill.js")
+    response = HttpResponse(body, content_type="text/javascript; charset=utf-8")
+    response["Cache-Control"] = "no-cache"
+    return response

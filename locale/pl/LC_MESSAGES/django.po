@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-29 13:33+0200\n"
+"POT-Creation-Date: 2026-09-30 14:51+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -161,11 +161,11 @@ msgstr "Użytkownik dezaktywowany."
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
-#: .\config\settings\base.py:150
+#: .\config\settings\base.py:151
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:150
+#: .\config\settings\base.py:151
 msgid "Polski"
 msgstr "Polski"
 
@@ -314,7 +314,15 @@ msgstr ""
 "Co szkoła otrzymuje, czego od Was potrzebujemy, gdzie znajdują się dane i "
 "ile to kosztuje."
 
-#: .\core\public_pages.py:194
+#: .\core\public_pages.py:87
+msgid "Install the app"
+msgstr "Instalacja aplikacji"
+
+#: .\core\public_pages.py:88
+msgid "How to add libli to your phone, tablet or computer as an app."
+msgstr "Jak dodać libli jako aplikację na telefonie, tablecie lub komputerze."
+
+#: .\core\public_pages.py:200
 msgid ""
 "This is a demonstration site. Anything you enter here is visible to the "
 "person who runs it — please do not enter real pupil data."
@@ -322,19 +330,19 @@ msgstr ""
 "To jest serwis demonstracyjny. Wszystko, co tu wpiszesz, jest widoczne dla "
 "osoby, która go prowadzi — prosimy nie wprowadzać prawdziwych danych uczniów."
 
-#: .\core\public_pages.py:211 .\core\public_pages.py:322
+#: .\core\public_pages.py:217 .\core\public_pages.py:328
 msgid "the person who runs this site"
 msgstr "osoba, która prowadzi ten serwis"
 
-#: .\core\public_pages.py:214
+#: .\core\public_pages.py:220
 msgid "your national data protection authority"
 msgstr "Twój krajowy organ ochrony danych osobowych"
 
-#: .\core\public_pages.py:217
+#: .\core\public_pages.py:223
 msgid "no embed providers are enabled"
 msgstr "nie włączono żadnych dostawców materiałów osadzonych"
 
-#: .\core\public_pages.py:223
+#: .\core\public_pages.py:229
 #, python-format
 msgid "after %(days)d day"
 msgid_plural "after %(days)d days"
@@ -342,47 +350,47 @@ msgstr[0] "po %(days)d dniu"
 msgstr[1] "po %(days)d dniach"
 msgstr[2] "po %(days)d dniach"
 
-#: .\core\public_pages.py:225
+#: .\core\public_pages.py:231
 msgid "only when the item they refer to is removed"
 msgstr "dopiero wtedy, gdy zostanie usunięty element, którego dotyczą"
 
-#: .\core\public_pages.py:272 .\core\public_pages.py:381
+#: .\core\public_pages.py:278 .\core\public_pages.py:387
 msgid "by arrangement"
 msgstr "do uzgodnienia"
 
-#: .\core\public_pages.py:273
+#: .\core\public_pages.py:279
 #, python-format
 msgid "%(amount)s %(currency)s"
 msgstr "%(amount)s %(currency)s"
 
-#: .\core\public_pages.py:280
+#: .\core\public_pages.py:286
 msgid "/ year"
 msgstr "/ rok"
 
-#: .\core\public_pages.py:317
+#: .\core\public_pages.py:323
 #, python-format
 msgid "Storage allowance: %(gb)s GB, advisory and reconciled at renewal."
 msgstr "Limit miejsca: %(gb)s GB, orientacyjny i weryfikowany przy odnowieniu."
 
-#: .\core\public_pages.py:326
+#: .\core\public_pages.py:332
 msgid "Prices for your school are quoted on request."
 msgstr "Ceny dla Twojej szkoły wyceniamy indywidualnie."
 
-#: .\core\public_pages.py:327
+#: .\core\public_pages.py:333
 #, python-format
 msgid "Ask %(contact)s, and see the five numbers above."
 msgstr "Kontakt: %(contact)s — zobacz też pięć liczb powyżej."
 
-#: .\core\public_pages.py:336
+#: .\core\public_pages.py:342
 msgctxt "pricing table column"
 msgid "Support"
 msgstr "Wsparcie"
 
-#: .\core\public_pages.py:337
+#: .\core\public_pages.py:343
 msgid "Courses"
 msgstr "Kursy"
 
-#: .\core\public_pages.py:338 .\courses\media.py:25 .\courses\models.py:792
+#: .\core\public_pages.py:344 .\courses\media.py:25 .\courses\models.py:792
 #: .\courses\templatetags\courses_manage_extras.py:36
 #: .\courses\views_manage.py:2247
 #: .\templates\courses\manage\editor\_add_menu.html:31
@@ -390,33 +398,37 @@ msgstr "Kursy"
 msgid "Video"
 msgstr "Wideo"
 
-#: .\core\public_pages.py:361
+#: .\core\public_pages.py:367
 #, python-format
 msgid "%(lo)s–%(hi)s pupils"
 msgstr "%(lo)s–%(hi)s uczniów"
 
-#: .\core\public_pages.py:365
+#: .\core\public_pages.py:371
 #, python-format
 msgid "%(n)s h / term"
 msgstr "%(n)s godz. / semestr"
 
-#: .\core\public_pages.py:369
+#: .\core\public_pages.py:375
 #, python-format
 msgid "%(n)s h"
 msgstr "%(n)s godz."
 
-#: .\core\public_pages.py:380
+#: .\core\public_pages.py:386
 #, python-format
 msgid "%(above)s and above"
 msgstr "%(above)s i więcej"
 
-#: .\core\public_pages.py:422
+#: .\core\public_pages.py:428
 msgid "Considering libli for a school?"
 msgstr "Rozważasz libli dla swojej szkoły?"
 
-#: .\core\views.py:141
+#: .\core\views.py:153
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
+
+#: .\core\views.py:257
+msgid "Lessons and courses from your school"
+msgstr "Lekcje i kursy Twojej szkoły"
 
 #: .\courses\answer_summary.py:124 .\courses\answer_summary.py:305
 #: .\courses\answer_summary.py:329
@@ -1267,6 +1279,7 @@ msgstr "Wybierz opcję"
 
 #: .\courses\templatetags\courses_extras.py:477
 #: .\courses\templatetags\courses_extras.py:648
+#: .\templates\core\offline.html:41
 #: .\templates\courses\elements\filltableelement.html:15
 msgid "Try again"
 msgstr "Spróbuj ponownie"
@@ -4269,7 +4282,7 @@ msgstr "Przeglądarka"
 msgid "Language header"
 msgstr "Nagłówek języka"
 
-#: .\support\templates\support\_report_dialog.html:6 .\templates\base.html:144
+#: .\support\templates\support\_report_dialog.html:6 .\templates\base.html:145
 msgid "Report an issue"
 msgstr "Zgłoś problem"
 
@@ -4620,7 +4633,7 @@ msgstr ""
 msgid "Back to main page"
 msgstr "Powrót do strony głównej"
 
-#: .\templates\403.html:25 .\templates\base.html:153
+#: .\templates\403.html:25 .\templates\base.html:154
 #: .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
@@ -5019,7 +5032,12 @@ msgstr "Przewodnik webhooka SIS"
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:148
+#: .\templates\base.html:143 .\templates\core\_public_footer.html:12
+#: .\templates\core\landing.html:42
+msgid "Install app"
+msgstr "Zainstaluj aplikację"
+
+#: .\templates\base.html:149
 msgid "Log out"
 msgstr "Wyloguj"
 
@@ -5027,7 +5045,7 @@ msgstr "Wyloguj"
 msgid "Privacy"
 msgstr "Prywatność"
 
-#: .\templates\core\_public_footer.html:13 .\templates\core\landing.html:43
+#: .\templates\core\_public_footer.html:14 .\templates\core\landing.html:44
 msgid "For schools"
 msgstr "Dla szkół"
 
@@ -5123,6 +5141,14 @@ msgstr "Matematyka"
 msgctxt "course glance"
 msgid "Biology"
 msgstr "Biologia"
+
+#: .\templates\core\offline.html:7 .\templates\core\offline.html:39
+msgid "You're offline"
+msgstr "Jesteś offline"
+
+#: .\templates\core\offline.html:40
+msgid "Check your connection and try again."
+msgstr "Sprawdź połączenie z internetem i spróbuj ponownie."
 
 #: .\templates\core\user_settings.html:9
 msgid "Manage your account and preferences."
@@ -8615,7 +8641,11 @@ msgstr "Brak kolekcji."
 msgid "← All help"
 msgstr "← Cała pomoc"
 
-#: .\templates\help\index.html:18
+#: .\templates\help\index.html:8
+msgid "Install libli as an app"
+msgstr "Zainstaluj libli jako aplikację"
+
+#: .\templates\help\index.html:19
 msgid "No manuals are available for your account."
 msgstr "Brak podręczników dostępnych dla Twojego konta."
 

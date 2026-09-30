@@ -998,6 +998,49 @@ guard (both the current and the target copy) but **not** the canary guard. Plain
 
 ---
 
+### PWA kill switch
+
+Every page registers a service worker (`/sw.js`). If it ever misbehaves, recall it from every
+device: set the switch, then RECREATE the app container.
+
+```bash
+# on the box, in /opt/libli -- a box provisioned before the worker shipped has no
+# LIBLI_PWA_KILL_SWITCH line at all, so replace it if present, append it if not
+if grep -q '^LIBLI_PWA_KILL_SWITCH=' .env.production; then
+  sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=true/' .env.production
+else
+  [ -n "$(tail -c1 .env.production)" ] && echo >> .env.production   # end the last line first
+  echo 'LIBLI_PWA_KILL_SWITCH=true' >> .env.production
+fi
+grep -x 'LIBLI_PWA_KILL_SWITCH=true' .env.production \
+  && docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
+
+Never `docker compose restart`: it keeps the container's old environment and does not re-read
+`.env.production`, so the switch silently never takes effect. Recreating shows the usual ~24 s
+maintenance page, like a deploy, so do it outside lesson time where possible.
+
+Once `/sw.js` answers 200 again, verify from anywhere:
+
+```bash
+curl -s https://<host>/sw.js | grep -c LIBLI_SW_KILL
+# 1 = the kill worker is being served; each device unregisters the worker and deletes libli's
+# caches on its next visit (a stray static-file cache may survive; it holds only public files
+# and is never read)
+```
+
+To undo, blank the value (`LIBLI_PWA_KILL_SWITCH=`), recreate the same way, and check that the
+same `curl` prints `0`:
+
+```bash
+sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=/' .env.production
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
+
+If `LIBLI_PWA_ENABLED=false` was set (the other escape hatch), remove that line too, or the kill
+worker keeps being served. A school box may take a release that carries the worker before it has
+been checked on libli.pl, but only with this switch set first.
+
 ## Known constraints
 
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local

@@ -26,10 +26,11 @@ def test_normalize_lang(raw, expected):
 
 
 def test_pages_registry_shape():
-    assert set(PAGES) == {"privacy", "getting-started", "for-schools"}
+    assert set(PAGES) == {"privacy", "getting-started", "for-schools", "install-app"}
     assert PAGES["privacy"].path == "public/privacy.md"
     assert PAGES["getting-started"].path == "public/getting-started.md"
     assert PAGES["for-schools"].path == "public/for-schools.md"
+    assert PAGES["install-app"].path == "public/install-app.md"
     for page in PAGES.values():
         assert str(page.title)
         assert str(page.description)

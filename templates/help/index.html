@@ -5,6 +5,7 @@
 {% block content %}
 <div class="help-index">
   <h1>{% trans "Help" %}</h1>
+  <p><a href="{% url 'core:install_app' %}">{% trans "Install libli as an app" %}</a></p>
   {% for group in groups %}
     <section class="help-index__group">
       <h2>{{ group.label }}</h2>

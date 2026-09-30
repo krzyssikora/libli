@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.urls import reverse_lazy
 
 from core.public_pages import PAGES
+from core.public_pages import VENDOR_ONLY_SLUGS
 from institution.models import Institution
 from institution.models import PublicPage
 from institution.views_manage import _page_overrides
@@ -42,16 +43,17 @@ def test_get_redirects_rather_than_rendering(client, name):
 def test_panel_renders_one_textarea_per_page_per_language(client):
     client.force_login(_admin())
     body = client.get(PANEL).content.decode()
-    for slug in ("privacy", "getting-started"):
+    for slug in ("privacy", "getting-started", "install-app"):
         for lang in ("en", "pl"):
             assert f'name="override-{slug}-{lang}"' in body
     # EXACT count: a presence check does not kill "iterate settings.LANGUAGES",
     # which is a superset and would render extra textareas while staying green.
-    # Hidden dependency: this literal `4` is (len(PAGES) - 1) * 2, i.e. it relies
-    # on VENDOR_INSTANCE defaulting False so _page_overrides() filters
-    # "for-schools" out here. Do not "fix" it to 6 -- that would mean the
-    # vendor-only filter regressed, not that this assertion is wrong.
-    assert body.count('name="override-') == 4
+    # Derived, not a literal: every page except the vendor-only for-schools (the
+    # suite pins VENDOR_INSTANCE=False, so _page_overrides() filters it out), times
+    # two languages. A count of len(PAGES) * 2 here would mean the vendor-only
+    # filter regressed.
+    expected = (len(PAGES) - len(VENDOR_ONLY_SLUGS)) * 2
+    assert body.count('name="override-') == expected
 
 
 @pytest.mark.django_db

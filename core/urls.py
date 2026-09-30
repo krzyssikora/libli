@@ -18,8 +18,11 @@ urlpatterns = [
     path("help/", views_help.help_index, name="help_index"),
     path("help/<slug:slug>/", views_help.help_topic, name="help_topic"),
     path("site.webmanifest", views.webmanifest, name="webmanifest"),
+    path("sw.js", views.service_worker, name="service_worker"),
+    path("offline/", views.offline, name="offline"),
     path("favicon.ico", views.favicon_ico, name="favicon_ico"),
     path("privacy/", views_public.privacy, name="privacy"),
     path("getting-started/", views_public.getting_started, name="getting_started"),
     path("for-schools/", views_public.for_schools, name="for_schools"),
+    path("install-app/", views_public.install_app, name="install_app"),
 ]

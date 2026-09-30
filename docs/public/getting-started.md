@@ -33,3 +33,6 @@ to: {libli:contact_email}.
 If you are a school's data protection officer, the page you want first is the
 [privacy notice](/privacy/). It sets out what is stored about a pupil, who can see it, how long it
 is kept, and how to exercise a data subject's rights.
+
+To use libli like an app on a phone, tablet or computer, see
+[how to install it](/install-app/).

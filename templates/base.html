@@ -139,6 +139,7 @@
           <div class="menu__panel account-menu" data-menu-panel hidden>
             <span class="menu__item">{{ user }}</span>
             <a class="menu__item" href="{% url 'core:user_settings' %}">{% trans "Settings" %}</a>
+            <a class="menu__item" href="{% url 'core:install_app' %}" data-install-app>{% trans "Install app" %}</a>
             {% if can_report_issue %}
             <button class="menu__item" type="button" data-report-trigger>{% trans "Report an issue" %}</button>
             {% endif %}
@@ -164,6 +165,7 @@
   </main>
   {% block footer %}{% endblock %}
   <script src="{% static 'core/js/ui.js' %}" defer></script>
+  {% if pwa_enabled %}<script src="{% static 'core/js/pwa.js' %}" defer></script>{% endif %}
   {% comment %}Global: every horizontally scrollable box (.scroll-x) gets its edge
   affordance, from lesson tables to the manage-page ledgers. Pure enhancement —
   with JS off the boxes still scroll and no gradient is ever shown.{% endcomment %}
