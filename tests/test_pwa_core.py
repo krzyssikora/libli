@@ -191,3 +191,24 @@ def test_context_flag_on_only_in_the_first_row(client, settings):
     assert client.get(reverse("account_login")).context["pwa_enabled"] is True
     settings.PWA_KILL_SWITCH = True
     assert client.get(reverse("account_login")).context["pwa_enabled"] is False
+
+
+@pytest.mark.parametrize("name", ["core/sw.js", "core/offline.html"])
+def test_version_follows_the_template_source(monkeypatch, name):
+    """A release that changes only the worker or the offline page must move the
+    version, or devices never pick it up."""
+    Institution.load()
+    before = pwa.worker_version()
+    real = pwa.get_template
+
+    class _Source:
+        def __init__(self, source):
+            self.template = type("T", (), {"source": source})()
+
+    def fake(requested):
+        if requested == name:
+            return _Source("changed source for " + name)
+        return real(requested)
+
+    monkeypatch.setattr(pwa, "get_template", fake)
+    assert pwa.worker_version() != before

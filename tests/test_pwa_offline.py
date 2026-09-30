@@ -8,6 +8,7 @@ from django.conf import settings
 from django.template.loader import get_template
 from django.urls import reverse
 
+from institution.models import BrandColor
 from institution.models import Institution
 from tests.factories import make_verified_user
 
@@ -45,6 +46,14 @@ def test_offline_page_shows_the_current_name(client):
     inst = Institution.load()
     Institution.objects.filter(pk=inst.pk).update(name="Szkoła Testowa")
     assert "Szkoła Testowa" in client.get(reverse("core:offline")).content.decode()
+
+
+def test_offline_page_uses_the_school_primary_colour(client):
+    inst = Institution.load()
+    # The primary row is SEEDED by a migration: update it, never create() it.
+    BrandColor.objects.filter(institution=inst, key="primary").update(value="#123456")
+    body = client.get(reverse("core:offline")).content.decode()
+    assert "border-color: #123456" in body
 
 
 def test_offline_template_is_self_contained():
