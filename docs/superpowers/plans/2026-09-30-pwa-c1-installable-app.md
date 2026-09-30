@@ -971,6 +971,7 @@ git commit -m "feat(pwa): /sw.js serves the normal or the kill worker, always 20
 - Modify: `templates/core/_public_footer.html` (link after Help)
 - Modify: `templates/help/index.html` (link at the top)
 - Modify: `tests/test_public_pages.py:29` (registry pin)
+- Modify: `tests/test_public_pages_views.py:70-73` (parametrize list gains `install-app`)
 - Modify: `tests/test_public_pages_content.py` `SHIPPED` (two entries)
 - Modify: `tests/test_public_pages_settings.py:50-57` (replace the literal `4` with a derived count and rewrite its comment)
 - Test: `tests/test_pwa_install_page.py`
@@ -1042,6 +1043,7 @@ def test_staff_help_index_links_the_guide(client):
 ```
 
 Update the existing pins:
+- `tests/test_public_pages_views.py` `test_page_emits_its_real_description_title_and_one_h1`: extend its parametrize list to `[("privacy", "core:privacy"), ("getting-started", "core:getting_started"), ("install-app", "core:install_app")]` (composed `<title>`, meta description and exactly one `<h1>` for the new page).
 - `tests/test_public_pages.py` line 29: `assert set(PAGES) == {"privacy", "getting-started", "for-schools", "install-app"}` and add below the existing path asserts: `assert PAGES["install-app"].path == "public/install-app.md"`.
 - `tests/test_public_pages_content.py` `SHIPPED`: append `"public/install-app.md",` and `"public/install-app.pl.md",`.
 - `tests/test_public_pages_settings.py`: in `test_panel_renders_one_textarea_per_page_per_language`, extend the loop's tuple to `("privacy", "getting-started", "install-app")`, and replace the comment block plus `assert body.count('name="override-') == 4` with:
@@ -1204,7 +1206,7 @@ In `templates/help/index.html`, directly after `<h1>{% trans "Help" %}</h1>`, ad
 
 - [ ] **Step 6: Run to verify pass**
 
-Run: `uv run python -m pytest tests/test_pwa_install_page.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py tests/test_public_pages_footer.py tests/test_getting_started_trim.py tests/test_for_schools_route.py`
+Run: `uv run python -m pytest tests/test_pwa_install_page.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py tests/test_public_pages_views.py tests/test_public_pages_render.py tests/test_public_pages_footer.py tests/test_getting_started_trim.py tests/test_for_schools_route.py`
 Expected: all PASS (the PL-language assertion passes on the markdown file alone; msgid translations arrive in Task 7).
 
 - [ ] **Step 7: Mutant**
@@ -1214,7 +1216,7 @@ Add `"install-app"` to `DEMO_NOTICE_SLUGS` → RED: `test_install_page_is_regist
 - [ ] **Step 8: Commit**
 
 ```bash
-git add core/public_pages.py core/views_public.py core/urls.py docs/public/install-app.md docs/public/install-app.pl.md docs/public/getting-started.md docs/public/getting-started.pl.md templates/core/_public_footer.html templates/help/index.html tests/test_pwa_install_page.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py
+git add tests/test_public_pages_views.py core/public_pages.py core/views_public.py core/urls.py docs/public/install-app.md docs/public/install-app.pl.md docs/public/getting-started.md docs/public/getting-started.pl.md templates/core/_public_footer.html templates/help/index.html tests/test_pwa_install_page.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py
 git commit -m "feat(pwa): public /install-app/ guide, linked from footer, getting-started and Help"
 ```
 
@@ -1844,7 +1846,7 @@ from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
-from tests.factories import make_course_with_unit  # export half
+from tests.factories import make_course_with_unit  # drop if the Findings omit the export half
 from tests.factories import make_image_asset
 from tests.factories import make_verified_user
 from tests.pwa_e2e import enable_pwa
@@ -1905,7 +1907,25 @@ def _warm_static(page, version):
         ".filter(u => new URL(u).pathname.startsWith('/static/'))"
     )
     assert urls, "non-vacuity: the page loaded no /static/ file"
-    for url in urls:
+    # The browser fetches icons ITSELF (<link rel=icon>, apple-touch-icon, the
+    # manifest's icons for the installability check): those requests go through
+    # the worker but never appear in the page's Resource Timing. Fetch each once
+    # through the controlled page so it is cached, then wait for it like the rest.
+    icons = page.evaluate(
+        """async () => {
+            const links = [...document.querySelectorAll(
+                'link[rel~="icon"], link[rel="apple-touch-icon"]')].map(l => l.href);
+            const manifest = document.querySelector('link[rel="manifest"]');
+            const data = manifest ? await (await fetch(manifest.href)).json() : {};
+            const fromManifest = (data.icons || [])
+                .map(i => new URL(i.src, location.href).href);
+            const all = [...links, ...fromManifest]
+                .filter(u => new URL(u).pathname.startsWith('/static/'));
+            await Promise.all(all.map(u => fetch(u)));
+            return all;
+        }"""
+    )
+    for url in [*urls, *icons]:
         _poll_cache_has(page, f"libli-static-{version}", url)
 
 
@@ -2161,7 +2181,7 @@ def test_standalone_hides_the_item_on_load(page, live_server, member):
     assert page.locator("[data-install-app]").is_hidden()
 ```
 
-Replace the export-half comment in `test_media_is_never_intercepted` with real code using `export_observer` exactly as `tests/pwa_e2e.py` defines it (the manager is created as `make_course_with_unit(owner=make_verified_user(username="pwa-owner", email="pwa-owner@probe.example.com"))[0].owner` — never a bare `make_course_with_unit()`, whose `UserFactory` owner cannot log in; log in as them in a fresh `page` from `context.new_page()`), or delete the comment and state the weaker guard in the module docstring, per Task 9's Findings. Same-origin half of rule 0: if a controlled page in this module loads a cross-origin subresource, assert it with `from_service_worker is False`; otherwise add to the module docstring: "The same-origin half of rule 0 is deliberately unguarded: no controlled page loads a cross-origin subresource in the e2e fixtures."
+Replace the export-half comment in `test_media_is_never_intercepted` with real code using `export_observer` exactly as `tests/pwa_e2e.py` defines it (the manager is created as `make_course_with_unit(owner=make_verified_user(username="pwa-owner", email="pwa-owner@probe.example.com"))[0].owner` — never a bare `make_course_with_unit()`, whose `UserFactory` owner cannot log in; then call `context.clear_cookies()` and log in as them with `_login` on the same `page` — `context.new_page()` would share the student's cookie jar and allauth (`ACCOUNT_AUTHENTICATED_LOGIN_REDIRECTS` default True) would redirect away from the login form; after logging in, navigate once to a controlled page and `wait_controlled(page)` before the export navigation), or delete the comment and state the weaker guard in the module docstring, per Task 9's Findings. Same-origin half of rule 0: if a controlled page in this module loads a cross-origin subresource, assert it with `from_service_worker is False`; otherwise add to the module docstring: "The same-origin half of rule 0 is deliberately unguarded: no controlled page loads a cross-origin subresource in the e2e fixtures."
 
 - [ ] **Step 2: Run the module**
 
@@ -2173,7 +2193,7 @@ Expected: all PASS. A failure that appears as a TIMEOUT: if it is a `caches.keys
 | Mutant (edit by hand, revert by hand) | Must turn RED |
 |---|---|
 | rule 1: replace `staticFirst(event)` with `fetch(event.request)` | `test_static_is_really_cached` |
-| rule 1: delete the `event.waitUntil(cache.put(...))` line | `test_static_is_really_cached` |
+| rule 1: delete the WHOLE `event.waitUntil(caches.open(STATIC_CACHE)...catch(() => {}));` statement (five lines; deleting one line leaves a syntax error that fails everything) | `test_static_is_really_cached` |
 | delete the offline page's `online` listener | `test_offline_then_back_online_without_a_click` |
 | change the Try again button's `onclick` to `""` | `test_offline_then_try_again` |
 | rule 2: serve navigations cache-first (`caches.match(request).then(h => h || fetch(request))` and `put` every navigation) | `test_rename_reaches_the_next_navigation` |
