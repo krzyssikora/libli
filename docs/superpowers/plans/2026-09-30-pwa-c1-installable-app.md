@@ -609,8 +609,8 @@ Expected: all PASS.
 
 1. Change `render_to_string("core/offline.html", {...})` to `render(request, "core/offline.html", {...})` and add `{{ user.username }}` inside `<main>` → RED: `test_offline_page_never_shows_the_requesting_user`. (Two edits: the template edit is what an accidental base.html-style dependency looks like.)
 2. Add `{% include "core/_public_footer.html" %}` to the template → RED: `test_offline_template_is_self_contained`.
-4. Put `{% extends "base.html" %}` as the template's first line → RED: `test_offline_template_is_self_contained`.
-3. Change `fill="#C77B2A"` to `fill="#C77B2B"` → RED: `test_offline_mark_matches_the_favicon`.
+3. Put `{% extends "base.html" %}` as the template's first line → RED: `test_offline_template_is_self_contained`.
+4. Change `fill="#C77B2A"` to `fill="#C77B2B"` → RED: `test_offline_mark_matches_the_favicon`.
 
 Revert each by hand; re-run green.
 
@@ -751,6 +751,19 @@ def test_normal_worker_source_guards():
     assert "new URL(request.url)" in source and ".pathname" in source
     assert 'request.destination === "document"' in source
     assert "ignoreVary: true" in source
+
+
+def test_passthrough_matches_on_the_pathname_only():
+    """Aimed at passthrough() itself, not at substrings found elsewhere in the
+    file: the archive download is `.../export/?confirm=1`, so a path built from
+    the full URL (or pathname + search) would stream a GB through the worker."""
+    source = get_template("core/sw.js").template.source
+    body = source[source.index("function passthrough(") :]
+    body = body[: body.index("\n}\n")]
+    assert "const path = url.pathname;" in body
+    assert "url.search" not in body
+    assert "url.href" not in body
+    assert body.count("request.url") == 1  # only inside new URL(request.url)
 
 
 def test_kill_worker_source_guards():
@@ -913,11 +926,12 @@ Expected: all PASS.
 - [ ] **Step 7: Mutants**
 
 1. In `service_worker`, return 404 (`HttpResponse(status=404)`) in the `else` branch → RED: `test_every_other_row_serves_the_kill_worker`.
-5. In `sw.js`'s activate handler, add `self.registration.navigationPreload.enable();` → RED: `test_normal_worker_source_guards`.
-6. In `sw_kill.js`, add `self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request)));` (and nothing else) → RED: `test_every_other_row_serves_the_kill_worker`, `test_kill_worker_source_guards`.
-2. Emit `{{ version_json }}` without `|safe` → RED: `test_normal_worker_headers_and_values` and `test_worker_js_lives_inside_verbatim`.
-3. Move the `const STATIC_CACHE = ...;` line above `{% verbatim %}` → RED: `test_worker_js_lives_inside_verbatim`.
-4. Rename the `manage_course_export` route's path to `manage/courses/<slug:slug>/export-archive/` in `courses/urls.py` → RED: `test_download_routes_match_a_passthrough_suffix`.
+2. In `sw.js`'s activate handler, add `self.registration.navigationPreload.enable();` → RED: `test_normal_worker_source_guards`.
+3. In `passthrough()`, change `const path = url.pathname;` to `const path = url.pathname + url.search;` → RED: `test_passthrough_matches_on_the_pathname_only`.
+4. In `sw_kill.js`, add `self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request)));` (and nothing else) → RED: `test_every_other_row_serves_the_kill_worker`, `test_kill_worker_source_guards`.
+5. Emit `{{ version_json }}` without `|safe` → RED: `test_normal_worker_headers_and_values` and `test_worker_js_lives_inside_verbatim`.
+6. Move the `const STATIC_CACHE = ...;` line above `{% verbatim %}` → RED: `test_worker_js_lives_inside_verbatim`.
+7. Rename the `manage_course_export` route's path to `manage/courses/<slug:slug>/export-archive/` in `courses/urls.py` → RED: `test_download_routes_match_a_passthrough_suffix`.
 
 Revert each by hand; re-run green.
 
@@ -1370,6 +1384,8 @@ def test_pwa_js_included_only_when_enabled(client, settings):
     settings.PWA_ENABLED = False
     settings.PWA_KILL_SWITCH = False
     assert "core/js/pwa.js" not in client.get(reverse("account_login")).content.decode()
+    settings.PWA_KILL_SWITCH = True
+    assert "core/js/pwa.js" not in client.get(reverse("account_login")).content.decode()
 
 
 def test_account_menu_links_the_install_guide(client):
@@ -1560,10 +1576,17 @@ def test_install_link_in_polish(client):
     assert "Zainstaluj aplikację" in body
 
 
-def test_install_page_title_in_polish(client):
+def test_install_page_title_and_description_in_polish(client):
+    # The composed <title> and the meta description come from the msgids; the
+    # markdown's own "# Instalacja aplikacji" heading would pass a bare substring
+    # check with no catalog at all.
     url = reverse("core:install_app")
     body = client.get(url, headers={"accept-language": "pl"}).content.decode()
-    assert "Instalacja aplikacji" in body
+    assert "<title>Instalacja aplikacji ·" in body
+    assert (
+        '<meta name="description" content="Jak dodać libli jako aplikację na '
+        'telefonie, tablecie lub komputerze.">'
+    ) in body
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1755,7 +1778,7 @@ Run: `uv run python -m pytest tests/test_e2e_pwa_spike.py -m e2e -s` (foreground
 
 - [ ] **Step 2: Write `tests/pwa_e2e.py` from the findings**
 
-Implement the interface above with ONLY the mechanisms the spike showed working. Put a `Findings (2026-..-..):` paragraph at the top of the module docstring naming: which option makes the worker's fetch reject; whether `set_offline` alone suffices; which route filter catches the worker's inner fetch (keyed on URL path, never `is_navigation_request()`); where `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS` must be set if used, and whether the rest of the e2e suite still passes with it (run `uv run python -m pytest -m e2e -n 2` with it set, or record that `tests/test_e2e_pwa.py` must run in its own invocation and add that invocation to `.github/workflows/ci.yml`'s e2e job); and which export observation works. **`fires_online=False` must be PROVEN**: register an init script that counts `online` events (`addEventListener("online", () => window.__onlineCount = (window.__onlineCount || 0) + 1)`) and show the count stays 0 across an `outage(..., fires_online=False)` exit — otherwise e2e 2b passes with the Try again button broken. If the only working outage mechanism fires `online` on exit (e.g. `set_offline`/CDP offline, no working route abort), implement `fires_online=False` by adding, for that exit only, an init script on the page that swallows the event (`window.addEventListener("online", e => e.stopImmediatePropagation(), true)` registered before the page's own listener) and prove it with the same counter; if even that cannot be made reliable, STOP and ask Krzysztof whether e2e 2b moves to the manual device checklist. If no export observation works, `export_observer` is omitted and the docstring says Task 10 e2e 4's export half is replaced by the source test `test_normal_worker_source_guards` (already asserting `new URL(request.url)` + `.pathname`) — the weaker guard, recorded as such.
+Implement the interface above with ONLY the mechanisms the spike showed working. Put a `Findings (2026-..-..):` paragraph at the top of the module docstring naming: which option makes the worker's fetch reject; whether `set_offline` alone suffices; which route filter catches the worker's inner fetch (keyed on URL path, never `is_navigation_request()`); where `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS` must be set if used, and whether the rest of the e2e suite still passes with it (run `uv run python -m pytest -m e2e -n 2` with it set, or record that `tests/test_e2e_pwa.py` must run in its own invocation: in `.github/workflows/ci.yml`'s e2e job change the existing step to `uv run python -m pytest -m e2e -n 2 --ignore=tests/test_e2e_pwa.py` AND add a step `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 uv run python -m pytest -m e2e tests/test_e2e_pwa.py` — a second invocation alone would leave the module failing in the first); and which export observation works. **`fires_online=False` must be PROVEN**: register an init script that counts `online` events (`addEventListener("online", () => window.__onlineCount = (window.__onlineCount || 0) + 1)`) and show the count stays 0 across an `outage(..., fires_online=False)` exit — otherwise e2e 2b passes with the Try again button broken. If the only working outage mechanism fires `online` on exit (e.g. `set_offline`/CDP offline, no working route abort), implement `fires_online=False` by adding, for that exit only, an init script on the page that swallows the event (`window.addEventListener("online", e => e.stopImmediatePropagation(), true)` registered before the page's own listener) and prove it with the same counter; if even that cannot be made reliable, STOP and ask Krzysztof whether e2e 2b moves to the manual device checklist. If no export observation works, `export_observer` is omitted and the docstring says Task 10 e2e 4's export half is replaced by the source test `test_passthrough_matches_on_the_pathname_only` (Task 3; it reads `passthrough()`'s own body) — the weaker guard, recorded as such.
 
 - [ ] **Step 3: Delete the spike file and commit the helpers**
 
@@ -1805,7 +1828,9 @@ from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_image_asset
 from tests.factories import make_verified_user
+from tests.factories import make_course_with_unit  # export half
 from tests.pwa_e2e import enable_pwa
+from tests.pwa_e2e import export_observer  # drop if the Findings omit it
 from tests.pwa_e2e import outage
 from tests.pwa_e2e import wait_controlled
 
@@ -1869,9 +1894,9 @@ def test_offline_then_back_online_without_a_click(page, live_server, context):
     with outage(context, page, fires_online=True):
         page.goto(f"{live_server.url}/getting-started/")
         page.get_by_text(OFFLINE_TEXT).wait_for()
-    # the page's own `online` listener reloads it -- no click
-    page.wait_for_function("() => !document.body.innerText.includes(\"You're offline\")")
-    assert "/getting-started/" in page.url
+    # the page's own `online` listener reloads it -- no click. Wait for the REAL
+    # page's content: the URL is /getting-started/ even while the offline page shows.
+    page.get_by_role("heading", name="Getting started", level=1).wait_for()
 
 
 def test_offline_then_try_again(page, live_server, context):
@@ -1881,7 +1906,7 @@ def test_offline_then_try_again(page, live_server, context):
         page.goto(f"{live_server.url}/getting-started/")
         page.get_by_text(OFFLINE_TEXT).wait_for()
     page.get_by_role("button", name="Try again").click()
-    page.wait_for_function("() => !document.body.innerText.includes(\"You're offline\")")
+    page.get_by_role("heading", name="Getting started", level=1).wait_for()
 
 
 def test_real_errors_and_posts_pass_through(page, live_server):
@@ -1898,8 +1923,10 @@ def test_real_errors_and_posts_pass_through(page, live_server):
     status = page.evaluate("async (u) => (await fetch(u)).status", missing)
     assert status == 404
     # Positive control, fetched AFTER the missing file: once IT is cached, the
-    # worker has had the same chance to (wrongly) store the 404.
-    control = f"{live_server.url}/static/core/js/pwa.js"
+    # worker has had the same chance to (wrongly) store the 404. It must be a file
+    # /privacy/ never requests (pwa.js or ui.js would already be cached and the
+    # poll would return before the 404's put could land).
+    control = f"{live_server.url}/static/core/img/favicon/icon-192.png"
     page.evaluate("async (u) => { await fetch(u); }", control)
     _poll_cache_has(page, f"libli-static-{worker_version()}", control)
     has = page.evaluate(
@@ -1981,6 +2008,16 @@ def test_rename_reaches_the_next_navigation(page, live_server):
     page.goto(f"{live_server.url}/privacy/")
     wait_controlled(page)
     page.goto(f"{live_server.url}/privacy/")  # visited while controlled, pre-rename
+    # Every /static/ file this page loads must be cached BEFORE the rename, or the
+    # old worker's late puts on the next navigation can recreate the old static
+    # cache after the new worker's activate deleted it (the poll below then times
+    # out). Same warm-up as the kill-switch test.
+    old = worker_version()
+    for src in page.evaluate(
+        "() => [...document.querySelectorAll('script[src],link[rel=stylesheet]')]"
+        ".map(e => e.src || e.href).filter(u => u.includes('/static/'))"
+    ):
+        _poll_cache_has(page, f"libli-static-{old}", src)
     inst.name = "After School"
     inst.save()  # post_save clears the in-process site-config cache
     new = worker_version()
@@ -2100,7 +2137,7 @@ Expected: all PASS. A failure that appears as a TIMEOUT is first checked against
 | `offlinePage`: `caches.match(event.request...)` (by the navigation request) — pass `request` into it | `test_offline_then_back_online_without_a_click` |
 | delete `PASSTHROUGH_PREFIXES.some(...) \|\|` (media no longer passes) | `test_media_is_never_intercepted` |
 | move the `if (passthrough(request)) return;` line below rule 2 | `test_media_is_never_intercepted` |
-| rule 0: `const path = request.url;` instead of the pathname | export half of `test_media_is_never_intercepted` (or `test_normal_worker_source_guards` if the export half was dropped) |
+| rule 0: `const path = url.pathname + url.search;` (the variant that breaks `?confirm=1`) | export half of `test_media_is_never_intercepted`, AND `test_passthrough_matches_on_the_pathname_only` (Task 3) |
 | store guard: `if (true)` instead of `response.status === 200 && ...` | `test_real_errors_and_posts_pass_through` |
 | delete `if (request.method !== "GET") return true;` | `test_real_errors_and_posts_pass_through` |
 | activate: delete the `.filter(...).map(caches.delete)` step | `test_rename_reaches_the_next_navigation` |
@@ -2135,13 +2172,14 @@ Expected: `No changes detected`.
 
 - [ ] **Step 3: Whole non-e2e suite, in ~4 chunks (a single run is OOM-killed)**
 
-Start the test-DB container first. Split `tests/` into four roughly equal file lists (e.g. by `ls tests/test_*.py | grep -v test_e2e_ | grep -v capture_` into quarters) plus the app-level test dirs (`courses/tests`, `notifications/tests`, …), and run each: `uv run python -m pytest <files>`. Never two runs at once. Grep each summary for `failed`/`error`; the exit code alone can lie.
+Start the test-DB container first. Split `tests/` into four roughly equal file lists (e.g. by `ls tests/test_*.py | grep -v test_e2e_ | grep -v capture_` into quarters) plus the app-level test dirs `courses/tests`, `integrations/tests` and `notifications/tests`, and run each: `uv run python -m pytest <files>`. Never two runs at once. Grep each summary for `failed`/`error`; the exit code alone can lie.
 Expected: 0 failed, 0 errors.
 
 - [ ] **Step 4: e2e — the PWA module plus a neighbour sweep**
 
-Run: `uv run python -m pytest tests/test_e2e_pwa.py tests/test_e2e_favicon.py tests/test_e2e_error_pages.py tests/test_e2e_auth.py -m e2e`
-Expected: all PASS. (CI runs the full e2e suite.)
+Run the PWA module with `PWA_ENV` from `tests/pwa_e2e.py` applied (e.g. `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1` exported, if the Findings require it): `uv run python -m pytest tests/test_e2e_pwa.py -m e2e`
+Then the neighbours WITHOUT it: `uv run python -m pytest tests/test_e2e_favicon.py tests/test_e2e_error_pages.py tests/test_e2e_auth.py -m e2e`
+Expected: all PASS in both. (CI runs the full e2e suite, split the same way if Task 9 required it.)
 
 - [ ] **Step 5: Manual smoke in dev**
 
