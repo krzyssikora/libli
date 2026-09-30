@@ -972,6 +972,7 @@ git commit -m "feat(pwa): /sw.js serves the normal or the kill worker, always 20
 - Create: `docs/public/install-app.md`, `docs/public/install-app.pl.md`
 - Modify: `docs/public/getting-started.md`, `docs/public/getting-started.pl.md` (one paragraph each)
 - Modify: `templates/core/_public_footer.html` (link after Help)
+- Modify: `templates/core/landing.html` (`landing-footer`: link after Help — spec D11)
 - Modify: `templates/help/index.html` (link at the top)
 - Modify: `tests/test_public_pages.py:29` (registry pin)
 - Modify: `tests/test_public_pages_views.py:70-73` (parametrize list gains `install-app`)
@@ -1021,6 +1022,15 @@ def test_install_page_renders_anonymously_in_both_languages(client):
 def test_public_footer_links_the_guide(client):
     body = client.get(reverse("core:privacy")).content.decode()
     assert f'href="{reverse("core:install_app")}"' in body
+
+
+def test_landing_footer_links_the_guide(client):
+    """Spec D11: the landing page has its own footer, not _public_footer.html.
+    Scoped to that footer so a link elsewhere on the page cannot satisfy it."""
+    body = client.get(reverse("landing")).content.decode()
+    footer = body[body.index('<footer class="landing-footer">') :]
+    footer = footer[: footer.index("</footer>")]
+    assert f'href="{reverse("core:install_app")}"' in footer
 
 
 def test_getting_started_links_the_guide(client):
@@ -1193,9 +1203,13 @@ Aby korzystać z libli jak z aplikacji na telefonie, tablecie lub komputerze, zo
 [jak ją zainstalować](/install-app/).
 ```
 
-The landing page (`templates/core/landing.html`) has its OWN `landing-footer`, which this task deliberately does NOT touch: the spec lists `_public_footer.html` only, and extending it is an owner question raised at plan handoff. Do not add it silently.
-
 In `templates/core/_public_footer.html`, after the `Help` link line, add:
+
+```html
+  <a href="{% url 'core:install_app' %}">{% trans "Install app" %}</a>
+```
+
+The landing page (`templates/core/landing.html`) has its OWN `landing-footer` (spec D11, owner 2026-09-30): after its `Help` link line (`<a href="{% url 'core:getting_started' %}">{% trans "Help" %}</a>`), add the same line:
 
 ```html
   <a href="{% url 'core:install_app' %}">{% trans "Install app" %}</a>
@@ -1214,13 +1228,16 @@ Expected: all PASS (the PL-language assertion passes on the markdown file alone;
 
 - [ ] **Step 7: Mutant**
 
-Add `"install-app"` to `DEMO_NOTICE_SLUGS` → RED: `test_install_page_is_registered_and_neither_demo_nor_vendor_only`. Revert by hand.
+1. Add `"install-app"` to `DEMO_NOTICE_SLUGS` → RED: `test_install_page_is_registered_and_neither_demo_nor_vendor_only`.
+2. Delete the new link line from `landing.html`'s `landing-footer` → RED: `test_landing_footer_links_the_guide`.
+
+Revert each by hand.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add tests/test_public_pages_views.py core/public_pages.py core/views_public.py core/urls.py docs/public/install-app.md docs/public/install-app.pl.md docs/public/getting-started.md docs/public/getting-started.pl.md templates/core/_public_footer.html templates/help/index.html tests/test_pwa_install_page.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py
-git commit -m "feat(pwa): public /install-app/ guide, linked from footer, getting-started and Help"
+git add tests/test_public_pages_views.py core/public_pages.py core/views_public.py core/urls.py docs/public/install-app.md docs/public/install-app.pl.md docs/public/getting-started.md docs/public/getting-started.pl.md templates/core/_public_footer.html templates/core/landing.html templates/help/index.html tests/test_pwa_install_page.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py
+git commit -m "feat(pwa): public /install-app/ guide, linked from both footers, getting-started and Help"
 ```
 
 ---

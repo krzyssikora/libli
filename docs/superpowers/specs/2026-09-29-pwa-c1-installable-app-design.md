@@ -30,6 +30,7 @@ speed, then offline use (not built).
 | D8 | Kill switch via an environment variable. |
 | D9 | (2026-09-30) The manual device checklist runs on libli.pl right after merge, kill switch as fallback; no school release carries C1 until it passes (escape hatch: kill switch set on that box). |
 | D10 | (2026-09-30) Accepted: every libli.pl visitor (anonymous and demo users included) gets the worker from merge day; no staff-only canary gate. |
+| D11 | (2026-09-30) "I would like to have a PWA link in the landing page footer." |
 
 ## Current state (verified 2026-09-29)
 
@@ -306,7 +307,8 @@ speed, then offline use (not built).
   Home Screen), computer (install icon in Chrome/Edge's address bar), Good to know (on
   iPhone/iPad you log in once more inside the app; lessons still need a connection; how to
   remove the app).
-- Linked from: the account menu (§7), `_public_footer.html` (after Help), the
+- Linked from: the account menu (§7), `_public_footer.html` (after Help), the landing
+  page's own `landing-footer` in `landing.html` (after Help, D11), the
   `getting-started` page (a sentence + link, EN + PL; boxes with an override row for that
   page keep their override), and the top of the staff Help index (`help/index.html`).
 
