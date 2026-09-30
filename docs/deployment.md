@@ -1024,11 +1024,21 @@ Once `/sw.js` answers 200 again, verify from anywhere:
 
 ```bash
 curl -s https://<host>/sw.js | grep -c LIBLI_SW_KILL
-# 1 = the kill worker is being served; each device drops the worker and its caches on its next visit
+# 1 = the kill worker is being served; each device unregisters the worker and deletes libli's
+# caches on its next visit (a stray static-file cache may survive; it holds only public files
+# and is never read)
 ```
 
 To undo, blank the value (`LIBLI_PWA_KILL_SWITCH=`), recreate the same way, and check that the
-same `curl` prints `0`. A school box may take a release that carries the worker before it has
+same `curl` prints `0`:
+
+```bash
+sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=/' .env.production
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
+
+If `LIBLI_PWA_ENABLED=false` was set (the other escape hatch), remove that line too, or the kill
+worker keeps being served. A school box may take a release that carries the worker before it has
 been checked on libli.pl, but only with this switch set first.
 
 ## Known constraints

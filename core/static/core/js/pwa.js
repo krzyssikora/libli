@@ -49,7 +49,8 @@
     // prompt()'s promise or userChoice.
     kept = null;
     el.removeAttribute("data-install-mode");
-    prompt.prompt();
+    var p = prompt.prompt();
+    if (p && p.catch) p.catch(function () {});
   });
 
   if (standalone()) hide();
