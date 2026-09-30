@@ -25,6 +25,7 @@
 - No migration, no new dependency, no `deploy.sh` change.
 - Test runs: never pass `-q` (addopts has it); `-m e2e` is mandatory for Playwright tests; start the test-DB container before any pytest run; run tests scoped to the task's files — the whole-repo sweep is the branch gate (Task 11) only.
 - i18n: `uv run python manage.py makemessages -l pl -l en --no-obsolete`; overwrite EVERY new pl `msgstr` from the table in Task 7 (makemessages fuzzy-prefills wrong translations); clear each `#, fuzzy` flag AND its `#| msgid` line; `uv run python manage.py compilemessages`; commit both `.po` and `.mo` for `en` and `pl`.
+- Before EVERY task's commit step: `uv run ruff format <the task's .py files>` then `uv run ruff check --no-cache <the task's .py files>`, both clean (E501 is 88 columns; split long JS string literals with implicit concatenation).
 - Mutants: every "mutant" step edits the file BY HAND and reverts BY HAND (never `git checkout`/`git restore` on a file carrying uncommitted work); read the `git diff` after applying each mutant to confirm it applied.
 
 ## Review Focus
@@ -608,6 +609,7 @@ Expected: all PASS.
 
 1. Change `render_to_string("core/offline.html", {...})` to `render(request, "core/offline.html", {...})` and add `{{ user.username }}` inside `<main>` → RED: `test_offline_page_never_shows_the_requesting_user`. (Two edits: the template edit is what an accidental base.html-style dependency looks like.)
 2. Add `{% include "core/_public_footer.html" %}` to the template → RED: `test_offline_template_is_self_contained`.
+4. Put `{% extends "base.html" %}` as the template's first line → RED: `test_offline_template_is_self_contained`.
 3. Change `fill="#C77B2A"` to `fill="#C77B2B"` → RED: `test_offline_mark_matches_the_favicon`.
 
 Revert each by hand; re-run green.
@@ -713,6 +715,7 @@ def test_download_routes_match_a_passthrough_suffix():
     for path in (
         reverse("courses:manage_course_export", kwargs={"slug": "c"}),
         reverse("courses:manage_node_export", kwargs={"slug": "c", "pk": 1}),
+        reverse("courses:manage_analytics_export", kwargs={"slug": "c"}),
     ):
         assert path.endswith(pwa.PASSTHROUGH_SUFFIXES), path
 
@@ -805,8 +808,8 @@ const CACHE_STATIC = {{ cache_static_json|safe }};
 const PASSTHROUGH_PREFIXES = {{ prefixes_json|safe }};
 const PASSTHROUGH_SUFFIXES = {{ suffixes_json|safe }};
 {% verbatim %}
-"use strict";
-
+// No "use strict" here: a directive must be a script's FIRST statement, and the
+// value slots above come first. Workers are classic scripts, not modules.
 const STATIC_CACHE = "libli-static-" + VERSION;
 const OFFLINE_CACHE = "libli-offline-" + VERSION;
 const OFFLINE_URL = "/offline/";
@@ -910,8 +913,10 @@ Expected: all PASS.
 - [ ] **Step 7: Mutants**
 
 1. In `service_worker`, return 404 (`HttpResponse(status=404)`) in the `else` branch → RED: `test_every_other_row_serves_the_kill_worker`.
+5. In `sw.js`'s activate handler, add `self.registration.navigationPreload.enable();` → RED: `test_normal_worker_source_guards`.
+6. In `sw_kill.js`, add `self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request)));` (and nothing else) → RED: `test_every_other_row_serves_the_kill_worker`, `test_kill_worker_source_guards`.
 2. Emit `{{ version_json }}` without `|safe` → RED: `test_normal_worker_headers_and_values` and `test_worker_js_lives_inside_verbatim`.
-3. Move the `"use strict";` line above `{% verbatim %}` → RED: `test_worker_js_lives_inside_verbatim`.
+3. Move the `const STATIC_CACHE = ...;` line above `{% verbatim %}` → RED: `test_worker_js_lives_inside_verbatim`.
 4. Rename the `manage_course_export` route's path to `manage/courses/<slug:slug>/export-archive/` in `courses/urls.py` → RED: `test_download_routes_match_a_passthrough_suffix`.
 
 Revert each by hand; re-run green.
@@ -937,7 +942,7 @@ git commit -m "feat(pwa): /sw.js serves the normal or the kill worker, always 20
 - Modify: `templates/help/index.html` (link at the top)
 - Modify: `tests/test_public_pages.py:29` (registry pin)
 - Modify: `tests/test_public_pages_content.py` `SHIPPED` (two entries)
-- Modify: `tests/test_public_pages_settings.py:57` (literal `4` → `6`; keep the comment, it stays true)
+- Modify: `tests/test_public_pages_settings.py:50-57` (replace the literal `4` with a derived count and rewrite its comment)
 - Test: `tests/test_pwa_install_page.py`
 
 **Interfaces:**
@@ -1009,7 +1014,20 @@ def test_staff_help_index_links_the_guide(client):
 Update the existing pins:
 - `tests/test_public_pages.py` line 29: `assert set(PAGES) == {"privacy", "getting-started", "for-schools", "install-app"}` and add below the existing path asserts: `assert PAGES["install-app"].path == "public/install-app.md"`.
 - `tests/test_public_pages_content.py` `SHIPPED`: append `"public/install-app.md",` and `"public/install-app.pl.md",`.
-- `tests/test_public_pages_settings.py`: in `test_panel_renders_one_textarea_per_page_per_language`, change `== 4` to `== 6`, and extend the loop's tuple to `("privacy", "getting-started", "install-app")`. The comment's formula `(len(PAGES) - 1) * 2` still holds (4 pages, for-schools filtered) — change only the literal.
+- `tests/test_public_pages_settings.py`: in `test_panel_renders_one_textarea_per_page_per_language`, extend the loop's tuple to `("privacy", "getting-started", "install-app")`, and replace the comment block plus `assert body.count('name="override-') == 4` with:
+
+```python
+    # EXACT count: a presence check does not kill "iterate settings.LANGUAGES",
+    # which is a superset and would render extra textareas while staying green.
+    # Derived, not a literal: every page except the vendor-only for-schools (the
+    # suite pins VENDOR_INSTANCE=False, so _page_overrides() filters it out), times
+    # two languages. A count of len(PAGES) * 2 here would mean the vendor-only
+    # filter regressed.
+    expected = (len(PAGES) - len(VENDOR_ONLY_SLUGS)) * 2
+    assert body.count('name="override-') == expected
+```
+
+  and add `from core.public_pages import VENDOR_ONLY_SLUGS` to that file's imports.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1282,7 +1300,10 @@ In `core/templatetags/branding.py`, add `from core.services import short_name`, 
             short_name(cfg.get("name")),
         )
     )
-    parts.append(format_html('<meta name="mobile-web-app-capable" content="yes">'))
+    # An argument, not a bare literal: format_html() with no args is deprecated.
+    parts.append(
+        format_html('<meta name="{}" content="yes">', "mobile-web-app-capable")
+    )
 ```
 
 - [ ] **Step 6: Run to verify pass**
@@ -1512,7 +1533,8 @@ pytestmark = pytest.mark.django_db
 
 
 def test_offline_page_in_polish(client):
-    body = client.get(reverse("core:offline"), headers={"accept-language": "pl"}).content.decode()
+    response = client.get(reverse("core:offline"), headers={"accept-language": "pl"})
+    body = response.content.decode()
     assert "Jesteś offline" in body
     assert "Sprawdź połączenie z internetem i spróbuj ponownie." in body
     assert "Spróbuj ponownie" in body
@@ -1533,12 +1555,14 @@ def test_manifest_description_in_the_default_language_pl(client):
 def test_install_link_in_polish(client):
     # Anonymous surface (the public footer): a logged-in user's stored language
     # preference could outrank the Accept-Language header.
-    body = client.get(reverse("core:privacy"), headers={"accept-language": "pl"}).content.decode()
+    url = reverse("core:privacy")
+    body = client.get(url, headers={"accept-language": "pl"}).content.decode()
     assert "Zainstaluj aplikację" in body
 
 
 def test_install_page_title_in_polish(client):
-    body = client.get(reverse("core:install_app"), headers={"accept-language": "pl"}).content.decode()
+    url = reverse("core:install_app")
+    body = client.get(url, headers={"accept-language": "pl"}).content.decode()
     assert "Instalacja aplikacji" in body
 ```
 
@@ -1566,7 +1590,7 @@ In `locale/pl/LC_MESSAGES/django.po`, find each msgid below and OVERWRITE its `m
 
 The `en` catalog entries stay with empty `msgstr`. Then run: `uv run python manage.py compilemessages`.
 
-Check no other entry changed meaning: `git diff locale/pl/LC_MESSAGES/django.po` must show only these eight entries plus location-comment churn.
+Check no other entry changed meaning: `git diff locale/pl/LC_MESSAGES/django.po` must show SEVEN new entries plus location-comment churn — `Try again` already exists (`Spróbuj ponownie`) and only gains a location comment; still confirm its msgstr is unchanged.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -1620,6 +1644,8 @@ def test_runbook_recreates_rather_than_restarts():
     assert "docker compose restart" in section  # named, as the thing NOT to do
     assert "LIBLI_SW_KILL" in section
     assert "grep -c LIBLI_SW_KILL" in section
+    # a box provisioned before the worker shipped has no line: the command appends
+    assert "echo 'LIBLI_PWA_KILL_SWITCH=true' >> .env.production" in section
 
 
 def test_env_example_documents_both_variables():
@@ -1644,8 +1670,14 @@ Every page registers a service worker (`/sw.js`). If it ever misbehaves, recall 
 device: set the switch, then RECREATE the app container.
 
 ```bash
-# on the box, in /opt/libli
-sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=true/' .env.production
+# on the box, in /opt/libli -- a box provisioned before the worker shipped has no
+# LIBLI_PWA_KILL_SWITCH line at all, so replace it if present, append it if not
+if grep -q '^LIBLI_PWA_KILL_SWITCH=' .env.production; then
+  sed -i 's/^LIBLI_PWA_KILL_SWITCH=.*/LIBLI_PWA_KILL_SWITCH=true/' .env.production
+else
+  echo 'LIBLI_PWA_KILL_SWITCH=true' >> .env.production
+fi
+grep '^LIBLI_PWA_KILL_SWITCH=' .env.production   # MUST print LIBLI_PWA_KILL_SWITCH=true
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
 ```
 
@@ -1717,13 +1749,13 @@ Create `tests/test_e2e_pwa_spike.py` (NOT committed) that:
    - (i) re-run the file with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1` exported, then `context.set_offline(True)`; also try `context.route("**/privacy/", lambda r: r.abort())` and record whether the route handler is called for the WORKER's fetch (log `route.request.service_worker`);
    - (ii) `cdp = context.new_cdp_session(page)`; `cdp.send("Target.setAutoAttach", {"autoAttach": True, "waitForDebuggerOnStart": False, "flatten": True})`, find the service-worker target via `cdp.send("Target.getTargets")`, attach, `Network.enable`, `Network.emulateNetworkConditions` with `offline: True`;
    - (iii) stop the live server's listener: `live_server.thread.httpd.shutdown()` is session-scoped — do NOT do this in the real module unless it can be restarted; record only whether it works;
-3. for the export: seed a small course (`tests.factories.make_course_with_unit`) with a manager (the course owner), log in, navigate to `…/export/?confirm=1` with `page.expect_download()`, and record which of `context.on("request")` (with option (i)'s env var) / `context.on("response")` observed the request, and whether `request.service_worker` / `response.from_service_worker` is readable.
+3. for the export: seed a small course with `make_course_with_unit(owner=make_verified_user(username="pwa-owner", email="pwa-owner@probe.example.com"))` (a bare `make_course_with_unit()` owner is a `UserFactory` user whose password is not `TEST_PASSWORD` and who has no verified email, so it cannot log in under mandatory verification; ownership alone grants `can_manage_course`), log in as that owner, navigate to `…/export/?confirm=1` with `page.expect_download()`, and record which of `context.on("request")` (with option (i)'s env var) / `context.on("response")` observed the request, and whether `request.service_worker` / `response.from_service_worker` is readable.
 
 Run: `uv run python -m pytest tests/test_e2e_pwa_spike.py -m e2e -s` (foreground, never backgrounded).
 
 - [ ] **Step 2: Write `tests/pwa_e2e.py` from the findings**
 
-Implement the interface above with ONLY the mechanisms the spike showed working. Put a `Findings (2026-..-..):` paragraph at the top of the module docstring naming: which option makes the worker's fetch reject; whether `set_offline` alone suffices; which route filter catches the worker's inner fetch (keyed on URL path, never `is_navigation_request()`); where `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS` must be set if used, and whether the rest of the e2e suite still passes with it (run `uv run python -m pytest -m e2e -n 2` with it set, or record that `tests/test_e2e_pwa.py` must run in its own invocation and add that invocation to `.github/workflows/ci.yml`'s e2e job); and which export observation works. If no export observation works, `export_observer` is omitted and the docstring says Task 10 e2e 4's export half is replaced by the source test `test_normal_worker_source_guards` (already asserting `new URL(request.url)` + `.pathname`) — the weaker guard, recorded as such.
+Implement the interface above with ONLY the mechanisms the spike showed working. Put a `Findings (2026-..-..):` paragraph at the top of the module docstring naming: which option makes the worker's fetch reject; whether `set_offline` alone suffices; which route filter catches the worker's inner fetch (keyed on URL path, never `is_navigation_request()`); where `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS` must be set if used, and whether the rest of the e2e suite still passes with it (run `uv run python -m pytest -m e2e -n 2` with it set, or record that `tests/test_e2e_pwa.py` must run in its own invocation and add that invocation to `.github/workflows/ci.yml`'s e2e job); and which export observation works. **`fires_online=False` must be PROVEN**: register an init script that counts `online` events (`addEventListener("online", () => window.__onlineCount = (window.__onlineCount || 0) + 1)`) and show the count stays 0 across an `outage(..., fires_online=False)` exit — otherwise e2e 2b passes with the Try again button broken. If the only working outage mechanism fires `online` on exit (e.g. `set_offline`/CDP offline, no working route abort), implement `fires_online=False` by adding, for that exit only, an init script on the page that swallows the event (`window.addEventListener("online", e => e.stopImmediatePropagation(), true)` registered before the page's own listener) and prove it with the same counter; if even that cannot be made reliable, STOP and ask Krzysztof whether e2e 2b moves to the manual device checklist. If no export observation works, `export_observer` is omitted and the docstring says Task 10 e2e 4's export half is replaced by the source test `test_normal_worker_source_guards` (already asserting `new URL(request.url)` + `.pathname`) — the weaker guard, recorded as such.
 
 - [ ] **Step 3: Delete the spike file and commit the helpers**
 
@@ -1741,6 +1773,8 @@ git commit -m "test(pwa): e2e helpers from the offline/export observation spike"
 
 **Files:**
 - Create: `tests/test_e2e_pwa.py`
+
+**Accepted (record in the PR body):** on a real device, a static `put` still in flight in the old worker when the kill worker's activate runs can land after the delete and leave one orphan `libli-static-<old>` cache. It holds only static files, is never read again, and carries no user data; the browser evicts it under storage pressure. e2e 6 avoids the race by construction rather than tolerating it.
 
 **Interfaces:**
 - Consumes: `tests/pwa_e2e.py` (Task 9); `core.pwa.worker_version()`; factories `CourseFactory`, `ContentNodeFactory`, `add_element`, `make_image_asset`, `make_verified_user`, `EnrollmentFactory`, `make_course_with_unit`, `TEST_PASSWORD`; `courses.models.ImageElement`; route `courses:lesson_unit`.
@@ -1911,7 +1945,7 @@ def image_lesson(transactional_db):
     return unit, user, asset
 
 
-def test_media_is_never_intercepted(page, live_server, image_lesson):
+def test_media_is_never_intercepted(page, live_server, context, image_lesson):
     unit, user, asset = image_lesson
     _login(page, live_server, user)
     url = reverse("courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk})
@@ -1920,7 +1954,10 @@ def test_media_is_never_intercepted(page, live_server, image_lesson):
     page.goto(f"{live_server.url}{url}")
     wait_controlled(page)
     page.reload()
-    page.wait_for_function("() => [...document.images].some(i => i.src.includes('/media/') && i.complete)")
+    page.wait_for_function(
+        "() => [...document.images]"
+        ".some(i => i.src.includes('/media/') && i.complete)"
+    )
     sub = [r for r in seen if r.request.resource_type == "image"]
     page.goto(f"{live_server.url}{asset.file.url}")
     nav = [r for r in seen if r.request.resource_type == "document"]
@@ -1960,10 +1997,21 @@ def test_rename_reaches_the_next_navigation(page, live_server):
 
 
 def test_kill_switch_recalls_the_worker(page, live_server, settings):
+    from core.pwa import worker_version
+
     page.goto(f"{live_server.url}/privacy/")
     wait_controlled(page)
+    # Warm the static cache for THIS page first, and navigate back to the same page
+    # after flipping the switch: its static files are then cache hits, so the old
+    # worker issues no fire-and-forget put that could land after the kill worker's
+    # delete and recreate an orphan cache (the poll below would time out).
+    page.reload()
+    ui_js = page.evaluate(
+        "() => document.querySelector('script[src*=\"core/js/ui.js\"]').src"
+    )
+    _poll_cache_has(page, f"libli-static-{worker_version()}", ui_js)
     settings.PWA_KILL_SWITCH = True
-    page.goto(f"{live_server.url}/getting-started/")
+    page.goto(f"{live_server.url}/privacy/")
     page.wait_for_function(
         """async () => {
             const regs = await navigator.serviceWorker.getRegistrations();
@@ -2032,7 +2080,7 @@ def test_standalone_hides_the_item_on_load(page, live_server, member):
     assert page.locator("[data-install-app]").is_hidden()
 ```
 
-Replace the export-half comment in `test_media_is_never_intercepted` with real code using `export_observer` exactly as `tests/pwa_e2e.py` defines it (the manager is `make_course_with_unit()`'s owner; log in as them in a fresh `page` from `context.new_page()`), or delete the comment and state the weaker guard in the module docstring, per Task 9's Findings. Same-origin half of rule 0: if a controlled page in this module loads a cross-origin subresource, assert it with `from_service_worker is False`; otherwise add to the module docstring: "The same-origin half of rule 0 is deliberately unguarded: no controlled page loads a cross-origin subresource in the e2e fixtures."
+Replace the export-half comment in `test_media_is_never_intercepted` with real code using `export_observer` exactly as `tests/pwa_e2e.py` defines it (the manager is created as `make_course_with_unit(owner=make_verified_user(username="pwa-owner", email="pwa-owner@probe.example.com"))[0].owner` — never a bare `make_course_with_unit()`, whose `UserFactory` owner cannot log in; log in as them in a fresh `page` from `context.new_page()`), or delete the comment and state the weaker guard in the module docstring, per Task 9's Findings. Same-origin half of rule 0: if a controlled page in this module loads a cross-origin subresource, assert it with `from_service_worker is False`; otherwise add to the module docstring: "The same-origin half of rule 0 is deliberately unguarded: no controlled page loads a cross-origin subresource in the e2e fixtures."
 
 - [ ] **Step 2: Run the module**
 
@@ -2057,7 +2105,7 @@ Expected: all PASS. A failure that appears as a TIMEOUT is first checked against
 | delete `if (request.method !== "GET") return true;` | `test_real_errors_and_posts_pass_through` |
 | activate: delete the `.filter(...).map(caches.delete)` step | `test_rename_reaches_the_next_navigation` |
 | `VERSION` constant: in the view, `json.dumps("fixed")` | `test_rename_reaches_the_next_navigation` |
-| kill worker: add `self.addEventListener("fetch", e => e.respondWith(fetch(e.request)));` and delete the `unregister()` call | `test_kill_switch_recalls_the_worker` |
+| kill worker: delete the `.then(() => self.registration.unregister())` step (only that) | `test_kill_switch_recalls_the_worker` |
 | `pwa.js`: delete `kept = null;` in the click handler | `test_install_item_prompt_is_single_use` |
 | `pwa.js`: move `if (!el) return;` above `event.preventDefault();` | `test_anonymous_login_page_is_quiet_and_suppresses_the_banner` |
 | `app.css`: delete `.menu__item[hidden]` | `test_appinstalled_hides_the_item`, `test_standalone_hides_the_item_on_load` |
