@@ -6,6 +6,7 @@ from django.http import HttpResponseBadRequest
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -16,6 +17,7 @@ from core.context_processors import COOKIE_THEME
 from core.context_processors import THEME_VALUES
 from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
+from core.pwa import offline_branding
 from core.services import FAVICON_DIR
 from core.services import default_name
 from core.services import effective_primary
@@ -280,3 +282,17 @@ def favicon_ico(request):
     """
     cfg = get_site_config()
     return redirect(cfg.get("favicon_url") or static(FAVICON_DIR + "favicon.ico"))
+
+
+def offline(request):
+    """The worker's offline fallback (spec §4). Rendered WITHOUT the request, so
+    no context processor runs and nothing about the user can reach the page: it is
+    cached on the device and shown to whoever uses it next."""
+    name, primary = offline_branding()
+    html = render_to_string(
+        "core/offline.html", {"school_name": name, "primary": primary}
+    )
+    response = HttpResponse(html)
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex"
+    return response
