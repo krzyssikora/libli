@@ -756,6 +756,8 @@ def test_normal_worker_source_guards():
     assert "navigationPreload" not in source
     assert "new URL(request.url)" in source and ".pathname" in source
     assert 'request.destination === "document"' in source
+    # A hit must not caches.open() (which recreates a deleted cache).
+    assert "caches.match(request, { cacheName: STATIC_CACHE })" in source
     assert "ignoreVary: true" in source
 
 
@@ -865,17 +867,24 @@ function passthrough(request) {
 
 function staticFirst(event) {
   const request = event.request;
-  return caches.open(STATIC_CACHE).then((cache) =>
-    cache.match(request).then((hit) => {
-      if (hit) return hit;
-      return fetch(request).then((response) => {
-        // 200 only: a 206 cannot be put, and an error must never be cached.
-        if (response.status === 200 && response.type === "basic") {
-          event.waitUntil(cache.put(request, response.clone()).catch(() => {}));
-        }
-        return response;
-      });
-    }));
+  // Look up WITHOUT caches.open(): open() CREATES a missing cache, so even a hit
+  // served after a newer (or kill) worker deleted this cache would resurrect it
+  // as an orphan. Only the miss path opens it, to put.
+  return caches.match(request, { cacheName: STATIC_CACHE }).then((hit) => {
+    if (hit) return hit;
+    return fetch(request).then((response) => {
+      // 200 only: a 206 cannot be put, and an error must never be cached.
+      if (response.status === 200 && response.type === "basic") {
+        const copy = response.clone();
+        event.waitUntil(
+          caches.open(STATIC_CACHE)
+            .then((cache) => cache.put(request, copy))
+            .catch(() => {})
+        );
+      }
+      return response;
+    });
+  });
 }
 
 function offlinePage() {
@@ -933,11 +942,12 @@ Expected: all PASS.
 
 1. In `service_worker`, return 404 (`HttpResponse(status=404)`) in the `else` branch → RED: `test_every_other_row_serves_the_kill_worker`.
 2. In `sw.js`'s activate handler, add `self.registration.navigationPreload.enable();` → RED: `test_normal_worker_source_guards`.
-3. In `passthrough()`, change `const path = url.pathname;` to `const path = url.pathname + url.search;` → RED: `test_passthrough_matches_on_the_pathname_only`.
-4. In `sw_kill.js`, add `self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request)));` (and nothing else) → RED: `test_every_other_row_serves_the_kill_worker`, `test_kill_worker_source_guards`.
-5. Emit `{{ version_json }}` without `|safe` → RED: `test_normal_worker_headers_and_values` and `test_worker_js_lives_inside_verbatim`.
-6. Move the `const STATIC_CACHE = ...;` line above `{% verbatim %}` → RED: `test_worker_js_lives_inside_verbatim`.
-7. Rename the `manage_course_export` route's path to `manage/courses/<slug:slug>/export-archive/` in `courses/urls.py` → RED: `test_download_routes_match_a_passthrough_suffix`.
+3. In `staticFirst`, replace `caches.match(request, { cacheName: STATIC_CACHE })` with `caches.open(STATIC_CACHE).then((c) => c.match(request))` → RED: `test_normal_worker_source_guards`.
+4. In `passthrough()`, change `const path = url.pathname;` to `const path = url.pathname + url.search;` → RED: `test_passthrough_matches_on_the_pathname_only`.
+5. In `sw_kill.js`, add `self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request)));` (and nothing else) → RED: `test_every_other_row_serves_the_kill_worker`, `test_kill_worker_source_guards`.
+6. Emit `{{ version_json }}` without `|safe` → RED: `test_normal_worker_headers_and_values` and `test_worker_js_lives_inside_verbatim`.
+7. Move the `const STATIC_CACHE = ...;` line above `{% verbatim %}` → RED: `test_worker_js_lives_inside_verbatim`.
+8. Rename the `manage_course_export` route's path to `manage/courses/<slug:slug>/export-archive/` in `courses/urls.py` → RED: `test_download_routes_match_a_passthrough_suffix`.
 
 Revert each by hand; re-run green.
 
@@ -1805,7 +1815,7 @@ git commit -m "test(pwa): e2e helpers from the offline/export observation spike"
 **Files:**
 - Create: `tests/test_e2e_pwa.py`
 
-**Accepted (record in the PR body):** on a real device, a static `put` still in flight in the old worker when the kill worker's activate runs can land after the delete and leave one orphan `libli-static-<old>` cache. It holds only static files, is never read again, and carries no user data; the browser evicts it under storage pressure. e2e 6 avoids the race by construction rather than tolerating it.
+**Accepted (record in the PR body):** a cache HIT touches no cache (`caches.match` with `cacheName` never creates one), so only a MISS can orphan: its `caches.open(...).put` still in flight in the old worker when a newer or kill worker's activate runs can land after the delete and leave one `libli-static-<old>` cache. It holds only static files, is never read again, and carries no user data; the browser evicts it under storage pressure. e2e 5 and 6 avoid the race by construction (every static resource warmed first, so the next navigation is all hits) rather than tolerating it.
 
 **Interfaces:**
 - Consumes: `tests/pwa_e2e.py` (Task 9); `core.pwa.worker_version()`; factories `CourseFactory`, `ContentNodeFactory`, `add_element`, `make_image_asset`, `make_verified_user`, `EnrollmentFactory`, `make_course_with_unit`, `TEST_PASSWORD`; `courses.models.ImageElement`; route `courses:lesson_unit`.
@@ -1885,13 +1895,14 @@ def _poll_cache_has(page, cache_name, url, timeout=5000):
 
 
 def _warm_static(page, version):
-    """Wait until every /static/ file the current page loaded is in the static
-    cache. Without it, the old worker's fire-and-forget puts on the NEXT
-    navigation can land after a new (or kill) worker's activate deleted the old
-    cache and recreate it -- and a poll on caches.keys() times out."""
+    """Wait until every /static/ resource the current page loaded is in the
+    static cache -- including tokens.css's @font-face woff2 files and any
+    CSS-referenced image, which no element selector finds. Without it, a miss on
+    the NEXT navigation puts after a new (or kill) worker's activate deleted the
+    old cache and recreates it, and a poll on caches.keys() times out."""
     urls = page.evaluate(
-        "() => [...document.querySelectorAll('script[src],link[rel=stylesheet]')]"
-        ".map(e => e.src || e.href).filter(u => u.includes('/static/'))"
+        "() => performance.getEntriesByType('resource').map(e => e.name)"
+        ".filter(u => new URL(u).pathname.startsWith('/static/'))"
     )
     assert urls, "non-vacuity: the page loaded no /static/ file"
     for url in urls:
@@ -2058,9 +2069,9 @@ def test_kill_switch_recalls_the_worker(page, live_server, settings):
     page.goto(f"{live_server.url}/privacy/")
     wait_controlled(page)
     # Warm the static cache for THIS page first, and navigate back to the same page
-    # after flipping the switch: its static files are then cache hits, so the old
-    # worker issues no fire-and-forget put that could land after the kill worker's
-    # delete and recreate an orphan cache (the poll below would time out).
+    # after flipping the switch: its static files are then cache hits, which touch
+    # no cache, so the old worker has no miss-path put that could land after the
+    # kill worker's delete and recreate an orphan (the poll below would time out).
     page.reload()
     _warm_static(page, worker_version())
     settings.PWA_KILL_SWITCH = True
@@ -2155,9 +2166,9 @@ Replace the export-half comment in `test_media_is_never_intercepted` with real c
 - [ ] **Step 2: Run the module**
 
 Run (in the foreground; add `PWA_ENV` from `tests/pwa_e2e.py` if the Findings require it): `uv run python -m pytest tests/test_e2e_pwa.py -m e2e`
-Expected: all PASS. A failure that appears as a TIMEOUT is first checked against parallel load and a stale developer service worker (it cannot be — each test gets a fresh browser context) before blaming the code.
+Expected: all PASS. A failure that appears as a TIMEOUT: if it is a `caches.keys()` poll, first suspect the orphan-cache race (a static resource not warmed by `_warm_static` before the navigation); otherwise check parallel load (run the test alone) before blaming the code. (A stale developer service worker cannot interfere here — each test gets a fresh browser context; that check belongs to Task 11 Step 5's manual smoke.)
 
-- [ ] **Step 3: Mutants — each in `templates/core/sw.js` or `pwa.js`, each RED on the named test**
+- [ ] **Step 3: Mutants — each in the file its row names (`sw.js`, `sw_kill.js`, `offline.html`, `pwa.js`, `core/views.py`, `app.css`), each RED on the named test**
 
 | Mutant (edit by hand, revert by hand) | Must turn RED |
 |---|---|
