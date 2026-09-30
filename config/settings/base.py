@@ -75,6 +75,7 @@ TEMPLATES = [
                 "core.context_processors.notifications_badge",
                 "core.context_processors.help_availability",
                 "core.context_processors.support_availability",
+                "core.context_processors.pwa",
             ],
         },
     },
@@ -287,6 +288,17 @@ GEOGEBRA_API_LOOKUP = env.bool("LIBLI_GEOGEBRA_API_LOOKUP", default=True)
 # the LIBLI_ prefix, the setting drops it -- same convention as
 # ALLOW_HTTP_IMAGE_FETCH and GEOGEBRA_API_LOOKUP.
 VENDOR_INSTANCE = env.bool("LIBLI_VENDOR_INSTANCE", default=False)
+
+# PWA (docs/superpowers/specs/2026-09-29-pwa-c1-installable-app-design.md). Off
+# unless production.py turns it on: a service worker registered on a dev origin
+# outlives the code that registered it. The kill switch makes /sw.js serve a
+# worker that deletes libli's caches and unregisters itself.
+PWA_ENABLED = env.bool("LIBLI_PWA_ENABLED", default=False)
+PWA_KILL_SWITCH = env.bool("LIBLI_PWA_KILL_SWITCH", default=False)
+# Test-only: cache /static/ even without a staticfiles manifest (the e2e suite has
+# none). Never env-backed -- without a manifest the worker's version does not track
+# static content, so a developer's JS/CSS edits would freeze.
+PWA_CACHE_UNHASHED_STATIC = False
 
 # The allocation grid posts two fields per student row (the radio's single value
 # plus its hidden state token) plus a small fixed overhead, so Django's default

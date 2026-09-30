@@ -15,6 +15,9 @@ CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])  # no
 if env.bool("DJANGO_BEHIND_PROXY", default=False):  # noqa: F405
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# --- PWA --- on by default in production; "LIBLI_PWA_ENABLED=" (blank) parses as off.
+PWA_ENABLED = env.bool("LIBLI_PWA_ENABLED", default=True)  # noqa: F405
+
 # allauth builds verification / invitation / password-reset links with this scheme.
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
 

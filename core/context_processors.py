@@ -146,3 +146,11 @@ def support_availability(request):
         "can_report_issue": can_report(user, role_names=role_names_for(request)),
         "report_description_max": DESCRIPTION_MAX_LENGTH,
     }
+
+
+def pwa(request):
+    """`pwa_enabled`: include pwa.js (register the worker) only in the first row of
+    the spec's §1 table -- with the kill switch on, nothing may re-register."""
+    from core.pwa import serve_normal
+
+    return {"pwa_enabled": serve_normal()}
