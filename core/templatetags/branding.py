@@ -15,6 +15,7 @@ from core.services import FAVICON_DIR
 from core.services import PRIMARY_DEFAULT
 from core.services import effective_primary
 from core.services import get_site_config
+from core.services import short_name
 from institution.validators import is_valid_css_color
 
 register = template.Library()
@@ -114,5 +115,16 @@ def favicon_links():
     )
     parts.append(
         format_html('<meta name="theme-color" content="{}">', effective_primary(cfg))
+    )
+    # iOS labels a home-screen icon with the page title unless told otherwise.
+    parts.append(
+        format_html(
+            '<meta name="apple-mobile-web-app-title" content="{}">',
+            short_name(cfg.get("name")),
+        )
+    )
+    # An argument, not a bare literal: format_html() with no args is deprecated.
+    parts.append(
+        format_html('<meta name="{}" content="yes">', "mobile-web-app-capable")
     )
     return format_html_join("\n  ", "{}", ((part,) for part in parts))

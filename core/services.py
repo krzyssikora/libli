@@ -198,6 +198,20 @@ def default_name():
     return _DEFAULTS["name"]
 
 
+def short_name(name):
+    """<= 12 chars, truncated on an ASCII space, right-stripped.
+
+    There is deliberately no empty-result branch: for any stripped non-empty name,
+    name[:12].rsplit(" ", 1)[0] is never empty (with no space in the first 12
+    characters rsplit returns the whole slice), so a hard-truncate fallback would
+    be dead code whose test passes with the branch deleted.
+    """
+    name = (name or "").strip() or default_name()
+    if len(name) <= 12:
+        return name
+    return name[:12].rsplit(" ", 1)[0].rstrip()
+
+
 def role_names_for(request):
     """Group names of request.user as a frozenset, memoised on the request.
 

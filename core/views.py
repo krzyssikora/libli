@@ -11,6 +11,7 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils import translation
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
@@ -30,6 +31,7 @@ from core.services import FAVICON_DIR
 from core.services import default_name
 from core.services import effective_primary
 from core.services import get_site_config
+from core.services import short_name
 
 
 @login_required
@@ -215,20 +217,6 @@ def institution_settings(request):
 MANIFEST_BACKGROUND = "#F4F1EA"  # the app's light surface; a white splash would flash
 
 
-def _short_name(name):
-    """<= 12 chars, truncated on an ASCII space, right-stripped.
-
-    There is deliberately no empty-result branch: for any stripped non-empty name,
-    name[:12].rsplit(" ", 1)[0] is never empty (with no space in the first 12
-    characters rsplit returns the whole slice), so a hard-truncate fallback would
-    be dead code whose test passes with the branch deleted.
-    """
-    name = (name or "").strip() or default_name()
-    if len(name) <= 12:
-        return name
-    return name[:12].rsplit(" ", 1)[0].rstrip()
-
-
 def _manifest_icons(cfg):
     url = cfg.get("favicon_url")
     if url:
@@ -264,10 +252,17 @@ def webmanifest(request):
     institution state. Public -- the browser fetches it regardless of session."""
     cfg = get_site_config()
     name = (cfg["name"] or "").strip() or default_name()
+    # In the language `lang` declares, whatever the requesting session's language.
+    with translation.override(cfg["default_language"]):
+        description = str(_("Lessons and courses from your school"))
     return JsonResponse(
         {
             "name": name,
-            "short_name": _short_name(name),
+            "short_name": short_name(name),
+            "id": "/",
+            "scope": "/",
+            "lang": cfg["default_language"],
+            "description": description,
             # "/" not "/home/": landing already bounces authenticated users to the
             # dashboard, while an anonymous launch keeps the landing page's SSO entry.
             "start_url": "/",
