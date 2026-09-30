@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
@@ -17,7 +19,13 @@ from core.context_processors import COOKIE_THEME
 from core.context_processors import THEME_VALUES
 from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
+from core.pwa import PASSTHROUGH_PREFIXES
+from core.pwa import PASSTHROUGH_SUFFIXES
+from core.pwa import PRECACHE
+from core.pwa import cache_static
 from core.pwa import offline_branding
+from core.pwa import serve_normal
+from core.pwa import worker_version
 from core.services import FAVICON_DIR
 from core.services import default_name
 from core.services import effective_primary
@@ -295,4 +303,26 @@ def offline(request):
     response = HttpResponse(html)
     response["Cache-Control"] = "no-store"
     response["X-Robots-Tag"] = "noindex"
+    return response
+
+
+def service_worker(request):
+    """/sw.js (spec §1 table). ALWAYS 200: a 404 would make the browser keep the
+    worker it already has, forever. no-cache so every navigation revalidates it --
+    that is what makes the kill switch and every fix reach devices."""
+    if serve_normal():
+        body = render_to_string(
+            "core/sw.js",
+            {
+                "version_json": json.dumps(worker_version()),
+                "precache_json": json.dumps(list(PRECACHE)),
+                "cache_static_json": json.dumps(cache_static()),
+                "prefixes_json": json.dumps(list(PASSTHROUGH_PREFIXES)),
+                "suffixes_json": json.dumps(list(PASSTHROUGH_SUFFIXES)),
+            },
+        )
+    else:
+        body = render_to_string("core/sw_kill.js")
+    response = HttpResponse(body, content_type="text/javascript; charset=utf-8")
+    response["Cache-Control"] = "no-cache"
     return response
