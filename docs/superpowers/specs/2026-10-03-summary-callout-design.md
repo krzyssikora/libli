@@ -139,9 +139,13 @@ Place this next to the per-kind accent rules, following their one-line aligned s
 - The kind `<select>` loops over `form.fields.kind.choices`, so "W skrócie" appears
   automatically.
 - The hand-written "Number this callout" checkbox block is wrapped in `{% if
-  form.original_kind != "summary" %}` (D5). `original_kind` is a public attribute that
-  `CalloutElementForm.__init__` sets from the instance before binding. For a new callout
-  that is the model default, `example`. It is the same value the restore rule below reads,
+  form.original_kind != "summary" %}` (D5). `original_kind` is a public attribute set in
+  `CalloutElementForm.__init__` **after** `super().__init__(*args, **kwargs)`, as
+  `self.original_kind = self.instance.kind`. On the create path, `builder` passes
+  `instance=None` and the create view builds the form with no instance, so the kind cannot
+  be read from kwargs beforehand. After `super().__init__`, `self.instance` is either the
+  saved row or a fresh `CalloutElement()` with the default `example`. Nothing has been
+  mutated yet at that point: `construct_instance` runs later, in `full_clean()`. It is the same value the restore rule below reads,
   so the checkbox and the restore literally share one attribute. Do **not** key on
   `form.instance.kind` or `form.kind.value`. On an invalid POST, Django's
   `BaseModelForm._post_clean()` still runs `construct_instance()`, copying every field
@@ -158,7 +162,7 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   In `clean()`, it reads `new_kind = cleaned_data.get("kind")`. If that is absent, because
   the kind failed choice validation, it skips the restore so the normal field error
   returns a 422 rather than a `KeyError`. Otherwise, if the original kind was `summary`,
-  the new kind is not, **and `"numbered" not in self.data`**, it sets
+  the new kind is not, **and `self.add_prefix("numbered") not in self.data`** (prefix-safe), it sets
   `cleaned_data["numbered"] = KIND_DEFAULT_NUMBERED[new_kind]`. The restore only fills an
   absent key and never overrides a value that was sent. `clean()` calls `super().clean()`
   and returns `cleaned_data`. So Example → summary → Example ends numbered, and
@@ -233,11 +237,11 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T2 | `test_callout_model`: save summary with `numbered=True` → reloads False | remove the `save()` force |
 | T3 | `test_callout_numbering`: unit = Example, Summary(numbered forced True via `.update()`), Example → numbers {ex1:1, ex2:2}, summary absent | remove the `kind != SUMMARY` guard in `walk()` |
 | T4 | `test_callout_numbering`: key-set test passes and `KIND_DEFAULT_NUMBERED["summary"] is False` | set it True |
-| T5 | `test_callout_render`: summary renders `callout--summary` with an `<h3 class="callout__title">` holding the heading text as the aside's first child; **no** `callout__header`, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
+| T5 | `test_callout_render`: summary renders `callout--summary` with an `<h3 class="callout__title">` holding the heading text as the aside's first **element** child (e.g. `aside.find(True, recursive=False)`; whitespace text nodes precede it); **no** `callout__header`, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
 | T5b | `courses/tests/test_math_selectors.py::test_every_typeset_region_is_in_the_selector_list`: add `.callout__title` to its region tuple. This is the deterministic catcher. An e2e check of KaTeX inside `h3.callout__title` is optional extra proof for the UI pass | drop `.callout__title` from the math.js selector list |
 | T6 | in `courses/tests/test_callout_numbering_render.py`, using its `_rendered(el, join, numbers)` helper, because a bare unsaved `.render()` emits no number: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title` | an edit that leaks the summary branch into others or alters the generic header |
 | T7 | `test_callout_authoring`: the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
-| T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; a crafted POST switching a saved summary to `example` with the key present as `numbered=false` saves False, so a sent value is not overridden (Django's `CheckboxInput` reads `"false"` as False); editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary); the rendered form for a saved example whose POST asked for summary and got a 422 still shows the checkbox | remove the `clean()` restore, apply it unconditionally, drop the `not in self.data` check, or key the checkbox on `form.instance.kind` |
+| T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; a crafted POST switching a saved summary to `example` with the key present as `numbered=false` saves False, so a sent value is not overridden (Django's `CheckboxInput` reads `"false"` as False); editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary); the rendered form for a saved example whose POST asked for summary and got a 422 still shows the checkbox. Force that 422 with `kind=summary` plus a 121-character heading (`max_length=120`): kind must stay valid for the mutant to be exercised. Assert status 422 and that `name="numbered"` is in the response; creating a new callout through the form (no instance) still works and its form renders the checkbox | remove the `clean()` restore, apply it unconditionally, drop the `not in self.data` check, or key the checkbox on `form.instance.kind` |
 | T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; extend the existing validator-level pre-v13 test (`test_a_pre_v13_payload_imports_with_the_per_kind_default`) to assert `data["numbered"] is False` for summary **on the validated payload**, not the saved row, because `save()` would mask the mutant; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
 | T9 | `test_callout_css`: anchored regexes for the light and dark summary accents; `.callout--summary` sets `border-top` with `--callout-accent`, `background: var(--surface-raised)`, and **no** `box-shadow` | delete or alter a rule |
 | T9b | `tests/test_callout_css.py`: read both summary accents **from `courses.css`** with T9's anchored regexes, never as literals, and the grounds from `LIGHT_SURFACES`/`DARK_SURFACES` in `tests/test_text_colour_css.py` (import them and its `_ratio` helper, or whatever that module's contrast helper is named). Assert ≥ 3:1 for each theme | edit the dark accent in `courses.css` to a too-pale value |
