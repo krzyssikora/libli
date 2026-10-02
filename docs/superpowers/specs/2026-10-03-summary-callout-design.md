@@ -1,6 +1,6 @@
 # "W skrócie" summary callout kind
 
-**Status:** approved design (brainstorming 2026-10-03), D7 re-opened — see §2.
+**Status:** approved design (brainstorming 2026-10-03; D7 re-decided by the owner the same day).
 **Template:** this follows the playbook of the Task-kind addition,
 `docs/superpowers/specs/2026-08-08-callout-task-kind-design.md`. Its line citations are
 stale, but its section list and its test table are the checklist.
@@ -30,7 +30,7 @@ Converting the 34 units is the owner's authoring work and is **out of scope**.
 | D4 | Visual = option B′ "flat card": white surface (no accent tint), hairline border all round (`var(--border-subtle)`), 3px muted slate TOP bar (light `#4b6b8a`; a dark-theme value and a print rule like the other five kinds) INSTEAD of the left spine, NO shadow, NO icon chip, NO uppercase eyebrow. The heading is a real heading element in normal title case (the topic name). Rejected: hairline-only (C), because opened spoilers (`.spoiler__children`) and before/after panels (`.ba__panel`) already use a 2px left rule and would be confused with it. |
 | D5 | Summary cards are NEVER numbered. `courses/numbering.py` `callout_numbers` skips `kind == "summary"`, so the shared unit-wide counter is not consumed. `CalloutElement.save()` forces `numbered=False` for summary. `KIND_DEFAULT_NUMBERED` gains `summary: False`. The editor hides the "numbered" checkbox for this kind and the server ignores it. |
 | D6 | The back-link to the source lesson is an ordinary internal content link the author types in the card body. NO new "related lesson" field (deferred). |
-| D7 | **RE-OPENED, awaiting the owner.** As approved: bump transfer `FORMAT_VERSION` 16 → 17. That approval rested on a false premise ("matches how earlier additions were handled"). The repo's precedent for a new *kind* is the opposite: Task-kind spec D2, and the rule in `test_format_version_is_unchanged`'s docstring ("the version rises only when an EXISTING payload shape changes"). The choice is between **(a) bump to 17**, where every archive from this build is refused by any older instance with "archive newer than supported", and **(b) no bump**, where only archives that contain a summary card are refused by an older instance, with "Element 'x' has an unknown callout kind". |
+| D7 | **`FORMAT_VERSION` is NOT bumped; it stays at 16** (owner, 2026-10-03, "yes, go with b"). This reverses an earlier approval of a bump, which rested on a false premise. It follows the Task-kind D2 precedent and the rule in `test_format_version_is_unchanged`: the version rises only when an EXISTING payload shape changes. Export never validates kinds, so exporting always works. An instance running a build from before this feature refuses an archive that contains a summary card, with "Element 'x' has an unknown callout kind". Every other archive still imports. There is one course (mat-pp), authored on libli.pl, so the sequence is: deploy, then author cards. |
 
 ## 3. Architecture / components
 
@@ -130,14 +130,11 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   accepts "summary" with no code change. An archive carrying `kind: "summary", numbered:
   true`, which this build can never export but a hand-edited archive could contain, imports
   as `numbered=False` through `save()`.
-- Version handling depends on D7:
-  - **(a) bump:** set `FORMAT_VERSION = 17` and update the eight tests that pin 16 (see the
-    v16 precedent in `2026-09-24-filltable-inline-gaps-design.md` §version). Feature-scoped
-    tests whose names claim "unchanged" need care. Before merging, check that no other
-    branch also sets 17; see memory "identical line changes merge silently".
-  - **(b) no bump:** touch no version constant. The PR body carries the operator note in the
-    Task-kind D2 form: *do not author a W skrócie card in content that will be exported to
-    an instance (a school box) still running a build without the `SUMMARY` enum member.*
+- **No version change (D7).** `courses/transfer/schema.py` and every test that pins 16 stay
+  untouched. The PR body carries the operator note in the Task-kind D2 form: *deploy this
+  build to libli.pl before authoring a W skrócie card; an archive that contains one is
+  refused ("unknown callout kind") by any instance still running a build without the
+  `SUMMARY` enum member. The gate is the deployed code, not the migration.*
 
 ### 3.7 i18n and help docs
 
@@ -161,7 +158,7 @@ Author picks "W skrócie" → `CalloutElementForm` (plain ModelForm) → `save()
 `callout_numbers(unit)` skips the card, so the numbers of the surrounding Examples and Tasks
 are unaffected. `calloutelement.html` takes the summary branch and renders the h3 title,
 the body and the children. CSS draws the flat card. Export: `_ser_callout` copies the
-fields, the payload shape is unchanged, and the version depends on D7. Import:
+fields; the payload shape and the version (16) are unchanged (D7). Import:
 `_val_callout` accepts the kind, then `save()` runs.
 
 ## 5. Error handling
@@ -169,7 +166,7 @@ fields, the payload shape is unchanged, and the version depends on D7. Import:
 - Unknown kind on save: existing coercion to example, unchanged.
 - `numbered=True` arriving for a summary by form, archive, admin or shell: forced False in
   `save()`. If a row bypasses `save()`, numbering still skips it (§3.2).
-- Older instance importing a card: refused, with the message depending on D7 (§2).
+- Older instance importing a card: refused at that element with "unknown callout kind"; other archives import (D7).
 - Empty heading: falls back to "W skrócie".
 
 ## 6. Testing
@@ -185,7 +182,7 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T5 | `test_callout_render`: summary renders `callout--summary`, an `<h3 class="callout__title">` with the heading text, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
 | T6 | `test_callout_render`: an Example's rendered HTML is unchanged (pin the header markup) | an edit that leaks the summary branch into others |
 | T7 | `test_callout_authoring`: the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
-| T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; the pre-v13 default for summary is False; per D7, either the version test at 17 or the "unchanged" test still at 16 | drop the summary key from `KIND_DEFAULT_NUMBERED` |
+| T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; the pre-v13 default for summary is False; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
 | T9 | `test_callout_css`: anchored regexes for the light and dark summary accents; `.callout--summary` sets `border-top` with `--callout-accent`, `background: var(--surface-raised)`, and **no** `box-shadow` | delete or alter a rule |
 | T10 | `test_print_tokens_css`: `CALLOUT_KINDS` += "summary" | omit the print rule |
 | T11 | `test_text_colour_css` + `test_border_contrast_css`: add a `callout-summary` ground (= `--surface-raised`, light and dark) to the surface lists, the kinds tuple and `BORDER_GROUNDS`; update the prose counts | the enum-derived test fails until added |
