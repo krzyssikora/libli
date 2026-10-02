@@ -113,15 +113,18 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   - It inherits `border`, `border-radius`, `padding` and `margin` from `.callout`. No shadow.
 - `.callout__title`: normal case, no letter-spacing, `color: var(--text-primary)`, about
   `1.05rem` / 700, `margin: 0 0 var(--space-3)`, with an explicit `line-height` (about
-  1.3). `.callout__body`'s first-child margin reset already handles what follows. The h3
-  must not pick up the global h3 margins or line-height from `reset.css`, so set both
-  explicitly.
+  1.3), and `letter-spacing: normal`. `.callout__body`'s first-child margin reset already
+  handles what follows. `reset.css` zeroes all margins but gives headings `line-height:
+  1.15` and `letter-spacing: var(--heading-letter-spacing)`. Override both explicitly, and
+  set the bottom margin explicitly for the gap.
 - `.callout__title .katex { font-size: 1em; font-weight: inherit; color: inherit; }`.
   Unlike the eyebrow's reset, there is no `text-transform` to undo, but KaTeX's default
   1.21em would make inline maths visibly larger than the heading text.
-- The corner radius stays. The 3px top border meets the 1px sides on the rounded corner,
-  and the screenshot DoD checks that it reads as a clean bar. If it does not, draw the bar
-  with a `::before` pseudo-element; never a `box-shadow`, which T9 forbids.
+- The corner radius stays, and the bar is the `border-top` above; there is no
+  pseudo-element fallback. The 3px top border meets the 1px sides on the rounded corner.
+  The screenshot DoD records how that looks. If it reads badly, report it to the owner as
+  a finding; do not improvise another drawing method. In particular, never put `overflow:
+  hidden` on the card: callouts hold wide display maths and scroll boxes.
 - The print block (`@media print`, "Print: callout accents") gains `[data-theme="dark"]
   .callout--summary { --callout-accent: #4b6b8a; }` in the exact whitespace format that
   `test_print_tokens_css.py` matches.
@@ -144,11 +147,16 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   summary card is edited, the checkbox is not rendered, so the POST carries no `numbered`.
   Without care, switching it to Example saves `numbered=False` and silently unnumbers it.
   `CalloutElementForm` records the instance's kind at `__init__` (`self._original_kind`).
-  In `clean()`, if the original kind was `summary` and the new kind is not, it sets
-  `cleaned_data["numbered"] = KIND_DEFAULT_NUMBERED[new_kind]`. So Example → summary →
-  Example ends numbered, and summary → Note ends unnumbered. This makes the form a second
-  runtime reader of `KIND_DEFAULT_NUMBERED`; update the map's comment, which today says
-  "NOT read by CalloutElementForm", accordingly.
+  In `clean()`, it reads `new_kind = cleaned_data.get("kind")`. If that is absent, because
+  the kind failed choice validation, it skips the restore so the normal field error
+  returns a 422 rather than a `KeyError`. Otherwise, if the original kind was `summary`
+  and the new kind is not, it sets `cleaned_data["numbered"] =
+  KIND_DEFAULT_NUMBERED[new_kind]`. So Example → summary → Example ends numbered, and
+  summary → Note ends unnumbered. This makes the form a second runtime reader of
+  `KIND_DEFAULT_NUMBERED`. Three comments in `courses/models.py` go stale and must be
+  updated: the map's "NOT read by CalloutElementForm"; its "Exactly ONE runtime caller";
+  and the `numbered` field comment, which says the map "is consulted only by the backfill
+  migration and by the importer's pre-v13 fallback".
 - The "Leave blank to use the default for this kind" placeholder still holds.
 
 ### 3.6 Transfer — `courses/transfer/`
@@ -162,6 +170,9 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   build to libli.pl before authoring a W skrócie card; an archive that contains one is
   refused ("unknown callout kind") by any instance still running a build without the
   `SUMMARY` enum member. The gate is the deployed code, not the migration.*
+- Note: the test D7 cites, `test_format_version_is_unchanged`, has since been renamed. Its
+  rule now lives in `courses/tests/test_beforeafter_transfer.py::test_format_version_is_pinned`,
+  whose docstring records the rename.
 
 ### 3.7 i18n and help docs
 
@@ -211,8 +222,8 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T3 | `test_callout_numbering`: unit = Example, Summary(numbered forced True via `.update()`), Example → numbers {ex1:1, ex2:2}, summary absent | remove the `kind != SUMMARY` guard in `walk()` |
 | T4 | `test_callout_numbering`: key-set test passes and `KIND_DEFAULT_NUMBERED["summary"] is False` | set it True |
 | T5 | `test_callout_render`: summary renders `callout--summary` with an `<h3 class="callout__title">` holding the heading text as the aside's first child; **no** `callout__header`, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
-| T5b | maths in a summary heading: KaTeX output (`.katex`) ends up inside `h3.callout__title`. An e2e test, or a JS-level test if the repo has one for math.js | drop `.callout__title` from the math.js selector list |
-| T6 | `test_callout_render`: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title` | an edit that leaks the summary branch into others or alters the generic header |
+| T5b | `courses/tests/test_math_selectors.py::test_every_typeset_region_is_in_the_selector_list`: add `.callout__title` to its region tuple. This is the deterministic catcher. An e2e check of KaTeX inside `h3.callout__title` is optional extra proof for the UI pass | drop `.callout__title` from the math.js selector list |
+| T6 | in `courses/tests/test_callout_numbering_render.py`, using its `_rendered(el, join, numbers)` helper, because a bare unsaved `.render()` emits no number: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title` | an edit that leaks the summary branch into others or alters the generic header |
 | T7 | `test_callout_authoring`: the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
 | T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary) | remove the `clean()` restore, or apply it unconditionally |
 | T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; extend the existing validator-level pre-v13 test (`test_a_pre_v13_payload_imports_with_the_per_kind_default`) to assert `data["numbered"] is False` for summary **on the validated payload**, not the saved row, because `save()` would mask the mutant; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
