@@ -74,12 +74,20 @@ class="callout__heading">`, an uppercase eyebrow showing "KIND n. heading". For
   are `<h3>` in their text bodies today, so a card replacing an `h3` + list keeps the same
   outline level. The only other heading in an element template, the tabs panel label, is
   also h3.
-- The heading may contain inline KaTeX (`\(…\)`). math.js renders `.callout__heading`
-  today. The implementer must confirm the selector math.js uses and make sure
-  `.callout__title` is covered too, either by adding the selector or by keeping a shared
-  class. Test it with a heading that holds maths.
-- The other kinds' markup must stay **byte-identical**: the summary path is a separate
-  `{% if %}` branch, and the existing branch is untouched.
+- **Exact structure.** In the summary branch, the h3 **replaces** the whole `<div
+  class="callout__header">` wrapper; it is not placed inside it. The h3 is the first child
+  of the `<aside>`. This avoids the wrapper's flex layout and its `margin-bottom` stacking
+  with the h3's own margin. T5 asserts that the summary output contains no
+  `callout__header`.
+- The heading may contain inline KaTeX (`\(…\)`). The selector list in
+  `courses/static/courses/js/math.js` `renderInlineText` (`.callout__heading`) does not
+  match the new class. **Add `.callout__title` to that list.** Do not reuse
+  `callout__heading` on the h3: it would inherit the uppercase eyebrow styling and
+  contradict D4. The heading test must assert that KaTeX output lands inside the h3; an
+  e2e or JS-level check is acceptable here because math.js runs client-side.
+- The other kinds' markup must stay **semantically identical**: the summary path is a
+  separate `{% if %}` branch, and the existing branch's tags are untouched. Whitespace may
+  shift because of the new `{% if %}`, so T6 compares after normalising whitespace.
 - The `<aside class="callout callout--summary">` wrapper, the body and the `.callout__children`
   block are shared unchanged, so text, images, maths, nested questions and reveal scoping
   all work as they do in every callout.
@@ -93,17 +101,27 @@ Place this next to the per-kind accent rules, following their one-line aligned s
 
 - Light: `.callout--summary { --callout-accent: #4b6b8a; }`. Dark: `[data-theme="dark"]
   .callout--summary { --callout-accent: <light-on-dark slate> }`. The implementer picks a
-  dark value in the family of the other dark accents, for example around `#9db4cb`, and
-  checks it against the dark surface in the screenshot pass.
+  dark value in the family of the other dark accents, for example around `#9db4cb`.
+  **Acceptance:** the top bar is the kind's only visual identity, so as non-text graphics
+  both accents must reach **≥ 3:1** against `--surface-raised` in their own theme (WCAG
+  1.4.11). This is asserted by a test (T9b) using the contrast helpers already present in
+  the colour tests, not only judged from a screenshot.
 - Surface overrides for `.callout--summary`:
   - `background: var(--surface-raised)`: no tint (D4);
   - `border-left: 1px solid var(--border-subtle)`: cancels the 3px spine;
   - `border-top: 3px solid var(--callout-accent)`: the top bar.
   - It inherits `border`, `border-radius`, `padding` and `margin` from `.callout`. No shadow.
 - `.callout__title`: normal case, no letter-spacing, `color: var(--text-primary)`, about
-  `1.05rem` / 700, `margin: 0 0 var(--space-3)`. `.callout__body`'s first-child margin reset
-  already handles what follows. The h3 must not pick up global h3 margins that break the
-  card's top padding, so set the margin explicitly.
+  `1.05rem` / 700, `margin: 0 0 var(--space-3)`, with an explicit `line-height` (about
+  1.3). `.callout__body`'s first-child margin reset already handles what follows. The h3
+  must not pick up the global h3 margins or line-height from `reset.css`, so set both
+  explicitly.
+- `.callout__title .katex { font-size: 1em; font-weight: inherit; color: inherit; }`.
+  Unlike the eyebrow's reset, there is no `text-transform` to undo, but KaTeX's default
+  1.21em would make inline maths visibly larger than the heading text.
+- The corner radius stays. The 3px top border meets the 1px sides on the rounded corner,
+  and the screenshot DoD checks that it reads as a clean bar. If it does not, draw the bar
+  with a `::before` pseudo-element; never a `box-shadow`, which T9 forbids.
 - The print block (`@media print`, "Print: callout accents") gains `[data-theme="dark"]
   .callout--summary { --callout-accent: #4b6b8a; }` in the exact whitespace format that
   `test_print_tokens_css.py` matches.
@@ -122,6 +140,15 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   checkbox visible until the next save. That is harmless, because `save()` forces False,
   and the re-render hides it. State this in the template comment so nobody "fixes" it
   with JS.
+- **The reverse switch (summary → another kind) restores that kind's default.** When a
+  summary card is edited, the checkbox is not rendered, so the POST carries no `numbered`.
+  Without care, switching it to Example saves `numbered=False` and silently unnumbers it.
+  `CalloutElementForm` records the instance's kind at `__init__` (`self._original_kind`).
+  In `clean()`, if the original kind was `summary` and the new kind is not, it sets
+  `cleaned_data["numbered"] = KIND_DEFAULT_NUMBERED[new_kind]`. So Example → summary →
+  Example ends numbered, and summary → Note ends unnumbered. This makes the form a second
+  runtime reader of `KIND_DEFAULT_NUMBERED`; update the map's comment, which today says
+  "NOT read by CalloutElementForm", accordingly.
 - The "Leave blank to use the default for this kind" placeholder still holds.
 
 ### 3.6 Transfer — `courses/transfer/`
@@ -146,14 +173,18 @@ Place this next to the per-kind accent rules, following their one-line aligned s
 - New `tests/test_i18n_callout_summary.py`, sibling of `test_i18n_callout_task.py`, pins pl
   "W skrócie".
 - `docs/help/course-admin/content-editors.md` and its `.pl.md`: add the kind to the inline
-  list ("Example, Note, Tip, Important, Task, or Key facts" / "… Zadanie lub W skrócie").
-  Add one sentence saying it is unnumbered, meant for summary units with one card per
+  list. In English: "Example, Note, Tip, Important, Task, or Key facts". In Polish, the
+  existing "Ważne lub Zadanie" becomes "Ważne, Zadanie lub W skrócie". The sentence goes
+  on to say "each with its own accent colour and icon" ("każdy z własnym kolorem akcentu i
+  ikoną"), and the next clause describes the "Number this callout" checkbox. Neither holds
+  for the new kind, so qualify both in both files: Key facts / W skrócie has no icon and
+  is never numbered. Add one sentence saying it is meant for summary units, one card per
   topic, and can go two-up inside a two-column element. Keep the `{el:callout}` paragraph
   structure intact, because `core/help.py` and `test_help.py` parse it by position.
 
 ## 4. Data flow
 
-Author picks "W skrócie" → `CalloutElementForm` (plain ModelForm) → `save()` forces
+Author picks "W skrócie" → `CalloutElementForm` (restores the per-kind `numbered` default when leaving summary, §3.5) → `save()` forces
 `numbered=False` → the row is stored with `kind="summary"`. On a page request,
 `callout_numbers(unit)` skips the card, so the numbers of the surrounding Examples and Tasks
 are unaffected. `calloutelement.html` takes the summary branch and renders the h3 title,
@@ -179,21 +210,25 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T2 | `test_callout_model`: save summary with `numbered=True` → reloads False | remove the `save()` force |
 | T3 | `test_callout_numbering`: unit = Example, Summary(numbered forced True via `.update()`), Example → numbers {ex1:1, ex2:2}, summary absent | remove the `kind != SUMMARY` guard in `walk()` |
 | T4 | `test_callout_numbering`: key-set test passes and `KIND_DEFAULT_NUMBERED["summary"] is False` | set it True |
-| T5 | `test_callout_render`: summary renders `callout--summary`, an `<h3 class="callout__title">` with the heading text, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
-| T6 | `test_callout_render`: an Example's rendered HTML is unchanged (pin the header markup) | an edit that leaks the summary branch into others |
+| T5 | `test_callout_render`: summary renders `callout--summary` with an `<h3 class="callout__title">` holding the heading text as the aside's first child; **no** `callout__header`, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
+| T5b | maths in a summary heading: KaTeX output (`.katex`) ends up inside `h3.callout__title`. An e2e test, or a JS-level test if the repo has one for math.js | drop `.callout__title` from the math.js selector list |
+| T6 | `test_callout_render`: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title` | an edit that leaks the summary branch into others or alters the generic header |
 | T7 | `test_callout_authoring`: the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
-| T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; the pre-v13 default for summary is False; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
+| T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary) | remove the `clean()` restore, or apply it unconditionally |
+| T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; extend the existing validator-level pre-v13 test (`test_a_pre_v13_payload_imports_with_the_per_kind_default`) to assert `data["numbered"] is False` for summary **on the validated payload**, not the saved row, because `save()` would mask the mutant; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
 | T9 | `test_callout_css`: anchored regexes for the light and dark summary accents; `.callout--summary` sets `border-top` with `--callout-accent`, `background: var(--surface-raised)`, and **no** `box-shadow` | delete or alter a rule |
+| T9b | colour test: both summary accents reach ≥ 3:1 against `--surface-raised` in their own theme | a too-pale dark accent |
 | T10 | `test_print_tokens_css`: `CALLOUT_KINDS` += "summary" | omit the print rule |
-| T11 | `test_text_colour_css` + `test_border_contrast_css`: add a `callout-summary` ground (= `--surface-raised`, light and dark) to the surface lists, the kinds tuple and `BORDER_GROUNDS`; update the prose counts | the enum-derived test fails until added |
+| T11 | `test_text_colour_css`: add `callout-summary` = the plain `--surface-raised` value (light and dark) to `LIGHT_SURFACES`/`DARK_SURFACES`, which the enum-derived test requires. Do **NOT** add "summary" to the 6%-mix kinds tuple in `test_surface_literals_still_match_the_css`: that loop recomputes the ground as accent mixed into `--surface-raised`, which can never equal an untinted ground. Pin the untinted ground through T9's `background: var(--surface-raised)` assertion instead. Add `callout-summary` to `BORDER_GROUNDS` in `test_border_contrast_css`. Update the prose counts | the enum-derived test fails until added; T9 catches a tint added later |
 | T12 | `test_i18n_callout_summary`: pl msgstr "W skrócie" | an empty or fuzzy msgstr |
 | T13 | help-doc test, if `test_help.py` pins the kind list text | — |
 
 **UI verification (DoD):** light and dark screenshots of a real converted fragment: three
 cards stacked; two cards inside a two-column element; a card with a figure and a wide
 display formula; a heading containing inline maths; an Example after the cards showing an
-unshifted number. Judge dark separately. Print preview in the dark theme shows the slate
-bar at the light value.
+unshifted number. Check the top corners of the bar, where the 3px border meets the 1px
+sides on the radius, at zoom. Judge dark separately. Print preview in the dark theme shows
+the slate bar at the light value.
 
 **Run scope:** the callout, numbering, transfer, i18n and help tests, every
 `test_*css*.py`, and `makemigrations --check`. A whole-repo sweep is a branch gate run in
