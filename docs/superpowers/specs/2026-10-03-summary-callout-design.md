@@ -104,8 +104,7 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   dark value in the family of the other dark accents, for example around `#9db4cb`.
   **Acceptance:** the top bar is the kind's only visual identity, so as non-text graphics
   both accents must reach **≥ 3:1** against `--surface-raised` in their own theme (WCAG
-  1.4.11). This is asserted by a test (T9b) using the contrast helpers already present in
-  the colour tests, not only judged from a screenshot.
+  1.4.11). This is asserted by a test (T9b), not only judged from a screenshot.
 - Surface overrides for `.callout--summary`:
   - `background: var(--surface-raised)`: no tint (D4);
   - `border-left: 1px solid var(--border-subtle)`: cancels the 3px spine;
@@ -116,7 +115,9 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   1.3), and `letter-spacing: normal`. `.callout__body`'s first-child margin reset already
   handles what follows. `reset.css` zeroes all margins but gives headings `line-height:
   1.15` and `letter-spacing: var(--heading-letter-spacing)`. Override both explicitly, and
-  set the bottom margin explicitly for the gap.
+  set the bottom margin explicitly for the gap. Add `.callout__title:last-child {
+  margin-bottom: 0; }`, so a card that has a heading but no body or children gets no extra
+  bottom space: `.callout`'s padding blocks margin collapsing.
 - `.callout__title .katex { font-size: 1em; font-weight: inherit; color: inherit; }`.
   Unlike the eyebrow's reset, there is no `text-transform` to undo, but KaTeX's default
   1.21em would make inline maths visibly larger than the heading text.
@@ -138,7 +139,9 @@ Place this next to the per-kind accent rules, following their one-line aligned s
 - The kind `<select>` loops over `form.fields.kind.choices`, so "W skrócie" appears
   automatically.
 - The hand-written "Number this callout" checkbox block is wrapped in `{% if
-  form.kind.value|stringformat:"s" != "summary" %}` (D5). No editor JS toggles fields by
+  form.instance.kind != "summary" %}` (D5). It keys on the **saved** kind, not the bound
+  POST value, so the checkbox and the restore rule below always read the same kind, even
+  on a 422 re-render. No editor JS toggles fields by
   kind today, and none is added. Switching the select from Example to W skrócie leaves the
   checkbox visible until the next save. That is harmless, because `save()` forces False,
   and the re-render hides it. State this in the template comment so nobody "fixes" it
@@ -149,9 +152,11 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   `CalloutElementForm` records the instance's kind at `__init__` (`self._original_kind`).
   In `clean()`, it reads `new_kind = cleaned_data.get("kind")`. If that is absent, because
   the kind failed choice validation, it skips the restore so the normal field error
-  returns a 422 rather than a `KeyError`. Otherwise, if the original kind was `summary`
-  and the new kind is not, it sets `cleaned_data["numbered"] =
-  KIND_DEFAULT_NUMBERED[new_kind]`. So Example → summary → Example ends numbered, and
+  returns a 422 rather than a `KeyError`. Otherwise, if the original kind was `summary`,
+  the new kind is not, **and `"numbered" not in self.data`**, it sets
+  `cleaned_data["numbered"] = KIND_DEFAULT_NUMBERED[new_kind]`. The restore only fills an
+  absent key and never overrides a value that was sent. `clean()` calls `super().clean()`
+  and returns `cleaned_data`. So Example → summary → Example ends numbered, and
   summary → Note ends unnumbered. This makes the form a second runtime reader of
   `KIND_DEFAULT_NUMBERED`. Three comments in `courses/models.py` go stale and must be
   updated: the map's "NOT read by CalloutElementForm"; its "Exactly ONE runtime caller";
@@ -190,7 +195,9 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   ikoną"), and the next clause describes the "Number this callout" checkbox. Neither holds
   for the new kind, so qualify both in both files: Key facts / W skrócie has no icon and
   is never numbered. Add one sentence saying it is meant for summary units, one card per
-  topic, and can go two-up inside a two-column element. Keep the `{el:callout}` paragraph
+  topic, and can go two-up inside the container the docs already call **Columns**. In the
+  `.pl.md`, use whatever Polish name that file already uses for this container; do not
+  coin a new one. Keep the `{el:callout}` paragraph
   structure intact, because `core/help.py` and `test_help.py` parse it by position.
 
 ## 4. Data flow
@@ -225,10 +232,10 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T5b | `courses/tests/test_math_selectors.py::test_every_typeset_region_is_in_the_selector_list`: add `.callout__title` to its region tuple. This is the deterministic catcher. An e2e check of KaTeX inside `h3.callout__title` is optional extra proof for the UI pass | drop `.callout__title` from the math.js selector list |
 | T6 | in `courses/tests/test_callout_numbering_render.py`, using its `_rendered(el, join, numbers)` helper, because a bare unsaved `.render()` emits no number: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title` | an edit that leaks the summary branch into others or alters the generic header |
 | T7 | `test_callout_authoring`: the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
-| T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary) | remove the `clean()` restore, or apply it unconditionally |
+| T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; a saved summary switched to `example` **with** `numbered` sent unticked (key absent is the UI's only form; use a crafted POST with `numbered=""` / falsy where the form reads it as False) is not overridden when the key is present; editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary); the rendered form for a saved example whose POST asked for summary and got a 422 still shows the checkbox | remove the `clean()` restore, apply it unconditionally, or drop the `not in self.data` check |
 | T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; extend the existing validator-level pre-v13 test (`test_a_pre_v13_payload_imports_with_the_per_kind_default`) to assert `data["numbered"] is False` for summary **on the validated payload**, not the saved row, because `save()` would mask the mutant; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
 | T9 | `test_callout_css`: anchored regexes for the light and dark summary accents; `.callout--summary` sets `border-top` with `--callout-accent`, `background: var(--surface-raised)`, and **no** `box-shadow` | delete or alter a rule |
-| T9b | colour test: both summary accents reach ≥ 3:1 against `--surface-raised` in their own theme | a too-pale dark accent |
+| T9b | `tests/test_callout_css.py`: read both summary accents **from `courses.css`** with T9's anchored regexes, never as literals, and the grounds from `LIGHT_SURFACES`/`DARK_SURFACES` in `tests/test_text_colour_css.py` (import them and its `_ratio` helper, or whatever that module's contrast helper is named). Assert ≥ 3:1 for each theme | edit the dark accent in `courses.css` to a too-pale value |
 | T10 | `test_print_tokens_css`: `CALLOUT_KINDS` += "summary" | omit the print rule |
 | T11 | `test_text_colour_css`: add `callout-summary` = the plain `--surface-raised` value (light and dark) to `LIGHT_SURFACES`/`DARK_SURFACES`, which the enum-derived test requires. Do **NOT** add "summary" to the 6%-mix kinds tuple in `test_surface_literals_still_match_the_css`: that loop recomputes the ground as accent mixed into `--surface-raised`, which can never equal an untinted ground. Pin the untinted ground through T9's `background: var(--surface-raised)` assertion instead. Add `callout-summary` to `BORDER_GROUNDS` in `test_border_contrast_css`. Update the prose counts | the enum-derived test fails until added; T9 catches a tint added later |
 | T12 | `test_i18n_callout_summary`: pl msgstr "W skrócie" | an empty or fuzzy msgstr |
@@ -236,7 +243,7 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 
 **UI verification (DoD):** light and dark screenshots of a real converted fragment: three
 cards stacked; two cards inside a two-column element; a card with a figure and a wide
-display formula; a heading containing inline maths; an Example after the cards showing an
+display formula; a heading containing inline maths; a heading-only card with no body; an Example after the cards showing an
 unshifted number. Check the top corners of the bar, where the 3px border meets the 1px
 sides on the radius, at zoom. Judge dark separately. Print preview in the dark theme shows
 the slate bar at the light value.
