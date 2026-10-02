@@ -73,7 +73,9 @@ class="callout__heading">`, an uppercase eyebrow showing "KIND n. heading". For
 - **Why h3:** the unit title is `<h1 class="lesson-unit__title">`. The summary units' topics
   are `<h3>` in their text bodies today, so a card replacing an `h3` + list keeps the same
   outline level. The only other heading in an element template, the tabs panel label, is
-  also h3.
+  also h3. The level is **fixed, deliberately**, and not computed from nesting depth. Inside
+  a Tabs panel or another callout, the card's h3 becomes a sibling of the container's h3
+  rather than nesting under it. That is accepted; do not add depth-aware heading levels.
 - **Exact structure.** In the summary branch, the h3 **replaces** the whole `<div
   class="callout__header">` wrapper; it is not placed inside it. The h3 is the first child
   of the `<aside>`. This avoids the wrapper's flex layout and its `margin-bottom` stacking
@@ -83,8 +85,8 @@ class="callout__heading">`, an uppercase eyebrow showing "KIND n. heading". For
   `courses/static/courses/js/math.js` `renderInlineText` (`.callout__heading`) does not
   match the new class. **Add `.callout__title` to that list.** Do not reuse
   `callout__heading` on the h3: it would inherit the uppercase eyebrow styling and
-  contradict D4. The heading test must assert that KaTeX output lands inside the h3; an
-  e2e or JS-level check is acceptable here because math.js runs client-side.
+  contradict D4. T5b guards the selector list; an e2e check of KaTeX inside the h3 is
+  optional extra proof.
 - The other kinds' markup must stay **semantically identical**: the summary path is a
   separate `{% if %}` branch, and the existing branch's tags are untouched. Whitespace may
   shift because of the new `{% if %}`, so T6 compares after normalising whitespace.
@@ -105,14 +107,17 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   **Acceptance:** the top bar is the kind's only visual identity, so as non-text graphics
   both accents must reach **≥ 3:1** against `--surface-raised` in their own theme (WCAG
   1.4.11). This is asserted by a test (T9b), not only judged from a screenshot.
-- Surface overrides for `.callout--summary`:
+- Surface overrides go in **one** second `.callout--summary { … }` block, placed after the
+  accent one-liners. The accent stays in its aligned one-liner, like the other kinds. T9
+  must scan **every** non-print `.callout--summary` block, not the first match, for the
+  surface and no-shadow assertions:
   - `background: var(--surface-raised)`: no tint (D4);
   - `border-left: 1px solid var(--border-subtle)`: cancels the 3px spine;
   - `border-top: 3px solid var(--callout-accent)`: the top bar.
   - It inherits `border`, `border-radius`, `padding` and `margin` from `.callout`. No shadow.
-- `.callout__title`: normal case, no letter-spacing, `color: var(--text-primary)`, about
-  `1.05rem` / 700, `margin: 0 0 var(--space-3)`, with an explicit `line-height` (about
-  1.3), and `letter-spacing: normal`. `.callout__body`'s first-child margin reset already
+- `.callout__title`: exactly `font-size: 1.05rem; font-weight: 700; line-height: 1.3;
+  letter-spacing: normal; color: var(--text-primary); margin: 0 0 var(--space-3);`, normal
+  case. These are pinned by T9. `.callout__body`'s first-child margin reset already
   handles what follows. `reset.css` zeroes all margins but gives headings `line-height:
   1.15` and `letter-spacing: var(--heading-letter-spacing)`. Override both explicitly, and
   set the bottom margin explicitly for the gap. Add `.callout__title:last-child {
@@ -183,7 +188,9 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   untouched. The PR body carries the operator note in the Task-kind D2 form: *deploy this
   build to libli.pl before authoring a W skrócie card; an archive that contains one is
   refused ("unknown callout kind") by any instance still running a build without the
-  `SUMMARY` enum member. The gate is the deployed code, not the migration.*
+  `SUMMARY` enum member. The gate is the deployed code, not the migration. Before
+  importing an archive with W skrócie cards into any other instance (for example a school
+  box on a tagged release), confirm that instance runs a release containing this feature.*
 - Note: the test D7 cites, `test_format_version_is_unchanged`, has since been renamed. Its
   rule now lives in `courses/tests/test_beforeafter_transfer.py::test_format_version_is_pinned`,
   whose docstring records the rename.
@@ -204,7 +211,9 @@ Place this next to the per-kind accent rules, following their one-line aligned s
   ikoną"), and the next clause describes the "Number this callout" checkbox. Neither holds
   for the new kind, so qualify both in both files: Key facts / W skrócie has no icon and
   is never numbered. Add one sentence saying it is meant for summary units, one card per
-  topic, and can go two-up inside the container the docs already call **Columns**. In the
+  topic, and can go two-up inside the container the docs already call **Columns**. Add a
+  tip: inside a card, use H4 or bold text for sub-points, because a typed H3 would look
+  bigger than the card's title. In the
   `.pl.md`, use whatever Polish name that file already uses for this container; do not
   coin a new one. Keep the `{el:callout}` paragraph
   structure intact, because `core/help.py` and `test_help.py` parse it by position.
@@ -243,16 +252,18 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T7 | `test_callout_authoring`: the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
 | T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; a crafted POST switching a saved summary to `example` with the key present as `numbered=false` saves False, so a sent value is not overridden (Django's `CheckboxInput` reads `"false"` as False); editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary); the rendered form for a saved example whose POST asked for summary and got a 422 still shows the checkbox. Force that 422 with `kind=summary` plus a 121-character heading (`max_length=120`): kind must stay valid for the mutant to be exercised. Assert status 422 and that `name="numbered"` is in the response; creating a new callout through the form (no instance) still works and its form renders the checkbox | remove the `clean()` restore, apply it unconditionally, drop the `not in self.data` check, or key the checkbox on `form.instance.kind` |
 | T8 | `test_callout_transfer`: summary round-trip keeps kind/heading/body with `numbered` False; extend the existing validator-level pre-v13 test (`test_a_pre_v13_payload_imports_with_the_per_kind_default`) to assert `data["numbered"] is False` for summary **on the validated payload**, not the saved row, because `save()` would mask the mutant; the export manifest still says `format_version == 16` (D7) | drop the summary key from `KIND_DEFAULT_NUMBERED` |
-| T9 | `test_callout_css`: anchored regexes for the light and dark summary accents; `.callout--summary` sets `border-top` with `--callout-accent`, `background: var(--surface-raised)`, and **no** `box-shadow` | delete or alter a rule |
+| T9 | `test_callout_css`: anchored regexes for the light and dark summary accents; `.callout--summary` sets `border-top` with `--callout-accent`, `background: var(--surface-raised)`, and **no** `box-shadow`, scanning every non-print `.callout--summary` block; `.callout__title` declares `letter-spacing: normal`, `line-height: 1.3` and `margin: 0 0 var(--space-3)` | delete or alter a rule; split the summary rules so the first-match block lacks them |
 | T9b | `tests/test_callout_css.py`: read both summary accents **from `courses.css`** with T9's anchored regexes, never as literals, and the grounds from `LIGHT_SURFACES`/`DARK_SURFACES` in `tests/test_text_colour_css.py` (import them and its `_ratio` helper, or whatever that module's contrast helper is named). Assert ≥ 3:1 for each theme | edit the dark accent in `courses.css` to a too-pale value |
 | T10 | `test_print_tokens_css`: `CALLOUT_KINDS` += "summary" | omit the print rule |
 | T11 | `test_text_colour_css`: add `callout-summary` = the plain `--surface-raised` value (light and dark) to `LIGHT_SURFACES`/`DARK_SURFACES`, which the enum-derived test requires. Do **NOT** add "summary" to the 6%-mix kinds tuple in `test_surface_literals_still_match_the_css`: that loop recomputes the ground as accent mixed into `--surface-raised`, which can never equal an untinted ground. Pin the untinted ground through T9's `background: var(--surface-raised)` assertion instead. Add `callout-summary` to `BORDER_GROUNDS` in `test_border_contrast_css`. Update the prose counts | the enum-derived test fails until added; T9 catches a tint added later |
 | T12 | `test_i18n_callout_summary`: pl msgstr "W skrócie" | an empty or fuzzy msgstr |
-| T13 | help-doc test, if `test_help.py` pins the kind list text | — |
+| T13 | `tests/test_help.py` (or a sibling): the `{el:callout}` paragraph of the en and pl content-editors docs contains "Key facts" / "W skrócie" respectively, and is still matched by `_EL_PARA_RE` (a stray blank line splitting the paragraph turns this red) | revert the help-doc edit, or split the paragraph |
 
 **UI verification (DoD):** light and dark screenshots of a real converted fragment: three
 cards stacked; two cards inside a two-column element; a card with a figure and a wide
-display formula; a heading containing inline maths; a heading-only card with no body; an Example after the cards showing an
+display formula; a heading containing inline maths; a heading-only card with no body; a
+card whose body holds a typed H3 and an H4 sub-heading next to the card title, so the owner
+can judge the relative sizes; an Example after the cards showing an
 unshifted number. Check the top corners of the bar, where the 3px border meets the 1px
 sides on the radius, at zoom. Judge dark separately. Print preview in the dark theme shows
 the slate bar at the light value.
