@@ -32,9 +32,11 @@ def test_kind_default_numbered_values():
 
 
 def test_model_default_is_a_flat_true_regardless_of_kind():
-    """D2 is scoped to backfill and legacy import. An author-created Note is born
-    numbered; the author unticks. Mutant: add a per-kind form/model initial -> this
-    fails, which is the point (see spec section 1)."""
+    """The model default is a flat True for every kind. The per-kind map is read
+    only by backfill, legacy import, and CalloutElementForm.clean() when a card
+    leaves summary. A form INITIAL is still forbidden: an author-created Note is
+    born numbered; the author unticks. Mutant: add a per-kind form/model initial
+    -> this fails, which is the point (see spec section 1)."""
     assert CalloutElement(kind="note").numbered is True
     assert CalloutElement(kind="example").numbered is True
 

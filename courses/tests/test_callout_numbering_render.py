@@ -129,9 +129,10 @@ def test_the_editor_partial_renders_the_checkbox(client):
 def test_an_unnumbered_instance_renders_the_box_unchecked():
     """The absent half of test_the_editor_partial_renders_the_checkbox's present
     half. Asserting on BoundField.value() would be insensitive to the template:
-    Mutant: replace `{% if form.numbered.value %}checked{% endif %}` at
-    _edit_callout.html:11 with a bare `checked` -> form["numbered"].value() is
-    still False and this stays GREEN, destroying the R2 round trip (spec 8.13).
+    Mutant: replace `{% if form.numbered.value %}checked{% endif %}` in
+    _edit_callout.html's name="numbered" checkbox with a bare `checked` ->
+    form["numbered"].value() is still False and this stays GREEN, destroying the
+    R2 round trip (spec 8.13).
     Rendering the real partial is what catches it.
     """
     from django.template.loader import render_to_string

@@ -508,9 +508,11 @@ class CalloutElement(ElementBase):
     SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)
-    # A FLAT default, deliberately not per-kind: a field default cannot vary by kind,
-    # and the per-kind map (KIND_DEFAULT_NUMBERED, below the class) is consulted only
-    # by the backfill migration and by the importer's pre-v13 fallback. No `blank=True`
+    # A FLAT default, deliberately not per-kind: a field default cannot vary by kind.
+    # The per-kind map (KIND_DEFAULT_NUMBERED, below the class) is read by the
+    # backfill migration (as a frozen literal), by the importer's pre-v13 fallback,
+    # and by CalloutElementForm.clean() when a card is switched AWAY from summary --
+    # never as a form initial. save() forces False for summary. No `blank=True`
     # -- models.BooleanField.formfield hard-codes required=False, because an unchecked
     # checkbox transmits nothing.
     numbered = models.BooleanField(default=True)
@@ -614,11 +616,13 @@ class CalloutElement(ElementBase):
 KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
 
 # Per-kind numbering defaults. Built after the class body for the same reason as
-# KIND_DEFAULT_HEADING: it reads the enum. Exactly ONE runtime caller -- the
-# importer's default for pre-v13 archives (courses/transfer/payloads.py). The
-# backfill migration encodes the same decision as a frozen literal, never an import.
-# NOT read by CalloutElementForm: a new callout is always created as `example`,
-# whose default equals the flat model default, so a form initial would be
+# KIND_DEFAULT_HEADING: it reads the enum. Two runtime readers: the importer's
+# default for pre-v13 archives (courses/transfer/payloads.py), and
+# CalloutElementForm.clean(), which restores the NEW kind's default when a card
+# leaves summary (the summary form renders no checkbox, so that POST carries no
+# `numbered`). The backfill migration encodes the same decision as a frozen literal,
+# never an import. Still NOT a form initial: a new callout is always created as
+# `example`, whose default equals the flat model default, so an initial would be
 # unobservable and untestable.
 KIND_DEFAULT_NUMBERED = {
     CalloutElement.Kind.EXAMPLE.value: True,
