@@ -5,8 +5,8 @@ Not an assertion suite -- run it on its own:
     TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary \
         uv run pytest tests/capture_summary_callout_screenshots.py -m e2e
 
-Writes NEW file names under docs/superpowers/screenshots/ (override with SHOT_DIR)
-and never touches an existing screenshot. The few asserts are sanity checks that
+Writes summary-callout-*.png under docs/superpowers/screenshots/ (or SHOT_DIR); a
+re-run OVERWRITES those committed files. The few asserts are sanity checks that
 the page is the one being judged (KaTeX ran in the title; the Example after the
 cards reads 2, not 3+; print restates the light bar), not the feature's tests.
 """
