@@ -602,6 +602,7 @@ EOF
 - Test: `courses/tests/test_callout_render.py` (T5, Review Focus 2, escaping)
 - Test: `courses/tests/test_callout_numbering_render.py` (T6)
 - Test: `courses/tests/test_math_selectors.py` (T5b)
+- Modify: `tests/test_e2e_filltable_gate.py` (stale `calloutelement.html:24` line citation → durable anchor, Step 7)
 
 **Interfaces:**
 - Consumes: `CalloutElement.Kind.SUMMARY`, `display_heading` (Task 1).
@@ -1165,6 +1166,7 @@ EOF
 - Modify: `courses/tests/test_callout_numbering.py` (the stale docstring of `test_model_default_is_a_flat_true_regardless_of_kind`)
 - Test: `courses/tests/test_callout_authoring.py` (T7, T7b, Review Focus 1)
 - Test: `courses/tests/test_callout_form.py` (T7c)
+- Modify: `courses/tests/test_callout_numbering_render.py` (stale `_edit_callout.html:11` line citation in a docstring → durable anchor, Step 9)
 
 The stale comments are rewritten HERE rather than in Task 1, because this task adds the second runtime reader of the map that makes them stale. Rewriting them in Task 1 would describe behaviour that does not exist yet.
 
@@ -1595,7 +1597,7 @@ Remove each mutant by editing. Then run `git diff --stat` (only this task's six 
 
 - [ ] **Step 9: Fix the line citation the insert rots, then lint and commit**
 
-The new comment block shifts `_edit_callout.html`'s lines. The docstring of `courses/tests/test_callout_numbering_render.py::test_an_unnumbered_instance_renders_the_box_unchecked` cites `_edit_callout.html:11` (the numbered `<input>`). Replace it with the durable anchor `_edit_callout.html's name="numbered" checkbox`, and check with `grep -rn "_edit_callout.html:[0-9]" --include=*.py --include=*.html --include=*.css --include=*.js .` that no other numeric citation remains.
+The new comment block shifts `_edit_callout.html`'s lines. The docstring of `courses/tests/test_callout_numbering_render.py::test_an_unnumbered_instance_renders_the_box_unchecked` cites `_edit_callout.html:11` (the numbered `<input>`). Replace it with the durable anchor `_edit_callout.html's name="numbered" checkbox`, and check with `grep -rn "_edit_callout.html:[0-9]" --include=*.py --include=*.html --include=*.css --include=*.js .` that no other numeric citation remains. **Scope of the sweep:** only the two templates this branch inserts lines into. Numeric citations into `courses/models.py` and `courses/element_forms.py` (e.g. `element_forms.py:314`, `models.py:1007-1017`) were already stale before this branch. Converting them is pre-existing rot and outside this change, so leave them.
 
 ```
 uv run ruff check --no-cache .
