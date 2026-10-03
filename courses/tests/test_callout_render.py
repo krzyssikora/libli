@@ -79,3 +79,43 @@ def test_example_render_does_not_emit_pencil_icon():
     # `example` -- that mistake leaves the previous test green.
     html = CalloutElement(kind="example", body="").render()
     assert "m15 5 4 4" not in html
+
+
+def _summary_soup(**fields):
+    from bs4 import BeautifulSoup
+
+    # PERSISTED: save() must keep "summary" (the enum member exists), and the
+    # render reads the stored kind.
+    el = CalloutElement.objects.create(kind="summary", **fields)
+    html = el.render()
+    return html, BeautifulSoup(html, "html.parser")
+
+
+def test_summary_renders_an_h3_title_and_no_eyebrow():
+    """T5. Mutant: render summary through the generic branch -> a callout__header
+    with an icon and an eyebrow, and no h3."""
+    html, soup = _summary_soup(heading="Funkcja liniowa", body="<p>x</p>")
+    aside = soup.find("aside")
+    assert "callout--summary" in aside["class"]
+    first = aside.find(True, recursive=False)  # first ELEMENT child, not whitespace
+    assert first.name == "h3"
+    assert first["class"] == ["callout__title"]
+    assert first.get_text() == "Funkcja liniowa"
+    assert "callout__header" not in html
+    assert "callout__icon" not in html
+    assert "callout__heading" not in html
+
+
+def test_an_empty_heading_summary_titles_itself_key_facts():
+    """Review Focus 2 (D2 fallback, rendered). Mutant: `{{ el.heading }}` in the h3
+    -> an empty title."""
+    _html, soup = _summary_soup(heading="", body="<p>x</p>")
+    title = soup.find("h3", class_="callout__title")
+    assert title is not None
+    assert title.get_text() == "Key facts"
+
+
+def test_the_summary_title_escapes_the_heading():
+    """Mutant: `{{ el.display_heading|safe }}` -> raw markup in the h3."""
+    html, _soup = _summary_soup(heading="a < b & c", body="")
+    assert '<h3 class="callout__title">a &lt; b &amp; c</h3>' in html

@@ -22,6 +22,7 @@ from courses.marking import canonical_numeric_text
 from courses.marking import canonical_tolerance_text
 from courses.marking import parse_number
 from courses.marking import parse_numeric_value
+from courses.models import KIND_DEFAULT_NUMBERED
 from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import Choice
@@ -297,6 +298,35 @@ class CalloutElementForm(forms.ModelForm):
     class Meta:
         model = CalloutElement
         fields = ["kind", "numbered", "heading", "body"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Read ONCE, here. self.instance is the saved row, or (on the create path,
+        # where builder passes instance=None) a fresh CalloutElement() whose kind
+        # is the default "example". construct_instance has NOT run yet: it runs in
+        # full_clean(), and even on an INVALID post it copies the posted kind onto
+        # self.instance -- which element_save then re-renders on a 422. So both the
+        # editor partial's checkbox condition and clean()'s restore read THIS
+        # attribute, never self.instance.kind.
+        self.original_kind = self.instance.kind
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_kind = cleaned_data.get("kind")
+        # A summary card's form renders no "numbered" checkbox (D5), so a POST that
+        # moves a card AWAY from summary carries no key, and Django reads an absent
+        # checkbox as False: the card would silently land unnumbered. Restore the
+        # new kind's default instead. Fill only an ABSENT key (prefix-safe): a sent
+        # value, even "false", is the author's. No cleaned kind means the kind
+        # failed choice validation -- skip, and let the field error give the 422.
+        if (
+            new_kind is not None
+            and self.original_kind == CalloutElement.Kind.SUMMARY
+            and new_kind != CalloutElement.Kind.SUMMARY
+            and self.add_prefix("numbered") not in self.data
+        ):
+            cleaned_data["numbered"] = KIND_DEFAULT_NUMBERED[new_kind]
+        return cleaned_data
 
 
 class BeforeAfterElementForm(forms.ModelForm):

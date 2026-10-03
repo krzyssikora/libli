@@ -1,9 +1,23 @@
 {% load i18n courses_extras %}
 <aside class="callout callout--{{ el.kind }}">
+  {% comment %}
+  Summary ("W skrócie" / Key facts) is a flat card: a real h3 topic title and
+  nothing else in the header -- no icon chip, no number, no uppercase eyebrow
+  (D4/D5). The h3 REPLACES the callout__header wrapper rather than sitting in it,
+  so the wrapper's flex layout and margin-bottom never stack with the h3's own
+  margin. The level is FIXED at h3, deliberately not computed from nesting depth:
+  summary units' topics are h3 in their text bodies today, and the unit title is
+  the page's h1. Do not reuse callout__heading here -- that is the eyebrow class.
+  The generic branch below must stay tag-for-tag unchanged.
+  {% endcomment %}
+  {% if el.kind == "summary" %}
+  <h3 class="callout__title">{{ el.display_heading }}</h3>
+  {% else %}
   <div class="callout__header">
     {% include "courses/elements/_callout_icon.html" %}
     <span class="callout__heading">{% if number %}{{ el.kind_label }} <span class="callout__number">{{ number }}</span>{% if el.heading %}. {{ el.heading }}{% endif %}{% else %}{{ el.display_heading }}{% endif %}</span>
   </div>
+  {% endif %}
   {% if el.body %}
     <div class="el el--text callout__body">{{ el.body|sanitize }}</div>
   {% endif %}

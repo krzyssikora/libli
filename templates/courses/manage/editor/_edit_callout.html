@@ -7,10 +7,22 @@
       {% endfor %}
     </select>
   </label>
+  {% comment %}
+  Not rendered for a saved summary card (W skrócie / Key facts): summary is never
+  numbered (D5), save() forces False and the server ignores the box. The test is
+  form.original_kind -- the kind the row had when the form was built -- and never
+  form.instance.kind or form.kind.value: on a 422 re-render, construct_instance
+  has already copied the POSTed kind onto form.instance. No JS toggles this when
+  the select changes, deliberately: switching Example to W skrócie leaves the box
+  visible until the next save, which is harmless (save() forces False) and the
+  re-render hides it. Do not "fix" that with JS.
+  {% endcomment %}
+  {% if form.original_kind != "summary" %}
   <label class="el-editor__check">
     <input type="checkbox" name="numbered" {% if form.numbered.value %}checked{% endif %}>
     {% trans "Number this callout" %}
   </label>
+  {% endif %}
   <label>{% trans "Heading" %}
     <input type="text" name="heading" maxlength="120"
            value="{{ form.heading.value|default:'' }}"

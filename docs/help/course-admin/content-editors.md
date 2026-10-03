@@ -117,14 +117,21 @@ controls. **Description position** places each caption **Below image** or
 **Above image**.
 
 {el:callout} **Callout** — a framed, always-visible aside for a note that should stand out
-from the surrounding text. Choose a **Kind** (Example, Note, Tip, Important, or Task —
-each with its own accent colour and icon), an optional **Heading** (falls back
-to a default per kind when left blank), a **Number this callout** checkbox (on
+from the surrounding text. Choose a **Kind** (Example, Note, Tip, Important, Task, or
+Key facts — each with its own accent colour and icon, except Key facts, which shows its
+accent colour as a bar across the top and has no icon), an optional **Heading** (falls
+back to a default per kind when left blank), a **Number this callout** checkbox (on
 by default; callouts numbered this way share one running sequence per unit,
-and Notes and Tips in existing content start unnumbered), and rich-text body
+and Notes and Tips in existing content start unnumbered; Key facts is never
+numbered, so a saved Key facts callout has no checkbox), and rich-text body
 content. A callout is also a container: it can hold nested elements added
 below the body from its own **Add element** menu — see "Containers and
-nesting" below for what can go inside.
+nesting" below for what can go inside. Key facts is meant for summary units:
+add one card per topic, with the topic name as its **Heading** — a blank heading
+shows the generic "Key facts", and several of those make a run of identical
+headings. Two cards can sit side by side inside **Columns**. Inside a card, use
+H4 or bold text for sub-points rather than H2 or H3, which would look bigger than
+the card's title.
 
 {el:tabs} **Tabs** — a container that splits its content into labelled tabs a student
 switches between; add, remove, reorder, and label tabs from the editor's row

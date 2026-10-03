@@ -39,6 +39,7 @@ BORDER_GROUNDS = (
     "callout-tip",
     "callout-warning",
     "callout-task",
+    "callout-summary",
 )
 
 # Chosen strength: restrained. --border-default clears ~1.7:1 on a raised card, which

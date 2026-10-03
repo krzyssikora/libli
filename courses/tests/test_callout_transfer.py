@@ -218,7 +218,12 @@ def test_a_pre_v13_payload_imports_with_the_per_kind_default():
 
     Mutant: drop the setdefault -> _exact_keys raises TransferError.
     """
-    for kind, expected in (("example", True), ("note", False), ("tip", False)):
+    for kind, expected in (
+        ("example", True),
+        ("note", False),
+        ("tip", False),
+        ("summary", False),
+    ):
         data = {"kind": kind, "heading": "", "body": "<p>x</p>"}
         VALIDATORS["callout"](data, "e1", set())
         assert data["numbered"] is expected
@@ -276,3 +281,82 @@ def test_duplicating_an_unnumbered_callout_keeps_it_unnumbered():
         course, join.pk, unit.updated.isoformat()
     )
     assert new_join.content_object.numbered is False
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_round_trip_preserves_the_summary_kind_unnumbered():
+    """T8."""
+    el = CalloutElement.objects.create(
+        kind="summary", heading="Funkcja liniowa", body="<p>hi</p>"
+    )
+    _model, ser = SERIALIZERS["callout"]
+
+    class _Ids:
+        def register(self, *a, **k):  # unused by callout
+            return None
+
+    data = ser(el, _Ids())
+    assert data == {
+        "kind": "summary",
+        "heading": "Funkcja liniowa",
+        "body": "<p>hi</p>",
+        "numbered": False,
+    }
+    VALIDATORS["callout"](data, "e1", set())
+    rebuilt, _refs = BUILDERS["callout"](data, {})
+    rebuilt.refresh_from_db()
+    assert rebuilt.kind == "summary"
+    assert rebuilt.heading == "Funkcja liniowa"
+    assert "hi" in rebuilt.body
+    assert rebuilt.numbered is False
+
+
+@pytest.mark.django_db  # _clean_save writes to the DB
+def test_a_hand_edited_numbered_summary_imports_unnumbered():
+    """This build never exports numbered=True for a summary, but a hand-edited
+    archive can carry it; save() forces False (spec 3.6)."""
+    data = {"kind": "summary", "heading": "", "body": "<p>x</p>", "numbered": True}
+    VALIDATORS["callout"](data, "e1", set())
+    concrete, _media = BUILDERS["callout"](data, {})
+    concrete.refresh_from_db()
+    assert concrete.numbered is False
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_exporting_a_summary_card_keeps_format_version_16():
+    """T8 / D7: a new kind never changes an existing payload shape."""
+    from courses.transfer import export as _export
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    add_element(unit, CalloutElement.objects.create(kind="summary", body="<p>x</p>"))
+    manifest, document, _media, _problems = _export.build_export(course)
+    assert manifest["format_version"] == 16
+    callout = next(e for e in document["elements"] if e["type"] == "callout")
+    assert callout["data"]["kind"] == "summary"
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_duplicating_a_summary_card_keeps_it_an_unnumbered_summary():
+    """Review Focus 4. Duplicate/paste run build_element_export -> graft_elements,
+    which runs NO validator."""
+    from courses import builder
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = CalloutElement.objects.create(
+        kind="summary", heading="Procenty", body="<p>x</p>"
+    )
+    join = add_element(unit, el)
+    unit.refresh_from_db()
+
+    _unit, new_join = builder.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    copy = new_join.content_object
+    assert copy.pk != el.pk
+    assert copy.kind == "summary"
+    assert copy.heading == "Procenty"
+    assert copy.numbered is False

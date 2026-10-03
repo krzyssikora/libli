@@ -28,12 +28,15 @@ def test_kind_default_numbered_values():
     assert KIND_DEFAULT_NUMBERED["warning"] is True
     assert KIND_DEFAULT_NUMBERED["note"] is False
     assert KIND_DEFAULT_NUMBERED["tip"] is False
+    assert KIND_DEFAULT_NUMBERED["summary"] is False
 
 
 def test_model_default_is_a_flat_true_regardless_of_kind():
-    """D2 is scoped to backfill and legacy import. An author-created Note is born
-    numbered; the author unticks. Mutant: add a per-kind form/model initial -> this
-    fails, which is the point (see spec section 1)."""
+    """The model default is a flat True for every kind. The per-kind map is read
+    only by backfill, legacy import, and CalloutElementForm.clean() when a card
+    leaves summary. A form INITIAL is still forbidden: an author-created Note is
+    born numbered; the author unticks. Mutant: add a per-kind form/model initial
+    -> this fails, which is the point (see spec section 1)."""
     assert CalloutElement(kind="note").numbered is True
     assert CalloutElement(kind="example").numbered is True
 
@@ -350,3 +353,70 @@ def test_query_count_on_a_real_shaped_unit(django_assert_num_queries):
     _warm_content_type_cache()
     with django_assert_num_queries(EXPECTED_QUERIES):
         callout_numbers(unit)
+
+
+def _force_numbered(*joins):
+    """Write numbered=True BEHIND save()'s back (QuerySet.update), the way a raw
+    migration or a bulk update could. Asserts the bypass took, or the test using
+    it would pass vacuously on a build with no read-side guard."""
+    pks = [j.object_id for j in joins]
+    CalloutElement.objects.filter(pk__in=pks).update(numbered=True)
+    assert all(
+        CalloutElement.objects.filter(pk__in=pks).values_list("numbered", flat=True)
+    )
+
+
+def test_a_summary_card_never_consumes_a_number():
+    """T3 / D5, the read-side guard. Mutant: remove `kind != SUMMARY` from the
+    numbered branch in walk() -> {ex1: 1, summary: 2, ex2: 3}."""
+    _course, unit = make_course_with_unit()
+    ex1 = _callout(unit, "example", numbered=True, order=0)
+    summary = _callout(unit, "summary", numbered=False, order=1)
+    ex2 = _callout(unit, "example", numbered=True, order=2)
+    _force_numbered(summary)
+
+    numbers = callout_numbers(unit)
+    assert numbers == {ex1.pk: 1, ex2.pk: 2}
+    assert summary.pk not in numbers
+
+
+def test_a_numbered_example_nested_in_a_summary_card_keeps_its_number():
+    """T3b. Only the INCREMENT is skipped for a summary card; the container descent
+    must still run. Mutant: `continue` for a summary before the CONTAINER_MODELS
+    recursion -> the nested Example vanishes: {ex1: 1, ex3: 2}."""
+    _course, unit = make_course_with_unit()
+    ex1 = _callout(unit, "example", numbered=True, order=0)
+    summary = _callout(unit, "summary", numbered=False, order=1)
+    nested = _callout(
+        unit, "example", numbered=True, parent=summary, tab_id=SINGLE_SLOT_ID, order=0
+    )
+    ex3 = _callout(unit, "example", numbered=True, order=2)
+    _force_numbered(summary)
+
+    numbers = callout_numbers(unit)
+    assert numbers == {ex1.pk: 1, nested.pk: 2, ex3.pk: 3}
+    assert summary.pk not in numbers
+
+
+def test_summary_cards_inside_columns_leave_the_next_example_at_one():
+    """Review Focus 3. D3's only side-by-side path is a TwoColumnElement, which the
+    walk descends through a DIFFERENT accessor (resolved_columns) than the
+    top-level case above. Mutant: remove `kind != SUMMARY` -> {left: 1, right: 2,
+    ex: 3}."""
+    from courses.models import TwoColumnElement
+
+    _course, unit = make_course_with_unit()
+    cols = TwoColumnElement.objects.create(
+        data={"columns": [{"id": "c000001"}, {"id": "c000002"}]}
+    )
+    cols_join = Element.objects.create(unit=unit, content_object=cols, order=0)
+    left = _callout(
+        unit, "summary", numbered=False, parent=cols_join, tab_id="c000001", order=0
+    )
+    right = _callout(
+        unit, "summary", numbered=False, parent=cols_join, tab_id="c000002", order=0
+    )
+    ex = _callout(unit, "example", numbered=True, order=1)
+    _force_numbered(left, right)
+
+    assert callout_numbers(unit) == {ex.pk: 1}

@@ -488,10 +488,10 @@ class SpoilerElement(ElementBase):
 
 
 class CalloutElement(ElementBase):
-    """A framed, always-visible callout/aside (Example/Note/Tip/Important/Task) holding
-    rich text + math. Zero JS, no server endpoint. Mirrors SpoilerElement minus the
-    toggle, plus a `kind` and an optional heading. See the callout-element design
-    doc."""
+    """A framed, always-visible callout/aside (Example/Note/Tip/Important/Task/Key
+    facts) holding rich text + math. Zero JS, no server endpoint. Mirrors
+    SpoilerElement minus the toggle, plus a `kind` and an optional heading. See the
+    callout-element design doc."""
 
     class Kind(models.TextChoices):
         EXAMPLE = "example", _("Example")
@@ -501,13 +501,18 @@ class CalloutElement(ElementBase):
         # archives); only the author-facing label reads "Important".
         WARNING = "warning", _("Important")
         TASK = "task", _("Task")
+        # "W skrócie" in Polish. A flat card for summary units: never numbered
+        # (save() below and numbering.walk() both enforce it), no icon, no eyebrow.
+        SUMMARY = "summary", _("Key facts")
 
     SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)
-    # A FLAT default, deliberately not per-kind: a field default cannot vary by kind,
-    # and the per-kind map (KIND_DEFAULT_NUMBERED, below the class) is consulted only
-    # by the backfill migration and by the importer's pre-v13 fallback. No `blank=True`
+    # A FLAT default, deliberately not per-kind: a field default cannot vary by kind.
+    # The per-kind map (KIND_DEFAULT_NUMBERED, below the class) is read by the
+    # backfill migration (as a frozen literal), by the importer's pre-v13 fallback,
+    # and by CalloutElementForm.clean() when a card is switched AWAY from summary --
+    # never as a form initial. save() forces False for summary. No `blank=True`
     # -- models.BooleanField.formfield hard-codes required=False, because an unchecked
     # checkbox transmits nothing.
     numbered = models.BooleanField(default=True)
@@ -518,6 +523,21 @@ class CalloutElement(ElementBase):
     def save(self, *args, **kwargs):
         if self.kind not in self.Kind.values:
             self.kind = self.Kind.EXAMPLE
+        if self.kind == self.Kind.SUMMARY:
+            # D5: a summary card is never numbered, whoever writes it (editor form,
+            # transfer importer, seeders, shell). A save(update_fields=["kind"])
+            # that switches a row to summary must persist the False too, so
+            # "numbered" joins a NON-EMPTY update_fields. Materialise once into a NEW
+            # collection: the caller's object may be a generator (one pass only) or
+            # its own list (never mutate it). An empty iterable stays Django's
+            # deliberate no-op.
+            self.numbered = False
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                update_fields = frozenset(update_fields)
+                if update_fields and "numbered" not in update_fields:
+                    update_fields = update_fields | {"numbered"}
+                kwargs["update_fields"] = update_fields
         self.body = normalize_body(self.body)
         super().save(*args, **kwargs)
 
@@ -596,11 +616,13 @@ class CalloutElement(ElementBase):
 KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
 
 # Per-kind numbering defaults. Built after the class body for the same reason as
-# KIND_DEFAULT_HEADING: it reads the enum. Exactly ONE runtime caller -- the
-# importer's default for pre-v13 archives (courses/transfer/payloads.py). The
-# backfill migration encodes the same decision as a frozen literal, never an import.
-# NOT read by CalloutElementForm: a new callout is always created as `example`,
-# whose default equals the flat model default, so a form initial would be
+# KIND_DEFAULT_HEADING: it reads the enum. Two runtime readers: the importer's
+# default for pre-v13 archives (courses/transfer/payloads.py), and
+# CalloutElementForm.clean(), which restores the NEW kind's default when a card
+# leaves summary (the summary form renders no checkbox, so that POST carries no
+# `numbered`). The backfill migration encodes the same decision as a frozen literal,
+# never an import. Still NOT a form initial: a new callout is always created as
+# `example`, whose default equals the flat model default, so an initial would be
 # unobservable and untestable.
 KIND_DEFAULT_NUMBERED = {
     CalloutElement.Kind.EXAMPLE.value: True,
@@ -608,6 +630,7 @@ KIND_DEFAULT_NUMBERED = {
     CalloutElement.Kind.WARNING.value: True,
     CalloutElement.Kind.NOTE.value: False,
     CalloutElement.Kind.TIP.value: False,
+    CalloutElement.Kind.SUMMARY.value: False,
 }
 
 

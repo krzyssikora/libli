@@ -4,6 +4,10 @@ ONE public function. It is deliberately self-contained -- it re-queries its own
 roots rather than accepting a caller's element list -- so its query count is a
 property of this module and not of each of its four call sites.
 
+Summary ("W skrócie") cards never take a number. CalloutElement.save() already
+forces numbered=False for them, but walk() skips them too, because a row written
+by QuerySet.update() or a raw migration bypasses save().
+
 See docs/superpowers/specs/2026-08-18-callout-numbering-design.md section 3.
 """
 
@@ -86,7 +90,15 @@ def callout_numbers(node):
             obj = row.content_object
             if obj is None:
                 continue  # dangling GFK: skipped, not counted, not an error
-            if isinstance(obj, CalloutElement) and obj.numbered:
+            # D5: never number a summary card, even one whose row bypassed save().
+            # ONLY the increment is skipped -- the CONTAINER_MODELS descent below is
+            # a separate `if` and still runs, so a numbered Example nested in a card
+            # keeps its number. Never write this as an early `continue`.
+            if (
+                isinstance(obj, CalloutElement)
+                and obj.numbered
+                and obj.kind != CalloutElement.Kind.SUMMARY
+            ):
                 counter += 1
                 numbers[row.pk] = counter  # PRE-ORDER: before descending
             if type(obj) in builder.CONTAINER_MODELS:
