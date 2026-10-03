@@ -1592,6 +1592,8 @@ Expected: all passed.
 | T7b: change the template condition to `{% if form.instance.kind != "summary" %}` | `...::test_a_422_after_asking_for_summary_still_shows_the_checkbox` | `name="numbered"` not in the 422 body |
 | T7c (lazy): delete `self.original_kind = self.instance.kind` from `__init__` and add to the class `@property` / `def original_kind(self): return self.instance.kind` | `test_callout_form.py::test_original_kind_is_read_before_validation_mutates_the_instance` | `'example' == 'summary'` |
 | RF1: in `courses/models.py`, delete `self.numbered = False` from `save()` | `...::test_switching_a_ticked_example_to_summary_unnumbers_it_and_hides_the_box` | `True is False` |
+| guard: in `clean()`, delete the line `new_kind is not None` (and its trailing `and`) | `test_callout_form.py::test_an_invalid_kind_skips_the_restore_and_reports_the_field` | `KeyError: None` (the field error becomes a crash) |
+| option label: in the existing `_edit_callout.html` kind `<option>`, render `{{ value }}` instead of `{{ label }}` | `...::test_edit_form_offers_the_summary_kind` | `<option value="summary">Key facts</option>` not found |
 
 Remove each mutant by editing. Then run `git diff --stat` (only this task's six files) and re-run Step 7: expected all passed.
 
