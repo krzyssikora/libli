@@ -2198,7 +2198,7 @@ EOF
 )"
 ```
 
-`git status` must show ONLY new `summary-callout-*.png` files. If any other screenshot shows as modified, the script overwrote a tracked file. Restore that file's content BY EDITING the script's output names, not with `git checkout`, and investigate.
+`git status` must show ONLY new `summary-callout-*.png` files. If any other screenshot shows as modified, the script overwrote a tracked file. Restore that one binary with `git checkout -- <that .png path>`. That is safe because a PNG never holds uncommitted work of ours; the no-`git checkout` rule protects text files carrying edits. Then fix the script's output name and investigate.
 
 - [ ] **Step 5: The spec's run scope, then the branch gate**
 
