@@ -488,10 +488,10 @@ class SpoilerElement(ElementBase):
 
 
 class CalloutElement(ElementBase):
-    """A framed, always-visible callout/aside (Example/Note/Tip/Important/Task) holding
-    rich text + math. Zero JS, no server endpoint. Mirrors SpoilerElement minus the
-    toggle, plus a `kind` and an optional heading. See the callout-element design
-    doc."""
+    """A framed, always-visible callout/aside (Example/Note/Tip/Important/Task/Key
+    facts) holding rich text + math. Zero JS, no server endpoint. Mirrors
+    SpoilerElement minus the toggle, plus a `kind` and an optional heading. See the
+    callout-element design doc."""
 
     class Kind(models.TextChoices):
         EXAMPLE = "example", _("Example")
@@ -501,6 +501,9 @@ class CalloutElement(ElementBase):
         # archives); only the author-facing label reads "Important".
         WARNING = "warning", _("Important")
         TASK = "task", _("Task")
+        # "W skrócie" in Polish. A flat card for summary units: never numbered
+        # (save() below and numbering.walk() both enforce it), no icon, no eyebrow.
+        SUMMARY = "summary", _("Key facts")
 
     SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
@@ -518,6 +521,21 @@ class CalloutElement(ElementBase):
     def save(self, *args, **kwargs):
         if self.kind not in self.Kind.values:
             self.kind = self.Kind.EXAMPLE
+        if self.kind == self.Kind.SUMMARY:
+            # D5: a summary card is never numbered, whoever writes it (editor form,
+            # transfer importer, seeders, shell). A save(update_fields=["kind"])
+            # that switches a row to summary must persist the False too, so
+            # "numbered" joins a NON-EMPTY update_fields. Materialise once into a NEW
+            # collection: the caller's object may be a generator (one pass only) or
+            # its own list (never mutate it). An empty iterable stays Django's
+            # deliberate no-op.
+            self.numbered = False
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                update_fields = frozenset(update_fields)
+                if update_fields and "numbered" not in update_fields:
+                    update_fields = update_fields | {"numbered"}
+                kwargs["update_fields"] = update_fields
         self.body = normalize_body(self.body)
         super().save(*args, **kwargs)
 
@@ -608,6 +626,7 @@ KIND_DEFAULT_NUMBERED = {
     CalloutElement.Kind.WARNING.value: True,
     CalloutElement.Kind.NOTE.value: False,
     CalloutElement.Kind.TIP.value: False,
+    CalloutElement.Kind.SUMMARY.value: False,
 }
 
 

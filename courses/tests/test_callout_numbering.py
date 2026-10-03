@@ -28,6 +28,7 @@ def test_kind_default_numbered_values():
     assert KIND_DEFAULT_NUMBERED["warning"] is True
     assert KIND_DEFAULT_NUMBERED["note"] is False
     assert KIND_DEFAULT_NUMBERED["tip"] is False
+    assert KIND_DEFAULT_NUMBERED["summary"] is False
 
 
 def test_model_default_is_a_flat_true_regardless_of_kind():

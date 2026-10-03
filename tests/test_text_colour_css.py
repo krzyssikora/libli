@@ -1,5 +1,5 @@
 """The palette must clear WCAG AA body text (4.5:1) on EVERY surface rich text can
-appear on — which is eleven surfaces, not two. An earlier draft of this feature measured
+appear on — which is twelve surfaces, not two. An earlier draft of this feature measured
 only --surface-raised/--surface-base and shipped a light palette that scored 3.79:1 on
 --danger-subtle, where QuestionElement.explanation renders. This test is that lesson.
 """
@@ -20,6 +20,8 @@ SLOTS = ("red", "blue", "green", "orange")
 # from tokens.css and recomputes the five callout grounds from courses.css. So
 # changing --surface-base, a .callout--* accent, or the 6% mix reddens the suite
 # instead of silently leaving the AA guard measuring values that no longer exist.
+# The summary card ("W skrócie") is the exception: it is UNTINTED, so its ground is
+# --surface-raised itself and is pinned by equality, not recomputed as a mix.
 # Callout grounds are
 # color-mix(in srgb, <accent> 6%, --surface-raised) with per-channel round() in sRGB.
 LIGHT_SURFACES = {
@@ -34,6 +36,7 @@ LIGHT_SURFACES = {
     "callout-tip": "#F2F8F5",
     "callout-warning": "#FAF6F1",
     "callout-task": "#FAF3F8",
+    "callout-summary": "#FFFFFF",  # untinted (D4): equals --surface-raised
 }
 DARK_SURFACES = {
     "--surface-raised": "#2C2925",
@@ -47,6 +50,7 @@ DARK_SURFACES = {
     "callout-tip": "#2F332C",
     "callout-warning": "#373229",
     "callout-task": "#383030",
+    "callout-summary": "#2C2925",  # untinted (D4): equals --surface-raised
 }
 
 
@@ -136,6 +140,14 @@ def test_surface_literals_still_match_the_css():
             assert computed.upper() == surfaces[f"callout-{kind}"].upper(), (
                 f"callout-{kind}{' dark' if theme else ''} ground is now {computed}"
             )
+    # The summary card is untinted (D4). Its ground IS --surface-raised, so it can
+    # never be recomputed as a 6% mix by the loop above. Pin it by equality instead,
+    # or a later --surface-raised change would leave a stale summary ground
+    # measuring green.
+    for label, surfaces in (("LIGHT", LIGHT_SURFACES), ("DARK", DARK_SURFACES)):
+        assert surfaces["callout-summary"] == surfaces["--surface-raised"], (
+            f"{label} callout-summary must equal --surface-raised; update both"
+        )
 
 
 def test_every_slot_clears_aa_on_every_surface():
