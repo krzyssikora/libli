@@ -611,3 +611,32 @@ def test_doc_page_css_uses_real_tokens_and_styles_elref():
     # phantom tokens corrected to real ones
     assert "--surface-2" not in css
     assert "--text-muted" not in css
+
+
+@pytest.mark.parametrize(
+    "rel, needles",
+    [
+        (
+            "help/course-admin/content-editors.md",
+            ("Task, or Key facts", "never numbered", "Columns", "H4"),
+        ),
+        (
+            "help/course-admin/content-editors.pl.md",
+            ("Zadanie lub W skrócie", "nigdy nie jest numerowana", "Kolumny", "H4"),
+        ),
+    ],
+)
+def test_the_callout_entry_documents_the_summary_kind(rel, needles):
+    """T13. Checked INSIDE the {el:callout} paragraph as _EL_PARA_RE matches it, on
+    the same markdown render core.help uses (before its icon pass rewrites the
+    paragraph). The last needles come from the paragraph's LAST sentences, so a
+    stray blank line that splits the paragraph turns this red."""
+    import markdown
+
+    text = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+    html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+    paras = {m.group(1): m.group(2) for m in core_help._EL_PARA_RE.finditer(html)}
+    assert "callout" in paras, f"{rel}: no {{el:callout}} paragraph"
+    body = " ".join(paras["callout"].split())
+    for needle in needles:
+        assert needle in body, f"{rel}: callout paragraph lacks {needle!r}"
