@@ -374,7 +374,7 @@ Expected: all passed.
 These restore to the graph head with a bare `migrate courses`. Confirm that 0068 does not break them:
 
 ```
-TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest courses/tests/test_callout_numbered_migration.py courses/tests/test_blank_answer_unescape_migration.py courses/tests/test_caption_migration.py courses/tests/test_shortnumeric_migration.py courses/tests/test_callout_form.py courses/tests/test_callout_render.py
+TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest courses/tests/test_callout_numbered_migration.py courses/tests/test_blank_answer_unescape_migration.py courses/tests/test_caption_migration.py courses/tests/test_shortnumeric_migration.py courses/tests/test_blank_question_stem.py courses/tests/test_publish_migration.py tests/test_geogebra_migration.py tests/test_subject_migrations.py courses/tests/test_callout_form.py courses/tests/test_callout_render.py
 ```
 
 Expected: all passed.
@@ -752,7 +752,7 @@ Expected failures:
 
 - [ ] **Step 4: Implement the template branch**
 
-In `templates/courses/elements/calloutelement.html`, replace the header block, i.e. the three lines from `<div class="callout__header">` through its `</div>`:
+In `templates/courses/elements/calloutelement.html`, replace the five lines from the `<aside class="callout callout--{{ el.kind }}">` opener through the header's closing `</div>` (the opener, `<div class="callout__header">`, the include, the span, `</div>`) with the block below. The block repeats the `<aside>` opener, so the result has exactly one `<aside>`:
 
 ```django
 <aside class="callout callout--{{ el.kind }}">
@@ -2103,7 +2103,12 @@ def _seed(course, unit):
     _card(unit, "Nagłówki w karcie", HEADINGS_BODY, order=nxt())
     after = CalloutElement.objects.create(kind="example", numbered=True, body="<p>B</p>")
     Element.objects.create(unit=unit, content_object=after, order=nxt())
-    add_element(unit, TextElement.objects.create(body="<p>Koniec podsumowania.</p>"))
+    # add_element would use order=0 and sort this FIRST; it must render last.
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>Koniec podsumowania.</p>"),
+        order=nxt(),
+    )
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
@@ -2215,13 +2220,14 @@ Then run the existing callout e2e suites, because the template and form changed:
 TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/test_e2e_callout_container.py tests/test_e2e_callout_numbering.py tests/test_e2e_callout_body_row.py tests/test_e2e_print_foundations.py -m e2e -n 2
 ```
 
-Branch gate: the whole repo in four chunks, one at a time, never two concurrently. Read each summary line:
+Branch gate: the whole repo in five chunks, covering every test directory (`courses/tests`, `integrations/tests`, `notifications/tests`, top-level `tests/test_*.py`, `tests/demo`, `tests/lal_import`), one at a time, never two concurrently. Read each summary line:
 
 ```
 TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest courses/tests integrations/tests notifications/tests -n 4
 TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/test_[a-f]*.py -n 4
 TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/test_[g-p]*.py -n 4
 TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/test_[q-z]*.py -n 4
+TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/demo tests/lal_import -n 4
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
