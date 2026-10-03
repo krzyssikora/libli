@@ -1131,6 +1131,11 @@ Remove each mutant by editing. Then run `git diff --stat` (only `courses.css` an
 
 - [ ] **Step 6: Lint and commit**
 
+Before committing: Task 1's surface-list additions shifted `tests/test_text_colour_css.py`, so the
+citation in `tests/test_print_tokens_css.py` ("tests/test_text_colour_css.py:68's first-match _block()
+helper") is stale. Replace it with the durable anchor `tests/test_text_colour_css.py's first-match
+_block() helper`. That file is already in this task's `git add`.
+
 ```
 uv run ruff check --no-cache .
 uv run ruff format --check .
@@ -1450,7 +1455,7 @@ Expected failures:
 - `test_leaving_summary_restores_the_new_kinds_numbered_default`: `False is True`.
 - The `original_kind` tests: `AttributeError: 'CalloutElementForm' object has no attribute 'original_kind'`.
 
-Others pass already: the option and round trip (Task 1), the note, sent-false, unticked-example and 422 tests, and the new-callout test. They guard against the wrong implementation and are falsified in Step 7.
+Others pass already: the option and round trip (Task 1), the note, sent-false, unticked-example and 422 tests, the new-callout test, `test_the_example_edit_form_keeps_the_numbered_checkbox`, and in `test_callout_form.py` `test_a_sent_false_is_never_overridden`, `test_the_key_presence_check_is_prefix_safe` and `test_an_invalid_kind_skips_the_restore_and_reports_the_field`. They guard against the wrong implementation and are falsified in Step 8.
 
 - [ ] **Step 4: Implement the form**
 
@@ -2017,7 +2022,6 @@ from courses.models import Element
 from courses.models import ImageElement
 from courses.models import TextElement
 from courses.models import TwoColumnElement
-from tests.factories import add_element
 from tests.factories import make_image_asset
 from tests.test_e2e_tabs import _lesson_url
 from tests.test_e2e_tabs import _login
