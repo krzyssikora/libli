@@ -52,6 +52,7 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GuessNumberElement
+from courses.models import ImageElement
 from courses.models import MarkDoneElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
@@ -202,6 +203,8 @@ def _element_has_math(obj):
         return True
     if isinstance(obj, TextElement):
         return has_math_delimiters(obj.body)
+    if isinstance(obj, ImageElement):
+        return has_math_delimiters(obj.figcaption)
     if isinstance(obj, QuestionElement):
         return _question_has_math(obj)
     if isinstance(obj, FillGateElement):
