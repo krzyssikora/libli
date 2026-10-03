@@ -815,12 +815,14 @@ Expected: all passed, T6 included.
 
 Remove each mutant by editing. Then run `git diff --stat` (only the three source files and three test files of this task) and re-run Step 5: expected all passed.
 
-- [ ] **Step 7: Lint and commit**
+- [ ] **Step 7: Fix the line citation the insert rots, then lint and commit**
+
+The new comment block shifts `calloutelement.html`'s lines. `tests/test_e2e_filltable_gate.py` cites `calloutelement.html:24` (the `.callout__child` wrapper). Replace `calloutelement.html:24` there with the durable anchor `calloutelement.html's .callout__child wrapper`, and check with `grep -rn "calloutelement.html:[0-9]" --include=*.py --include=*.html --include=*.css --include=*.js .` that no other numeric citation into this file remains (fix any it finds the same way).
 
 ```
 uv run ruff check --no-cache .
 uv run ruff format --check .
-git add templates/courses/elements/calloutelement.html templates/courses/elements/_callout_icon.html courses/static/courses/js/math.js courses/tests/test_callout_render.py courses/tests/test_callout_numbering_render.py courses/tests/test_math_selectors.py
+git add templates/courses/elements/calloutelement.html templates/courses/elements/_callout_icon.html courses/static/courses/js/math.js courses/tests/test_callout_render.py courses/tests/test_callout_numbering_render.py courses/tests/test_math_selectors.py tests/test_e2e_filltable_gate.py
 git commit -m "$(cat <<'EOF'
 feat(callout): render the summary card with an h3 title, no eyebrow
 
@@ -1022,7 +1024,8 @@ TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest t
 
 Expected failures:
 - `test_courses_css_defines_callout_element`: `missing callout class: .callout--summary`.
-- The accent, flat-card, title and last-child tests: `no summary accent…` or `no block matching…`.
+- The accent, title and last-child tests: `no summary accent…` or `no block matching…`.
+- The flat-card test: `expected light, dark and surface blocks: []` (`_summary_blocks()` returns an empty list before the CSS lands).
 - T9b: `no summary accent…`.
 - T9c: `no .callout__title .katex rule`.
 - `test_print_restates_every_dark_callout_accent_with_the_light_value`: `.callout--summary has a dark accent but no print override`.
@@ -1585,12 +1588,14 @@ Expected: all passed.
 
 Remove each mutant by editing. Then run `git diff --stat` (only this task's six files) and re-run Step 7: expected all passed.
 
-- [ ] **Step 9: Lint and commit**
+- [ ] **Step 9: Fix the line citation the insert rots, then lint and commit**
+
+The new comment block shifts `_edit_callout.html`'s lines. The docstring of `courses/tests/test_callout_numbering_render.py::test_an_unnumbered_instance_renders_the_box_unchecked` cites `_edit_callout.html:11` (the numbered `<input>`). Replace it with the durable anchor `_edit_callout.html's name="numbered" checkbox`, and check with `grep -rn "_edit_callout.html:[0-9]" --include=*.py --include=*.html --include=*.css --include=*.js .` that no other numeric citation remains.
 
 ```
 uv run ruff check --no-cache .
 uv run ruff format --check .
-git add courses/element_forms.py templates/courses/manage/editor/_edit_callout.html courses/models.py courses/tests/test_callout_authoring.py courses/tests/test_callout_form.py courses/tests/test_callout_numbering.py
+git add courses/element_forms.py templates/courses/manage/editor/_edit_callout.html courses/models.py courses/tests/test_callout_authoring.py courses/tests/test_callout_form.py courses/tests/test_callout_numbering.py courses/tests/test_callout_numbering_render.py
 git commit -m "$(cat <<'EOF'
 feat(callout): hide the numbered box for summary; restore it on leaving
 
@@ -2217,8 +2222,10 @@ TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest c
 Then run the existing callout e2e suites, because the template and form changed:
 
 ```
-TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/test_e2e_callout_container.py tests/test_e2e_callout_numbering.py tests/test_e2e_callout_body_row.py tests/test_e2e_print_foundations.py -m e2e -n 2
+TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_summary uv run pytest tests/test_e2e_callout_container.py tests/test_e2e_callout_numbering.py tests/test_e2e_callout_body_row.py tests/test_e2e_print_foundations.py tests/test_e2e_title_math.py tests/test_e2e_math_reflow.py -m e2e -n 2
 ```
+
+`test_e2e_title_math.py` and `test_e2e_math_reflow.py` exercise the `renderInlineText` path Task 3 edits. The chunks below deselect every e2e file (`addopts` carries `-m 'not e2e'`), so e2e coverage in this gate is exactly the files named here.
 
 Branch gate: the whole repo in five chunks, covering every test directory (`courses/tests`, `integrations/tests`, `notifications/tests`, top-level `tests/test_*.py`, `tests/demo`, `tests/lal_import`), one at a time, never two concurrently. Read each summary line:
 
