@@ -8,7 +8,7 @@ drifts, so this test pins it.
 The two [data-theme="dark"] blocks are located STRUCTURALLY, never by line
 number: the file is partitioned at "@media print", so the screen block and the
 print block are in disjoint strings and cannot resolve to the same text. That is
-the failure mode tests/test_text_colour_css.py:68's first-match _block() helper
+the failure mode tests/test_text_colour_css.py's first-match _block() helper
 would have here.
 """
 
@@ -122,7 +122,7 @@ COURSES_CSS = (
     Path(__file__).resolve().parent.parent / "courses/static/courses/css/courses.css"
 ).read_text(encoding="utf-8")
 
-CALLOUT_KINDS = ("example", "note", "tip", "warning", "task")
+CALLOUT_KINDS = ("example", "note", "tip", "warning", "task", "summary")
 
 
 def _callout_accents(source):

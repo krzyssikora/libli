@@ -54,3 +54,12 @@ def test_callout_heading_katex_resets_the_eyebrow_treatment():
     block = css.split(".callout__heading .katex")[1].split("}")[0]
     assert "text-transform" in block
     assert "letter-spacing" in block
+
+
+def test_callout_title_katex_matches_the_title_size():
+    """KaTeX's own sheet sets 1.21em, which would make inline maths visibly larger
+    than the 1.05rem title. Mutant: delete the rule, or drop font-size: 1em."""
+    css = re.sub(r"/\*.*?\*/", "", _courses_css(), flags=re.S)
+    assert ".callout__title .katex" in css, "no .callout__title .katex rule"
+    block = css.split(".callout__title .katex")[1].split("}")[0]
+    assert "font-size: 1em" in block
