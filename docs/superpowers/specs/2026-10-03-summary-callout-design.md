@@ -40,8 +40,10 @@ Converting the 34 units is the owner's authoring work and is **out of scope**.
   `kind` is `CharField(max_length=12)`, so the value fits.
 - The class docstring's kind list "(Example/Note/Tip/Important/Task)" gains "Key facts".
 - `save()`: after the existing unknown-kind coercion, `if self.kind == self.Kind.SUMMARY:
-  self.numbered = False` (D5). If `update_fields` was passed and lacks `"numbered"`, add
-  it, so a `save(update_fields=["kind"])` that switches a row to summary still persists
+  self.numbered = False` (D5). If `update_fields` was passed (not `None`), is non-empty,
+  and lacks `"numbered"`, build a **new** collection, `kwargs["update_fields"] =
+  {*update_fields, "numbered"}`. Never mutate the caller's object, which could be a tuple
+  or a generator, and leave an empty iterable as the deliberate no-op it is. This way a `save(update_fields=["kind"])` that switches a row to summary still persists
   False. This is the write-side guard. Every ORM `save()` caller goes through it: the editor form, the transfer importer, the seeders and the shell.
   `CalloutElement` is not registered in the admin.
 - `KIND_DEFAULT_NUMBERED` gains `CalloutElement.Kind.SUMMARY.value: False`.
@@ -216,7 +218,11 @@ gains the `__init__` and `clean()` overrides described below.
   `KIND_DEFAULT_NUMBERED`. Three comments in `courses/models.py` go stale and must be
   updated: the map's "NOT read by CalloutElementForm"; its "Exactly ONE runtime caller";
   and the `numbered` field comment, which says the map "is consulted only by the backfill
-  migration and by the importer's pre-v13 fallback".
+  migration and by the importer's pre-v13 fallback". A fourth stale text is the docstring
+  of `courses/tests/test_callout_numbering.py::test_model_default_is_a_flat_true_regardless_of_kind`
+  ("D2 is scoped to backfill and legacy import"). Reword it: the form reads the map only
+  in `clean()`, when the kind leaves summary, and a form *initial* is still forbidden, so
+  its mutant stays valid.
 - The "Leave blank to use the default for this kind" placeholder still holds.
 
 ### 3.6 Transfer — `courses/transfer/`
@@ -293,7 +299,7 @@ Each test must be seen **RED against the named mutant** before being trusted (ho
 | T4 | `test_callout_numbering`: key-set test passes and `KIND_DEFAULT_NUMBERED["summary"] is False` | set it True |
 | T5 | `test_callout_render`: summary renders `callout--summary` with an `<h3 class="callout__title">` holding the heading text as the aside's first **element** child (e.g. `aside.find(True, recursive=False)`; whitespace text nodes precede it); **no** `callout__header`, **no** `callout__icon` and **no** `callout__heading` | render the summary through the generic branch |
 | T5b | `courses/tests/test_math_selectors.py::test_every_typeset_region_is_in_the_selector_list`: add `.callout__title` to its region tuple. This is the deterministic catcher. An e2e check of KaTeX inside `h3.callout__title` is optional extra proof for the UI pass | drop `.callout__title` from the math.js selector list |
-| T6 | in `courses/tests/test_callout_numbering_render.py`, using its `_rendered(el, join, numbers)` helper, because a bare unsaved `.render()` emits no number: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title` | an edit that leaks the summary branch into others or alters the generic header |
+| T6 | in `courses/tests/test_callout_numbering_render.py`, using its `_rendered(el, join, numbers)` helper, because a bare unsaved `.render()` emits no number: for a numbered Example with a heading, whitespace-normalised output contains the exact header string: icon markup + `<span class="callout__heading">Example <span class="callout__number">1</span>. Heading</span>`; and no `callout__title`. Also parametrise a looser check over all five other kinds, including an unnumbered Note: each has `callout__header` and `callout__heading` and no `callout__title`. Keep the exact-string assertion on the Example only | an edit that leaks the summary branch into others or alters the generic header |
 | T7 | `test_callout_authoring` (all T7/T7b POSTs reuse that module's existing POST helper, or send the full `element_save` shape: `type`, `unit_token`, `el_title` and the fields; a missing `el_title` blanks the title): the picker contains `<option value="summary">Key facts</option>`; POST kind=summary round-trips; the rendered form for a summary has no `name="numbered"` input, and for an example it does | remove the `{% if %}` around the checkbox |
 | T7b | `test_callout_authoring`: POST that switches a saved summary to `example` with no `numbered` key → saved `numbered=True`; to `note` → False; a crafted POST switching a saved summary to `example` with the key present as `numbered=false` saves False, so a sent value is not overridden (Django's `CheckboxInput` reads `"false"` as False); editing an existing Example whose unticked box sends no `numbered` → stays False (the restore applies only when leaving summary); the rendered form for a saved example whose POST asked for summary and got a 422 still shows the checkbox. Force that 422 with `kind=summary` plus a 121-character heading (`max_length=120`): kind must stay valid for the mutant to be exercised. Assert status 422 and that `name="numbered"` is in the response; creating a new callout through the form (no instance) still works and its form renders the checkbox | remove the `clean()` restore, apply it unconditionally, drop the `not in self.data` check, or key the checkbox on `form.instance.kind` |
 | T7c | `courses/tests/test_callout_form.py` (existing; tests `CalloutElementForm` directly): `CalloutElementForm(data=…, instance=summary)` switching to `example` with no `numbered` key → `cleaned_data["numbered"] is True`; with the key present as `false` → False; invalid data `instance=summary`, `kind="example"` (valid) plus a 121-character heading → after `is_valid()` is False, assert `form.original_kind == "summary"` **and** `form.instance.kind == "example"`, which proves the two diverged. With an unchanged kind the lazy mutant could never go red. T7/T7b keep the POST-level checks for the template `{% if %}` and the 422 re-render | remove the restore; drop the key-presence check; set `original_kind` lazily from `self.instance` after validation |
