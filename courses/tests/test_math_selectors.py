@@ -20,5 +20,10 @@ def _render_inline_text_selectors():
 
 def test_every_typeset_region_is_in_the_selector_list():
     sel = _render_inline_text_selectors()
-    for region in (".el--text", ".spoiler__toggle", ".callout__heading"):
+    for region in (
+        ".el--text",
+        ".spoiler__toggle",
+        ".callout__heading",
+        ".callout__title",
+    ):
         assert region in sel, f"{region} missing from renderInlineText"

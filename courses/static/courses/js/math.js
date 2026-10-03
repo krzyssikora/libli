@@ -49,7 +49,7 @@
     // use the [data-katex] path above; text elements, fill-gate stems and
     // titles are covered here. No-op if auto-render.min.js wasn't loaded.
     if (typeof window.renderMathInElement !== "function") return;
-    (root || document).querySelectorAll(".el--text, .el--table, .el--gallery, .el--tabs, .fillgate, .stepper, .markdone, .guessnumber, .spoiler__toggle, .callout__heading, [data-math-title]").forEach(function (el) {
+    (root || document).querySelectorAll(".el--text, .el--table, .el--gallery, .el--tabs, .fillgate, .stepper, .markdone, .guessnumber, .spoiler__toggle, .callout__heading, .callout__title, [data-math-title]").forEach(function (el) {
       var text = el.textContent;
       if (text.indexOf("\\(") === -1 && text.indexOf("\\[") === -1) return;
       try {

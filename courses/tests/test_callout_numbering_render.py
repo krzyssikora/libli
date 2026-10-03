@@ -185,3 +185,60 @@ def test_the_seeded_demo_tip_callout_is_not_numbered():
 
     join = Element.objects.get(unit=unit, content_type__model="calloutelement")
     assert join.content_object.numbered is False
+
+
+# The Example (book) icon, verbatim from _callout_icon.html's else-branch.
+BOOK_ICON = (
+    '<svg class="callout__icon" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<path d="M12 7v14"/>'
+    '<path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/>'
+    '<path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4"/></svg>'
+)
+
+
+def _squash(html):
+    """Whitespace-normalised: the summary branch adds an {% if %} that may shift
+    indentation in the generic branch without changing a single tag."""
+    return " ".join(html.split())
+
+
+def test_the_generic_header_is_unchanged_by_the_summary_branch():
+    """T6, exact. Mutant: any edit that alters the generic header or leaks the
+    summary branch into it."""
+    _course, unit = make_course_with_unit()
+    el = CalloutElement.objects.create(
+        kind="example", heading="Heading", numbered=True, body=""
+    )
+    join = Element.objects.create(unit=unit, content_object=el)
+    html = _squash(_rendered(el, join, {join.pk: 1}))
+    assert (
+        '<div class="callout__header"> '
+        + BOOK_ICON
+        + ' <span class="callout__heading">Example '
+        '<span class="callout__number">1</span>. Heading</span> </div>'
+    ) in html
+    assert "callout__title" not in html
+
+
+@pytest.mark.parametrize(
+    "kind, numbered",
+    [
+        ("example", True),
+        ("note", False),
+        ("tip", False),
+        ("warning", True),
+        ("task", True),
+    ],
+)
+def test_every_other_kind_keeps_the_eyebrow_header(kind, numbered):
+    """T6, loose, over all five non-summary kinds (an unnumbered Note included).
+    Mutant: make the summary branch unconditional -> no callout__header here."""
+    _course, unit = make_course_with_unit()
+    el = CalloutElement.objects.create(kind=kind, numbered=numbered, body="")
+    join = Element.objects.create(unit=unit, content_object=el)
+    html = _rendered(el, join, {join.pk: 1} if numbered else {})
+    assert "callout__header" in html
+    assert "callout__heading" in html
+    assert "callout__title" not in html
