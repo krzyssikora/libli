@@ -140,3 +140,25 @@ def test_callout_summary_accents_clear_3_to_1_on_both_grounds():
                 f"summary accent {accent} on {ground} {surfaces[ground]}: "
                 f"{ratio:.2f}:1 < 3:1"
             )
+
+
+def test_callout_title_is_set_apart_from_body_bold():
+    """Bold body text is ~1rem / 700 / --text-primary; at 1.05rem in the same colour
+    the title read as one more bold phrase. The accent colour (the top bar's) and a
+    larger size set it apart."""
+    block = _anchored_block(r"^\.callout__title\s*\{([^}]*)\}")
+    assert "font-size: 1.15rem;" in block
+    assert "color: var(--callout-accent);" in block
+    assert "--text-primary" not in block
+
+
+def test_callout_title_accent_clears_4_5_to_1_on_the_card():
+    """WCAG 1.4.3: at 1.15rem bold (18.4px) the title is just under "large text"
+    (18.67px bold), so the accent needs 4.5:1 as TEXT on the card's own ground."""
+    for pattern, surfaces in (
+        (SUMMARY_LIGHT_ACCENT, LIGHT_SURFACES),
+        (SUMMARY_DARK_ACCENT, DARK_SURFACES),
+    ):
+        accent = _summary_accent(pattern)
+        ratio = _ratio(accent, surfaces["--surface-raised"])
+        assert ratio >= 4.5, f"title {accent} on the card: {ratio:.2f}:1 < 4.5:1"

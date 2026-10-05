@@ -2534,16 +2534,16 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   color: var(--callout-accent);
 }
 /* The summary kind's title (Key facts / W skrócie). A real h3 in normal case,
-   not the eyebrow above. reset.css zeroes heading margins and gives headings
-   line-height 1.15 and the house letter-spacing, so all three are overridden
-   here explicitly. The last-child rule serves a heading-only card, where
-   .callout's padding stops the bottom margin from collapsing away. */
+   in the top bar's accent and larger, so it never reads as body bold. reset.css
+   zeroes heading margins and gives headings line-height 1.15 and the house
+   letter-spacing, so all three are overridden here explicitly. The last-child
+   rule serves a heading-only card (.callout's padding blocks the collapse). */
 .callout__title {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: normal;
-  color: var(--text-primary);
+  color: var(--callout-accent);
   margin: 0 0 var(--space-3);
 }
 .callout__title:last-child { margin-bottom: 0; }
