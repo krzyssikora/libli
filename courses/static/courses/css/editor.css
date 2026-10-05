@@ -569,9 +569,9 @@ button.asset-cell:hover { border-color: var(--primary); }
     justify-content: center;
   }
   /* Viewport-locked layout: the open list takes height from .pane-body, so it is
-     capped tighter here -- MEASURED at 1280x720 the base cap left .pane-body
-     8% of the pane, min(20vh, 12rem) 32%, this cap 44% (list closed: 72%). */
-  .clip-banner__units-list { max-height: min(14vh, 7rem); }
+     capped so .pane-body keeps >=40% of the pane (e2e-guarded): 7rem at 720px tall
+     (~5 rows), growing with the viewport to 16rem (~11 rows) from ~1080px tall. */
+  .clip-banner__units-list { max-height: clamp(7rem, 60vh - 20rem, 16rem); }
 }
 
 /* Thin, clearly-visible scrollbars for the two scrolling pane bodies (Firefox + WebKit). */
