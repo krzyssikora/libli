@@ -94,6 +94,30 @@
   bar.appendChild(status);
   deck.appendChild(bar); // footer of the deck
 
+  // Quiz: "Finish quiz" takes the Next arrow's place on the last slide. Left below
+  // the deck it is below the fold whenever the deck fills the window, and the
+  // student presses the unit footer's Next (leaving the quiz) instead. Moving the
+  // node keeps quiz.js's confirm + flush submit listener; with JS off the form
+  // stays where the template put it.
+  var finish = document.querySelector("[data-quiz-finish]"); // quiz only
+  if (finish) bar.insertBefore(finish, status);
+
+  // --- Fit the stage to the window: the deck's bar ends just above the sticky
+  // unit footer, so a first-time student SEES the Prev/Next + dots without
+  // scrolling. CSS cannot (the chrome above the deck varies 325-546px), so the
+  // CSS clamp is only the pre-JS / no-JS height. Measured at the page top
+  // (document offset, not viewport), so the height does not move as the student
+  // scrolls. MIN/MAX mirror the CSS clamp: a short window still floors at 360px.
+  var FIT_MIN = 360, FIT_MAX = 900, FIT_GAP = 16;
+  var foot = document.querySelector(".unit-foot");
+  function fit() {
+    var top = stage.getBoundingClientRect().top + window.pageYOffset;
+    var avail = document.documentElement.clientHeight - top - FIT_GAP -
+      bar.getBoundingClientRect().height - (foot ? foot.getBoundingClientRect().height : 0);
+    var h = Math.round(Math.max(FIT_MIN, Math.min(FIT_MAX, avail))) + "px";
+    if (stage.style.height !== h) stage.style.height = h; // idempotent: no RO loop
+  }
+
   function posText() {
     return i18n.pos.replace("{n}", idx + 1).replace("{total}", slides.length);
   }
@@ -129,9 +153,11 @@
       .then(function (d) { if (d && d.completed) markDone(); })
       .catch(function () {});
   }
-  var finish = document.querySelector("[data-quiz-finish]"); // quiz only
   function updateFinish() {
-    if (finish) finish.toggleAttribute("hidden", idx !== slides.length - 1);
+    if (!finish) return;
+    var last = idx === slides.length - 1;
+    finish.toggleAttribute("hidden", !last);
+    next.toggleAttribute("hidden", last);
   }
   function onReveal(slide) {
     markSlideSeen(slide);
@@ -217,4 +243,12 @@
   if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(stage);
 
   show(0); // initial reveal (out === undefined → slide 0 settled active)
+
+  // After show(0): the bar's height is final once Finish/arrow visibility is set.
+  // The ResizeObserver catches what moves the deck's top after load -- a title
+  // wrapping once fonts/KaTeX land, the Tags bar opening -- and is convergent:
+  // fit() writes only on change, so its own resize settles in one pass.
+  fit();
+  window.addEventListener("resize", fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(document.body);
 })();

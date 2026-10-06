@@ -12,7 +12,7 @@ constant y on every slide), so a tall slide is clipped. Two things follow:
 
   * the fixed height should not be wasteful. `clamp(360px, 62vh, 640px)` threw
     away 176px of viewport on a 1255px-tall window while the slide clipped by
-    33px; the cap is now 900px so the 62vh term governs there instead.
+    33px; the cap is now 900px and slideshow.js fits the stage to the window.
 
 Marked e2e (run with `-m e2e`).
 """
@@ -195,7 +195,9 @@ def test_the_shade_never_swallows_a_click(page, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_a_tall_window_is_not_capped_at_640px(page, live_server):
     """The reported window: 640px of stage under 1255px of viewport left 176px of
-    page empty while the slide clipped. 62vh must govern up to a 900px ceiling."""
+    page empty while the slide clipped. The stage now fits the window
+    (slideshow.js fit(); tests/test_e2e_deck_fits_window.py) up to a 900px
+    ceiling, so on this window it is taller than the old 640px cap."""
     unit = _seed("sl_tall")
     _login(page, live_server, "sl_tall")
     _goto(page, live_server, unit, width=987, height=1255)
@@ -204,14 +206,19 @@ def test_a_tall_window_is_not_capped_at_640px(page, live_server):
         "() => Math.round("
         "document.querySelector('.slideshow-stage').getBoundingClientRect().height)"
     )
-    assert h == pytest.approx(0.62 * 1255, abs=2), (
-        f"stage is {h}px on a 1255px viewport; expected the 62vh term to govern"
+    assert 640 < h <= 900, (
+        f"stage is {h}px on a 1255px viewport; expected the fit to use the height"
     )
-    # ...and the deck plus the unit footer still fit above the fold, which is the
-    # whole point of not simply removing the cap.
+    # ...and the deck's bar plus the unit footer are still on screen, which is
+    # the whole point of not simply removing the cap. (The PAGE may scroll a
+    # little -- the margins and padding below the deck -- but the footer is
+    # sticky, so neither control leaves the fold.)
     assert page.evaluate(
         """() => {
-             const de = document.documentElement;
-             return de.scrollHeight <= de.clientHeight + 1;
+             const bar = document.querySelector('.slideshow-bar')
+                           .getBoundingClientRect();
+             const foot = document.querySelector('.unit-foot').getBoundingClientRect();
+             return bar.bottom <= foot.top
+               && foot.bottom <= document.documentElement.clientHeight + 1;
            }"""
-    ), "the taller stage pushed the unit footer below the fold"
+    ), "the taller stage pushed the deck bar or the unit footer below the fold"

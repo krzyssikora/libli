@@ -1450,6 +1450,9 @@ def build_quiz_context(node, user):
         "slides": partition_into_slides(elements),
         "responses": responses,
         "render_states": render_states,
+        # The badge reads "n / qtotal" so a first-time student sees up front that
+        # the quiz holds more than the one question on screen.
+        "qtotal": qnum,
         "submission": submission,
         "quiz_submitted": quiz_submitted,
         # A non-enrolled previewer gets LIVE question forms: their answers are graded

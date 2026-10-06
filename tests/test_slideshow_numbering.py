@@ -33,3 +33,23 @@ def test_lesson_questions_have_no_qnum(client):
     )
     html = client.get(url).content.decode()
     assert "data-qnum" not in html
+
+
+@pytest.mark.django_db
+def test_quiz_badge_shows_position_out_of_total(client):
+    # A first-time student must see up front that the quiz has more questions:
+    # the badge reads "n / total" (total = questions, not slides), and a screen
+    # reader hears the whole phrase instead of the bare glyphs.
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "quiz", layout=["q", "q", "brk", "q"])
+    url = reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    html = client.get(url).content.decode()
+    assert html.count('class="el__qnum"') == 3
+    for n in (1, 2, 3):
+        assert (
+            f'<span class="el__qnum" data-qnum="{n}">'
+            f'<span aria-hidden="true">{n} / 3</span>'
+            f'<span class="sr-only">Question {n} of 3</span></span>'
+        ) in html
