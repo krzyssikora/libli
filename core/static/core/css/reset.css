@@ -32,3 +32,8 @@ a { color: var(--accent); text-underline-offset: 2px; }
     transition-duration: .001ms !important; scroll-behavior: auto !important;
   }
 }
+/* KaTeX draws the \vec arrow as a small position:absolute <svg>, and for an
+   absolutely positioned box the `max-width: 100%` above resolves against KaTeX's
+   zero-width positioned wrapper, collapsing the arrow to 0px: \vec{AB} rendered
+   exactly like AB. KaTeX sizes its own SVGs; never cap them. */
+.katex svg { max-width: none; }

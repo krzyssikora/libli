@@ -401,3 +401,21 @@ def test_math_element_adds_no_block_space_around_the_formula(page, live_server):
     )
     assert abs(offsets["top"]) < 1, offsets
     assert abs(offsets["bottom"]) < 1, offsets
+
+
+def test_vec_arrow_is_drawn(page, live_server):
+    """reset.css's global `svg { max-width: 100% }` collapsed KaTeX's \\vec arrow
+    (an absolutely positioned <svg>, so the % resolves against a zero-width
+    wrapper) to 0px: \\vec{AB} rendered exactly like AB. MEASURED with the
+    shipped KaTeX: 0px under the bare reset, 0.471em once `.katex svg` is
+    uncapped. Of 17 SVG-drawn constructs checked, only \\vec was hit."""
+    unit = _open_pa_session(page, live_server, "mr_vec", "mr-vec")
+    add_element(unit, TextElement.objects.create(body="<p>\\(\\vec{AB}\\)</p>"))
+
+    page.goto(_lesson_url(live_server, unit))
+    page.wait_for_selector(".el--text .katex .accent svg", state="attached")
+    width = page.evaluate(
+        """() => document.querySelector('.el--text .katex .accent svg')
+                   .getBoundingClientRect().width"""
+    )
+    assert width > 5, width
