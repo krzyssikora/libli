@@ -457,8 +457,8 @@ span[data-answer-key] .question__text-input { margin-bottom: 0; }
 .el__qnum {
   display: grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: fit-content; min-width: 1.75rem; padding-inline: .6rem; /* pill: "n / total" */
+  height: 1.75rem; white-space: nowrap; font-variant-numeric: tabular-nums;
   margin-bottom: var(--space-3);
   border-radius: var(--radius-full);
   background: var(--primary);
@@ -531,7 +531,7 @@ html.js [data-slideshow] > .slide:not(:first-child):not(.is-active) { display: n
    calc(100dvh - chrome) because that chrome is not a constant: measured across
    title length and window width it ranges 325px to 546px, so any single offset
    either wastes the space again or pushes the deck's own Prev/Next bar below the
-   fold. Short windows are unaffected — there 62vh still governs. */
+   fold — so slideshow.js fit() MEASURES it and overrides this pre-JS height. */
 .slideshow-stage {
   position: relative;
   height: clamp(360px, 62vh, 900px);
@@ -588,6 +588,11 @@ html.js [data-slideshow] > .slide:not(:first-child):not(.is-active) { display: n
   pointer-events: none;
   cursor: default;
 }
+/* slideshow.js hides the Next arrow on a quiz's last slide (Finish takes its
+   place); the inline-flex above would otherwise beat the UA [hidden] rule. */
+.slideshow-bar__next[hidden] { display: none; }
+/* The moved Finish form: drop the "set apart from the last question" rule. */
+.slideshow-bar .quiz-finish { margin: 0; padding: 0; border: 0; }
 .slideshow-bar__prev .ic,
 .slideshow-bar__next .ic { width: 1.1rem; height: 1.1rem; }
 .slideshow-bar__counter {
@@ -3099,10 +3104,10 @@ dialog.imgzoom:not([open]) { display: none; }
   .slideshow-deck .slide[hidden] {
     display: block !important; position: static !important;
     overflow: visible !important;
-    /* opacity beats an INLINE style: slideshow.js:187 sets the OUTGOING slide to
-       opacity 0 and holds it for FADE_MS=320 until settleHidden() at :191, during
+    /* opacity beats an INLINE style: slideshow.js:213 sets the OUTGOING slide to
+       opacity 0 and holds it for FADE_MS=320 until settleHidden() at :217, during
        which that slide is not yet [hidden] and so is revealed by the rules above.
-       (:180 sets the incoming slide to 0 too, but :186 restores it synchronously
+       (:206 sets the incoming slide to 0 too, but :212 restores it synchronously
        three statements later, so it is never observably transparent.)
 
        transition:none is required ALONGSIDE it, and winning the cascade is not

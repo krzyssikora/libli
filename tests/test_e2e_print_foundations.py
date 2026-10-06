@@ -249,7 +249,7 @@ def test_mid_fade_slide_prints_opaque(page, live_server):
     entering print means the inline 0 loses to opacity:1 !important immediately,
     the computed value never changes, no transition ever starts, and the
     `transition: none` mutant reads a solid 1 and stays GREEN.
-    slideshow.js:184 (`void inn.offsetWidth; // force reflow so opacity
+    slideshow.js:210 (`void inn.offsetWidth; // force reflow so opacity
     transitions`) is the in-repo proof that the flush is required.
     """
     course, unit, student = _slideshow_lesson("e2e-print-fade")

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-03 11:53+0200\n"
+"POT-Creation-Date: 2026-10-06 23:32+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -2554,15 +2554,15 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:1506
+#: .\courses\views.py:1512
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:1515
+#: .\courses\views.py:1521
 msgid "Show answer is not available for this question."
 msgstr ""
 
-#: .\courses\views.py:2042
+#: .\courses\views.py:2048
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
@@ -5142,6 +5142,11 @@ msgstr ""
 msgid ""
 "you are not enrolled in this course, so your answers are not recorded and "
 "the quiz cannot be finished."
+msgstr ""
+
+#: .\templates\courses\_quiz_article.html:37
+#, python-format
+msgid "Question %(n)s of %(total)s"
 msgstr ""
 
 #: .\templates\courses\_quiz_article.html:46

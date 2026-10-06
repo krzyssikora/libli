@@ -26,3 +26,6 @@ def test_quiz_finish_label_translated_pl(client):
         )
     # The PL translation of "Finish quiz" (set in Step 3) must appear.
     assert "Zakończ quiz".encode() in resp.content
+    # The badge's screen-reader phrase is translated too (makemessages pre-filled
+    # it with the fuzzy "Strona ..." page string, which a fuzzy flag hides).
+    assert b"Pytanie 1 z 1" in resp.content
