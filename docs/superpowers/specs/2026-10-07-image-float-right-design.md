@@ -66,10 +66,14 @@ The owner approved the look.
   when the size is Large or Full, so a disabled (therefore unsubmitted) checkbox and a
   hand-crafted POST agree.
 - `_edit_image.html`: a checkbox after the size fieldset, label "Float right" (translated),
-  carrying the same `data-for-element` contract as the size radios. **Server-rendered state:**
-  `checked` iff `floats` (stored `float_right` true AND stored size Small/Medium — a
-  legacy/imported `true` on a Large image renders unchecked, so the box shows what students
-  see); `disabled` iff the stored size is Large/Full.
+  carrying the same `data-for-element` contract as the size radios. **Server-rendered state**,
+  from the FORM's current values (like the size radios, which render `form.size.value`):
+  `checked` iff `form.float_right.value` is true AND `form.size.value` is Small/Medium;
+  `disabled` iff `form.size.value` is Large/Full. For an unbound form these are the stored
+  values, so a legacy/imported `true` on a Large image renders unchecked (the box shows what
+  students see); for a bound form that failed validation (e.g. caption too long) the author's
+  submitted size and tick survive the re-render; on the create flow the size defaults to Full,
+  so the box starts disabled.
 - `editor.js`: inside the EXISTING delegated `change` handler (one listener is pinned by
   `test_image_size_js.py`):
   - toggling the box toggles `el--image--float` on the preview figure;
@@ -94,7 +98,7 @@ changes: the float container is chosen in CSS by `:has()` on the parent wrapper.
 | Context | Floated box |
 |---|---|
 | Lesson top level | `section.lesson-block` (via `> .lesson-block__body >`) |
-| Quiz top level | the bare `section[data-element-id]` of `_quiz_article.html` (no `.lesson-block`, no `__body` — the figure is its direct child) |
+| Quiz top level | the `section[data-element-id]` of `_quiz_article.html` (no `.lesson-block`, no `__body` — the figure is its direct child). ⚠ Lesson blocks AND preview blocks are ALSO `section[data-element-id]`; every quiz rule (float, sibling clear, …) MUST be scoped to the quiz article (e.g. `.quiz .slide > section[data-element-id]`, or `:not(.lesson-block):not(.prev-el)`). An unscoped `section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` matches EVERY lesson text block (its text sits under `__body`, not directly under the section) and clears them all — D3 silently dead at the top level. |
 | Builder preview | `section.prev-el` — the `section` qualifier is REQUIRED: in preview every container child is ALSO `.prev-el` (e.g. `.callout__child.prev-el`), and those are governed by the container rows below |
 | Callout / tabs / two-column / spoiler / before-after | `.callout__child` / `.tabs__child` / `.twocolumn__child` / `.spoiler__child` / `.ba__child` |
 
@@ -104,8 +108,9 @@ matches what a student sees in either unit type.
 The floated box gets `float: right`, `max-width: 25%` / `50%` (the preset's percentage of the
 containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
 `fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh/45dvh` on the img)
-leaves no gap between itself and the wrapped text. An inline-start gap separates it from the
-text. The figure inside takes `max-width: 100%`, drops its `margin-inline: auto`, and its block
+leaves no gap between itself and the wrapped text. Its margin is the approved mockup's
+`0 0 var(--space-3) var(--space-4)`: the inline-start gap from the text, and the space above the
+first full-width line under it. The figure inside takes `max-width: 100%`, drops its `margin-inline: auto`, and its block
 margins are pinned to `0 0 1rem` as in the approved mockup (a float is a BFC root, so the
 `.el { margin: 1rem 0 }` top margin would otherwise push the image ~1rem below the text's first
 line; the bottom 1rem is the notes-handle clearance, see mockup note). The img's own
@@ -113,8 +118,8 @@ line; the bottom 1rem is the notes-handle clearance, see mockup note). The img's
 image hugs the float's RIGHT edge even when a figcaption longer than the image widens the float
 (the figure is `fit-content`: it sizes to the wider of image and caption).
 
-**Every float-specific declaration — on the wrapper, the figure and the img — sits under the same
-condition as `float: right`.** A Medium image that falls back (D5) must render exactly like an
+**Every float-specific declaration — on the wrapper, the figure, the img, and the D8
+bottom-anchored notes handle — sits under the same condition as `float: right`.** A Medium image that falls back (D5) must render exactly like an
 unflagged Medium (centred, ≤50%), not flush-left at full width.
 
 **Clearing (D3).**
@@ -150,8 +155,11 @@ one `div.slide` per slide (`_lesson_article.html`). EVERY `.slide:has(.el--image
 the clearing `::after` — deck slides included: on screen a deck slide is already a BFC (absolute,
 `overflow-y: auto`) and the `::after` is harmless, but print makes deck slides `position: static
 !important; overflow: visible !important`, and outside the deck (single slide; multi-slide with
-no JS, where slides stack) nothing else contains the float. The quiz article's element list box
-gets the same.
+no JS, where slides stack) nothing else contains the float. Outside a slideshow `.slide` is
+`display: contents` (courses.css slideshow block); its `::after` still generates and lands in
+`article.lesson` after the slides' content, which is where the clear is needed. Quizzes render
+the same `div.slide` per slide (`_quiz_article.html`), so the same `.slide` rule covers them —
+there is no separate quiz list box.
 
 **Medium fallback (D5).** Medium floats only when its container leaves ≥ ~12rem beside a 50%
 image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these constraints:
@@ -192,6 +200,11 @@ short-image case as a measurement in its docstring, not an assertion.
 
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
+Exception: `notes.css`'s print block prints the in-flow pop of every block that has note cards;
+inside a float that is ~45mm wide on A4 and makes the float tall. So in print a floated block
+whose pop has printable notes UN-FLOATS, keyed exactly as the notes print rule keys "has
+printable notes" (the same predicate, not a re-derivation) — the print counterpart of the
+below-rail notes rule.
 
 **Scoping (D10).** Every new rule except the two clearing rules (sibling clear, heading
 self-clear — see Clearing) is keyed on
@@ -223,14 +236,16 @@ Unit (pytest):
 - model default False; `floats` truth table over 4 sizes × 2 flag values;
 - form saves the flag; Large/Full POST with the flag stores False; an edit without the key
   stores False;
-- editor template: checkbox `checked` iff `floats` (incl. a stored `true` on Large → unchecked),
-  `disabled` iff Large/Full;
+- editor template: checkbox state from the form's values — unbound: a stored `true` on Large →
+  unchecked + disabled; create flow → disabled; an INVALID POST (Small + ticked + bad caption)
+  re-renders Small checked, box checked and enabled;
 - render: the class appears only when `floats`; at lesson top level, quiz top level, and nested
   in each container;
 - transfer: round-trip, missing key → False, non-bool COERCED to False (import succeeds),
   version 17, duplicate keeps it;
 - editor JS source: branch in the one delegated handler;
-- CSS source: every new rule but the heading self-clear is keyed on `.el--image--float` (D10);
+- CSS source: every new rule but the two clearing rules (sibling clear, heading self-clear) is
+  keyed on `.el--image--float` (D10), and every quiz-context rule is scoped to the quiz article;
 - i18n: the Polish entry exists and is not fuzzy.
 
 e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
@@ -239,7 +254,11 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
    SMALL-natural-width image (narrower than 25%): no gap between it and the text; and a
    narrow image with a figcaption longer than the image: the IMAGE's right edge still equals
    the column's right edge.
-2. Two text elements after the image both wrap (D3) — Task 2's shape.
+2. Two text elements after the image both wrap (D3) — Task 2's shape — in a LESSON (proves no
+   quiz-context rule clears lesson text) and in a QUIZ. A maths element after the image sits
+   beside it (its right edge left of the image's left edge) and the page does not scroll
+   horizontally at 367px; a display formula narrower box scrolling inside its own scroller is
+   accepted.
 3. A heading element, a spoiler and a second image after the float each start below the image's
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
 4. Medium at 367px: NOT floated, and its box equals an unflagged Medium's (centred, ≤50% of the
@@ -262,6 +281,6 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 11. Dark theme: the image plate is intact on the floated image.
 12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
     at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
-    starts below it.
+    starts below it; a floated image WITH a note prints un-floated, its notes at column width.
 
 Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).
