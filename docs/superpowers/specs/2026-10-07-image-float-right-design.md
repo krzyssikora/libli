@@ -13,7 +13,7 @@ Workarounds rejected by the owner: a two-column element (columns are always equa
 2-4 of them, and cannot be merged — the image column cannot be made narrow) and a table
 (no merged-column width control).
 
-**Goal:** an author ticks "Float right" on a Small or Medium image; the image sits at the
+**Goal:** an author ticks "Float right" on a Small image; the image sits at the
 right of its column and the following text wraps beside it, on desktop and on a phone.
 
 ## Owner decisions (VERBATIM intent — do not reverse in review)
@@ -21,10 +21,10 @@ right of its column and the following text wraps beside it, on desktop and on a 
 | # | Decision |
 |---|----------|
 | D1 | A per-image **"Float right"** checkbox, beside the size radios. |
-| D2 | Offered for **Small and Medium only**. For Large/Full it is disabled, and a stored `true` is IGNORED at render. |
+| D2 | Offered for **Small only** (owner, 2026-10-08 — was "Small and Medium"; Medium dropped after spec-review round 12, see D5). For Medium/Large/Full it is disabled, and a stored `true` is IGNORED at render. |
 | D3 | **Wrap rule (a):** text and maths elements wrap beside the floated image; **headings and every non-text element start below it**. (Not "only the next element wraps": Task 2's text is TWO text elements, and the second must wrap too.) |
 | D4 | Works at the **top level AND inside containers** (callout, tabs, two-column, spoiler, before/after). A floated image never escapes its container. |
-| D5 | **Medium falls back** to today's centred, own-line layout when less than ~12rem (192px) would remain for text beside it. Measured against the box the image sits in, not the viewport. Small always floats. |
+| D5 | **WITHDRAWN by the owner, 2026-10-08.** Was: "Medium falls back to today's centred layout when less than ~12rem would remain beside it, measured against the box the image sits in." Measuring that box needs a CSS container query, and its containment made the whole article a stacking context — every notes pop on the page would paint under the sticky `.unit-foot` (round 12), on top of earlier spacing and counter side effects. Owner: "go with 1, Small only". Medium floating is a possible follow-up, NOT part of this work. Small always floats. |
 | D6 | The whole **top-level block** floats (`section.lesson-block`, carrying its notes handle), not just the `<figure>`. Floating the figure alone put the notes handle on top of the image (mockup round 1). |
 | D7 | Below the 1200px notes rail, a text block's in-flow notes handle sits at the float's left edge, beside its paragraph. **Accepted as is** — any in-flow placement is beside the float, and clearing it would stop the following text wrapping. |
 | D8 | At ≥1200px (notes rail), the floated block's handle must not stack on the handle of the paragraph beside it (mockup at 1300px: ~14px apart). Fix required. |
@@ -58,13 +58,13 @@ The owner approved the look.
 
 - `ImageElement.float_right = models.BooleanField(default=False)`; the next migration after
   master's graph head at PR time (`0069` today — re-check the head before the PR).
-- An "effective float" is `float_right and size in {small, medium}`, exposed as a model property
+- An "effective float" is `float_right and size == small`, exposed as a model property
   (e.g. `ImageElement.floats`) so the template and tests share one definition (D2).
 
 ### Editor
 
 - `ImageElementForm.Meta.fields` gains `float_right`. `clean()` forces `float_right = False`
-  when the size is Large or Full, so a disabled (therefore unsubmitted) checkbox and a
+  when the size is not Small, so a disabled (therefore unsubmitted) checkbox and a
   hand-crafted POST agree.
 - `_edit_image.html`: a checkbox after the size fieldset, label "Float right" (translated),
   carrying the same `data-for-element` contract as the size radios (used, as now, ONLY to find
@@ -72,20 +72,17 @@ The owner approved the look.
   `preset.closest(".el-editor--image").querySelector(…)` — never by `data-for-element`, which is
   `""` for every unsaved image on the create flow. **Server-rendered state**,
   from the FORM's current values (like the size radios, which render `form.size.value`):
-  `checked` iff `form.float_right.value` is true AND `form.size.value` is Small/Medium;
-  `disabled` iff `form.size.value` is Large/Full. For an unbound form these are the stored
-  values, so a legacy/imported `true` on a Large image renders unchecked (the box shows what
+  `checked` iff `form.float_right.value` is true AND `form.size.value` is Small;
+  `disabled` iff `form.size.value` is Medium/Large/Full. For an unbound form these are the stored
+  values, so a legacy/imported `true` on a Medium/Large image renders unchecked (the box shows what
   students see); for a bound form that failed validation (e.g. caption too long) the author's
   submitted size and tick survive the re-render; on the create flow the size defaults to Full,
   so the box starts disabled.
 - `editor.js`: inside the EXISTING delegated `change` handler (one listener is pinned by
   `test_image_size_js.py`):
   - toggling the box toggles `el--image--float` on the preview figure;
-  - choosing Large/Full unchecks and disables the box and removes the preview class;
-  - leaving Large/Full for Small/Medium re-enables the box, unchecked (the author re-ticks it
-    deliberately);
-  - switching between Small and Medium leaves the box's checked state (and the preview class)
-    untouched.
+  - choosing Medium/Large/Full unchecks and disables the box and removes the preview class;
+  - choosing Small re-enables the box, unchecked (the author re-ticks it deliberately).
 - i18n: a Polish catalog entry for the label (wording proposed in the PR for the owner to
   confirm), the `.mo` regenerated, and a check that the entry is not `#, fuzzy` (makemessages
   pre-fills a wrong fuzzy translation in this project).
@@ -109,7 +106,7 @@ changes: the float container is chosen in CSS by `:has()` on the parent wrapper.
 Quiz units float exactly like lessons (D4's "top level" covers both), so the builder preview
 matches what a student sees in either unit type.
 
-The floated box gets `float: right`, `max-width: 25%` / `50%` (the preset's percentage of the
+The floated box gets `float: right`, `max-width: 25%` (the Small preset's percentage of the
 containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
 `fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh/45dvh` on the img)
 leaves no gap between itself and the wrapped text. Known limit, accepted: at the top level the
@@ -136,8 +133,9 @@ a list also drops the wrapper's bottom margin, so a callout/tab ending in a floa
 trailing space before its bottom padding.
 
 **Every float-specific declaration — on the wrapper, the figure, the img, and the D8
-bottom-anchored notes handle — sits under the same condition as `float: right`.** A Medium image that falls back (D5) must render exactly like an
-unflagged Medium (centred, ≤50%), not flush-left at full width.
+bottom-anchored notes handle — sits under the same condition as `float: right`.** Where that
+condition is off (notes open below the rail, print with notes — see below) the image renders
+exactly like an unflagged Small (centred, ≤25%), not flush-right at full width.
 
 **Clearing (D3).**
 - A sibling wrapper clears (`clear: right`) unless its element is a text or maths element:
@@ -177,8 +175,7 @@ spacing of every container. The plan must:
   `.el--text`, so the heading self-clear never catches it). On screen `.twocolumn__column` (a flex
   item) and the carousel `.tabs__section` (absolutely positioned) already contain floats, but
   print rewrites the carousel to `position: static !important` (courses.css print block), so
-  only an explicit clear holds on paper (D9). The same per-list rule applies to D5's measuring
-  container where the plan puts it on lists;
+  only an explicit clear holds on paper (D9).;
 - prove containment per LIST in e2e (see e2e 5).
 
 At the top level, the floated block must not leak past the end of its slide. Every unit renders
@@ -192,52 +189,10 @@ no JS, where slides stack) nothing else contains the float. Outside a slideshow 
 the same `div.slide` per slide (`_quiz_article.html`), so the same `.slide` rule covers them —
 there is no separate quiz list box.
 
-**Medium fallback (D5).** Medium floats only when its containing box W leaves ≥ 12rem of text
-beside it. Text width = 0.5W − space-4 (the float's inline-start margin sits outside its 50%),
-so the threshold is W ≥ `2 × (12rem + space-4)` = `24rem + 32px` today, where W is the floated box's CONTAINING BLOCK
-(the box its `max-width: 50%` resolves against) — the query container in each context is
-exactly that box (the article/quiz content box at top level, the deck `.slide`, `.prev-inner`,
-each list box such as `.callout__children` or `.tabs__panel`, never a padded ancestor), and the
-e2e threshold measures that same box's content width (`--space-4: 16px`,
-tokens.css). ⚠ A size-query condition cannot contain `var()` — `@container (min-width:
-calc(24rem + var(--space-4) * 2))` is INVALID and is dropped silently ("Medium never floats").
-The CSS therefore writes the LITERAL `calc(24rem + 32px)` — NOT `416px`: a container query
-resolves `rem` against the root font size, so only the rem form keeps tracking the 12rem text
-threshold when a user changes the browser's default font size. A source test derives the px
-term (2 × `--space-4`) from tokens.css so the two cannot drift. The e2e computes the threshold
-at runtime as `24 × (root computed font-size) + 2 × (--space-4 in px)`. The mechanism must MEASURE THE
-IMAGE'S CONTAINING BOX in every context (D5 verbatim) — a viewport media query is NOT
-acceptable, whatever it passes. Within that, the mechanism is the plan's call, with these
-constraints:
-- The measuring box must exist in EVERY context a Medium image can float in: lesson top level,
-  quiz top level (`article.quiz`, not `.lesson`), builder preview (`.prev-inner`, outside any
-  article), and each of the five container child lists. `@container` with no ancestor query
-  container evaluates FALSE — a missing container fails silently as "Medium never floats here".
-  Note `.slide` is `display: contents` outside a slideshow and generates no box, so it cannot be
-  the container there.
-- In a JS slideshow deck the top-level block sits in `.slideshow-deck .slide` (created by
-  slideshow.js; `padding: var(--space-6)` inside a bordered deck — ~50px narrower than the
-  article). That slide must be the measuring box in decks (it is absolutely positioned with
-  `inset: 0`, so its width is definite; audit it like the others), else every paginated lesson
-  and quiz over-estimates the text width by ~50px — a quarter of the 12rem D5 protects.
-- A size container query needs `container-type: inline-size` on an ancestor, which applies
-  layout containment (a new BFC and a containing block for absolute/fixed descendants). Putting
-  it on `.lesson` or on container wrappers can move notes pops, the image-zoom trigger, KaTeX
-  scrollers — the plan must audit or choose a box where that is harmless, and an e2e must show
-  the notes pop still opens beside its block. The audit must also cover inline-size
-  containment's other two effects: the box's intrinsic inline size ignores its content (a
-  content-sized box — fit-content, shrink-to-fit absolute, `flex-basis: auto`, inline-block —
-  collapses), and its new BFC stops the margin collapsing that the container wrappers rely on
-  ("deliberately not a flow-root"), so spacing would change in exactly the containers that hold
-  a float.
-- `container-type` CANNOT sit under the float condition — it is what DECIDES D5. Like the
-  clearing `::after` and the note-card `flow-root`, it applies whenever `.el--image--float` is
-  present, whatever D5 decides — so a fallen-back Medium still gives its measuring box
-  containment. Requirement: the measuring box in each context is one where containment is
-  SPACING-NEUTRAL (no collapsing margin passes through its edges; if a candidate box has one, the
-  plan picks another or neutralises it explicitly). e2e 4 asserts it: for a fallen-back Medium,
-  at top level and in a callout, the containing box's height and its children's offsets equal
-  an unflagged twin's — not only the image's own box.
+**No width measuring.** Small is capped at 25% of its containing box, so ≥75% minus the gap is
+always left for text; there is no fallback and NO container query anywhere (`container-type`
+is forbidden in this work — its layout containment makes the box a stacking context and traps
+every notes pop under `.unit-foot`; see D5).
 
 **The floated block's own notes pop (below the rail).** Below 1200px, and at any width without
 `notes-js`, `.block-notes__pop` is in flow inside `.lesson-block` — inside a float only ~80px wide
@@ -332,8 +287,7 @@ asserts the class list equals notes.css's; the falsified print e2e proves the ru
 
 **Scoping (D10).** Every new rule except the clearing rules (sibling clear, heading
 self-clear, `pre` self-clear — see Clearing) is keyed on
-`.el--image--float` (directly or through `:has()`); in particular no `container-type`,
-`::after` or float rule applies to a page with no floated image. A CSS source test asserts this
+`.el--image--float` (directly or through `:has()`); in particular no `::after` or float rule applies to a page with no floated image. A CSS source test asserts this
 over the new block.
 
 ### Transfer
@@ -352,16 +306,16 @@ over the new block.
 
 ### Out of scope
 
-Float left; Large/Full floats; float for gallery, video, table-cell images; inline images in
+Float left; Medium/Large/Full floats (Medium is a possible follow-up — D5); float for gallery, video, table-cell images; inline images in
 text (the Task 4 dice — the owner was advised to use the Unicode die faces ⚀–⚅); LAL importer.
 
 ## Testing
 
 Unit (pytest):
-- model default False; `floats` truth table over 4 sizes × 2 flag values;
-- form saves the flag; Large/Full POST with the flag stores False; an edit without the key
+- model default False; `floats` truth table over 4 sizes × 2 flag values (true only for Small);
+- form saves the flag; a Medium/Large/Full POST with the flag stores False; an edit without the key
   stores False;
-- editor template: checkbox state from the form's values — unbound: a stored `true` on Large →
+- editor template: checkbox state from the form's values — unbound: a stored `true` on Medium →
   unchecked + disabled; create flow → disabled; an INVALID POST (Small + ticked + bad caption)
   re-renders Small checked, box checked and enabled;
 - render: the class appears only when `floats`; at lesson top level, quiz top level, and nested
@@ -396,14 +350,9 @@ no width/height, so EVERY geometry assertion first waits until all fixture image
    scrolls horizontally inside it is accepted.
 3. A heading element, a spoiler and a second image after the float each start below the image's
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
-4. Medium at 367px: NOT floated, and its box equals an unflagged Medium's (centred, ≤50% of the
-   column — not flush-left at full width); at 1300px floated; in a two-column column: the test
-   MEASURES the column's content width and asserts floated iff it is ≥ the threshold (a 2-column
-   column is ~314px with the tree pinned but ~426px collapsed, so a hard-coded "not floated" is
-   wrong in one TOC state) — with a fixture that lands BELOW it (e.g. 3 columns) so the fallback
-   branch is exercised, same equality as above. A multi-slide DECK case pairs a box above and
-   below the threshold measured on the deck slide. The same float/fallback pair (a box above and below the
-   threshold) in a QUIZ and in the BUILDER PREVIEW — proves the measuring container exists there.
+4. A stored `float_right = true` on a MEDIUM image (import/legacy): not floated at 367px or
+   1300px, its box equals an unflagged Medium's; and a CSS source test asserts the new block
+   contains no `container-type` / `@container`.
 5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
    container's bottom ≥ the image's bottom when the text is shorter than the image; the next
    top-level block starts below both. PLUS a float at the end of a NON-LAST list in a stacked
@@ -427,9 +376,8 @@ no width/height, so EVERY geometry assertion first waits until all fixture image
    a block with a note) — the note card's border box does not intersect the image.
 9. Quiz unit: a top-level floated image floats, as in the builder preview.
 10. Builder preview, on a SMALL image: ticking the box floats the preview without saving;
-    choosing Large disables and unchecks the box and un-floats the preview; Small ↔ Medium keeps
-    it ticked (assert the box and the `el--image--float` class, not geometry — Medium may
-    legitimately fall back in the narrow pane); save round-trips. An image as the last preview
+    choosing Medium (and Large) disables and unchecks the box and un-floats the preview;
+    choosing Small again re-enables it unchecked; save round-trips. An image as the last preview
     element does not overflow `.prev-inner`; a slide-break after a float starts below it.
 11. Dark theme: the image plate is intact on the floated image.
 12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
