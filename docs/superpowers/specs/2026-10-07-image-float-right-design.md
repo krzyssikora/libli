@@ -210,9 +210,13 @@ constraints:
 
 **The floated block's own notes pop (below the rail).** Below 1200px, and at any width without
 `notes-js`, `.block-notes__pop` is in flow inside `.lesson-block` — inside a float only ~80px wide
-on a phone. While the floated block's panel is open the block UN-FLOATS
-(`:has(.block-notes__panel[open])` → `float: none; max-width: none`, the image back to its
-unfloated preset layout), so the pop gets the full column. The text reflows while notes are
+on a phone. While the floated block's panel is open the block UN-FLOATS, so the pop gets the
+full column. "Un-float" here and in Print NEGATES THE WHOLE FLOAT CONDITION — it is not an
+override of `float`/`max-width` alone: every float-specific declaration (wrapper, figure, img,
+D8 handle, stacking) switches off together, and the image renders exactly like an unflagged
+image of the same size (centred, ≤ the preset %). The plan folds these conditions into the
+shared float condition (e.g. `:not(:has(.block-notes__panel[open]))` within the scoped media
+branches) rather than layering partial overrides. The text reflows while notes are
 open; accepted. **Scope:** only where the pop is in flow — `@media screen and (max-width:
 1199.98px)`, OR `html:not(.notes-js)` at any SCREEN width (this branch is ALSO inside
 `@media screen`, so print is governed only by the printable-notes rule under Print). NOT at ≥1200px with `notes-js` (the
@@ -233,6 +237,19 @@ short-image case as a measurement in its docstring, not an assertion. Also accep
 paragraph block beside the float spans the full column, so notes.js's hover highlight
 (`.lesson-block.is-highlighted`) outlines the image area too and dims the floated block
 (`.is-dimmed`); cosmetic, checked in the e2e 7 screenshots only.
+
+**Stacking (≥1200px, `notes-js`).** There `notes.css` makes EVERY `.lesson-block`
+`position: relative`. A positioned `z-index: auto` box paints and hit-tests ABOVE floats, so the
+paragraph block beside the float — later in the tree, spanning the full column — sits on top of
+the image. VERIFIED on the mockup (1300px): `elementFromPoint` at the image's centre returns the
+paragraph's `<p>`, so a click never reaches `img[data-zoomable]` and zoom is dead. Fix, under the
+float condition (D10): the floated block gets `z-index: 1` where it is positioned. This makes it
+a stacking context; its own pop (`z-index: 50`) then stacks within it, still above later blocks
+(which are `z-index: auto`) — the plan confirms nothing later in the column has a positive
+z-index that would now cover the pop. Once the image is on top, the paragraph's hover highlight
+tint paints under it (around, not over, the image); the outline-encloses-image cosmetic above
+remains accepted. Below 1200px and inside containers no wrapper is positioned, so the image
+already wins the hit test; e2e covers both.
 
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
@@ -301,7 +318,10 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
    following paragraph's first line starts left of the image and ends before it. Includes a
    SMALL-natural-width image (narrower than 25%): no gap between it and the text; and a
    narrow image with a figcaption longer than the image: the IMAGE's right edge still equals
-   the column's right edge.
+   the column's right edge; and a tall portrait (e.g. 1:2) at 1300px whose `max-height` cap
+   binds: the gap between the text's line end and the image's left edge is ≤ `--space-4`.
+   Clicking the floated image opens the zoom dialog at 1300px with `notes-js` (stacking) and at
+   367px.
 2. Two text elements after the image both wrap (D3) — Task 2's shape — in a LESSON (proves no
    quiz-context rule clears lesson text) and in a QUIZ. A maths element after the image sits
    beside it (its right edge left of the image's left edge) and the page does not scroll
@@ -329,8 +349,8 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 7. Notes rail at 1300px: the floated block's handle intersects neither paragraph handle of the
    Task 2 shape; each pop still opens; opening the floated block's pop leaves the block FLOATED
    (the un-float rule is below-rail only).
-8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it and the pop
-   is as wide as the column.
+8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it, the pop
+   is as wide as the column, and the image's box equals an unflagged Small's (centred, ≤25%).
 9. Quiz unit: a top-level floated image floats, as in the builder preview.
 10. Builder preview, on a SMALL image: ticking the box floats the preview without saving;
     choosing Large disables and unchecks the box and un-floats the preview; Small ↔ Medium keeps
@@ -340,6 +360,7 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 11. Dark theme: the image plate is intact on the floated image.
 12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
     at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
-    starts below it; a floated image WITH a note prints un-floated, its notes at column width.
+    starts below it; a floated image WITH a note prints un-floated, its notes at column width, the image's box equal
+    to an unflagged image of the same size.
 
 Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).
