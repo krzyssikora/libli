@@ -56,7 +56,8 @@ The owner approved the look.
 
 ### Data
 
-- `ImageElement.float_right = models.BooleanField(default=False)`; migration `0069`.
+- `ImageElement.float_right = models.BooleanField(default=False)`; the next migration after
+  master's graph head at PR time (`0069` today — re-check the head before the PR).
 - An "effective float" is `float_right and size in {small, medium}`, exposed as a model property
   (e.g. `ImageElement.floats`) so the template and tests share one definition (D2).
 
@@ -161,8 +162,18 @@ no JS, where slides stack) nothing else contains the float. Outside a slideshow 
 the same `div.slide` per slide (`_quiz_article.html`), so the same `.slide` rule covers them —
 there is no separate quiz list box.
 
-**Medium fallback (D5).** Medium floats only when its container leaves ≥ ~12rem beside a 50%
-image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these constraints:
+**Medium fallback (D5).** Medium floats only when its containing box leaves ≥ 12rem of text
+beside it: the threshold is `2 × 12rem + var(--space-4)` (the float's inline-start margin
+included), and the CSS and the e2e use that same expression. The mechanism must MEASURE THE
+IMAGE'S CONTAINING BOX in every context (D5 verbatim) — a viewport media query is NOT
+acceptable, whatever it passes. Within that, the mechanism is the plan's call, with these
+constraints:
+- The measuring box must exist in EVERY context a Medium image can float in: lesson top level,
+  quiz top level (`article.quiz`, not `.lesson`), builder preview (`.prev-inner`, outside any
+  article), and each of the five container child lists. `@container` with no ancestor query
+  container evaluates FALSE — a missing container fails silently as "Medium never floats here".
+  Note `.slide` is `display: contents` outside a slideshow and generates no box, so it cannot be
+  the container there.
 - A size container query needs `container-type: inline-size` on an ancestor, which applies
   layout containment (a new BFC and a containing block for absolute/fixed descendants). Putting
   it on `.lesson` or on container wrappers can move notes pops, the image-zoom trigger, KaTeX
@@ -173,8 +184,6 @@ image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these c
   collapses), and its new BFC stops the margin collapsing that the container wrappers rely on
   ("deliberately not a flow-root"), so spacing would change in exactly the containers that hold
   a float.
-- A viewport media query is acceptable ONLY if the plan shows it handles a Medium image inside
-  a two-column column at desktop width (a ~300px column must NOT float a Medium image).
 
 **The floated block's own notes pop (below the rail).** Below 1200px, and at any width without
 `notes-js`, `.block-notes__pop` is in flow inside `.lesson-block` — inside a float only ~80px wide
@@ -196,15 +205,27 @@ the bottom of the image, below the top-anchored handle of the paragraph beside i
 accepted (author's call, not an owner decision): a floated image shorter than ~2 handle heights
 (~60px), or a second wrapping paragraph whose top lands exactly at the image's bottom, can still
 touch. e2e 7 asserts the invariant for the Task 2 shape (both paragraphs) and records the
-short-image case as a measurement in its docstring, not an assertion.
+short-image case as a measurement in its docstring, not an assertion. Also accepted: a
+paragraph block beside the float spans the full column, so notes.js's hover highlight
+(`.lesson-block.is-highlighted`) outlines the image area too and dims the floated block
+(`.is-dimmed`); cosmetic, checked in the e2e 7 screenshots only.
 
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
 Exception: `notes.css`'s print block prints the in-flow pop of every block that has note cards;
 inside a float that is ~45mm wide on A4 and makes the float tall. So in print a floated block
-whose pop has printable notes UN-FLOATS, keyed exactly as the notes print rule keys "has
-printable notes" (the same predicate, not a re-derivation) — the print counterpart of the
-below-rail notes rule.
+whose pop has printable notes UN-FLOATS — the print counterpart of the below-rail notes rule.
+It uses the SAME CLASS LIST as the notes print rule (`.note-card`, `.note-composer--edit`,
+`.note-composer--has-draft`, `.note-composer__error` today), but NOT its literal form: that rule
+is `.block-notes__pop:not(:has(…))`, and keying a block on it would need `:has(… :has(…))` —
+nested `:has()` is invalid, so the whole rule would be dropped silently (served but not parsed;
+source greps stay green). Write it as descendant alternatives on the block:
+`:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, …)`. A source test
+asserts the class list equals notes.css's; the falsified print e2e proves the rule parses.
+
+**Builder preview containment.** `_preview.html` renders `section.prev-el` straight into
+`.prev-inner` — no `.slide`. `.prev-inner:has(.el--image--float)` gets the same clearing
+`::after`, and a slide-break preview element after a float clears like any non-text element.
 
 **Scoping (D10).** Every new rule except the two clearing rules (sibling clear, heading
 self-clear — see Clearing) is keyed on
@@ -218,7 +239,8 @@ over the new block.
   BEFORE `_exact_keys`, then COERCES a non-bool to `False`, like `size`'s coercion to `full` —
   `_val_image`'s own policy is that a cosmetic field with a lossless default must never fail an
   import (`courses/transfer/payloads.py`, the `size` comment). `_build_image` passes it.
-- `FORMAT_VERSION` 16 → 17, with the payloads comment. Bump EVERY test that pins 16 — derive
+- `FORMAT_VERSION` 16 → 17 in `courses/transfer/schema.py`; the "added in FORMAT_VERSION 17"
+  note goes beside `_val_image`'s existing version comments in `payloads.py`. Bump EVERY test that pins 16 — derive
   the list by grep at plan time (`== 16`, `format_version`, `_16` in test names, across BOTH
   `tests/` and `courses/tests/`); do not trust a remembered count. ⚠ Two branches bumping the same constant merge silently — check master's
   value before the PR.
@@ -263,7 +285,8 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
 4. Medium at 367px: NOT floated, and its box equals an unflagged Medium's (centred, ≤50% of the
    column — not flush-left at full width); at 1300px floated; in a two-column column at desktop:
-   not floated, same equality.
+   not floated, same equality. The same float/fallback pair (a box above and below the
+   threshold) in a QUIZ and in the BUILDER PREVIEW — proves the measuring container exists there.
 5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
    container's bottom ≥ the image's bottom when the text is shorter than the image; the next
    top-level block starts below both.
@@ -275,9 +298,11 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it and the pop
    is as wide as the column.
 9. Quiz unit: a top-level floated image floats, as in the builder preview.
-10. Builder preview: ticking the box floats the preview without saving; choosing Large disables
-    and unchecks the box and un-floats the preview; Small ↔ Medium keeps it ticked; save
-    round-trips.
+10. Builder preview, on a SMALL image: ticking the box floats the preview without saving;
+    choosing Large disables and unchecks the box and un-floats the preview; Small ↔ Medium keeps
+    it ticked (assert the box and the `el--image--float` class, not geometry — Medium may
+    legitimately fall back in the narrow pane); save round-trips. An image as the last preview
+    element does not overflow `.prev-inner`; a slide-break after a float starts below it.
 11. Dark theme: the image plate is intact on the floated image.
 12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
     at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
