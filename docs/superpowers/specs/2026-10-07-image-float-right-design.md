@@ -66,12 +66,21 @@ The owner approved the look.
   when the size is Large or Full, so a disabled (therefore unsubmitted) checkbox and a
   hand-crafted POST agree.
 - `_edit_image.html`: a checkbox after the size fieldset, label "Float right" (translated),
-  carrying the same `data-for-element` contract as the size radios.
+  carrying the same `data-for-element` contract as the size radios. **Server-rendered state:**
+  `checked` iff `floats` (stored `float_right` true AND stored size Small/Medium — a
+  legacy/imported `true` on a Large image renders unchecked, so the box shows what students
+  see); `disabled` iff the stored size is Large/Full.
 - `editor.js`: inside the EXISTING delegated `change` handler (one listener is pinned by
   `test_image_size_js.py`):
   - toggling the box toggles `el--image--float` on the preview figure;
-  - choosing Large/Full unchecks and disables the box and removes the preview class; choosing
-    Small/Medium re-enables it (unchecked — the author re-ticks it deliberately).
+  - choosing Large/Full unchecks and disables the box and removes the preview class;
+  - leaving Large/Full for Small/Medium re-enables the box, unchecked (the author re-ticks it
+    deliberately);
+  - switching between Small and Medium leaves the box's checked state (and the preview class)
+    untouched.
+- i18n: a Polish catalog entry for the label (wording proposed in the PR for the owner to
+  confirm), the `.mo` regenerated, and a check that the entry is not `#, fuzzy` (makemessages
+  pre-fills a wrong fuzzy translation in this project).
 
 ### Render
 
@@ -84,32 +93,49 @@ changes: the float container is chosen in CSS by `:has()` on the parent wrapper.
 
 | Context | Floated box |
 |---|---|
-| Top level | `section.lesson-block` (via `> .lesson-block__body >`) |
-| Builder preview | `section.prev-el` (the figure is its DIRECT child — no `__body` wrapper) |
+| Lesson top level | `section.lesson-block` (via `> .lesson-block__body >`) |
+| Quiz top level | the bare `section[data-element-id]` of `_quiz_article.html` (no `.lesson-block`, no `__body` — the figure is its direct child) |
+| Builder preview | `section.prev-el` — the `section` qualifier is REQUIRED: in preview every container child is ALSO `.prev-el` (e.g. `.callout__child.prev-el`), and those are governed by the container rows below |
 | Callout / tabs / two-column / spoiler / before-after | `.callout__child` / `.tabs__child` / `.twocolumn__child` / `.spoiler__child` / `.ba__child` |
 
-It gets `float: right`, a width equal to the preset (25% / 50% of the containing box —
-the same percentages the presets use, so a floated image is no smaller than the unfloated
-one), and an inline-start gap. The figure inside takes `max-width: 100%`, drops its
-`margin-inline: auto`, and keeps a bottom margin (see mockup note).
+Quiz units float exactly like lessons (D4's "top level" covers both), so the builder preview
+matches what a student sees in either unit type.
 
-**Clearing (D3).** A sibling wrapper clears (`clear: right`) unless its element is a text or
-maths element without a heading. Wrapper-level selectors, same shape as the mockup:
-`:not(:has(> … > :is(.el--text, .el--math)))` plus `:has(> … > .el--text > :is(h2, h3, h4))`.
-A following floated image clears too (it is non-text), so two floats stack, never sit side by side.
+The floated box gets `float: right`, `max-width: 25%` / `50%` (the preset's percentage of the
+containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
+`fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh/45dvh` on the img)
+leaves no gap between itself and the wrapped text. An inline-start gap separates it from the
+text. The figure inside takes `max-width: 100%` and drops its `margin-inline: auto`; the img's
+own `margin-inline: auto` (the `.el--image--small img` group) is overridden to `0` so the image
+sits flush with the column's right edge. The figure keeps a bottom margin (see mockup note).
+
+**Clearing (D3).**
+- A sibling wrapper clears (`clear: right`) unless its element is a text or maths element:
+  `:not(:has(> … > :is(.el--text, .el--math)))`. A following floated image clears too (it is
+  non-text), so two floats stack, never sit side by side.
+- Headings clear THEMSELVES, wherever they sit inside a text element:
+  `.el--text :is(h2, h3, h4) { clear: right }` (descendant, so a heading inside an allowed
+  `div`/`blockquote` counts). A text element that opens with a paragraph and has a heading
+  further down wraps its paragraph and drops only from the heading on. With no float present
+  `clear` is a no-op, so this one rule needs no `:has()` scope.
 
 **Containment (D4).** A container whose children include a floated image contains it with a
 clearing `::after` (`content: ""; display: block; clear: both`) on the CONTAINER'S CHILD LIST
 box — scoped by `:has(.el--image--float)` so no other container changes. NOT `display: flow-root`:
 `app.css` (spoiler, around "deliberately not a flow-root") and `courses.css` (callout/tabs
 child wrappers) rely on margins collapsing through these wrappers; flow-root would change the
-spacing of every container. The plan must name the exact list box for each of the five
-containers and prove containment per container in e2e.
+spacing of every container. The plan must:
+- name the exact list box for each container, and grep each for an existing `::after` rule
+  before adding one;
+- note that `.twocolumn__column` (a flex item) and the carousel-mode `.tabs__section`
+  (absolutely positioned) ALREADY contain floats — no new rule there, but e2e still proves it;
+- prove containment per container in e2e.
 
-At the top level, the floated block must not leak past the end of the lesson's content (unit
-footer / navigation). `.slideshow-deck .slide` is already a BFC (absolute, `overflow-y: auto`);
-the non-deck path needs the same clearing `::after` on the slide/lesson content box, scoped by
-`:has()`.
+At the top level, the floated block must not leak past the end of its slide. Every unit renders
+one `div.slide` per slide (`_lesson_article.html`); `.slideshow-deck .slide` is already a BFC
+(absolute, `overflow-y: auto`), but outside the deck (single slide, and multi-slide with no JS,
+where slides stack) `.slide` needs the clearing `::after`, scoped by `:has(.el--image--float)`.
+The quiz article's element list box gets the same.
 
 **Medium fallback (D5).** Medium floats only when its container leaves ≥ ~12rem beside a 50%
 image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these constraints:
@@ -121,20 +147,36 @@ image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these c
 - A viewport media query is acceptable ONLY if the plan shows it handles a Medium image inside
   a two-column column at desktop width (a ~300px column must NOT float a Medium image).
 
-**Notes rail (D8).** At `@media screen and (min-width: 1200px)` with `notes-js`, the handle of
-a floated top-level block is anchored to the block's BOTTOM (`top: auto; bottom: 0` on the
-existing absolutely-positioned handle), so it sits level with the bottom of the image, below the
-neighbouring paragraph's top-anchored handle. e2e asserts the two handles' boxes do not
-intersect.
+**The floated block's own notes pop (below the rail).** Below 1200px, and at any width without
+`notes-js`, `.block-notes__pop` is in flow inside `.lesson-block` — inside a float only ~80px wide
+on a phone. While the floated block's panel is open the block UN-FLOATS
+(`:has(.block-notes__panel[open])` → `float: none; max-width: none`, the image back to its
+unfloated preset layout), so the pop gets the full column. The text reflows while notes are
+open; accepted.
+
+**Notes rail (D8).** Invariant: at `@media screen and (min-width: 1200px)` with `notes-js`, the
+floated block's handle intersects NO other handle in the lane. Mechanism: anchor it to the
+block's BOTTOM (`top: auto; bottom: 0` on the existing absolutely-positioned handle), level with
+the bottom of the image, below the top-anchored handle of the paragraph beside it. Known limits,
+accepted (author's call, not an owner decision): a floated image shorter than ~2 handle heights
+(~60px), or a second wrapping paragraph whose top lands exactly at the image's bottom, can still
+touch. e2e 7 asserts the invariant for the Task 2 shape (both paragraphs) and records the
+short-image case as a measurement in its docstring, not an assertion.
 
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
 
+**Scoping (D10).** Every new rule except the self-clearing heading rule is keyed on
+`.el--image--float` (directly or through `:has()`); in particular no `container-type`,
+`::after` or float rule applies to a page with no floated image. A CSS source test asserts this
+over the new block.
+
 ### Transfer
 
 - `_ser_image` emits `"float_right"`; `_val_image` does `setdefault("float_right", False)`
-  BEFORE `_exact_keys` (precedent: `_val_callout`'s `numbered`), then `check_bool`;
-  `_build_image` passes it.
+  BEFORE `_exact_keys`, then COERCES a non-bool to `False`, like `size`'s coercion to `full` —
+  `_val_image`'s own policy is that a cosmetic field with a lossless default must never fail an
+  import (`courses/transfer/payloads.py`, the `size` comment). `_build_image` passes it.
 - `FORMAT_VERSION` 16 → 17, with the payloads comment. Nine tests pin 16 (list in the
   plan); bump each. ⚠ Two branches bumping the same constant merge silently — check master's
   value before the PR.
@@ -152,25 +194,39 @@ Unit (pytest):
 - model default False; `floats` truth table over 4 sizes × 2 flag values;
 - form saves the flag; Large/Full POST with the flag stores False; an edit without the key
   stores False;
-- render: the class appears only when `floats`; nested in each container;
-- transfer: round-trip, missing key → False, non-bool rejected, version 17, duplicate keeps it;
-- editor JS source: branch in the one delegated handler.
+- editor template: checkbox `checked` iff `floats` (incl. a stored `true` on Large → unchecked),
+  `disabled` iff Large/Full;
+- render: the class appears only when `floats`; at lesson top level, quiz top level, and nested
+  in each container;
+- transfer: round-trip, missing key → False, non-bool COERCED to False (import succeeds),
+  version 17, duplicate keeps it;
+- editor JS source: branch in the one delegated handler;
+- CSS source: every new rule but the heading self-clear is keyed on `.el--image--float` (D10);
+- i18n: the Polish entry exists and is not fuzzy.
 
 e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
-1. Small at 367px and 1300px: image right-aligned in its column, the following paragraph's
-   first line starts left of the image and ends before it.
+1. Small at 367px and 1300px: the image's right edge equals the column's right edge; the
+   following paragraph's first line starts left of the image and ends before it. Includes a
+   SMALL-natural-width image (narrower than 25%): no gap between it and the text.
 2. Two text elements after the image both wrap (D3) — Task 2's shape.
-3. A heading, a spoiler and a second image after the float each start below the image's bottom.
+3. A heading element, a spoiler and a second image after the float each start below the image's
+   bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
 4. Medium at 367px: NOT floated (centred, own line); at 1300px floated; in a two-column column at
    desktop: not floated.
-5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the container's bottom ≥ the image's bottom when
-   the text is shorter than the image; the next top-level block starts below both.
-6. Top level, image as the last element: the unit footer starts below it.
-7. Notes rail at 1300px: the floated block's handle and the neighbour paragraph's handle do not
-   intersect; the pop of each still opens.
-8. Builder preview: ticking the box floats the preview without saving; choosing Large disables the
-   box and un-floats the preview; save round-trips.
-9. Dark theme: the image plate is intact on the floated image.
-10. Print emulation: still floated, mm cap applied.
+5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
+   container's bottom ≥ the image's bottom when the text is shorter than the image; the next
+   top-level block starts below both.
+6. Top level, image as the last element: the unit footer starts below it; multi-slide unit with
+   JS off: the next slide starts below it.
+7. Notes rail at 1300px: the floated block's handle intersects neither paragraph handle of the
+   Task 2 shape; each pop still opens.
+8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it and the pop
+   is as wide as the column.
+9. Quiz unit: a top-level floated image floats, as in the builder preview.
+10. Builder preview: ticking the box floats the preview without saving; choosing Large disables
+    and unchecks the box and un-floats the preview; Small ↔ Medium keeps it ticked; save
+    round-trips.
+11. Dark theme: the image plate is intact on the floated image.
+12. Print emulation: still floated, mm cap applied.
 
 Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).
