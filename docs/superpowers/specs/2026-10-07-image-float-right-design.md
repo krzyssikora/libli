@@ -201,9 +201,11 @@ each list box such as `.callout__children` or `.tabs__panel`, never a padded anc
 e2e threshold measures that same box's content width (`--space-4: 16px`,
 tokens.css). ⚠ A size-query condition cannot contain `var()` — `@container (min-width:
 calc(24rem + var(--space-4) * 2))` is INVALID and is dropped silently ("Medium never floats").
-The CSS therefore writes the LITERAL (`calc(24rem + 32px)` or `416px`); a source test derives the
-expected literal from tokens.css's `--space-4` so the two cannot drift. The e2e computes the
-threshold from the token at runtime. The mechanism must MEASURE THE
+The CSS therefore writes the LITERAL `calc(24rem + 32px)` — NOT `416px`: a container query
+resolves `rem` against the root font size, so only the rem form keeps tracking the 12rem text
+threshold when a user changes the browser's default font size. A source test derives the px
+term (2 × `--space-4`) from tokens.css so the two cannot drift. The e2e computes the threshold
+at runtime as `24 × (root computed font-size) + 2 × (--space-4 in px)`. The mechanism must MEASURE THE
 IMAGE'S CONTAINING BOX in every context (D5 verbatim) — a viewport media query is NOT
 acceptable, whatever it passes. Within that, the mechanism is the plan's call, with these
 constraints:
@@ -228,6 +230,14 @@ constraints:
   collapses), and its new BFC stops the margin collapsing that the container wrappers rely on
   ("deliberately not a flow-root"), so spacing would change in exactly the containers that hold
   a float.
+- `container-type` CANNOT sit under the float condition — it is what DECIDES D5. Like the
+  clearing `::after` and the note-card `flow-root`, it applies whenever `.el--image--float` is
+  present, whatever D5 decides — so a fallen-back Medium still gives its measuring box
+  containment. Requirement: the measuring box in each context is one where containment is
+  SPACING-NEUTRAL (no collapsing margin passes through its edges; if a candidate box has one, the
+  plan picks another or neutralises it explicitly). e2e 4 asserts it: for a fallen-back Medium,
+  at top level and in a callout, the containing box's height and its children's offsets equal
+  an unflagged twin's — not only the image's own box.
 
 **The floated block's own notes pop (below the rail).** Below 1200px, and at any width without
 `notes-js`, `.block-notes__pop` is in flow inside `.lesson-block` — inside a float only ~80px wide
@@ -250,7 +260,11 @@ notes loads un-floated below the rail.
 **Notes rail (D8).** Invariant: at `@media screen and (min-width: 1200px)` with `notes-js`, the
 floated block's handle intersects NO other handle in the lane. Mechanism: anchor it to the
 block's BOTTOM (`top: auto; bottom: 0` on the existing absolutely-positioned handle), level with
-the bottom of the image, below the top-anchored handle of the paragraph beside it. Known limits,
+the bottom of the image, below the top-anchored handle of the paragraph beside it. Consequence,
+accepted: notes.js sets `pop.style.top = handle.offsetTop`, so the floated block's pop opens
+level with the image's BOTTOM; in `--clamped` mode (`right: 0`, over the column) it overlays the
+image's lower edge and the wrapped paragraph. e2e 7 asserts the pop's top equals the handle's
+top. Known limits,
 accepted (author's call, not an owner decision): a floated image shorter than ~2 handle heights
 (~60px), or a second wrapping paragraph whose top lands exactly at the image's bottom, can still
 touch. e2e 7 asserts the invariant for the Task 2 shape (both paragraphs) and records the
