@@ -50,7 +50,9 @@ A copy of the real unit 914 page with the real stylesheets plus three throwaway 
 - `margin-bottom: 1rem` on the figure is load-bearing: `.block-notes { margin-top: -1rem }`
   (`notes.css`) otherwise pulls the in-flow handle up onto the image.
 
-The owner approved the look.
+The owner approved the look. These rules are evidence, NOT the implementation: notably the
+fixed `width:25%` became `max-width:25%` with shrink-wrap (see Design), which removes the gap
+beside a narrow image.
 
 ## Design
 
@@ -108,7 +110,7 @@ matches what a student sees in either unit type.
 
 The floated box gets `float: right`, `max-width: 25%` (the Small preset's percentage of the
 containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
-`fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh/45dvh` on the img)
+`fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh` on the img; `45mm` in print)
 leaves no gap between itself and the wrapped text. Known limit, accepted: at the top level the
 float also holds the notes `<aside>`, whose in-flow handle (below the rail, without `notes-js`,
 and in print where it is `visibility: hidden` but keeps its width) is ~25–50px wide, so an
@@ -200,7 +202,7 @@ on a phone. While the floated block's panel is open the block UN-FLOATS, so the 
 full column. "Un-float" here and in Print NEGATES THE WHOLE FLOAT CONDITION — it is not an
 override of `float`/`max-width` alone: every float-specific declaration (wrapper, figure, img,
 D8 handle, stacking) switches off together, and the image renders exactly like an unflagged
-image of the same size (centred, ≤ the preset %). The plan folds these conditions into the
+Small (centred, ≤25%). The plan folds these conditions into the
 shared float condition (e.g. `:not(:has(.block-notes__panel[open]))` within the scoped media
 branches) rather than layering partial overrides. The text reflows while notes are
 open; accepted. **Scope:** only where the pop is in flow — `@media screen and (max-width:
@@ -326,7 +328,7 @@ Unit (pytest):
 - CSS source: every new rule but the clearing rules (sibling, heading, `pre`) is
   keyed on `.el--image--float` (D10); and every selector in the new block that contains
   `section[data-element-id]` also contains the chosen quiz scope — a mutant dropping the scope
-  must turn the test RED;
+  must turn the test RED; and the new block contains no `container-type` / `@container` (D5);
 - i18n: the Polish entry exists and is not fuzzy.
 
 e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode). The `<img>` carries
@@ -337,8 +339,8 @@ no width/height, so EVERY geometry assertion first waits until all fixture image
    following paragraph's first line starts left of the image and ends before it. Includes a
    SMALL-natural-width image (narrower than 25%): no gap between it and the text; and a
    narrow image with a figcaption longer than the image: the IMAGE's right edge still equals
-   the column's right edge; and a tall portrait (e.g. 1:2) at 1300px whose `max-height` cap
-   binds: the gap between the text's line end and the image's left edge is ≤ `--space-4`.
+   the column's right edge; and a tall portrait (e.g. 1:2) at a 1300×700 viewport whose `max-height` cap
+   binds — the test first asserts the img's rendered height equals its computed `max-height`: the gap between the text's line end and the image's left edge is ≤ `--space-4`.
    Clicking the floated image opens the zoom dialog at 1300px with `notes-js` (stacking) and at
    367px. The image's top is within 2px of the first wrapped line's top, at top level AND inside
    a callout (margins win over container rules); a callout ending in a float has no more
@@ -351,8 +353,7 @@ no width/height, so EVERY geometry assertion first waits until all fixture image
 3. A heading element, a spoiler and a second image after the float each start below the image's
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
 4. A stored `float_right = true` on a MEDIUM image (import/legacy): not floated at 367px or
-   1300px, its box equals an unflagged Medium's; and a CSS source test asserts the new block
-   contains no `container-type` / `@container`.
+   1300px, its box equals an unflagged Medium's.
 5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
    container's bottom ≥ the image's bottom when the text is shorter than the image; the next
    top-level block starts below both. PLUS a float at the end of a NON-LAST list in a stacked
@@ -384,6 +385,6 @@ no width/height, so EVERY geometry assertion first waits until all fixture image
     at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
     starts below it; an EMPTY pop of a note-less text block beside a float stays `display: none` in print;
     a floated image WITH a note prints un-floated, its notes at column width, the image's box equal
-    to an unflagged image of the same size.
+    to an unflagged Small's (centred, ≤25%).
 
 Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).
