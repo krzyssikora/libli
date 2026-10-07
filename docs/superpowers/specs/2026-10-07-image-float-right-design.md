@@ -112,7 +112,11 @@ matches what a student sees in either unit type.
 The floated box gets `float: right`, `max-width: 25%` / `50%` (the preset's percentage of the
 containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
 `fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh/45dvh` on the img)
-leaves no gap between itself and the wrapped text. Its margin is the approved mockup's
+leaves no gap between itself and the wrapped text. Known limit, accepted: at the top level the
+float also holds the notes `<aside>`, whose in-flow handle (below the rail, without `notes-js`,
+and in print where it is `visibility: hidden` but keeps its width) is ~25–50px wide, so an
+image narrower than the handle gets a float wider than itself. e2e 1's small-image fixture is
+therefore ≥ 80px natural width. Its margin is the approved mockup's
 `0 0 var(--space-3) var(--space-4)`: the inline-start gap from the text, and the space above the
 first full-width line under it. The figure inside takes `max-width: 100%`, drops its `margin-inline: auto`, and its block
 margins are pinned to `0 0 1rem` as in the approved mockup (a float is a BFC root, so the
@@ -186,7 +190,11 @@ there is no separate quiz list box.
 
 **Medium fallback (D5).** Medium floats only when its containing box W leaves ≥ 12rem of text
 beside it. Text width = 0.5W − space-4 (the float's inline-start margin sits outside its 50%),
-so the threshold is W ≥ `2 × (12rem + space-4)` = `24rem + 32px` today (`--space-4: 16px`,
+so the threshold is W ≥ `2 × (12rem + space-4)` = `24rem + 32px` today, where W is the floated box's CONTAINING BLOCK
+(the box its `max-width: 50%` resolves against) — the query container in each context is
+exactly that box (the article/quiz content box at top level, the deck `.slide`, `.prev-inner`,
+each list box such as `.callout__children` or `.tabs__panel`, never a padded ancestor), and the
+e2e threshold measures that same box's content width (`--space-4: 16px`,
 tokens.css). ⚠ A size-query condition cannot contain `var()` — `@container (min-width:
 calc(24rem + var(--space-4) * 2))` is INVALID and is dropped silently ("Medium never floats").
 The CSS therefore writes the LITERAL (`calc(24rem + 32px)` or `416px`); a source test derives the
@@ -274,6 +282,11 @@ float instead of running under it. Scoped (D10) to slides/containers that hold a
 (e.g. `.slide:has(.el--image--float) .block-notes__pop`, likewise `.prev-inner` and the
 container lists) and to the in-flow media branches (screen below 1200px, `html:not(.notes-js)`
 on screen, and print) — never at the rail, where the pop is absolutely positioned.
+Invariant: this rule NEVER overrides notes.css's print hide of an EMPTY pop
+(`.lesson .block-notes__pop:not(:has(.note-card, …)) { display: none }`, (0,3,0), which today
+wins only by load order). The print branch is therefore restricted to pops WITH printable
+content — the same class list as the print un-float, written as descendant alternatives — so
+it cannot resurrect an empty pop as a stray box however specific its selector is.
 
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
@@ -337,7 +350,10 @@ Unit (pytest):
   must turn the test RED;
 - i18n: the Polish entry exists and is not fuzzy.
 
-e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
+e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode). The `<img>` carries
+no width/height, so EVERY geometry assertion first waits until all fixture images have loaded
+(`img.complete && img.naturalWidth > 0`, polled in a loop inside `evaluate` — not
+`wait_for_function` with an async predicate):
 1. Small at 367px and 1300px: the image's right edge equals the column's right edge; the
    following paragraph's first line starts left of the image and ends before it. Includes a
    SMALL-natural-width image (narrower than 25%): no gap between it and the text; and a
@@ -351,8 +367,8 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 2. Two text elements after the image both wrap (D3) — Task 2's shape — in a LESSON (proves no
    quiz-context rule clears lesson text) and in a QUIZ. A maths element after the image sits
    beside it (its right edge left of the image's left edge) and the page does not scroll
-   horizontally at 367px; a display formula narrower box scrolling inside its own scroller is
-   accepted.
+   horizontally at 367px; a display formula whose scroller is narrowed beside the float and
+   scrolls horizontally inside it is accepted.
 3. A heading element, a spoiler and a second image after the float each start below the image's
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
 4. Medium at 367px: NOT floated, and its box equals an unflagged Medium's (centred, ≤50% of the
@@ -391,7 +407,8 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 11. Dark theme: the image plate is intact on the floated image.
 12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
     at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
-    starts below it; a floated image WITH a note prints un-floated, its notes at column width, the image's box equal
+    starts below it; an EMPTY pop of a note-less text block beside a float stays `display: none` in print;
+    a floated image WITH a note prints un-floated, its notes at column width, the image's box equal
     to an unflagged image of the same size.
 
 Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).
