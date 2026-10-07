@@ -294,35 +294,79 @@ def test_equal_gives_every_column_the_same_width(page, live_server):
     )
 
 
-def test_an_equal_column_too_narrow_for_its_content_grows_instead_of_spilling(
+def test_an_equal_column_too_narrow_for_unbreakable_content_grows_instead_of_spilling(
     page, live_server
 ):
     """Why the shares are percentages in AUTO layout, not `table-layout: fixed`:
-    fixed would hold the column at its share and let an unbreakable token spill
+    fixed would hold the column at its share and let unbreakable content spill
     over its neighbour. Auto layout honours min-content, so the column grows and
-    the table scrolls."""
+    the table scrolls.
+
+    The fixture is inline maths with NO operator: words break in an `equal`
+    table, so a long word no longer counts as unbreakable, and KaTeX may wrap
+    after `+`/`=`. A run of juxtaposed symbols is one `nowrap` .base."""
     _make_pa_user(PA_USERNAME)
     unit = _unit(PA_USERNAME, "tw-equal-wide")
-    _add(unit, [["W" * 60, "a", "b", "c"]], width="equal")
+    maths = "\\(" + "".join(f"x_{{{i}}}" for i in range(40)) + "\\)"
+    _add(unit, [[maths, "a", "b", "c"]], width="equal")
 
     _login(page, live_server, PA_USERNAME)
     page.goto(_lesson_url(live_server, unit))
+    page.wait_for_selector(".el--table .katex-html > .base")
     box = page.evaluate(
         """() => {
              const td = document.querySelector('.el--table td');
-             const span = document.createElement('span');
-             span.textContent = td.textContent;
-             td.textContent = '';
-             td.appendChild(span);
              return { td: td.getBoundingClientRect().width,
-                      text: span.getBoundingClientRect().width,
+                      maths: td.querySelector('.katex-html')
+                               .getBoundingClientRect().width,
                       scroll: document.querySelector('.el--table__scroll')
                                 .getBoundingClientRect().width };
            }"""
     )
-    assert box["text"] > box["scroll"] / 4, "fixture fits its share; untested"
-    assert box["td"] >= box["text"] - EPS, (
-        f"text {box['text']:.1f}px spills out of a {box['td']:.1f}px cell"
+    assert box["maths"] > box["scroll"] / 4, "fixture fits its share; untested"
+    assert box["td"] >= box["maths"] - EPS, (
+        f"maths {box['maths']:.1f}px spills out of a {box['td']:.1f}px cell"
+    )
+
+
+# The reported phone shape: one-word headers of different lengths over columns
+# of identical content. Under the shares alone, each column was as wide as its
+# header word (measured 64/50/50/68/108px at 367px).
+PHONE_HEADERS = ["Jeden", "Dwa", "Trzy", "Cztery", "Pięćdziesiąt"]
+
+
+def test_equal_columns_stay_equal_at_phone_width_under_long_header_words(
+    page, live_server
+):
+    _make_pa_user(PA_USERNAME)
+    unit = _unit(PA_USERNAME, "tw-equal-phone")
+    _add(unit, [PHONE_HEADERS, ["1"] * 5, ["2"] * 5], width="equal")
+
+    page.set_viewport_size({"width": 367, "height": 900})
+    _login(page, live_server, PA_USERNAME)
+    page.goto(_lesson_url(live_server, unit))
+    (equal,) = _col_widths(page)
+    longest = page.evaluate(
+        """() => {
+             const td = document.querySelector('.el--table tr:first-child td');
+             const cs = getComputedStyle(td);
+             const probe = document.createElement('span');
+             probe.style.cssText = 'position:absolute;white-space:nowrap;font:'
+               + cs.font;
+             probe.textContent = 'Pięćdziesiąt';
+             document.body.appendChild(probe);
+             const w = probe.getBoundingClientRect().width;
+             probe.remove();
+             return w;
+           }"""
+    )
+
+    share = equal["scroll_w"] / len(PHONE_HEADERS)
+    # The longest word must not fit its share, or the next assertion is vacuous.
+    assert longest > share, f"'Pięćdziesiąt' is {longest:.1f}px, share {share:.1f}px"
+    assert abs(equal["table_w"] - equal["scroll_w"]) < EPS, equal
+    assert max(equal["cols"]) - min(equal["cols"]) < EPS, (
+        f"equal columns differ at phone width: {[round(w, 1) for w in equal['cols']]}"
     )
 
 

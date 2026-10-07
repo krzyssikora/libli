@@ -1483,6 +1483,14 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    -- unlike centring a too-wide box with flex, whose leading edge cannot be
    scrolled back into view. */
 .el--table--width-fit table { width: auto; margin-inline: auto; }
+/* `equal` shares are percentages in AUTO layout, so a column never shrinks
+   below its longest WORD. MEASURED at a 367px phone, five columns of identical
+   Full images under one-word headers rendered 64/50/50/68/108px wide -- the
+   header lengths, not the shares -- because a Full image contributes nothing to
+   the column floor and a ~50px share is shorter than most words. Letting words
+   break removes that floor (67px each; desktop unchanged). Unbreakable content
+   still grows its column: KaTeX is `white-space: nowrap`, image caps are px. */
+.el--table--width-equal :is(th, td) { overflow-wrap: anywhere; }
 .el--table th, .el--table td { padding: var(--space-2); }
 .el--table th { color: var(--text-primary); }
 .el--table--border-grid th, .el--table--border-grid td { border: 1px solid var(--border-default); }
