@@ -105,19 +105,31 @@ The floated box gets `float: right`, `max-width: 25%` / `50%` (the preset's perc
 containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
 `fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh/45dvh` on the img)
 leaves no gap between itself and the wrapped text. An inline-start gap separates it from the
-text. The figure inside takes `max-width: 100%` and drops its `margin-inline: auto`; the img's
-own `margin-inline: auto` (the `.el--image--small img` group) is overridden to `0` so the image
-sits flush with the column's right edge. The figure keeps a bottom margin (see mockup note).
+text. The figure inside takes `max-width: 100%`, drops its `margin-inline: auto`, and its block
+margins are pinned to `0 0 1rem` as in the approved mockup (a float is a BFC root, so the
+`.el { margin: 1rem 0 }` top margin would otherwise push the image ~1rem below the text's first
+line; the bottom 1rem is the notes-handle clearance, see mockup note). The img's own
+`margin-inline: auto` (the `.el--image--small img` group) becomes `margin-inline: auto 0`, so the
+image hugs the float's RIGHT edge even when a figcaption longer than the image widens the float
+(the figure is `fit-content`: it sizes to the wider of image and caption).
+
+**Every float-specific declaration — on the wrapper, the figure and the img — sits under the same
+condition as `float: right`.** A Medium image that falls back (D5) must render exactly like an
+unflagged Medium (centred, ≤50%), not flush-left at full width.
 
 **Clearing (D3).**
 - A sibling wrapper clears (`clear: right`) unless its element is a text or maths element:
   `:not(:has(> … > :is(.el--text, .el--math)))`. A following floated image clears too (it is
   non-text), so two floats stack, never sit side by side.
 - Headings clear THEMSELVES, wherever they sit inside a text element:
-  `.el--text :is(h2, h3, h4) { clear: right }` (descendant, so a heading inside an allowed
-  `div`/`blockquote` counts). A text element that opens with a paragraph and has a heading
-  further down wraps its paragraph and drops only from the heading on. With no float present
-  `clear` is a no-op, so this one rule needs no `:has()` scope.
+  `.el--text :is(<every heading tag>) { clear: right }` (descendant, so a heading inside an
+  allowed `div`/`blockquote` counts). The heading list is the text sanitizer's allowed headings
+  (`ALLOWED_TAGS` in `courses/sanitize.py`, h2–h4 today); the CSS source test derives the list
+  from that set rather than pinning it. A text element that opens with a paragraph and has a
+  heading further down wraps its paragraph and drops only from the heading on.
+- Both clearing rules are deliberately UNSCOPED (no `.el--image--float` key): `clear` is a no-op
+  when no float precedes, so they cannot change a page without a floated image. They are the two
+  named exemptions of the D10 source test.
 
 **Containment (D4).** A container whose children include a floated image contains it with a
 clearing `::after` (`content: ""; display: block; clear: both`) on the CONTAINER'S CHILD LIST
@@ -127,15 +139,19 @@ child wrappers) rely on margins collapsing through these wrappers; flow-root wou
 spacing of every container. The plan must:
 - name the exact list box for each container, and grep each for an existing `::after` rule
   before adding one;
-- note that `.twocolumn__column` (a flex item) and the carousel-mode `.tabs__section`
-  (absolutely positioned) ALREADY contain floats — no new rule there, but e2e still proves it;
+- give EVERY container's child list the `::after`, including two-column and carousel-mode tabs.
+  On screen `.twocolumn__column` (a flex item) and the carousel `.tabs__section` (absolutely
+  positioned) already contain floats, but print rewrites the carousel to `position: static
+  !important` (courses.css print block), so only an explicit clear holds on paper (D9);
 - prove containment per container in e2e.
 
 At the top level, the floated block must not leak past the end of its slide. Every unit renders
-one `div.slide` per slide (`_lesson_article.html`); `.slideshow-deck .slide` is already a BFC
-(absolute, `overflow-y: auto`), but outside the deck (single slide, and multi-slide with no JS,
-where slides stack) `.slide` needs the clearing `::after`, scoped by `:has(.el--image--float)`.
-The quiz article's element list box gets the same.
+one `div.slide` per slide (`_lesson_article.html`). EVERY `.slide:has(.el--image--float)` gets
+the clearing `::after` — deck slides included: on screen a deck slide is already a BFC (absolute,
+`overflow-y: auto`) and the `::after` is harmless, but print makes deck slides `position: static
+!important; overflow: visible !important`, and outside the deck (single slide; multi-slide with
+no JS, where slides stack) nothing else contains the float. The quiz article's element list box
+gets the same.
 
 **Medium fallback (D5).** Medium floats only when its container leaves ≥ ~12rem beside a 50%
 image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these constraints:
@@ -143,7 +159,12 @@ image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these c
   layout containment (a new BFC and a containing block for absolute/fixed descendants). Putting
   it on `.lesson` or on container wrappers can move notes pops, the image-zoom trigger, KaTeX
   scrollers — the plan must audit or choose a box where that is harmless, and an e2e must show
-  the notes pop still opens beside its block.
+  the notes pop still opens beside its block. The audit must also cover inline-size
+  containment's other two effects: the box's intrinsic inline size ignores its content (a
+  content-sized box — fit-content, shrink-to-fit absolute, `flex-basis: auto`, inline-block —
+  collapses), and its new BFC stops the margin collapsing that the container wrappers rely on
+  ("deliberately not a flow-root"), so spacing would change in exactly the containers that hold
+  a float.
 - A viewport media query is acceptable ONLY if the plan shows it handles a Medium image inside
   a two-column column at desktop width (a ~300px column must NOT float a Medium image).
 
@@ -152,7 +173,13 @@ image, i.e. container ≥ ~25rem. The mechanism is the plan's call, with these c
 on a phone. While the floated block's panel is open the block UN-FLOATS
 (`:has(.block-notes__panel[open])` → `float: none; max-width: none`, the image back to its
 unfloated preset layout), so the pop gets the full column. The text reflows while notes are
-open; accepted.
+open; accepted. **Scope:** only where the pop is in flow — `@media screen and (max-width:
+1199.98px)`, OR `html:not(.notes-js)` at any screen width. NOT at ≥1200px with `notes-js` (the
+pop is absolutely positioned in the rail; un-floating would reflow the paragraph, move the D8
+handle and make notes.js's `pop.style.top = handle.offsetTop` jump) and NOT in print (D9).
+Also accepted: when the page is rendered with panels open server-side (`notes_show`, or after
+a no-JS composer error, `_block_notes.html` emits `<details open>`), a floated image that has
+notes loads un-floated below the rail.
 
 **Notes rail (D8).** Invariant: at `@media screen and (min-width: 1200px)` with `notes-js`, the
 floated block's handle intersects NO other handle in the lane. Mechanism: anchor it to the
@@ -166,7 +193,8 @@ short-image case as a measurement in its docstring, not an assertion.
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
 
-**Scoping (D10).** Every new rule except the self-clearing heading rule is keyed on
+**Scoping (D10).** Every new rule except the two clearing rules (sibling clear, heading
+self-clear — see Clearing) is keyed on
 `.el--image--float` (directly or through `:has()`); in particular no `container-type`,
 `::after` or float rule applies to a page with no floated image. A CSS source test asserts this
 over the new block.
@@ -177,8 +205,9 @@ over the new block.
   BEFORE `_exact_keys`, then COERCES a non-bool to `False`, like `size`'s coercion to `full` —
   `_val_image`'s own policy is that a cosmetic field with a lossless default must never fail an
   import (`courses/transfer/payloads.py`, the `size` comment). `_build_image` passes it.
-- `FORMAT_VERSION` 16 → 17, with the payloads comment. Nine tests pin 16 (list in the
-  plan); bump each. ⚠ Two branches bumping the same constant merge silently — check master's
+- `FORMAT_VERSION` 16 → 17, with the payloads comment. Bump EVERY test that pins 16 — derive
+  the list by grep at plan time (`== 16`, `format_version`, `_16` in test names, across BOTH
+  `tests/` and `courses/tests/`); do not trust a remembered count. ⚠ Two branches bumping the same constant merge silently — check master's
   value before the PR.
 - Duplicate / copy-to-unit reuse the serializer and builder, so they carry the flag; a test
   proves it.
@@ -207,19 +236,23 @@ Unit (pytest):
 e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 1. Small at 367px and 1300px: the image's right edge equals the column's right edge; the
    following paragraph's first line starts left of the image and ends before it. Includes a
-   SMALL-natural-width image (narrower than 25%): no gap between it and the text.
+   SMALL-natural-width image (narrower than 25%): no gap between it and the text; and a
+   narrow image with a figcaption longer than the image: the IMAGE's right edge still equals
+   the column's right edge.
 2. Two text elements after the image both wrap (D3) — Task 2's shape.
 3. A heading element, a spoiler and a second image after the float each start below the image's
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
-4. Medium at 367px: NOT floated (centred, own line); at 1300px floated; in a two-column column at
-   desktop: not floated.
+4. Medium at 367px: NOT floated, and its box equals an unflagged Medium's (centred, ≤50% of the
+   column — not flush-left at full width); at 1300px floated; in a two-column column at desktop:
+   not floated, same equality.
 5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
    container's bottom ≥ the image's bottom when the text is shorter than the image; the next
    top-level block starts below both.
 6. Top level, image as the last element: the unit footer starts below it; multi-slide unit with
    JS off: the next slide starts below it.
 7. Notes rail at 1300px: the floated block's handle intersects neither paragraph handle of the
-   Task 2 shape; each pop still opens.
+   Task 2 shape; each pop still opens; opening the floated block's pop leaves the block FLOATED
+   (the un-float rule is below-rail only).
 8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it and the pop
    is as wide as the column.
 9. Quiz unit: a top-level floated image floats, as in the builder preview.
@@ -227,6 +260,8 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
     and unchecks the box and un-floats the preview; Small ↔ Medium keeps it ticked; save
     round-trips.
 11. Dark theme: the image plate is intact on the floated image.
-12. Print emulation: still floated, mm cap applied.
+12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
+    at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
+    starts below it.
 
 Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).
