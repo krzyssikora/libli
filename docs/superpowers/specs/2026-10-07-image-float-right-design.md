@@ -122,6 +122,15 @@ line; the bottom 1rem is the notes-handle clearance, see mockup note). The img's
 image hugs the float's RIGHT edge even when a figcaption longer than the image widens the float
 (the figure is `fit-content`: it sizes to the wider of image and caption).
 
+Inside containers the float's margins WIN over the existing child-spacing rules, which outrank a
+plain `.X__child:has(…)` rule (`.el--twocolumn > .twocolumn__column > .twocolumn__child +
+.twocolumn__child` is (0,4,0); `.el--tabs .tabs__child + .tabs__child` and the callout
+`+`/`:last-child` rules are (0,3,0)): the float rules carry enough specificity to beat them (the
+plan names each). The 1rem figure bottom margin is notes-handle clearance, which only top-level
+blocks need: inside a container list the figure's bottom margin is 0, and a floated LAST child of
+a list also drops the wrapper's bottom margin, so a callout/tab ending in a float has no extra
+trailing space before its bottom padding.
+
 **Every float-specific declaration — on the wrapper, the figure, the img, and the D8
 bottom-anchored notes handle — sits under the same condition as `float: right`.** A Medium image that falls back (D5) must render exactly like an
 unflagged Medium (centred, ≤50%), not flush-left at full width.
@@ -244,12 +253,27 @@ paragraph block beside the float — later in the tree, spanning the full column
 the image. VERIFIED on the mockup (1300px): `elementFromPoint` at the image's centre returns the
 paragraph's `<p>`, so a click never reaches `img[data-zoomable]` and zoom is dead. Fix, under the
 float condition (D10): the floated block gets `z-index: 1` where it is positioned. This makes it
-a stacking context; its own pop (`z-index: 50`) then stacks within it, still above later blocks
-(which are `z-index: auto`) — the plan confirms nothing later in the column has a positive
-z-index that would now cover the pop. Once the image is on top, the paragraph's hover highlight
+a stacking context, and its own pop (`z-index: 50`) is then trapped inside it — BELOW positive-z
+content in the root context that it beats today: the sticky `.unit-foot` (`z-index: 20`),
+`.unit-toc-pin` (21), and a later drag-to-image question's `.dragimage__target`/`__badge` (3/4,
+painting in the root context because their block is `z-index: auto`). So while the floated
+block's panel is OPEN (`:has(.block-notes__panel[open])`, still under the float condition) its
+z-index rises to `50` — the pop's own value — restoring today's order exactly; closed, it is `1`.
+The plan re-greps positive z-indexes in courses.css/app.css/notes.css at plan time. Once the
+image is on top, the paragraph's hover highlight
 tint paints under it (around, not over, the image); the outline-encloses-image cosmetic above
 remains accepted. Below 1200px and inside containers no wrapper is positioned, so the image
 already wins the hit test; e2e covers both.
+
+**A neighbouring block's in-flow notes pop.** Below the rail, without `notes-js`, and in print
+(notes.css prints the pop of every block with cards), a TEXT block wrapping beside the float has
+its pop in flow; `.note-card` is a block with a border, accent border-left and background, so its
+border box would run UNDER the image (image over the card's right side) while the text wraps.
+Fix: an in-flow `.block-notes__pop` gets `display: flow-root`, so as a BFC it narrows beside the
+float instead of running under it. Scoped (D10) to slides/containers that hold a floated image
+(e.g. `.slide:has(.el--image--float) .block-notes__pop`, likewise `.prev-inner` and the
+container lists) and to the in-flow media branches (screen below 1200px, `html:not(.notes-js)`
+on screen, and print) — never at the rail, where the pop is absolutely positioned.
 
 **Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
 block) still apply to a floated image and that the float survives in print emulation.
@@ -321,7 +345,9 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
    the column's right edge; and a tall portrait (e.g. 1:2) at 1300px whose `max-height` cap
    binds: the gap between the text's line end and the image's left edge is ≤ `--space-4`.
    Clicking the floated image opens the zoom dialog at 1300px with `notes-js` (stacking) and at
-   367px.
+   367px. The image's top is within 2px of the first wrapped line's top, at top level AND inside
+   a callout (margins win over container rules); a callout ending in a float has no more
+   trailing space below the image than below an unfloated last child.
 2. Two text elements after the image both wrap (D3) — Task 2's shape — in a LESSON (proves no
    quiz-context rule clears lesson text) and in a QUIZ. A maths element after the image sits
    beside it (its right edge left of the image's left edge) and the page does not scroll
@@ -349,8 +375,13 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 7. Notes rail at 1300px: the floated block's handle intersects neither paragraph handle of the
    Task 2 shape; each pop still opens; opening the floated block's pop leaves the block FLOATED
    (the un-float rule is below-rail only).
+   Also: with the floated block's pop open: the image near the viewport bottom → `elementFromPoint`
+   inside the pop returns the pop, not `.unit-foot`; in `--clamped` mode above a following
+   drag-to-image block → the pop, not `.dragimage__target`.
 8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it, the pop
    is as wide as the column, and the image's box equals an unflagged Small's (centred, ≤25%).
+   A SHORT paragraph wrapping beside a floated Small: opening ITS notes (and, in print emulation,
+   a block with a note) — the note card's border box does not intersect the image.
 9. Quiz unit: a top-level floated image floats, as in the builder preview.
 10. Builder preview, on a SMALL image: ticking the box floats the preview without saving;
     choosing Large disables and unchecks the box and un-floats the preview; Small ↔ Medium keeps
