@@ -67,7 +67,10 @@ The owner approved the look.
   when the size is Large or Full, so a disabled (therefore unsubmitted) checkbox and a
   hand-crafted POST agree.
 - `_edit_image.html`: a checkbox after the size fieldset, label "Float right" (translated),
-  carrying the same `data-for-element` contract as the size radios. **Server-rendered state**,
+  carrying the same `data-for-element` contract as the size radios (used, as now, ONLY to find
+  the preview figure). The size-radio handler finds ITS checkbox inside its own editor —
+  `preset.closest(".el-editor--image").querySelector(…)` — never by `data-for-element`, which is
+  `""` for every unsaved image on the create flow. **Server-rendered state**,
   from the FORM's current values (like the size radios, which render `form.size.value`):
   `checked` iff `form.float_right.value` is true AND `form.size.value` is Small/Medium;
   `disabled` iff `form.size.value` is Large/Full. For an unbound form these are the stored
@@ -162,9 +165,14 @@ no JS, where slides stack) nothing else contains the float. Outside a slideshow 
 the same `div.slide` per slide (`_quiz_article.html`), so the same `.slide` rule covers them —
 there is no separate quiz list box.
 
-**Medium fallback (D5).** Medium floats only when its containing box leaves ≥ 12rem of text
-beside it: the threshold is `2 × 12rem + var(--space-4)` (the float's inline-start margin
-included), and the CSS and the e2e use that same expression. The mechanism must MEASURE THE
+**Medium fallback (D5).** Medium floats only when its containing box W leaves ≥ 12rem of text
+beside it. Text width = 0.5W − space-4 (the float's inline-start margin sits outside its 50%),
+so the threshold is W ≥ `2 × (12rem + space-4)` = `24rem + 32px` today (`--space-4: 16px`,
+tokens.css). ⚠ A size-query condition cannot contain `var()` — `@container (min-width:
+calc(24rem + var(--space-4) * 2))` is INVALID and is dropped silently ("Medium never floats").
+The CSS therefore writes the LITERAL (`calc(24rem + 32px)` or `416px`); a source test derives the
+expected literal from tokens.css's `--space-4` so the two cannot drift. The e2e computes the
+threshold from the token at runtime. The mechanism must MEASURE THE
 IMAGE'S CONTAINING BOX in every context (D5 verbatim) — a viewport media query is NOT
 acceptable, whatever it passes. Within that, the mechanism is the plan's call, with these
 constraints:
@@ -174,6 +182,11 @@ constraints:
   container evaluates FALSE — a missing container fails silently as "Medium never floats here".
   Note `.slide` is `display: contents` outside a slideshow and generates no box, so it cannot be
   the container there.
+- In a JS slideshow deck the top-level block sits in `.slideshow-deck .slide` (created by
+  slideshow.js; `padding: var(--space-6)` inside a bordered deck — ~50px narrower than the
+  article). That slide must be the measuring box in decks (it is absolutely positioned with
+  `inset: 0`, so its width is definite; audit it like the others), else every paginated lesson
+  and quiz over-estimates the text width by ~50px — a quarter of the 12rem D5 protects.
 - A size container query needs `container-type: inline-size` on an ancestor, which applies
   layout containment (a new BFC and a containing block for absolute/fixed descendants). Putting
   it on `.lesson` or on container wrappers can move notes pops, the image-zoom trigger, KaTeX
@@ -284,8 +297,12 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
 3. A heading element, a spoiler and a second image after the float each start below the image's
    bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
 4. Medium at 367px: NOT floated, and its box equals an unflagged Medium's (centred, ≤50% of the
-   column — not flush-left at full width); at 1300px floated; in a two-column column at desktop:
-   not floated, same equality. The same float/fallback pair (a box above and below the
+   column — not flush-left at full width); at 1300px floated; in a two-column column: the test
+   MEASURES the column's content width and asserts floated iff it is ≥ the threshold (a 2-column
+   column is ~314px with the tree pinned but ~426px collapsed, so a hard-coded "not floated" is
+   wrong in one TOC state) — with a fixture that lands BELOW it (e.g. 3 columns) so the fallback
+   branch is exercised, same equality as above. A multi-slide DECK case pairs a box above and
+   below the threshold measured on the deck slide. The same float/fallback pair (a box above and below the
    threshold) in a QUIZ and in the BUILDER PREVIEW — proves the measuring container exists there.
 5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
    container's bottom ≥ the image's bottom when the text is shorter than the image; the next
