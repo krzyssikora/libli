@@ -162,8 +162,12 @@ box — scoped by `:has(.el--image--float)` so no other container changes. NOT `
 `app.css` (spoiler, around "deliberately not a flow-root") and `courses.css` (callout/tabs
 child wrappers) rely on margins collapsing through these wrappers; flow-root would change the
 spacing of every container. The plan must:
-- name the exact list box for each container, and grep each for an existing `::after` rule
-  before adding one;
+- name the exact list box for each container, and grep EVERY box that receives the clearing
+  `::after` — each container list, `.slide` (deck slides included, plus any class slideshow.js
+  adds to them) and `.prev-inner` — for an existing `::after` before adding one. The project
+  already uses `::after` for scroll shadows (`.scroll-y::after`, absolutely positioned, app.css);
+  none of these boxes carries `.scroll-y` today, and a comment beside the clearing rule says
+  they must not;
 - give EVERY child list the `::after` — and a container may have SEVERAL: one `.tabs__panel` per
   tab section, one `.ba__panel` per before/after side, one `.twocolumn__column` per column. The
   clear goes on EACH list (`.tabs__panel:has(…)`, `.ba__panel:has(…)`, …), never once on the
@@ -277,8 +281,15 @@ already wins the hit test; e2e covers both.
 (notes.css prints the pop of every block with cards), a TEXT block wrapping beside the float has
 its pop in flow; `.note-card` is a block with a border, accent border-left and background, so its
 border box would run UNDER the image (image over the card's right side) while the text wraps.
-Fix: an in-flow `.block-notes__pop` gets `display: flow-root`, so as a BFC it narrows beside the
-float instead of running under it. Scoped (D10) to slides/containers that hold a floated image
+Fix: the boxes that actually PAINT in flow — `.note-card` and `.note-composer` (and whatever
+else the pop renders in flow; the plan lists them) — get `display: flow-root`, so as BFCs they
+narrow beside the float instead of running under it; the composer's `width: 100%` textarea
+narrows with its composer. NOT the pop itself: the pop has `margin-top: .4rem` and no
+padding/border, so making IT a BFC stops the first card's `.4rem` margin collapsing through it
+and doubles the gap on every annotated block in the slide, beside the float or not. A card
+has its own padding, so making it a BFC changes nothing inside it, and its own margins still
+collapse with its siblings. Invariant: pop spacing is UNCHANGED for blocks not beside a float
+(e2e 8 compares a pop's first-card offset in a slide with a float against one without). Scoped (D10) to slides/containers that hold a floated image
 (e.g. `.slide:has(.el--image--float) .block-notes__pop`, likewise `.prev-inner` and the
 container lists) and to the in-flow media branches (screen below 1200px, `html:not(.notes-js)`
 on screen, and print) — never at the rail, where the pop is absolutely positioned.
@@ -396,6 +407,8 @@ no width/height, so EVERY geometry assertion first waits until all fixture image
    drag-to-image block → the pop, not `.dragimage__target`.
 8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it, the pop
    is as wide as the column, and the image's box equals an unflagged Small's (centred, ≤25%).
+   An annotated block FAR below the float (not beside it): its pop's first-card offset equals
+   the same block's on a page with no float (spacing invariant).
    A SHORT paragraph wrapping beside a floated Small: opening ITS notes (and, in print emulation,
    a block with a note) — the note card's border box does not intersect the image.
 9. Quiz unit: a top-level floated image floats, as in the builder preview.
