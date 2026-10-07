@@ -40,11 +40,16 @@ def test_the_face_points_at_a_shipped_file_with_its_licence():
     assert "SIL Open Font License" in (FONT_DIR / "OFL.txt").read_text(encoding="utf-8")
 
 
-def test_the_ui_stack_tries_the_die_face_first():
-    # A family is consulted only for characters every EARLIER family lacks, and the
-    # system fonts after Inter (Segoe UI Symbol and friends) DO have U+2680-2685 -- the
-    # tiny glyphs this replaces. Right after Inter would also work today (MEASURED: the
-    # e2e stays green there, Inter has no die faces), but FIRST does not depend on
-    # Inter's coverage staying that way.
-    stack = re.search(r"--font-ui:\s*([^;]+);", CSS).group(1)
-    assert stack.split(",")[0].strip() == '"libli-dice"', stack
+def test_the_ui_stack_puts_the_die_face_right_after_inter():
+    # SECOND, not first. A family is consulted only for characters every EARLIER family
+    # lacks; Inter has no die faces, so they still come from here (MEASURED: the e2e
+    # passes in this position), while every system font after it (Segoe UI Symbol and
+    # friends) HAS U+2680-2685 -- the tiny glyphs this replaces -- so it must precede
+    # them. Not first: the first family is the element's PRIMARY font, whose metrics
+    # drive line-height:normal everywhere. With the die face first, CI failed
+    # test_results_page_drag_ui_is_inert twice in a row (a 3px line-box shift) while a
+    # concurrent run on another branch passed; Inter first keeps the primary font, and
+    # so every line box, exactly as before.
+    declared = re.search(r"--font-ui:\s*([^;]+);", CSS).group(1)
+    stack = [f.strip() for f in declared.split(",")]
+    assert stack[:2] == ['"Inter"', '"libli-dice"'], stack
