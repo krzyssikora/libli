@@ -136,9 +136,12 @@ unflagged Medium (centred, ≤50%), not flush-left at full width.
   (`ALLOWED_TAGS` in `courses/sanitize.py`, h2–h4 today); the CSS source test derives the list
   from that set rather than pinning it. A text element that opens with a paragraph and has a
   heading further down wraps its paragraph and drops only from the heading on.
-- Both clearing rules are deliberately UNSCOPED (no `.el--image--float` key): `clear` is a no-op
-  when no float precedes, so they cannot change a page without a floated image. They are the two
-  named exemptions of the D10 source test.
+- `pre` clears itself too (`.el--text pre { clear: right }`): its lines do not wrap, so beside a
+  float they would paint over the image.
+- These clearing rules (sibling clear, heading self-clear, `pre` self-clear) are deliberately
+  UNSCOPED (no `.el--image--float` key): `clear` is a no-op when no float precedes, so they
+  cannot change a page without a floated image. They are the named exemptions of the D10 source
+  test.
 
 **Containment (D4).** A container whose children include a floated image contains it with a
 clearing `::after` (`content: ""; display: block; clear: both`) on the CONTAINER'S CHILD LIST
@@ -148,11 +151,18 @@ child wrappers) rely on margins collapsing through these wrappers; flow-root wou
 spacing of every container. The plan must:
 - name the exact list box for each container, and grep each for an existing `::after` rule
   before adding one;
-- give EVERY container's child list the `::after`, including two-column and carousel-mode tabs.
-  On screen `.twocolumn__column` (a flex item) and the carousel `.tabs__section` (absolutely
-  positioned) already contain floats, but print rewrites the carousel to `position: static
-  !important` (courses.css print block), so only an explicit clear holds on paper (D9);
-- prove containment per container in e2e.
+- give EVERY child list the `::after` — and a container may have SEVERAL: one `.tabs__panel` per
+  tab section, one `.ba__panel` per before/after side, one `.twocolumn__column` per column. The
+  clear goes on EACH list (`.tabs__panel:has(…)`, `.ba__panel:has(…)`, …), never once on the
+  stage/panels wrapper: tabs without JS and in print stack every section, and before/after with
+  `html:not(.ba-js)`, `.ba--dead` or in print shows both sides, so a float at the end of tab 1 or
+  the Before side would spill into the next list (whose `h3.tabs__panel-label` is outside any
+  `.el--text`, so the heading self-clear never catches it). On screen `.twocolumn__column` (a flex
+  item) and the carousel `.tabs__section` (absolutely positioned) already contain floats, but
+  print rewrites the carousel to `position: static !important` (courses.css print block), so
+  only an explicit clear holds on paper (D9). The same per-list rule applies to D5's measuring
+  container where the plan puts it on lists;
+- prove containment per LIST in e2e (see e2e 5).
 
 At the top level, the floated block must not leak past the end of its slide. Every unit renders
 one `div.slide` per slide (`_lesson_article.html`). EVERY `.slide:has(.el--image--float)` gets
@@ -204,7 +214,8 @@ on a phone. While the floated block's panel is open the block UN-FLOATS
 (`:has(.block-notes__panel[open])` → `float: none; max-width: none`, the image back to its
 unfloated preset layout), so the pop gets the full column. The text reflows while notes are
 open; accepted. **Scope:** only where the pop is in flow — `@media screen and (max-width:
-1199.98px)`, OR `html:not(.notes-js)` at any screen width. NOT at ≥1200px with `notes-js` (the
+1199.98px)`, OR `html:not(.notes-js)` at any SCREEN width (this branch is ALSO inside
+`@media screen`, so print is governed only by the printable-notes rule under Print). NOT at ≥1200px with `notes-js` (the
 pop is absolutely positioned in the rail; un-floating would reflow the paragraph, move the D8
 handle and make notes.js's `pop.style.top = handle.offsetTop` jump) and NOT in print (D9).
 Also accepted: when the page is rendered with panels open server-side (`notes_show`, or after
@@ -240,8 +251,8 @@ asserts the class list equals notes.css's; the falsified print e2e proves the ru
 `.prev-inner` — no `.slide`. `.prev-inner:has(.el--image--float)` gets the same clearing
 `::after`, and a slide-break preview element after a float clears like any non-text element.
 
-**Scoping (D10).** Every new rule except the two clearing rules (sibling clear, heading
-self-clear — see Clearing) is keyed on
+**Scoping (D10).** Every new rule except the clearing rules (sibling clear, heading
+self-clear, `pre` self-clear — see Clearing) is keyed on
 `.el--image--float` (directly or through `:has()`); in particular no `container-type`,
 `::after` or float rule applies to a page with no floated image. A CSS source test asserts this
 over the new block.
@@ -279,8 +290,10 @@ Unit (pytest):
 - transfer: round-trip, missing key → False, non-bool COERCED to False (import succeeds),
   version 17, duplicate keeps it;
 - editor JS source: branch in the one delegated handler;
-- CSS source: every new rule but the two clearing rules (sibling clear, heading self-clear) is
-  keyed on `.el--image--float` (D10), and every quiz-context rule is scoped to the quiz article;
+- CSS source: every new rule but the clearing rules (sibling, heading, `pre`) is
+  keyed on `.el--image--float` (D10); and every selector in the new block that contains
+  `section[data-element-id]` also contains the chosen quiz scope — a mutant dropping the scope
+  must turn the test RED;
 - i18n: the Polish entry exists and is not fuzzy.
 
 e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
@@ -306,7 +319,11 @@ e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode):
    threshold) in a QUIZ and in the BUILDER PREVIEW — proves the measuring container exists there.
 5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
    container's bottom ≥ the image's bottom when the text is shorter than the image; the next
-   top-level block starts below both.
+   top-level block starts below both. PLUS a float at the end of a NON-LAST list in a stacked
+   state — tabs with JS off, tabs in print, before/after with JS off (or `.ba--dead`),
+   before/after in print: the next list's label/heading and its first child start below the
+   image's bottom. (The container-bottom assertion alone stays green when a float leaks between
+   two lists of the same container.)
 6. Top level, image as the last element: the unit footer starts below it; multi-slide unit with
    JS off: the next slide starts below it.
 7. Notes rail at 1300px: the floated block's handle intersects neither paragraph handle of the
