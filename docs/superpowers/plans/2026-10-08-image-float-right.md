@@ -288,6 +288,8 @@ def test_polish_label_exists_and_is_not_fuzzy():
     assert "fuzzy" not in block.group(1) and block.group(2)
 ```
 
+- [ ] **Step 5b: Style check** — open the image editor (dev server, any Small image), screenshot light + dark. The checkbox and label must sit on one line under the size radios, aligned with them. If app.css's `label`/`input` rules break that, add `.float-right-toggle { display: inline-flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }` to `core/static/core/css/app.css` beside `.size-presets` and re-check.
+
 - [ ] **Step 6: Run to verify they pass**
 
 Run: `uv run pytest courses/tests/test_image_float_editor.py courses/tests/test_image_size_editor.py -p no:cacheprovider`
@@ -505,8 +507,18 @@ def first_line(page, selector):
     )
 
 
+# KEEP THIS LAST: helpers added by later tasks go ABOVE it, or the star import
+# in the e2e files silently drops them.
 __all__ = [n for n in dir() if not n.startswith("__")]
 ```
+
+Add to `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`:
+
+```toml
+"tests/test_e2e_image_float_*.py" = ["S105", "S106", "S107", "F403", "F405"]  # star import of tests/image_float_kit.py
+```
+
+and drop the `# noqa: F403` comments from the e2e imports. Every task: `uv run ruff format <files>` then `uv run ruff check --no-cache <files>`; wrap any JS string over 88 columns by hand (ruff cannot).
 
 Then `tests/test_e2e_image_float_editor.py`:
 
@@ -514,7 +526,7 @@ Then `tests/test_e2e_image_float_editor.py`:
 import pytest
 
 from tests.factories import add_element
-from tests.image_float_kit import *  # noqa: F403
+from tests.image_float_kit import *
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
@@ -545,13 +557,18 @@ def test_preview_floats_live_and_size_change_unticks(page, live_server):
     page.locator("[data-edit-slot] [data-size-preset][value='small']").check()
     assert box.is_enabled() and not box.is_checked()  # author re-ticks deliberately
     box.check()
+    page.locator("[data-edit-slot] [data-size-preset][value='large']").check()
+    assert box.is_disabled() and not box.is_checked()
+    assert "el--image--float" not in fig.get_attribute("class")
+    page.locator("[data-edit-slot] [data-size-preset][value='small']").check()
+    box.check()
     page.locator("[data-edit-slot] .editor-form__actions button[type='submit']").click()
     page.wait_for_selector("[data-edit-slot] [data-float-right]", state="detached")
     img.refresh_from_db()
     assert img.float_right is True and img.floats
 ```
 
-- [ ] **Step 6: Run** (after Task 4 lands, the class assertion is meaningful): `uv run pytest tests/test_e2e_image_float_editor.py -m e2e -p no:cacheprovider` → PASS. Falsify: comment out the `fig.classList.toggle("el--image--float", …)` line in the float branch → RED on the first class assertion; restore.
+- [ ] **Step 6: Run** (green at Task 3 — it asserts classes editor.js toggles, not layout): `uv run pytest tests/test_e2e_image_float_editor.py -m e2e -p no:cacheprovider` → PASS. Falsify: comment out the `fig.classList.toggle("el--image--float", …)` line in the float branch → RED on the first class assertion; restore.
 
 - [ ] **Step 7: Commit**
 
@@ -595,6 +612,63 @@ def _img(size, flag):
 def test_class_only_when_the_image_floats(size, flag):
     html = _img(size, flag).render()
     assert ("el--image--float" in html) is (flag and size == "small")
+```
+
+Also add (the spec's render matrix — lesson top level, quiz top level, each container):
+
+```python
+CONTAINER_KINDS = ["callout", "tabs", "twocolumn", "spoiler", "beforeafter"]
+
+
+def _nest(unit, kind, child):
+    """Put `child` inside a fresh container of `kind` at the top of `unit`."""
+    from courses.models import BeforeAfterElement
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import SpoilerElement
+    from courses.models import TabsElement
+    from courses.models import TwoColumnElement
+    from tests.factories import add_element
+
+    if kind == "callout":
+        obj, slot = CalloutElement.objects.create(kind="note"), CalloutElement.SLOT_ID
+    elif kind == "spoiler":
+        obj, slot = SpoilerElement.objects.create(label="s"), SpoilerElement.SLOT_ID
+    elif kind == "beforeafter":
+        obj, slot = BeforeAfterElement.objects.create(), BeforeAfterElement.BEFORE_SLOT_ID
+    elif kind == "tabs":
+        obj = TabsElement.objects.create(data=TabsElement.default_data())
+        slot = obj.data["tabs"][0]["id"]  # read off the SAVED instance
+    else:
+        obj = TwoColumnElement.objects.create(data=TwoColumnElement.default_data())
+        slot = obj.data["columns"][0]["id"]
+    join = add_element(unit, obj)
+    Element.objects.create(unit=unit, content_object=child, parent=join, tab_id=slot)
+
+
+@pytest.mark.parametrize("unit_type", ["lesson", "quiz"])
+@pytest.mark.parametrize("where", ["top"] + CONTAINER_KINDS)
+def test_class_reaches_the_page_in_every_context(client, unit_type, where):
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import add_element
+
+    course, unit = make_course_with_unit()
+    unit.unit_type = unit_type
+    unit.save()
+    media = MediaAsset.objects.create(
+        course=course, kind="image", file="courses/media/x.png", original_filename="x.png"
+    )
+    flagged = ImageElement.objects.create(media=media, size="small", float_right=True)
+    if where == "top":
+        add_element(unit, flagged)
+    else:
+        _nest(unit, where, flagged)
+    staff = get_user_model().objects.create_user("staff-fl", password="x", is_staff=True)  # noqa: S106
+    client.force_login(staff)  # READ access keys on is_staff (course-access memory)
+    path = f"/courses/{course.slug}/u/{unit.pk}/" + ("quiz/" if unit_type == "quiz" else "")
+    html = client.get(path).content.decode()
+    assert html.count("el--image--float") == 1, where
 ```
 
 - [ ] **Step 2: Run** `uv run pytest courses/tests/test_image_float_render.py -p no:cacheprovider` → FAIL.
@@ -660,7 +734,8 @@ def test_round_trip_keeps_the_flag():
     course, _u = make_course_with_unit()
     media = _media(course)
     el = ImageElement.objects.create(media=media, size="small", float_right=True)
-    data = SERIALIZERS["image"](el, _Ids())
+    _model, ser = SERIALIZERS["image"]  # (model, fn) tuple, export.py
+    data = ser(el, _Ids())
     assert data["float_right"] is True
     VALIDATORS["image"](data, "e1", MEDIA_KINDS)
     built, _ = BUILDERS["image"](data, {"m1": media})
@@ -684,11 +759,11 @@ def test_duplicate_keeps_the_flag():
     course, unit = make_course_with_unit()
     el = ImageElement.objects.create(media=_media(course), size="small", float_right=True)
     join = add_element(unit, el)
-    copy = duplicate_element(join)
-    assert copy.content_object.float_right is True
+    _unit, new_join = duplicate_element(course, join.pk, unit.updated.isoformat())
+    assert new_join.content_object.float_right is True
 ```
 
-(Check `duplicate_element`'s signature in `courses/builder.py:1069` before running and adapt the call — do not change the function.)
+(`duplicate_element(course, element_pk, unit_token)` returns `(unit, new_join)`; the token is `unit.updated.isoformat()`, as in `courses/tests/test_beforeafter_transfer.py`.)
 
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement**
@@ -719,7 +794,7 @@ def test_duplicate_keeps_the_flag():
 ### Task 6: Core CSS — float, clearing, slide/preview containment (lesson, quiz, preview)
 
 **Files:**
-- Modify: `courses/static/courses/css/courses.css` — new section placed directly AFTER the image `@media print { … }` block that follows the presets (~:159-173). Grep first: `grep -n "float\|::after" courses/static/courses/css/courses.css` and `grep -rn "\.slide::after\|\.prev-inner::after\|\.slide\.scroll-y\|prev-inner.*scroll-y" core courses notes --include=*.css --include=*.js` — both must show nothing relevant; if a `::after` already exists on a box below, STOP and report.
+- Modify: `courses/static/courses/css/courses.css` — new section placed directly AFTER the image `@media print { … }` block that follows the presets (~:159-173). Grep first — each MUST print nothing: `grep -rnE "\.slide[^-_a-zA-Z]*::after|\.prev-inner[^-_a-zA-Z]*::after" core courses notes --include=*.css` and `grep -rnE "(slide|prev-inner)[^\"']*scroll-y" courses/static core/static --include=*.js --include=*.html templates`. If either prints a hit, STOP and report.
 - Test: `tests/test_e2e_image_float_layout.py`
 
 **Interfaces:** Consumes `el--image--float` (Task 4). Produces the floated-wrapper selector list (named W below) that Tasks 7–8 extend.
@@ -730,7 +805,7 @@ def test_duplicate_keeps_the_flag():
 import pytest
 
 from tests.factories import add_element
-from tests.image_float_kit import *  # noqa: F403
+from tests.image_float_kit import *
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 EPS = 1.5
@@ -750,7 +825,8 @@ def test_small_floats_right_and_text_wraps(page, live_server, vp):
     owner, unit, _ = _seed("fl-basic", lambda c: image(c), text(), text())
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), vp)
-    col = rect(page, ".lesson-block__body")
+    # Reference: a TEXT block's body (full column width), never the float's own body.
+    col = rect(page, ".lesson-block:not(:has(.el--image--float)) .lesson-block__body")
     img = rect(page, ".el--image--float img")
     line = first_line(page, ".el--text p")
     assert abs(img["right"] - col["right"]) < EPS, (img, col)
@@ -772,7 +848,9 @@ def test_two_text_elements_both_wrap_in_a_quiz(page, live_server):
              const r = document.createRange(); r.selectNodeContents(p);
              return r.getClientRects()[0].toJSON(); })"""
     )
-    assert all(l["right"] <= img["left"] + EPS for l in lines if l["top"] < img["bottom"])
+    assert all(
+        ln["right"] <= img["left"] + EPS for ln in lines if ln["top"] < img["bottom"]
+    )
     assert lines[1]["top"] < img["bottom"], "2nd paragraph should start beside the image"
 
 
@@ -826,12 +904,74 @@ def test_float_as_first_element(page, live_server):
     assert first_line(page, ".el--text p")["right"] <= img["left"] + EPS
 
 
-def test_last_element_float_is_contained_before_the_footer(page, live_server):
-    owner, unit, _ = _seed("fl-last", text("Krótko."), lambda c: image(c, px=(300, 900)))
+def test_float_ending_a_slide_stays_in_it_without_js(browser, live_server):
+    # .unit-shell__main is a flex column, so article.lesson (a flex item) already
+    # contains floats before .unit-foot -- a footer test cannot fail. What the
+    # .slide::after guards is a float ending slide 1 when slides STACK: no JS.
+    from courses.models import SlideBreakElement
+
+    owner, unit, _ = _seed(
+        "fl-slides",
+        text("Krótko."),
+        lambda c: image(c, px=(300, 900)),
+        SlideBreakElement.objects.create(),
+        text("Druga strona."),
+    )
+    ctx = browser.new_context(java_script_enabled=False)
+    try:
+        page = ctx.new_page()
+        login(page, live_server, owner.username)
+        open_page(page, unit_url(live_server, unit), DESKTOP)
+        img = rect(page, ".el--image--float img")
+        nxt = rect(page, ".slide:nth-of-type(2) .el--text p")
+        assert nxt["top"] >= img["bottom"] - EPS, (nxt, img)
+    finally:
+        ctx.close()
+
+
+def test_float_ending_a_deck_slide_stays_in_it_in_print(page, live_server):
+    # Print makes deck slides position:static; overflow:visible -- no longer BFCs.
+    from courses.models import SlideBreakElement
+
+    owner, unit, _ = _seed(
+        "fl-deck-print",
+        text("Krótko."),
+        lambda c: image(c, px=(300, 900)),
+        SlideBreakElement.objects.create(),
+        text("Druga strona."),
+    )
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), DESKTOP)
+    page.wait_for_selector(".slideshow-deck")
+    page.emulate_media(media="print")
     img = rect(page, ".el--image--float img")
-    assert rect(page, ".unit-foot")["top"] >= img["bottom"] - EPS
+    nxt = rect(page, ".slide:nth-of-type(2) .el--text p")
+    assert nxt["top"] >= img["bottom"] - EPS, (nxt, img)
+
+
+def test_preview_contains_a_float_and_a_slide_break_clears_it(page, live_server):
+    from courses.models import SlideBreakElement
+
+    owner, unit, _ = _seed(
+        "fl-prev",
+        lambda c: image(c, px=(300, 900)),
+        SlideBreakElement.objects.create(),
+        text("Po przerwie."),
+        text("Krótko."),
+        lambda c: image(c, px=(300, 900)),  # LAST preview element
+    )
+    login(page, live_server, owner.username)
+    page.set_viewport_size(DESKTOP)
+    page.goto(editor_url(live_server, unit))
+    page.wait_for_selector(".prev-inner .el--image--float img")
+    assert page.evaluate(WAIT_IMAGES)
+    imgs = page.locator(".prev-inner .el--image--float img").evaluate_all(
+        "els => els.map(e => e.getBoundingClientRect().toJSON())"
+    )
+    brk = rect(page, ".prev-inner section.prev-el:nth-of-type(2)")
+    assert brk["top"] >= imgs[0]["bottom"] - EPS, (brk, imgs[0])
+    inner = rect(page, ".prev-inner")
+    assert inner["bottom"] >= imgs[-1]["bottom"] - EPS, (inner, imgs[-1])
 
 
 def test_maths_beside_float_does_not_scroll_the_page(page, live_server):
@@ -857,8 +997,10 @@ def test_float_before_reveal_gate(page, live_server):
     )
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), DESKTOP)
+    page.locator("[data-reveal-gate]").wait_for(state="visible")  # reveal.js un-hides it
     img = rect(page, ".el--image--float img")
     gate = rect(page, "[data-reveal-gate]")
+    assert gate["width"] > 0 and gate["height"] > 0, "gate never rendered; vacuous"
     assert gate["top"] >= img["bottom"] - EPS or gate["right"] <= img["left"] + EPS
 
 
@@ -881,7 +1023,7 @@ def test_narrow_and_captioned_images_hug_the_right_edge(page, live_server):
     )
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), DESKTOP)
-    col = rect(page, ".lesson-block__body")
+    col = rect(page, ".lesson-block:not(:has(.el--image--float)) .lesson-block__body")
     for img in page.locator(".el--image--float img").evaluate_all(
         "els => els.map(e => e.getBoundingClientRect().toJSON())"
     ):
@@ -934,6 +1076,10 @@ Expected: geometry assertions FAIL (image is centred on its own line).
   html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) {
     float: right; max-width: 25%; margin: 0 0 var(--space-3) var(--space-4);
   }
+  /* notes.css makes every .lesson-block position:relative here; the LATER paragraph
+     block would paint and hit-test above the float (zoom dead -- verified on the
+     mockup). Task 8 raises this to 50 while the block's own panel is open. */
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float) { z-index: 1; }
   html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float) .el--image--float,
   html.notes-js .quiz .slide > section[data-element-id]:has(> .el--image--float) .el--image--float,
   html.notes-js section.prev-el:has(> .el--image--float) .el--image--float,
@@ -1036,7 +1182,7 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 ```
 
 - [ ] **Step 4: Run** the layout e2e → PASS. Then run `uv run pytest $(ls tests/test_*css*.py courses/tests/test_*css*.py) -n 4 -p no:cacheprovider` → PASS (marker tests partition on text).
-- [ ] **Step 5: Falsify** (by hand, one at a time, restore after each): (a) delete `float: right;` from the max-width:1199.98px branch → phone `test_small_floats_right_and_text_wraps` RED; (b) remove the sibling `clear: right` rule → `test_non_text_after_float_starts_below` RED; (c) remove `.el--text :is(h2…)` → `test_mid_body_heading…` RED; (d) remove the `::after` rule → `test_last_element_float_is_contained…` RED; (e) change the quiz selector to an unscoped `section[data-element-id]` → `test_small_floats_right_and_text_wraps` RED (lesson text cleared). Read `git diff` after each restore — it must show only the intended block.
+- [ ] **Step 5: Falsify** (by hand, one at a time, restore after each): (a) delete `float: right;` from the max-width:1199.98px branch → phone `test_small_floats_right_and_text_wraps` RED; (b) remove the sibling `clear: right` rule → `test_non_text_after_float_starts_below` RED; (c) remove `.el--text :is(h2…)` → `test_mid_body_heading…` RED; (d) remove `.slide` from the `::after` rule → `test_float_ending_a_slide_stays_in_it_without_js` AND `…deck_slide…in_print` RED; remove `.prev-inner` → `test_preview_contains…` RED; (f) remove the rail `z-index: 1` → `test_clicking_the_floated_image_opens_zoom[desktop]` RED; (e) change the quiz selector to an unscoped `section[data-element-id]` → `test_small_floats_right_and_text_wraps` RED (lesson text cleared). Read `git diff` after each restore — it must show only the intended block.
 - [ ] **Step 6: Commit** `git commit -m "feat(css): float Small images right; clear non-text; contain per slide"`.
 
 ---
@@ -1051,7 +1197,7 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 - [ ] **Step 2: Failing e2e** — seed one container of each kind holding `[image(px=(300,600)), text("Krótko.")]` (copy the nesting idiom from `tests/test_e2e_image_size.py` rows 322-370: `Element.objects.create(unit=…, content_object=…, parent=<join>, tab_id=<slot>)`; tabs/two-column ids from `default_data()` read off the SAVED instance; before/after slots `BeforeAfterElement.BEFORE_SLOT_ID`/`AFTER_SLOT_ID`), then a top-level `text()` after each container.
 
 ```python
-CONTAINERS = ["callout", "tabs", "twocolumn", "spoiler", "beforeafter"]
+CONTAINERS = ["callout", "tabs", "carousel", "twocolumn", "spoiler", "beforeafter"]  # carousel = tabs, display="carousel"
 
 @pytest.mark.parametrize("kind", CONTAINERS)
 def test_float_is_contained_by_its_container(page, live_server, kind):
@@ -1066,23 +1212,38 @@ def test_float_is_contained_by_its_container(page, live_server, kind):
     assert nxt["top"] >= img["bottom"] - 1.5
 
 
+# .ba--dead shares html:not(.ba-js)'s declarations by grouped selector
+# (beforeafter.js), so the no-JS case covers it. "carousel" = tabs with
+# data display="carousel" (idiom: tests/test_e2e_tabs.py's tabs fixture).
 @pytest.mark.parametrize("state", ["nojs", "print"])
-@pytest.mark.parametrize("kind", ["tabs", "beforeafter"])
+@pytest.mark.parametrize("kind", ["tabs", "carousel", "beforeafter"])
 def test_float_at_end_of_a_non_last_list_stays_in_it(browser, live_server, kind, state):
     # Tabs without JS and in print stack every section; before/after shows both sides.
     owner, unit, sel = seed_stacked(kind, f"fl-s-{kind}-{state}")  # image is LAST child of list 1
     ctx = browser.new_context(java_script_enabled=(state != "nojs"))
-    page = ctx.new_page()
-    login(page, live_server, owner.username)
-    open_page(page, unit_url(live_server, unit), DESKTOP)
-    if state == "print":
-        page.emulate_media(media="print")
+    try:
+        page = ctx.new_page()
+        login(page, live_server, owner.username)
+        open_page(page, unit_url(live_server, unit), DESKTOP)
+        if state == "print":
+            page.emulate_media(media="print")
+        _assert_next_list_below(page, kind, sel)
+    finally:
+        ctx.close()
+
+
+def _assert_next_list_below(page, kind, sel):
     img = rect(page, f"{sel} .el--image--float img")
-    second_list = ".tabs__section:nth-child(2)" if kind == "tabs" else '.ba__panel[data-ba-side="after"]'
+    second_list = ".tabs__section:nth-child(2)" if kind in ("tabs", "carousel") else '.ba__panel[data-ba-side="after"]'
     assert rect(page, second_list)["top"] >= img["bottom"] - 1.5
+    first_child = f"{second_list} :is(.tabs__child, .ba__child)"
+    assert rect(page, first_child)["top"] >= img["bottom"] - 1.5
 
 
-def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server):
+@pytest.mark.parametrize(
+    "vp,medium", [(PHONE, "screen"), (DESKTOP, "screen"), (DESKTOP, "print")]
+)
+def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server, vp, medium):
     from courses.models import CalloutElement
     from courses.models import Element
 
@@ -1101,7 +1262,9 @@ def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server):
     b = callout([text("Krótko."), image(course, px=(300, 200))])  # float is LAST child
     c = callout([text("Krótko."), image(course, px=(300, 200), float_right=False)])  # twin
     login(page, live_server, owner.username)
-    open_page(page, unit_url(live_server, unit), DESKTOP)
+    open_page(page, unit_url(live_server, unit), vp)
+    if medium == "print":
+        page.emulate_media(media="print")
 
     img_a = rect(page, f'[data-element-id="{a.pk}"] .el--image img')
     line_a = first_line(page, f'[data-element-id="{a.pk}"] .callout__child .el--text p')
@@ -1135,8 +1298,10 @@ Write `seed_container` / `seed_stacked` in the test file following the nesting i
    ((0,4,0) two-column `+`, (0,3,0) tabs/callout); verify with the e2e, not by eye. */
 ```
 
-and the container margin rules (one per Task 6 media branch, same prefixes; container
-children never carry notes, so they need no un-float condition):
+and the container margin rules, one per Task 6 media branch, each carrying THAT branch's
+prefix AND `:not(...)` suffix — without the suffix they are less specific than Task 6's
+figure rule ((0,3,0) vs (0,5,0)) and lose; with it they tie and win on source order, so
+they MUST sit after the Task 6 branches:
 
 ```css
 @media screen and (min-width: 1200px) {
@@ -1144,16 +1309,16 @@ children never carry notes, so they need no un-float condition):
   html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
 }
 @media screen and (max-width: 1199.98px) {
-  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) > .el--image--float { margin-bottom: 0; }
-  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
 }
 @media screen {
-  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) > .el--image--float { margin-bottom: 0; }
-  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
 }
 @media print {
-  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) > .el--image--float { margin-bottom: 0; }
-  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) > .el--image--float { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)):last-child { margin-bottom: 0; }
 }
 ```
 
@@ -1174,7 +1339,7 @@ First: `grep -n "z-index" courses/static/courses/css/courses.css core/static/cor
 
 - [ ] **Step 1: Failing e2e** — notes need a published lesson and an enrolled STUDENT (idiom from `tests/test_e2e_notes_rail.py::_build_lesson`).
 
-Add to `tests/image_float_kit.py`:
+Add to `tests/image_float_kit.py`, ABOVE the final `__all__` line:
 
 ```python
 def seed_student_lesson(slug, username, builders):
@@ -1222,7 +1387,7 @@ Then `tests/test_e2e_image_float_notes.py`:
 ```python
 import pytest
 
-from tests.image_float_kit import *  # noqa: F403
+from tests.image_float_kit import *
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 SHAPE = [lambda c: image(c, px=(300, 220)), lambda c: text(), lambda c: text()]
@@ -1254,11 +1419,11 @@ def test_rail_handles_do_not_intersect_and_pop_opens_at_handle(page, live_server
 
 
 def test_open_pop_beats_the_sticky_footer(page, live_server):
-    lead = [lambda c: text() for _ in range(6)]
+    lead = [lambda c: text() for _ in range(25)]  # page must scroll
     course, unit, joins, st = seed_student_lesson(
         "fn-foot", "fn_foot", lead + SHAPE + [lambda c: text("Ostatni.")]
     )
-    img_join, plain_join = joins[6], joins[3]
+    img_join, plain_join = joins[25], joins[12]
     note(st, unit, img_join)
     note(st, unit, plain_join)
     login(page, live_server, "fn_foot")
@@ -1273,6 +1438,9 @@ def test_open_pop_beats_the_sticky_footer(page, live_server):
             handle,
         )
         page.locator(handle).click()
+        pop_r = rect(page, f"{_block(j)} .block-notes__pop")
+        assert boxes_intersect(pop_r, rect(page, ".unit-foot")), (
+            "fixture: the open pop must overlap .unit-foot, or this proves nothing")
         hit = page.evaluate(
             """(sel) => { const p = document.querySelector(sel).getBoundingClientRect();
                  const y = Math.min(p.bottom - 4, innerHeight - 4);
@@ -1361,6 +1529,37 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
     assert _float(page, joins[2]) == "none"
     assert page.locator(f"{_block(joins[1])} .block-notes__pop").evaluate(
         "e => getComputedStyle(e).display") == "none"  # an EMPTY pop stays hidden
+
+
+def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
+    # z-index 50 while open exists to beat positive-z content in the root context;
+    # .dragimage__target / __badge (3/4) is one. 1400px clamps the pop over the column
+    # (tests/test_e2e_notes_rail.py, "clamped").
+    from tests.reveal_pr2_kit import build
+    from tests.test_e2e_quiz_reveal_pr2 import _size_stages
+
+    course, unit, joins, st = seed_student_lesson(
+        "fn-drag", "fn_drag",
+        [lambda c: image(c, px=(300, 220)), lambda c: text("Krótko."),
+         lambda c: build("dragimage").question],
+    )
+    note(st, unit, joins[0], body="notatka " * 30)
+    login(page, live_server, "fn_drag")
+    open_page(page, unit_url(live_server, unit), {"width": 1400, "height": 950})
+    _size_stages(page)  # the factory image is not served; give the stage real size
+    page.wait_for_selector("html.notes-js")
+    page.locator(f"{_block(joins[0])} .block-notes__handle").click()
+    pop_sel = f"{_block(joins[0])} .block-notes__pop"
+    page.wait_for_selector(f"{pop_sel}.block-notes__pop--clamped")
+    pop = rect(page, pop_sel)
+    target = rect(page, ".dragimage__target")
+    assert boxes_intersect(pop, target), "fixture: the pop must overlap a target"
+    x = (max(pop["left"], target["left"]) + min(pop["right"], target["right"])) / 2
+    y = (max(pop["top"], target["top"]) + min(pop["bottom"], target["bottom"])) / 2
+    on_top = page.evaluate(
+        "([x, y, sel]) => !!document.elementFromPoint(x, y).closest(sel)", [x, y, pop_sel]
+    )
+    assert on_top, "the floated block's open pop is under the drag-image target"
 ```
 
 - [ ] **Step 2: Run** → stacking/handle/pop/print/neighbour tests FAIL.
@@ -1373,7 +1572,9 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
      zoom dead (verified on the mockup). z-index 1 lifts the float; while its panel
      is open it rises to the pop's own 50, else the pop (trapped in this stacking
      context) would sit under .unit-foot (20) / .unit-toc-pin (21). */
-  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float) { z-index: 1; }
+  /* z-index 1 is Task 6's (rail branch). While the floated block's panel is open it
+     rises to the pop's own 50, else the pop (trapped in that stacking context) would
+     sit under .unit-foot (20) / .unit-toc-pin (21) / .dragimage__target (3). */
   html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float):has(.block-notes__panel[open]) { z-index: 50; }
   /* D8: anchor the floated block's rail handle to its bottom, below the top-anchored
      handle of the paragraph beside it. notes.js opens the pop at handle.offsetTop. */
@@ -1399,7 +1600,7 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
 The z-index rule must only apply while the block actually floats; at ≥1200px+notes-js the float branch has no un-float condition, so the selectors above match exactly the floating case. The composer's textarea is `width: 100%` of its composer, so it narrows with the BFC composer; no extra rule.
 
 - [ ] **Step 4: Run** notes e2e + `tests/test_e2e_notes_rail.py` + all CSS source tests → PASS.
-- [ ] **Step 5: Falsify** by hand: remove `z-index: 1` → zoom click test at desktop (Task 6) RED; remove the `z-index: 50` rule → footer test RED; remove `bottom: 0` → handle intersection RED; remove the print `.note-card` flow-root → neighbour print RED. Restore each; read `git diff`.
+- [ ] **Step 5: Falsify** by hand: remove the `z-index: 50` rule → footer test AND clamped drag-image test RED; delete the WHOLE D8 handle rule → handle intersection RED; remove the print `.note-card` flow-root → neighbour print RED. Restore each; read `git diff`.
 - [ ] **Step 6: Commit** `git commit -m "feat(css): floated images keep notes, clicks and print working"`.
 
 ---
@@ -1485,15 +1686,21 @@ Falsify `test_quiz_selectors_carry_the_quiz_scope` by temporarily writing an uns
 - [ ] **Step 2: e2e — legacy Medium + dark plate** (append to the layout file):
 
 ```python
-def test_a_stored_true_on_medium_does_not_float(page, live_server):
-    owner, unit, _ = _seed("fl-med", lambda c: image(c, size="medium"), text())
-    _o2, twin, _ = _seed("fl-med-twin", lambda c: image(c, size="medium", float_right=False), text())
+@pytest.mark.parametrize("vp", [PHONE, DESKTOP], ids=["phone", "desktop"])
+def test_a_stored_true_on_medium_does_not_float(page, live_server, vp):
+    # Both images in ONE unit: a second course would be unreadable to this PA user.
+    owner, unit, _ = _seed(
+        "fl-med",
+        lambda c: image(c, size="medium", alt="flagged"),
+        text(),
+        lambda c: image(c, size="medium", float_right=False, alt="plain"),
+        text(),
+    )
     login(page, live_server, owner.username)
-    open_page(page, unit_url(live_server, unit), DESKTOP)
-    a = rect(page, ".el--image img")
-    open_page(page, unit_url(live_server, twin), DESKTOP)
-    b = rect(page, ".el--image img")
-    assert all(abs(a[k] - b[k]) < 1 for k in ("left", "width", "height"))
+    open_page(page, unit_url(live_server, unit), vp)
+    a = rect(page, 'img[alt="flagged"]')
+    b = rect(page, 'img[alt="plain"]')
+    assert all(abs(a[k] - b[k]) < 1 for k in ("left", "width", "height")), (a, b)
 
 
 def test_dark_plate_on_a_floated_image(page, live_server):
