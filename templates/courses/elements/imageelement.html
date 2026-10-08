@@ -1,4 +1,4 @@
-<figure class="el el--image el--image--{{ el.size }}" data-preview-el="{{ el.pk }}">
+<figure class="el el--image el--image--{{ el.size }}{% if el.floats %} el--image--float{% endif %}" data-preview-el="{{ el.pk }}">
   <img src="{{ el.media.file.url }}" alt="{{ el.alt }}" data-zoomable>
   {% comment %}|safe: the caption is rich text (CAPTION_TAGS -- emphasis and links).
      ImageElement.save() runs sanitize_caption on EVERY write path, so the column is
