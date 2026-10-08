@@ -742,10 +742,29 @@
         );
         fig.classList.add("el--image--" + preset.value);
       }
+      // Float right is Small-only (spec D2). Found inside THIS editor, never by
+      // data-for-element: that is "" for every unsaved image on the create flow.
+      var editorEl = preset.closest(".el-editor--image");
+      var box = editorEl && editorEl.querySelector("[data-float-right]");
+      if (box) {
+        var small = preset.value === "small";
+        if (!small) box.checked = false;
+        box.disabled = !small;
+        if (fig) fig.classList.toggle("el--image--float", small && box.checked);
+      }
       // On the CREATE flow data-for-element is "" (Task 2's template applies
       // |default_if_none:'' — without it Django would render the string "None")
       // and no figure exists yet, so the querySelector finds nothing and this is
       // inertly a no-op until first save. That is correct behaviour.
+      return;
+    }
+    var floatBox = e.target.closest("[data-float-right]");
+    if (floatBox) {
+      var ffig = document.querySelector(
+        '.el--image[data-preview-el="' + floatBox.dataset.forElement + '"]'
+      );
+      if (ffig) ffig.classList.toggle("el--image--float", floatBox.checked);
+      return;
     }
   });
 
