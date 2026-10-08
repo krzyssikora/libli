@@ -245,8 +245,13 @@ z-index rises to `50` — the pop's own value — restoring today's order exactl
 The plan re-greps positive z-indexes in courses.css/app.css/notes.css at plan time. Once the
 image is on top, the paragraph's hover highlight
 tint paints under it (around, not over, the image); the outline-encloses-image cosmetic above
-remains accepted. Below 1200px and inside containers no wrapper is positioned, so the image
-already wins the hit test; e2e covers both.
+remains accepted. Inside containers no wrapper is positioned, so the image wins the hit test.
+Below 1200px that holds only until a notes handle is hovered: notes.js then dims every other
+`.lesson-block` (opacity .45 — a stacking context), and the dimmed paragraph beside the float
+buries the floated block's handle, so a mouse user could not open its notes (found during
+implementation, Task 8). Fix, under the float condition and only while its own panel is closed
+(the open block un-floats, so its in-flow pop is never trapped): below 1200px with `notes-js`
+the floated block is `position: relative; z-index: 1`. e2e covers both.
 
 **A neighbouring block's in-flow notes pop.** Below the rail, without `notes-js`, and in print
 (notes.css prints the pop of every block with cards), a TEXT block wrapping beside the float has
