@@ -50,15 +50,15 @@ PRINT_MM_DECL = {
 
 
 def _print_block(css):
-    """Extract the `@media print { ... }` block whose BODY mentions
-    `.el--image--`, along with its start index in `css`.
+    """Extract the `@media print { ... }` block whose BODY bounds
+    `.el--image--small img`, along with its start index in `css`.
 
     Two traps make the obvious one-liner wrong:
 
     1. `courses.css` holds several `@media print` blocks (breadcrumbs, the TOC
        pin, ...), so "the" block is ambiguous. A first-match regex would grab
-       an unrelated one. Selecting by CONTENT (does the body mention
-       `.el--image--`) is what makes this unambiguous.
+       an unrelated one. Selecting by CONTENT (does the body bound
+       `.el--image--small img`) is what makes this unambiguous.
     2. `@media` bodies contain nested rule braces, so a naive
        `@media print\\s*\\{[^}]*\\}` truncates at the FIRST inner `}` -- it
        would extract only the `small` declaration and silently pass a test
@@ -78,10 +78,10 @@ def _print_block(css):
                 depth -= 1
             pos += 1
         block = css[m.start() : pos]
-        if ".el--image--" in block:
+        if re.search(r"\.el--image--small\s+img", block):
             matches.append((block, m.start()))
     assert len(matches) == 1, (
-        f"expected exactly one @media print block mentioning .el--image--, "
+        f"expected exactly one @media print block bounding .el--image--small img, "
         f"got {len(matches)}"
     )
     return matches[0]
