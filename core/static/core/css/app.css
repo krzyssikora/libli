@@ -1510,7 +1510,7 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    it too.
    These rules MUST stay below the shared `.spoiler__body, .spoiler >
    .spoiler__children` block above: test_spoiler_css.py splits the concatenated CSS
-   on the FIRST occurrence of `.spoiler__children`. */
+   on the FIRST occurrence of `.spoiler > .spoiler__children`. */
 .spoiler__body:has(+ .spoiler__children) { margin-left: 0; margin-bottom: 0; }
 .spoiler__body:has(+ .spoiler__children) > :last-child { margin-bottom: 0; }
 .spoiler__body + .spoiler__children > .spoiler__child:first-child > :first-child { margin-top: 0; }

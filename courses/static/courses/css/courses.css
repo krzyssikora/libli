@@ -293,6 +293,39 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
    .scroll-y, whose ::after is an absolutely positioned shadow. */
 :is(.slide, .prev-inner):has(.el--image--float)::after { content: ""; display: block; clear: both; }
 
+/* D4: contain a float in EVERY list, not once per container -- tabs (no JS / print)
+   and before/after (no JS / dead / print) stack their lists, and a float at the end of
+   list 1 would spill into list 2 (whose label is outside any .el--text). Two-column and
+   carousel sections already contain floats on screen, but print makes the carousel
+   static, so they get it too. */
+:is(.callout__children, .tabs__panel, .twocolumn__column, .spoiler__children, .ba__panel):has(.el--image--float)::after {
+  content: ""; display: block; clear: both;
+}
+/* In a container the figure needs no notes-handle clearance (notes attach to top-level
+   blocks only); a floated LAST child adds no trailing space. The W selectors do NOT
+   out-rank `.el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child`
+   ((0,4,0), later in the file): its margin-top is zeroed explicitly below. */
+@media screen and (min-width: 1200px) {
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) > .el--image--float { margin-bottom: 0; }
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
+  html.notes-js .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float) { margin-top: 0; }
+}
+@media screen and (max-width: 1199.98px) {
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
+  .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__panel[open])) { margin-top: 0; }
+}
+@media screen {
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
+  html:not(.notes-js) .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__panel[open])) { margin-top: 0; }
+}
+@media print {
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) > .el--image--float { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)):last-child { margin-bottom: 0; }
+  .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) { margin-top: 0; }
+}
+
 /* === end Image "Float right" === */
 
 .unit-progress { margin: 0; }

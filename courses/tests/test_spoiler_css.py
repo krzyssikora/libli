@@ -29,9 +29,13 @@ def test_children_region_carries_the_same_rule_as_the_body():
     # and read an empty declaration block (this repo's standing lesson — a comment
     # can fail, or falsely pass, a source-scanning test).
     css = re.sub(r"/\*.*?\*/", "", _all_css(), flags=re.S)
-    assert ".spoiler__children" in css, "the children region is styled by nothing"
+    assert ".spoiler > .spoiler__children" in css, (
+        "the children region is styled by nothing"
+    )
     # The declaration block the selector opens (it shares one with .spoiler__body).
-    block = css.split(".spoiler__children")[1].split("}")[0]
+    # The FULL selector: courses.css (concatenated first) names `.spoiler__children`
+    # in the image-float containment list, a rule with no border.
+    block = css.split(".spoiler > .spoiler__children")[1].split("}")[0]
     assert "border-left" in block, f"no rule on the children region: {block!r}"
     assert "padding-left" in block, f"no indent on the children region: {block!r}"
 
