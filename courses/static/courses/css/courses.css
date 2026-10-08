@@ -326,6 +326,39 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
   .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) { margin-top: 0; }
 }
 
+@media screen and (min-width: 1200px) {
+  /* z-index 1 is Task 6's (rail branch). While the floated block's panel is open it
+     rises to the pop's own 50, else the pop (trapped in that stacking context) would
+     sit under .unit-foot (20) / .unit-toc-pin (21) / .dragimage__target (3). */
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float):has(.block-notes__panel[open]) { z-index: 50; }
+  /* D8: anchor the floated block's rail handle to its bottom, below the top-anchored
+     handle of the paragraph beside it. notes.js opens the pop at handle.offsetTop. */
+  html.notes-js [data-unit-shell] .lesson-block:has(> .lesson-block__body > .el--image--float) .block-notes__handle {
+    top: auto; bottom: 0;
+  }
+}
+/* A neighbour's in-flow note card / composer becomes a BFC so it narrows beside the
+   float instead of running under it. Cards and composers, NOT the pop: a BFC pop would
+   stop the first card's margin collapsing and double the gap on every annotated block.
+   The pop's own display is never touched, so notes.css's print hide of EMPTY pops holds. */
+@media screen and (max-width: 1199.98px) {
+  .slide:has(.el--image--float) :is(.note-card, .note-composer) { display: flow-root; }
+  /* Hovering a notes handle dims every OTHER .lesson-block (notes.css .is-dimmed,
+     opacity .45): each becomes a stacking context that paints and hit-tests ABOVE this
+     unpositioned float, so the paragraph beside it swallows the mousedown on the
+     image's own handle (and its zoom). Lift the floated block above them; un-floated
+     (panel open) it is plain again, so its in-flow pop is never trapped. */
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])) {
+    position: relative; z-index: 1;
+  }
+}
+@media screen {
+  html:not(.notes-js) .slide:has(.el--image--float) :is(.note-card, .note-composer) { display: flow-root; }
+}
+@media print {
+  .slide:has(.el--image--float) :is(.note-card, .note-composer) { display: flow-root; }
+}
+
 /* === end Image "Float right" === */
 
 .unit-progress { margin: 0; }

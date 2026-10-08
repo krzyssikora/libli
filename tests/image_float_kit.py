@@ -7,6 +7,7 @@ import pytest
 from courses.models import ImageElement
 from courses.models import TextElement
 from tests.factories import TEST_PASSWORD
+from tests.factories import add_element
 from tests.factories import make_image_asset
 from tests.factories import make_verified_user
 
@@ -129,6 +130,70 @@ def first_line(page, selector):
              const r = document.createRange(); r.selectNodeContents(el);
              return r.getClientRects()[0].toJSON(); }""",
         selector,
+    )
+
+
+def seed_student_lesson(slug, username, builders):
+    """Published lesson + enrolled STUDENT (notes need a student; PA users suffice for
+    layout only). `builders` are callables taking the course and returning a saved
+    concrete element, added top-level in order.
+    Returns (course, unit, joins, student)."""
+    from django.contrib.auth.models import Group
+
+    from courses.models import ContentNode
+    from courses.models import Enrollment
+    from institution.roles import STUDENT
+    from institution.roles import seed_roles
+    from tests.factories import CourseFactory
+
+    seed_roles()
+    course = CourseFactory(slug=slug)
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="F",
+        published=True,
+    )
+    joins = [add_element(unit, b(course)) for b in builders]
+    student = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    student.groups.add(Group.objects.get(name=STUDENT))
+    Enrollment.objects.create(student=student, course=course, source="manual")
+    return course, unit, joins, student
+
+
+def note(student, unit, join, body="notatka"):
+    from notes.models import Note
+
+    return Note.objects.create(author=student, unit=unit, element=join, body=body)
+
+
+def open_notes(page, join):
+    """Open `join`'s notes and wait until the pop is where it will stay.
+
+    <details> fires `toggle` ASYNCHRONOUSLY: at the rail (>=1200px + notes.js) the pop
+    paints at its unanchored top:0 until notes.js's positionPop stamps an inline top --
+    measuring in that window passed locally and failed on CI
+    (tests/test_e2e_notes_rail.py). Below the rail the pop is in flow: no wait."""
+    sel = f'.lesson-block[data-element-id="{join.pk}"]'
+    page.locator(f"{sel} .block-notes__handle").click()
+    page.wait_for_function(
+        """(s) => { const pop = document.querySelector(s + ' .block-notes__pop');
+             const rail = matchMedia('screen and (min-width: 1200px)').matches
+                          && document.documentElement.classList.contains('notes-js');
+             return !!pop && (!rail || pop.style.top !== ''); }""",
+        arg=sel,
+    )
+
+
+def boxes_intersect(a, b):
+    return not (
+        a["right"] <= b["left"]
+        or b["right"] <= a["left"]
+        or a["bottom"] <= b["top"]
+        or b["bottom"] <= a["top"]
     )
 
 
