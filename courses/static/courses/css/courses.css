@@ -338,6 +338,11 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
   html.notes-js [data-unit-shell] .lesson-block:has(> .lesson-block__body > .el--image--float) .block-notes__handle {
     right: calc(-2.55rem - 2.75rem);
   }
+  /* ...and its unclamped pop opens one lane further right too: notes.css's 3rem only
+     clears the FIRST column, so at >=~1450px the pop covered (and hid) this handle. */
+  html.notes-js [data-unit-shell] .lesson-block:has(> .lesson-block__body > .el--image--float) .block-notes__panel[open] .block-notes__pop:not(.block-notes__pop--clamped) {
+    left: calc(100% + 3rem + 2.75rem);
+  }
 }
 /* A neighbour's in-flow note card / composer becomes a BFC so it narrows beside the
    float instead of running under it. Cards and composers, NOT the pop: a BFC pop would

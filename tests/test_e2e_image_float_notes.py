@@ -84,6 +84,27 @@ def test_second_column_handle_fits_and_hits_at_1200(page, live_server, collapsed
     assert hit, f"the floated block's handle {h} is clipped or covered"
 
 
+def test_unclamped_pop_leaves_the_second_column_handle_clickable(page, live_server):
+    """At 1600px the pop opens unclamped beside the block: it must clear the
+    second-column handle, or the handle that closes it is hidden under it."""
+    course, unit, joins, st = seed_student_lesson("fn-wide", "fn_wide", SHAPE)
+    note(st, unit, joins[0])
+    login(page, live_server, "fn_wide")
+    open_page(page, unit_url(live_server, unit), {"width": 1600, "height": 900})
+    page.wait_for_selector("html.notes-js")
+    open_notes(page, joins[0])
+    pop_sel = f"{_block(joins[0])} .block-notes__pop"
+    assert page.locator(f"{pop_sel}.block-notes__pop--clamped").count() == 0, (
+        "fixture: the pop must open unclamped at this width"
+    )
+    h = rect(page, f"{_block(joins[0])} .block-notes__handle")
+    assert not boxes_intersect(rect(page, pop_sel), h)
+    page.locator(f"{_block(joins[0])} .block-notes__handle").click(timeout=3000)
+    page.wait_for_selector(
+        f"{_block(joins[0])} .block-notes__panel:not([open])", state="attached"
+    )
+
+
 def test_open_pop_beats_the_sticky_footer(page, live_server):
     lead = [lambda c: text() for _ in range(25)]  # page must scroll
     course, unit, joins, st = seed_student_lesson(
