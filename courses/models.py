@@ -916,14 +916,14 @@ class ImageElement(ElementBase):
     size = models.CharField(max_length=8, choices=Size.choices, default=Size.FULL)
     # "Float right" (spec 2026-10-07-image-float-right-design.md). Honoured for
     # Small only -- see `floats`; a True stored on another size (import, legacy)
-    # is kept but ignored, so switching back to Small restores nothing silently:
-    # the editor form clears it on any non-Small save.
+    # is ignored at render; the editor shows the box unchecked (disabled off Small),
+    # so the next save writes False (the form clears it on any non-Small save).
     float_right = models.BooleanField(default=False)
     elements = GenericRelation(Element)
 
     @property
     def floats(self):
-        """Effective float: the ONE definition the template, form and tests share."""
+        """Effective float: the ONE definition the template and tests share."""
         return self.float_right and self.size == self.Size.SMALL
 
     def save(self, *args, **kwargs):

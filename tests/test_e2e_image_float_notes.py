@@ -14,41 +14,74 @@ def _float(page, join):
     return page.locator(_block(join)).evaluate("e => getComputedStyle(e).float")
 
 
-# Tall image: both two-line paragraphs sit well inside its height, so paragraph 2's
-# top-anchored handle is far above the image's bottom-anchored one -- clear of the
-# spec's accepted "second paragraph lands at the image's bottom" edge (D8).
-RAIL_SHAPE = [lambda c: image(c, px=(300, 600)), lambda c: text(), lambda c: text()]
+def _handles(page, joins):
+    return [rect(page, f"{_block(j)} .block-notes__handle") for j in joins]
 
 
 def test_rail_handles_do_not_intersect_and_pop_opens_at_handle(page, live_server):
-    """D8. Short-image case (spec: measured, not asserted): run once with
-    image(px=(300, 60)) and record here the two handles' vertical gap in px --
-    measured 2026-10-08 at 1300px: the image renders 32px tall, shorter than the 36px
-    handle, so its bottom-anchored handle (260.6-296.5) OVERLAPS paragraph 1's
-    top-anchored one (264.2-300.1) by 32.4px (gap -32.4); paragraph 2's handle clears
-    it by 55.6px. Accepted limit (spec D8: images under ~2 handle heights)."""
-    course, unit, joins, st = seed_student_lesson("fn-rail", "fn_rail", RAIL_SHAPE)
+    """D8. The REAL shape (unit 914: a Small image + two short paragraphs): the
+    floated block's handle has its own rail column, so no paragraph handle can
+    land on it whatever the image height."""
+    course, unit, joins, st = seed_student_lesson("fn-rail", "fn_rail", SHAPE)
     for j in joins:
         note(st, unit, j)
     login(page, live_server, "fn_rail")
     open_page(page, unit_url(live_server, unit), DESKTOP)
     page.wait_for_selector("html.notes-js")
-    img_h = rect(page, f"{_block(joins[0])} .block-notes__handle")
-    img_box = rect(page, f"{_block(joins[0])} img")
-    p2_top = rect(page, f"{_block(joins[2])} .el--text p")["top"]
-    assert img_box["bottom"] - p2_top > 80, (
-        "fixture, not code: paragraph 2 must start well above the image's bottom "
-        f"(gap {img_box['bottom'] - p2_top:.0f}px) -- lengthen the image"
-    )
-    for j in joins[1:]:
-        assert not boxes_intersect(
-            img_h, rect(page, f"{_block(j)} .block-notes__handle")
-        )
+    img_h, *para_hs = _handles(page, joins)
+    for p in para_hs:
+        assert not boxes_intersect(img_h, p), (img_h, p)
     open_notes(page, joins[0])
     pop = rect(page, f"{_block(joins[0])} .block-notes__pop")
     handle = rect(page, f"{_block(joins[0])} .block-notes__handle")
     assert abs(pop["top"] - handle["top"]) < 2, (pop, handle)
     assert _float(page, joins[0]) == "right"  # rail: open notes never un-float
+
+
+def test_short_image_rail_handles_do_not_intersect(page, live_server):
+    """D8. An image shorter than a handle (300x60 renders ~32px tall)."""
+    course, unit, joins, st = seed_student_lesson(
+        "fn-short",
+        "fn_short",
+        [lambda c: image(c, px=(300, 60)), lambda c: text(), lambda c: text()],
+    )
+    for j in joins:
+        note(st, unit, j)
+    login(page, live_server, "fn_short")
+    open_page(page, unit_url(live_server, unit), DESKTOP)
+    page.wait_for_selector("html.notes-js")
+    hs = _handles(page, joins)
+    for i, a in enumerate(hs):
+        for b in hs[i + 1 :]:
+            assert not boxes_intersect(a, b), (a, b)
+
+
+@pytest.mark.parametrize("collapsed", [True, False], ids=["collapsed", "pinned"])
+def test_second_column_handle_fits_and_hits_at_1200(page, live_server, collapsed):
+    """D8's second rail column must not clip at the narrowest rail viewport."""
+    user = f"fn_1200_{int(collapsed)}"
+    course, unit, joins, st = seed_student_lesson(user.replace("_", "-"), user, SHAPE)
+    note(st, unit, joins[0])
+    login(page, live_server, user)
+    open_page(page, unit_url(live_server, unit), {"width": 1200, "height": 900})
+    page.evaluate(
+        "(v) => localStorage.setItem('libli_unit_tree_collapsed', v)",
+        "1" if collapsed else "0",
+    )
+    page.reload()
+    page.wait_for_selector("html.notes-js")
+    assert page.evaluate(WAIT_IMAGES), "fixture images never decoded"
+    sel = f"{_block(joins[0])} .block-notes__handle"
+    h = rect(page, sel)
+    vw = page.evaluate("document.documentElement.clientWidth")
+    assert h["left"] >= 0 and h["top"] >= 0 and h["right"] <= vw, (h, vw)
+    assert h["bottom"] <= page.viewport_size["height"], h
+    hit = page.evaluate(
+        """([x, y, s]) => { const e = document.elementFromPoint(x, y);
+             return !!(e && e.closest(s)); }""",
+        [(h["left"] + h["right"]) / 2, (h["top"] + h["bottom"]) / 2, sel],
+    )
+    assert hit, f"the floated block's handle {h} is clipped or covered"
 
 
 def test_open_pop_beats_the_sticky_footer(page, live_server):
@@ -87,6 +120,7 @@ def test_open_pop_beats_the_sticky_footer(page, live_server):
         page.locator(handle).click()  # close before the next block
 
 
+# Playwright's click hovers the handle first: that guards the <1200px hover-dim z-index.
 def test_below_rail_open_notes_unfloat_to_an_unflagged_small(page, live_server):
     course, unit, joins, st = seed_student_lesson("fn-phone", "fn_phone", SHAPE)
     note(st, unit, joins[0])
@@ -238,7 +272,7 @@ def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
     # The click leaves the pointer on the handle, so notes.js's hover highlight dims the
     # drag question's block (opacity .45): a stacking context that traps the target's
     # z-index 3 below the floated block's 1 and makes this test pass vacuously. Move
-    # the pointer away (keyboard users and any mouse that leaves never have the dim).
+    # the pointer away (the dim lasts only while the pointer or focus is on a handle).
     page.mouse.move(1, 1)
     assert page.locator(".lesson-block.is-dimmed").count() == 0, "fixture: still dimmed"
     pop = rect(page, pop_sel)

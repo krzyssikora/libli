@@ -176,14 +176,15 @@ def open_notes(page, join):
     <details> fires `toggle` ASYNCHRONOUSLY: at the rail (>=1200px + notes.js) the pop
     paints at its unanchored top:0 until notes.js's positionPop stamps an inline top --
     measuring in that window passed locally and failed on CI
-    (tests/test_e2e_notes_rail.py). Below the rail the pop is in flow: no wait."""
+    (tests/test_e2e_notes_rail.py). Below the rail: wait for [open] only."""
     sel = f'.lesson-block[data-element-id="{join.pk}"]'
     page.locator(f"{sel} .block-notes__handle").click()
     page.wait_for_function(
         """(s) => { const pop = document.querySelector(s + ' .block-notes__pop');
              const rail = matchMedia('screen and (min-width: 1200px)').matches
                           && document.documentElement.classList.contains('notes-js');
-             return !!pop && (!rail || pop.style.top !== ''); }""",
+             const open = document.querySelector(s + ' .block-notes__panel[open]');
+             return !!pop && !!open && (!rail || pop.style.top !== ''); }""",
         arg=sel,
     )
 
