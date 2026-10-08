@@ -107,3 +107,36 @@ def test_cell_image_print_reset_follows_the_screen_plate_rule():
     assert prints[0].start() > screens[0].start(), (
         "the cell plate's @media print reset must come after the screen rule"
     )
+
+
+# The plate's padding scales with the image's size preset (owner, 2026-10-08): a fixed
+# 12px frame took nearly a third of a Small image's width -- a floated Small is ~76px
+# on a phone. Small 4px, Medium 8px; Large/Full keep the base rule's 12px.
+SIZE_PLATE = {
+    "small": "var(--space-1)",
+    "medium": "var(--space-2)",
+}
+
+
+def test_plate_padding_scales_with_the_size_preset():
+    source = COURSES_CSS.read_text(encoding="utf-8")
+    screen = SCREEN_RULE.search(source)
+    assert screen, "courses.css must declare the dark-theme image plate"
+    for size, pad in SIZE_PLATE.items():
+        m = re.search(
+            r'^\[data-theme="dark"\]\s+\.el--image--' + size + r"\s+img\s*\{([^}]*)\}",
+            source,
+            re.M,
+        )
+        assert m, f"no top-level dark plate rule for .el--image--{size}"
+        assert re.search(r"padding:\s*" + re.escape(pad) + r"\s*;", m.group(1)), (
+            m.group(1)
+        )
+        # Same specificity as the base rule and the print reset, so ORDER decides:
+        # after the base rule (else 12px wins) and before the print reset (else the
+        # plate's padding prints).
+        assert m.start() > screen.start(), f"{size} plate rule precedes the base rule"
+        prints = [p for p in PRINT_RULE.finditer(source) if p.start() != screen.start()]
+        assert prints and m.start() < prints[0].start(), (
+            f"{size} plate rule must come before the @media print reset"
+        )

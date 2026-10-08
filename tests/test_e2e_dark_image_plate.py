@@ -515,3 +515,50 @@ def test_transparent_dragimage_reads_the_same_and_does_not_move(
         f"the picture moved inside its box: ink edges {light_edges} (light) vs "
         f"{dark_edges} (dark) -- every drop zone is now misplaced"
     )
+
+
+@pytest.fixture
+def sized_plate_lesson(db, _isolated_media):
+    """One lesson with one image per size preset (owner, 2026-10-08: the plate's
+    padding scales -- Small 4px, Medium 8px, Large/Full 12px)."""
+    from courses.models import ImageElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    for size in ("small", "medium", "large", "full"):
+        asset = make_image_asset(course, filename=f"{size}.png", size=(400, 300))
+        add_element(unit, ImageElement.objects.create(media=asset, alt=size, size=size))
+    user = make_verified_user(
+        username="plate-sizes",
+        email="plate-sizes@test.example.com",
+        password=TEST_PASSWORD,
+    )
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+def test_plate_padding_scales_with_the_size_preset(
+    page, live_server, sized_plate_lesson
+):
+    unit, user = sized_plate_lesson
+    user.theme = "dark"
+    user.save(update_fields=["theme"])
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_lesson_url(live_server, unit))
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    page.locator(".el--image img").first.wait_for()
+    pads = page.evaluate(
+        """() => Object.fromEntries([...document.querySelectorAll('.el--image img')]
+             .map(i => [i.alt, getComputedStyle(i).paddingLeft]))"""
+    )
+    assert pads == {"small": "4px", "medium": "8px", "large": "12px", "full": "12px"}, (
+        pads
+    )
+    # Print still drops the plate entirely, at every size.
+    page.emulate_media(media="print")
+    printed = page.evaluate(
+        "() => [...document.querySelectorAll('.el--image img')]"
+        ".map(i => getComputedStyle(i).paddingLeft)"
+    )
+    assert printed == ["0px"] * 4, printed
