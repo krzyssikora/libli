@@ -914,7 +914,17 @@ class ImageElement(ElementBase):
     # on the <img> (see courses.css). `full` is today's rendering plus a
     # max-height:100dvh floor, so no data migration is needed.
     size = models.CharField(max_length=8, choices=Size.choices, default=Size.FULL)
+    # "Float right" (spec 2026-10-07-image-float-right-design.md). Honoured for
+    # Small only -- see `floats`; a True stored on another size (import, legacy)
+    # is kept but ignored, so switching back to Small restores nothing silently:
+    # the editor form clears it on any non-Small save.
+    float_right = models.BooleanField(default=False)
     elements = GenericRelation(Element)
+
+    @property
+    def floats(self):
+        """Effective float: the ONE definition the template, form and tests share."""
+        return self.float_right and self.size == self.Size.SMALL
 
     def save(self, *args, **kwargs):
         # Defence in depth on every write path (editor form, transfer importer,
