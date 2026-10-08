@@ -286,3 +286,42 @@ def test_height_capped_portrait_leaves_no_gap(page, live_server):
     wrapper = rect(page, ".lesson-block:has(.el--image--float)")
     assert abs(wrapper["left"] - img["left"]) < EPS, (wrapper, img)
     assert first_line(page, ".el--text p")["right"] <= img["left"] + EPS
+
+
+@pytest.mark.parametrize("vp", [PHONE, DESKTOP], ids=["phone", "desktop"])
+def test_a_stored_true_on_medium_does_not_float(page, live_server, vp):
+    # Both images in ONE unit: a second course would be unreadable to this PA user.
+    owner, unit, _ = _seed(
+        "fl-med",
+        lambda c: image(c, size="medium", alt="flagged"),
+        text(),
+        lambda c: image(c, size="medium", float_right=False, alt="plain"),
+        text(),
+    )
+    login(page, live_server, owner.username)
+    open_page(page, unit_url(live_server, unit), vp)
+    a = rect(page, 'img[alt="flagged"]')
+    b = rect(page, 'img[alt="plain"]')
+    assert all(abs(a[k] - b[k]) < 1 for k in ("left", "width", "height")), (a, b)
+
+
+def test_dark_plate_on_a_floated_image(page, live_server):
+    # A caption LONGER than the image makes the figure wider than the img, so the
+    # img's margin-inline decides where it sits -- without it both values look alike.
+    owner, unit, _ = _seed(
+        "fl-dark",
+        lambda c: image(
+            c, px=(90, 90), caption="Bardzo długi podpis pod małym obrazkiem"
+        ),
+        text(),
+    )
+    login(page, live_server, owner.username)
+    open_page(page, unit_url(live_server, unit), DESKTOP)
+    page.evaluate("document.documentElement.dataset.theme = 'dark'")
+    im = page.locator(".el--image--float img")
+    bg = im.evaluate("e => getComputedStyle(e).backgroundColor")
+    assert bg not in ("rgba(0, 0, 0, 0)", "transparent")  # smoke: plate present
+    # What the float CSS CAN break: the plate's padding grows the img box; it must
+    # still sit flush right (margin-inline: auto 0), inside the column.
+    col = rect(page, ".lesson-block:not(:has(.el--image--float)) .lesson-block__body")
+    assert abs(rect(page, ".el--image--float img")["right"] - col["right"]) < EPS

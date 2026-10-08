@@ -10,7 +10,10 @@ pytestmark = pytest.mark.django_db
 def _img(size, flag):
     course, _u = make_course_with_unit()
     media = MediaAsset.objects.create(
-        course=course, kind="image", file="courses/media/x.png", original_filename="x.png"
+        course=course,
+        kind="image",
+        file="courses/media/x.png",
+        original_filename="x.png",
     )
     return ImageElement.objects.create(media=media, size=size, float_right=flag)
 
@@ -40,7 +43,10 @@ def _nest(unit, kind, child):
     elif kind == "spoiler":
         obj, slot = SpoilerElement.objects.create(label="s"), SpoilerElement.SLOT_ID
     elif kind == "beforeafter":
-        obj, slot = BeforeAfterElement.objects.create(), BeforeAfterElement.BEFORE_SLOT_ID
+        obj, slot = (
+            BeforeAfterElement.objects.create(),
+            BeforeAfterElement.BEFORE_SLOT_ID,
+        )
     elif kind == "tabs":
         obj = TabsElement.objects.create(data=TabsElement.default_data())
         slot = obj.data["tabs"][0]["id"]  # read off the SAVED instance
@@ -60,7 +66,10 @@ def test_class_reaches_the_page_in_every_context(client, unit_type, where):
     unit.unit_type = unit_type
     unit.save()
     media = MediaAsset.objects.create(
-        course=course, kind="image", file="courses/media/x.png", original_filename="x.png"
+        course=course,
+        kind="image",
+        file="courses/media/x.png",
+        original_filename="x.png",
     )
     flagged = ImageElement.objects.create(media=media, size="small", float_right=True)
     if where == "top":
@@ -78,7 +87,9 @@ def test_class_reaches_the_page_in_every_context(client, unit_type, where):
     staff.is_staff = True
     staff.save()
     client.force_login(staff)
-    path = f"/courses/{course.slug}/u/{unit.pk}/" + ("quiz/" if unit_type == "quiz" else "")
+    path = f"/courses/{course.slug}/u/{unit.pk}/" + (
+        "quiz/" if unit_type == "quiz" else ""
+    )
     resp = client.get(path)
     assert resp.status_code == 200, resp.status_code
     html = resp.content.decode()
