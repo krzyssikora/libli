@@ -147,6 +147,13 @@ blockquote {
   padding: var(--space-3);
   border-radius: var(--radius-sm);
 }
+/* The frame scales with the size preset (owner, 2026-10-08): a fixed 12px took nearly a
+   third of a Small image -- a floated Small is ~76px wide on a phone. Large/Full keep
+   12px above. Same specificity as the base rule and the print reset: these MUST sit
+   between them (after the base rule, before `@media print`), or 12px wins on screen /
+   the frame prints. Pinned by tests/test_image_plate_tokens.py. */
+[data-theme="dark"] .el--image--small img { padding: var(--space-1); }
+[data-theme="dark"] .el--image--medium img { padding: var(--space-2); }
 
 /* dvh is meaningless on paper. These mm values are chosen to be sensible on A4
    (297mm tall, ~250mm printable): `full` at 170mm leaves ~80mm for surrounding
