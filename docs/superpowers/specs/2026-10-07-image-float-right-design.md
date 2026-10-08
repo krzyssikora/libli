@@ -27,7 +27,7 @@ right of its column and the following text wraps beside it, on desktop and on a 
 | D5 | **WITHDRAWN by the owner, 2026-10-08.** Was: "Medium falls back to today's centred layout when less than ~12rem would remain beside it, measured against the box the image sits in." Measuring that box needs a CSS container query, and its containment made the whole article a stacking context — every notes pop on the page would paint under the sticky `.unit-foot` (round 12), on top of earlier spacing and counter side effects. Owner: "go with 1, Small only". Medium floating is a possible follow-up, NOT part of this work. Small always floats. |
 | D6 | The whole **top-level block** floats (`section.lesson-block`, carrying its notes handle), not just the `<figure>`. Floating the figure alone put the notes handle on top of the image (mockup round 1). |
 | D7 | Below the 1200px notes rail, a text block's in-flow notes handle sits at the float's left edge, beside its paragraph. **Accepted as is** — any in-flow placement is beside the float, and clearing it would stop the following text wrapping. |
-| D8 | At ≥1200px (notes rail), the floated block's handle must not stack on the handle of the paragraph beside it (mockup at 1300px: ~14px apart). Fix required. |
+| D8 | At ≥1200px (notes rail), the floated block's handle must not stack on the handle of the paragraph beside it (mockup at 1300px: ~14px apart). Fix required. **Mechanism chosen by the owner 2026-10-08: a second rail column for the floated block's handle** (the bottom-anchor first tried still collided in the real shape). |
 | D9 | Print keeps the float. |
 | D10 | Off by default; every existing image renders exactly as today. No LAL-importer change; the owner ticks the box by hand. |
 
@@ -215,17 +215,16 @@ a no-JS composer error, `_block_notes.html` emits `<details open>`), a floated i
 notes loads un-floated below the rail.
 
 **Notes rail (D8).** Invariant: at `@media screen and (min-width: 1200px)` with `notes-js`, the
-floated block's handle intersects NO other handle in the lane. Mechanism: anchor it to the
-block's BOTTOM (`top: auto; bottom: 0` on the existing absolutely-positioned handle), level with
-the bottom of the image, below the top-anchored handle of the paragraph beside it. Consequence,
-accepted: notes.js sets `pop.style.top = handle.offsetTop`, so the floated block's pop opens
-level with the image's BOTTOM; in `--clamped` mode (`right: 0`, over the column) it overlays the
-image's lower edge and the wrapped paragraph. e2e 7 asserts the pop's top equals the handle's
-top. Known limits,
-accepted (author's call, not an owner decision): a floated image shorter than ~2 handle heights
-(~60px), or a second wrapping paragraph whose top lands exactly at the image's bottom, can still
-touch. e2e 7 asserts the invariant for the Task 2 shape (both paragraphs) and records the
-short-image case as a measurement in its docstring, not an assertion. Also accepted: a
+floated block's handle intersects NO other handle in the lane. Mechanism (OWNER DECISION
+2026-10-08, after implementation): the floated block's handle sits in a SECOND rail column, one
+lane further right (`right: calc(-2.55rem - 2.75rem)`), anchored to the block's TOP like every
+other handle — different x, so it can never share a position with a paragraph's handle. The
+first mechanism (anchor to the block's BOTTOM) was REPLACED: in the real unit-914 shape (a
+~120px Small image + two short paragraphs) paragraph 2's handle landed on it. notes.js sets
+`pop.style.top = handle.offsetTop`, so the pop opens level with the block's top. e2e 7 asserts
+no intersection for the real shape AND a short (60px) image, the pop's top equals the handle's,
+and that at 1200px (tree pinned and collapsed) the second-column handle is fully on screen and
+hit-testable. Also accepted: a
 paragraph block beside the float spans the full column, so notes.js's hover highlight
 (`.lesson-block.is-highlighted`) outlines the image area too and dims the floated block
 (`.is-dimmed`); cosmetic, checked in the e2e 7 screenshots only.
