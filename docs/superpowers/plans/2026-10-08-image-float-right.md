@@ -497,6 +497,16 @@ def rect(page, selector):
     return page.locator(selector).first.evaluate("e => e.getBoundingClientRect().toJSON()")
 
 
+def print_mode(page):
+    """Print emulation AS A PRINT: emulate_media alone never fires `beforeprint`, and
+    print.js's enter() (which opens every closed notes panel, spoiler and tab for
+    paper) runs only on that event -- without it a closed panel's cards stay 0x0 and
+    a print notes assertion passes or fails vacuously (precedent:
+    tests/test_e2e_print_lesson_notes.py)."""
+    page.emulate_media(media="print")
+    page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
+
+
 def first_line(page, selector):
     """Box of the first rendered line of the text in `selector`."""
     return page.evaluate(
@@ -687,7 +697,7 @@ def test_class_reaches_the_page_in_every_context(client, unit_type, where):
 
 **Files:**
 - Modify: `courses/transfer/export.py` (`_ser_image`), `courses/transfer/payloads.py` (`_val_image`), `courses/transfer/importer.py` (`_build_image`), `courses/transfer/schema.py:14`
-- Modify: every test pinning 16 — derive NOW: `grep -rln "== 16\|format_version.*16\|_16\b" tests courses/tests` (expect `tests/test_link_transfer.py`, `tests/test_table_transfer.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_export.py`, `tests/test_transfer_schema.py`, `courses/tests/test_beforeafter_transfer.py`, `courses/tests/test_callout_transfer.py`, `courses/tests/test_caption_transfer.py`, `courses/tests/test_image_size_transfer.py` — trust the grep, not this list; read each hit, bump only FORMAT_VERSION pins, rename a `_16` test name to `_17`)
+- Modify: every test pinning 16 — derive NOW: `grep -rln "== 16\|format_version.*16\|_16\b" tests courses/tests` (expect `tests/test_link_transfer.py`, `tests/test_table_transfer.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_export.py`, `tests/test_transfer_schema.py`, `courses/tests/test_beforeafter_transfer.py`, `courses/tests/test_callout_transfer.py`, `courses/tests/test_caption_transfer.py`, `courses/tests/test_image_size_transfer.py` — trust the grep, not this list; read each hit, bump only FORMAT_VERSION pins, rename a `_16` test name to `_17`). ALSO update exact image-payload pins: `tests/test_transfer_export.py:76` asserts `data == {"media": "m1", "alt": "a", "figcaption": "c", "size": "full"}` — add `"float_right": False`. Find any others with `grep -rnE '"figcaption": [^,]+, "size": "[a-z]+"\}' tests courses/tests` and update each the same way
 - Test: `courses/tests/test_image_float_transfer.py`
 
 - [ ] **Step 1: Failing tests**
@@ -833,8 +843,12 @@ def test_small_floats_right_and_text_wraps(page, live_server, vp):
     assert line["right"] <= img["left"] + EPS, (line, img)  # wraps beside, not under
     para = rect(page, ".lesson-block:not(:has(.el--image--float)) .el--text p")
     assert abs(img["top"] - para["top"]) < 2 + EPS, (img, para)  # top-aligned (box, not glyphs)
-    second = first_line(page, '.lesson-block:nth-of-type(3) .el--text p')
-    assert second["top"] >= line["top"]  # 2nd text element also present (Task 2 shape)
+    second = page.locator(".lesson-block:not(:has(.el--image--float)) .el--text p").nth(1)
+    s2 = second.evaluate(
+        "p => { const r = document.createRange(); r.selectNodeContents(p);"
+        " return r.getClientRects()[0].toJSON(); }")
+    if s2["top"] < img["bottom"]:  # starts beside the image -> must wrap too (D3)
+        assert s2["right"] <= img["left"] + EPS, (s2, img)
 
 
 def test_two_text_elements_both_wrap_in_a_quiz(page, live_server):
@@ -947,7 +961,7 @@ def test_float_ending_a_deck_slide_stays_in_it_in_print(page, live_server):
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), DESKTOP)
     page.wait_for_selector(".slideshow-deck")
-    page.emulate_media(media="print")
+    print_mode(page)
     img = rect(page, ".el--image--float img")
     nxt = rect(page, ".slide ~ .slide .el--text p")
     assert nxt["top"] >= img["bottom"] - EPS, (nxt, img)
@@ -1055,7 +1069,7 @@ def test_height_capped_portrait_leaves_no_gap(page, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_image_float_layout.py -m e2e -n 2 -p no:cacheprovider`
-Expected: geometry assertions FAIL (image is centred on its own line).
+Expected RED (no float yet): `test_small_floats_right_and_text_wraps`, `test_two_text_elements_both_wrap_in_a_quiz`, `test_mid_body_heading…`, `test_float_as_first_element`, `test_maths_beside…`, `test_narrow_and_captioned…`, `test_height_capped…`. Expected GREEN already (nothing floats, so nothing can overlap): `test_two_floats_stack`, `test_non_text_after_float_starts_below`, `test_float_before_reveal_gate`, the slide/deck/preview containment tests, the zoom tests — their falsification is in Step 5.
 
 - [ ] **Step 3: Implement the CSS block** — insert after the image print block. The four branches are written out EXACTLY as below. Duplication across branches is deliberate: every float declaration on wrapper, figure and img must sit under ONE condition per branch (spec "Every float-specific declaration…"); there is no preprocessor.
 
@@ -1190,7 +1204,7 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 ```
 
 - [ ] **Step 4: Run** the layout e2e → PASS. Then run `uv run pytest $(ls tests/test_*css*.py courses/tests/test_*css*.py) -n 4 -p no:cacheprovider` → PASS (marker tests partition on text).
-- [ ] **Step 5: Falsify** (by hand, one at a time, restore after each): (a) delete `float: right;` from the max-width:1199.98px branch → phone `test_small_floats_right_and_text_wraps` RED; (b) remove the sibling `clear: right` rule → `test_non_text_after_float_starts_below` RED; (c) remove `.el--text :is(h2…)` → `test_mid_body_heading…` RED; (d) remove `.slide` from the `::after` rule → `test_float_ending_a_slide_stays_in_it_without_js` AND `…deck_slide…in_print` RED; remove `.prev-inner` → `test_preview_contains…` RED; (f) remove the rail `z-index: 1` → `test_clicking_the_floated_image_opens_zoom[desktop]` RED; (e) in the D3 clearing rule ONLY, change `.quiz .slide > section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` to `section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` → `test_small_floats_right_and_text_wraps` RED on `line["right"] <= img["left"]` (every lesson text block now clears, so the paragraph starts BELOW the image). Read `git diff` after each restore — it must show only the intended block.
+- [ ] **Step 5: Falsify** (by hand, one at a time, restore after each): (a) delete `float: right;` from the max-width:1199.98px branch → phone `test_small_floats_right_and_text_wraps` RED; (b) remove the sibling `clear: right` rule → `test_non_text_after_float_starts_below`, `test_two_floats_stack` and `test_float_before_reveal_gate` RED; (c) remove `.el--text :is(h2…)` → `test_mid_body_heading…` RED; (d) remove `.slide` from the `::after` rule → `test_float_ending_a_slide_stays_in_it_without_js` AND `…deck_slide…in_print` RED; remove `.prev-inner` → `test_preview_contains…` RED; (f) remove the rail `z-index: 1` → `test_clicking_the_floated_image_opens_zoom[desktop]` RED; (e) in the D3 clearing rule ONLY, change `.quiz .slide > section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` to `section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` → `test_small_floats_right_and_text_wraps` RED on `line["right"] <= img["left"]` (every lesson text block now clears, so the paragraph starts BELOW the image). Read `git diff` after each restore — it must show only the intended block.
 - [ ] **Step 6: Commit** `git commit -m "feat(css): float Small images right; clear non-text; contain per slide"`.
 
 ---
@@ -1234,7 +1248,7 @@ def test_float_at_end_of_a_non_last_list_stays_in_it(browser, live_server, kind,
         login(page, live_server, owner.username)
         open_page(page, unit_url(live_server, unit), DESKTOP)
         if state == "print":
-            page.emulate_media(media="print")
+            print_mode(page)
         _assert_next_list_below(page, kind, sel)
     finally:
         ctx.close()
@@ -1280,7 +1294,7 @@ def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server, vp,
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), vp)
     if medium == "print":
-        page.emulate_media(media="print")
+        print_mode(page)
 
     img_a = rect(page, f'[data-element-id="{a.pk}"] .el--image img')
     para_a = rect(page, f'[data-element-id="{a.pk}"] .callout__child .el--text p')
@@ -1443,14 +1457,28 @@ def _float(page, join):
     return page.locator(_block(join)).evaluate("e => getComputedStyle(e).float")
 
 
+# Tall image: both two-line paragraphs sit well inside its height, so paragraph 2's
+# top-anchored handle is far above the image's bottom-anchored one -- clear of the
+# spec's accepted "second paragraph lands at the image's bottom" edge (D8).
+RAIL_SHAPE = [lambda c: image(c, px=(300, 600)), lambda c: text(), lambda c: text()]
+
+
 def test_rail_handles_do_not_intersect_and_pop_opens_at_handle(page, live_server):
-    course, unit, joins, st = seed_student_lesson("fn-rail", "fn_rail", SHAPE)
+    """D8. Short-image case (spec: measured, not asserted): run once with
+    image(px=(300, 60)) and record here the two handles' vertical gap in px --
+    <fill in the measured numbers when this test is first run>."""
+    course, unit, joins, st = seed_student_lesson("fn-rail", "fn_rail", RAIL_SHAPE)
     for j in joins:
         note(st, unit, j)
     login(page, live_server, "fn_rail")
     open_page(page, unit_url(live_server, unit), DESKTOP)
     page.wait_for_selector("html.notes-js")
     img_h = rect(page, f"{_block(joins[0])} .block-notes__handle")
+    img_box = rect(page, f"{_block(joins[0])} img")
+    p2_top = rect(page, f"{_block(joins[2])} .el--text p")["top"]
+    assert img_box["bottom"] - p2_top > 80, (
+        "fixture, not code: paragraph 2 must start well above the image's bottom "
+        f"(gap {img_box['bottom'] - p2_top:.0f}px) -- lengthen the image")
     for j in joins[1:]:
         assert not boxes_intersect(img_h, rect(page, f"{_block(j)} .block-notes__handle"))
     open_notes(page, joins[0])
@@ -1526,10 +1554,11 @@ def test_neighbour_note_card_never_runs_under_the_image(page, live_server, mediu
     login(page, live_server, f"fn_nb_{medium}")
     open_page(page, unit_url(live_server, unit), PHONE)
     if medium == "print":
-        page.emulate_media(media="print")  # notes.css prints pops that have cards
+        print_mode(page)  # notes.css prints pops that have cards
     else:
         open_notes(page, joins[1])
     card = rect(page, f"{_block(joins[1])} .note-card")
+    assert card["width"] > 0 and card["height"] > 0, "card not rendered; vacuous"
     img = rect(page, f"{_block(joins[0])} img")
     assert not boxes_intersect(card, img), (card, img)
 
@@ -1564,15 +1593,17 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
     note(st, unit, joins[2])  # the second image prints notes -> un-floats
     login(page, live_server, "fn_print")
     open_page(page, unit_url(live_server, unit), DESKTOP)
-    page.emulate_media(media="print")
+    print_mode(page)
     assert _float(page, joins[0]) == "right"
     cap = page.locator(f"{_block(joins[0])} img").evaluate("e => getComputedStyle(e).maxHeight")
     assert cap.endswith("px") and abs(float(cap[:-2]) - 45 * 96 / 25.4) < 1  # 45mm
     assert _float(page, joins[2]) == "none"
     assert page.locator(f"{_block(joins[1])} .block-notes__pop").evaluate(
         "e => getComputedStyle(e).display") == "none"  # an EMPTY pop stays hidden
+    assert page.locator(f"{_block(joins[2])} .block-notes__panel[open]").count() == 1
     pop = rect(page, f"{_block(joins[2])} .block-notes__pop")
     col = rect(page, f"{_block(joins[1])} .lesson-block__body")
+    assert pop["width"] > 0, "pop not rendered (beforeprint not fired?)"
     assert abs(pop["width"] - col["width"]) < 2, (pop, col)
     a = rect(page, f"{_block(joins[2])} img")
     _c2, twin, _j2, _s2 = seed_student_lesson(
@@ -1582,7 +1613,7 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
     page.context.clear_cookies()
     login(page, live_server, "fn_print_twin")
     open_page(page, unit_url(live_server, twin), DESKTOP)
-    page.emulate_media(media="print")
+    print_mode(page)
     b = rect(page, ".el--image img")
     assert all(abs(a[k] - b[k]) < 1 for k in ("left", "width")), (a, b)
 
@@ -1630,6 +1661,8 @@ def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
     )
     assert on_top, "the floated block's open pop is under the drag-image target"
 ```
+
+- [ ] **Step 1b: Short-image measurement** (spec D8): temporarily change RAIL_SHAPE's image to `px=(300, 60)`, run the rail test once, note the gap between the two handles' boxes (negative = overlap), restore the fixture, and replace the `<fill in…>` sentence in the docstring with the measured numbers. This is a recorded measurement, not an assertion (accepted limit).
 
 - [ ] **Step 2: Run** → RED: footer, clamped drag-image, rail-handle intersection, neighbour-card (screen and print). Already GREEN, expected: print un-float and below-rail un-float (Task 6 rules), and the spacing invariant (it guards against a regression this task could introduce).
 - [ ] **Step 3: Implement**
@@ -1694,7 +1727,8 @@ def _strip(css):
 CSS = _strip(RAW)
 # The whole feature lives between two marker comments (Task 6 Step 3); slice on the
 # RAW text, where the markers still exist, then strip comments.
-BLOCK = _strip(RAW[RAW.index("=== Image \"Float right\"") : RAW.index("=== end Image \"Float right\" ===")])
+_START = RAW.rindex("/*", 0, RAW.index("=== Image \"Float right\""))  # whole header comment
+BLOCK = _strip(RAW[_START : RAW.index("=== end Image \"Float right\" ===")])
 
 
 def _rules(css):
