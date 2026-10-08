@@ -148,7 +148,15 @@ def _val_image(data, elid, media_kinds):
         # `full` IS the pre-feature rendering. (Contrast _val_callout, which
         # rejects an unknown `kind` — a kind has no safe fallback.)
         data["size"] = "full"
-    _exact_keys(data, ["media", "alt", "figcaption", "size"], _("image data"))
+    # `float_right` is optional (added in FORMAT_VERSION 17). Same policy as `size`:
+    # a cosmetic field with a lossless default must never fail an import, so a
+    # non-bool is COERCED to False (today's rendering), not rejected.
+    data.setdefault("float_right", False)
+    if not isinstance(data["float_right"], bool):
+        data["float_right"] = False
+    _exact_keys(
+        data, ["media", "alt", "figcaption", "size", "float_right"], _("image data")
+    )
     refs = _require_media(data["media"], elid, media_kinds, "image")
     check_str(data["alt"], "alt", max_length=255)
     # CAPTION_MAX_LENGTH, not 255: from FORMAT_VERSION 14 the caption is HTML, and

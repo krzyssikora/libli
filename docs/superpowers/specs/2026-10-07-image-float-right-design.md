@@ -1,0 +1,394 @@
+# Image "Float right"
+
+## Purpose
+
+A lesson image always sits on its own line, centred (`.el--image--*` presets,
+`courses.css` "Image size presets" block). A small illustration that belongs with a
+paragraph cannot sit beside it, as it did in the LAL source. Reported case: unit 914
+(mat-pp, "Reguła mnożenia 2"), Task 2 — the flag (`flaga3.png`, element 15752) was
+`<div style="float: right"><img style="width: 200px">` beside two paragraphs in
+`LAL/html/130_kombinatoryka/030_kombinatoryka.html`; in libli it renders Full, on its own row.
+
+Workarounds rejected by the owner: a two-column element (columns are always equal width,
+2-4 of them, and cannot be merged — the image column cannot be made narrow) and a table
+(no merged-column width control).
+
+**Goal:** an author ticks "Float right" on a Small image; the image sits at the
+right of its column and the following text wraps beside it, on desktop and on a phone.
+
+## Owner decisions (VERBATIM intent — do not reverse in review)
+
+| # | Decision |
+|---|----------|
+| D1 | A per-image **"Float right"** checkbox, beside the size radios. |
+| D2 | Offered for **Small only** (owner, 2026-10-08 — was "Small and Medium"; Medium dropped after spec-review round 12, see D5). For Medium/Large/Full it is disabled, and a stored `true` is IGNORED at render. |
+| D3 | **Wrap rule (a):** text and maths elements wrap beside the floated image; **headings and every non-text element start below it**. (Not "only the next element wraps": Task 2's text is TWO text elements, and the second must wrap too.) |
+| D4 | Works at the **top level AND inside containers** (callout, tabs, two-column, spoiler, before/after). A floated image never escapes its container. |
+| D5 | **WITHDRAWN by the owner, 2026-10-08.** Was: "Medium falls back to today's centred layout when less than ~12rem would remain beside it, measured against the box the image sits in." Measuring that box needs a CSS container query, and its containment made the whole article a stacking context — every notes pop on the page would paint under the sticky `.unit-foot` (round 12), on top of earlier spacing and counter side effects. Owner: "go with 1, Small only". Medium floating is a possible follow-up, NOT part of this work. Small always floats. |
+| D6 | The whole **top-level block** floats (`section.lesson-block`, carrying its notes handle), not just the `<figure>`. Floating the figure alone put the notes handle on top of the image (mockup round 1). |
+| D7 | Below the 1200px notes rail, a text block's in-flow notes handle sits at the float's left edge, beside its paragraph. **Accepted as is** — any in-flow placement is beside the float, and clearing it would stop the following text wrapping. |
+| D8 | At ≥1200px (notes rail), the floated block's handle must not stack on the handle of the paragraph beside it (mockup at 1300px: ~14px apart). Fix required. **Mechanism chosen by the owner 2026-10-08: a second rail column for the floated block's handle** (the bottom-anchor first tried still collided in the real shape). |
+| D9 | Print keeps the float. |
+| D10 | Off by default; every existing image renders exactly as today. No LAL-importer change; the owner ticks the box by hand. |
+
+## Mockup evidence (2026-10-07)
+
+A copy of the real unit 914 page with the real stylesheets plus three throwaway rules
+(scratchpad only, nothing committed):
+
+```css
+.lesson-block:has(> .lesson-block__body > .el--image--float){float:right;width:25%;margin:0 0 var(--space-3) var(--space-4);}
+.lesson-block > .lesson-block__body > .el--image--float{max-width:100%;margin:0 0 1rem;}
+.lesson-block:not(:has(> .lesson-block__body > .el--text)),
+.lesson-block:has(> .lesson-block__body > .el--text > :is(h2,h3,h4)){clear:right;}
+```
+
+- 367px phone: flag ~76px, text beside it ~30 characters per line, second paragraph full width
+  under it, the spoiler below everything. Dark plate fine.
+- 1300px (`notes-js`): flag ~160px beside the first paragraph; the two notes handles in the
+  rail ~14px apart (D8).
+- `margin-bottom: 1rem` on the figure is load-bearing: `.block-notes { margin-top: -1rem }`
+  (`notes.css`) otherwise pulls the in-flow handle up onto the image.
+
+The owner approved the look. These rules are evidence, NOT the implementation: notably the
+fixed `width:25%` became `max-width:25%` with shrink-wrap (see Design), which removes the gap
+beside a narrow image.
+
+## Design
+
+### Data
+
+- `ImageElement.float_right = models.BooleanField(default=False)`; the next migration after
+  master's graph head at PR time (`0069` today — re-check the head before the PR).
+- An "effective float" is `float_right and size == small`, exposed as a model property
+  (e.g. `ImageElement.floats`) so the template and tests share one definition (D2).
+
+### Editor
+
+- `ImageElementForm.Meta.fields` gains `float_right`. `clean()` forces `float_right = False`
+  when the size is not Small, so a disabled (therefore unsubmitted) checkbox and a
+  hand-crafted POST agree.
+- `_edit_image.html`: a checkbox after the size fieldset, label "Float right" (translated),
+  carrying the same `data-for-element` contract as the size radios (used, as now, ONLY to find
+  the preview figure). The size-radio handler finds ITS checkbox inside its own editor —
+  `preset.closest(".el-editor--image").querySelector(…)` — never by `data-for-element`, which is
+  `""` for every unsaved image on the create flow. **Server-rendered state**,
+  from the FORM's current values (like the size radios, which render `form.size.value`):
+  `checked` iff `form.float_right.value` is true AND `form.size.value` is Small;
+  `disabled` iff `form.size.value` is Medium/Large/Full. For an unbound form these are the stored
+  values, so a legacy/imported `true` on a Medium/Large image renders unchecked (the box shows what
+  students see); for a bound form that failed validation (e.g. caption too long) the author's
+  submitted size and tick survive the re-render; on the create flow the size defaults to Full,
+  so the box starts disabled.
+- `editor.js`: inside the EXISTING delegated `change` handler (one listener is pinned by
+  `test_image_size_js.py`):
+  - toggling the box toggles `el--image--float` on the preview figure;
+  - choosing Medium/Large/Full unchecks and disables the box and removes the preview class;
+  - choosing Small re-enables the box, unchecked (the author re-ticks it deliberately).
+- i18n: a Polish catalog entry for the label (wording proposed in the PR for the owner to
+  confirm), the `.mo` regenerated, and a check that the entry is not `#, fuzzy` (makemessages
+  pre-fills a wrong fuzzy translation in this project).
+
+### Render
+
+`imageelement.html` adds `el--image--float` to the figure when `el.floats`. No other markup
+changes: the float container is chosen in CSS by `:has()` on the parent wrapper.
+
+### CSS (courses.css, after the image preset block)
+
+**The floated box** is the image's wrapper, chosen by `:has(> … > .el--image--float)`:
+
+| Context | Floated box |
+|---|---|
+| Lesson top level | `section.lesson-block` (via `> .lesson-block__body >`) |
+| Quiz top level | the `section[data-element-id]` of `_quiz_article.html` (no `.lesson-block`, no `__body` — the figure is its direct child). ⚠ Lesson blocks AND preview blocks are ALSO `section[data-element-id]`; every quiz rule (float, sibling clear, …) MUST be scoped to the quiz article (e.g. `.quiz .slide > section[data-element-id]`, or `:not(.lesson-block):not(.prev-el)`). An unscoped `section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` matches EVERY lesson text block (its text sits under `__body`, not directly under the section) and clears them all — D3 silently dead at the top level. |
+| Builder preview | `section.prev-el` — the `section` qualifier is REQUIRED: in preview every container child is ALSO `.prev-el` (e.g. `.callout__child.prev-el`), and those are governed by the container rows below |
+| Callout / tabs / two-column / spoiler / before-after | `.callout__child` / `.tabs__child` / `.twocolumn__child` / `.spoiler__child` / `.ba__child` |
+
+Quiz units float exactly like lessons (D4's "top level" covers both), so the builder preview
+matches what a student sees in either unit type.
+
+The floated box gets `float: right`, `max-width: 25%` (the Small preset's percentage of the
+containing box) and NO fixed width — it shrink-wraps to the image like the unfloated
+`fit-content` figure, so a narrow or height-capped image (`max-height: 30dvh` on the img; `45mm` in print)
+leaves no gap between itself and the wrapped text. Known limit, accepted: at the top level the
+float also holds the notes `<aside>`, whose in-flow handle (below the rail, without `notes-js`,
+and in print where it is `visibility: hidden` but keeps its width) is ~25–50px wide, so an
+image narrower than the handle gets a float wider than itself. e2e 1's small-image fixture is
+therefore ≥ 80px natural width. Its margin is the approved mockup's
+`0 0 var(--space-3) var(--space-4)`: the inline-start gap from the text, and the space above the
+first full-width line under it. The figure inside takes `max-width: 100%`, drops its `margin-inline: auto`, and its block
+margins are pinned to `0 0 1rem` as in the approved mockup (a float is a BFC root, so the
+`.el { margin: 1rem 0 }` top margin would otherwise push the image ~1rem below the text's first
+line; the bottom 1rem is the notes-handle clearance, see mockup note). The img's own
+`margin-inline: auto` (the `.el--image--small img` group) becomes `margin-inline: auto 0`, so the
+image hugs the float's RIGHT edge even when a figcaption longer than the image widens the float
+(the figure is `fit-content`: it sizes to the wider of image and caption).
+
+Inside containers the float's margins WIN over the existing child-spacing rules, which outrank a
+plain `.X__child:has(…)` rule (`.el--twocolumn > .twocolumn__column > .twocolumn__child +
+.twocolumn__child` is (0,4,0); `.el--tabs .tabs__child + .tabs__child` and the callout
+`+`/`:last-child` rules are (0,3,0)): the float rules carry enough specificity to beat them (the
+plan names each). The 1rem figure bottom margin is notes-handle clearance, which only top-level
+blocks need: inside a container list the figure's bottom margin is 0, and a floated LAST child of
+a list also drops the wrapper's bottom margin, so a callout/tab ending in a float has no extra
+trailing space before its bottom padding.
+
+**Every float-specific declaration — on the wrapper, the figure, the img, and the D8
+bottom-anchored notes handle — sits under the same condition as `float: right`.** Where that
+condition is off (notes open below the rail, print with notes — see below) the image renders
+exactly like an unflagged Small (centred, ≤25%), not flush-right at full width.
+
+**Clearing (D3).**
+- A sibling wrapper clears (`clear: right`) unless its element is a text or maths element:
+  `:not(:has(> … > :is(.el--text, .el--math)))`. A following floated image clears too (it is
+  non-text), so two floats stack, never sit side by side.
+- Headings clear THEMSELVES, wherever they sit inside a text element:
+  `.el--text :is(<every heading tag>) { clear: right }` (descendant, so a heading inside an
+  allowed `div`/`blockquote` counts). The heading list is the text sanitizer's allowed headings
+  (`ALLOWED_TAGS` in `courses/sanitize.py`, h2–h4 today); the CSS source test derives the list
+  from that set rather than pinning it. A text element that opens with a paragraph and has a
+  heading further down wraps its paragraph and drops only from the heading on.
+- `pre` clears itself too (`.el--text pre { clear: right }`): its lines do not wrap, so beside a
+  float they would paint over the image.
+- These clearing rules (sibling clear, heading self-clear, `pre` self-clear) are deliberately
+  UNSCOPED (no `.el--image--float` key): `clear` is a no-op when no float precedes, so they
+  cannot change a page without a floated image. They are the named exemptions of the D10 source
+  test.
+
+**Containment (D4).** A container whose children include a floated image contains it with a
+clearing `::after` (`content: ""; display: block; clear: both`) on the CONTAINER'S CHILD LIST
+box — scoped by `:has(.el--image--float)` so no other container changes. NOT `display: flow-root`:
+`app.css` (spoiler, around "deliberately not a flow-root") and `courses.css` (callout/tabs
+child wrappers) rely on margins collapsing through these wrappers; flow-root would change the
+spacing of every container. The plan must:
+- name the exact list box for each container, and grep EVERY box that receives the clearing
+  `::after` — each container list, `.slide` (deck slides included, plus any class slideshow.js
+  adds to them) and `.prev-inner` — for an existing `::after` before adding one. The project
+  already uses `::after` for scroll shadows (`.scroll-y::after`, absolutely positioned, app.css);
+  none of these boxes carries `.scroll-y` today, and a comment beside the clearing rule says
+  they must not;
+- give EVERY child list the `::after` — and a container may have SEVERAL: one `.tabs__panel` per
+  tab section, one `.ba__panel` per before/after side, one `.twocolumn__column` per column. The
+  clear goes on EACH list (`.tabs__panel:has(…)`, `.ba__panel:has(…)`, …), never once on the
+  stage/panels wrapper: tabs without JS and in print stack every section, and before/after with
+  `html:not(.ba-js)`, `.ba--dead` or in print shows both sides, so a float at the end of tab 1 or
+  the Before side would spill into the next list (whose `h3.tabs__panel-label` is outside any
+  `.el--text`, so the heading self-clear never catches it). On screen `.twocolumn__column` (a flex
+  item) and the carousel `.tabs__section` (absolutely positioned) already contain floats, but
+  print rewrites the carousel to `position: static !important` (courses.css print block), so
+  only an explicit clear holds on paper (D9).;
+- prove containment per LIST in e2e (see e2e 5).
+
+At the top level, the floated block must not leak past the end of its slide. Every unit renders
+one `div.slide` per slide (`_lesson_article.html`). EVERY `.slide:has(.el--image--float)` gets
+the clearing `::after` — deck slides included: on screen a deck slide is already a BFC (absolute,
+`overflow-y: auto`) and the `::after` is harmless, but print makes deck slides `position: static
+!important; overflow: visible !important`, and outside the deck (single slide; multi-slide with
+no JS, where slides stack) nothing else contains the float. Outside a slideshow `.slide` is
+`display: contents` (courses.css slideshow block); its `::after` still generates and lands in
+`article.lesson` after the slides' content, which is where the clear is needed. Quizzes render
+the same `div.slide` per slide (`_quiz_article.html`), so the same `.slide` rule covers them —
+there is no separate quiz list box.
+
+**No width measuring.** Small is capped at 25% of its containing box, so ≥75% minus the gap is
+always left for text; there is no fallback and NO container query anywhere (`container-type`
+is forbidden in this work — its layout containment makes the box a stacking context and traps
+every notes pop under `.unit-foot`; see D5).
+
+**The floated block's own notes pop (below the rail).** Below 1200px, and at any width without
+`notes-js`, `.block-notes__pop` is in flow inside `.lesson-block` — inside a float only ~80px wide
+on a phone. While the floated block's panel is open the block UN-FLOATS, so the pop gets the
+full column. "Un-float" here and in Print NEGATES THE WHOLE FLOAT CONDITION — it is not an
+override of `float`/`max-width` alone: every float-specific declaration (wrapper, figure, img,
+D8 handle, stacking) switches off together, and the image renders exactly like an unflagged
+Small (centred, ≤25%). The plan folds these conditions into the
+shared float condition (e.g. `:not(:has(.block-notes__panel[open]))` within the scoped media
+branches) rather than layering partial overrides. The text reflows while notes are
+open; accepted. **Scope:** only where the pop is in flow — `@media screen and (max-width:
+1199.98px)`, OR `html:not(.notes-js)` at any SCREEN width (this branch is ALSO inside
+`@media screen`, so print is governed only by the printable-notes rule under Print). NOT at ≥1200px with `notes-js` (the
+pop is absolutely positioned in the rail; un-floating would reflow the paragraph, move the D8
+handle and make notes.js's `pop.style.top = handle.offsetTop` jump) and NOT in print (D9).
+Also accepted: when the page is rendered with panels open server-side (`notes_show`, or after
+a no-JS composer error, `_block_notes.html` emits `<details open>`), a floated image that has
+notes loads un-floated below the rail.
+
+**Notes rail (D8).** Invariant: at `@media screen and (min-width: 1200px)` with `notes-js`, the
+floated block's handle intersects NO other handle in the lane. Mechanism (OWNER DECISION
+2026-10-08, after implementation): the floated block's handle sits in a SECOND rail column, one
+lane further right (`right: calc(-2.55rem - 2.75rem)`), anchored to the block's TOP like every
+other handle — different x, so it can never share a position with a paragraph's handle. The
+first mechanism (anchor to the block's BOTTOM) was REPLACED: in the real unit-914 shape (a
+~120px Small image + two short paragraphs) paragraph 2's handle landed on it. notes.js sets
+`pop.style.top = handle.offsetTop`, so the pop opens level with the block's top. e2e 7 asserts
+no intersection for the real shape AND a short (60px) image, the pop's top equals the handle's,
+and that at 1200px (tree pinned and collapsed) the second-column handle is fully on screen and
+hit-testable. Also accepted: a
+paragraph block beside the float spans the full column, so notes.js's hover highlight
+(`.lesson-block.is-highlighted`) outlines the image area too and dims the floated block
+(`.is-dimmed`); cosmetic, checked in the e2e 7 screenshots only.
+
+**Stacking (≥1200px, `notes-js`).** There `notes.css` makes EVERY `.lesson-block`
+`position: relative`. A positioned `z-index: auto` box paints and hit-tests ABOVE floats, so the
+paragraph block beside the float — later in the tree, spanning the full column — sits on top of
+the image. VERIFIED on the mockup (1300px): `elementFromPoint` at the image's centre returns the
+paragraph's `<p>`, so a click never reaches `img[data-zoomable]` and zoom is dead. Fix, under the
+float condition (D10): the floated block gets `z-index: 1` where it is positioned. This makes it
+a stacking context, and its own pop (`z-index: 50`) is then trapped inside it — BELOW positive-z
+content in the root context that it beats today: the sticky `.unit-foot` (`z-index: 20`),
+`.unit-toc-pin` (21), and a later drag-to-image question's `.dragimage__target`/`__badge` (3/4,
+painting in the root context because their block is `z-index: auto`). So while the floated
+block's panel is OPEN (`:has(.block-notes__panel[open])`, still under the float condition) its
+z-index rises to `50` — the pop's own value — restoring today's order exactly; closed, it is `1`.
+The plan re-greps positive z-indexes in courses.css/app.css/notes.css at plan time. Once the
+image is on top, the paragraph's hover highlight
+tint paints under it (around, not over, the image); the outline-encloses-image cosmetic above
+remains accepted. Inside containers no wrapper is positioned, so the image wins the hit test.
+Below 1200px that holds only until a notes handle is hovered: notes.js then dims every other
+`.lesson-block` (opacity .45 — a stacking context), and the dimmed paragraph beside the float
+buries the floated block's handle, so a mouse user could not open its notes (found during
+implementation, Task 8). Fix, under the float condition and only while its own panel is closed
+(the open block un-floats, so its in-flow pop is never trapped): below 1200px with `notes-js`
+the floated block is `position: relative; z-index: 1`. e2e covers both.
+
+**A neighbouring block's in-flow notes pop.** Below the rail, without `notes-js`, and in print
+(notes.css prints the pop of every block with cards), a TEXT block wrapping beside the float has
+its pop in flow; `.note-card` is a block with a border, accent border-left and background, so its
+border box would run UNDER the image (image over the card's right side) while the text wraps.
+Fix: the boxes that actually PAINT in flow — `.note-card` and `.note-composer` (and whatever
+else the pop renders in flow; the plan lists them) — get `display: flow-root`, so as BFCs they
+narrow beside the float instead of running under it; the composer's `width: 100%` textarea
+narrows with its composer. NOT the pop itself: the pop has `margin-top: .4rem` and no
+padding/border, so making IT a BFC stops the first card's `.4rem` margin collapsing through it
+and doubles the gap on every annotated block in the slide, beside the float or not. A card
+has its own padding, so making it a BFC changes nothing inside it, and its own margins still
+collapse with its siblings. Invariant: pop spacing is UNCHANGED for blocks not beside a float
+(e2e 8 compares a pop's first-card offset in a slide with a float against one without). Scoped (D10) to slides/containers that hold a floated image
+(e.g. `.slide:has(.el--image--float) .block-notes__pop`, likewise `.prev-inner` and the
+container lists) and to the in-flow media branches (screen below 1200px, `html:not(.notes-js)`
+on screen, and print) — never at the rail, where the pop is absolutely positioned.
+Invariant: this rule NEVER overrides notes.css's print hide of an EMPTY pop
+(`.lesson .block-notes__pop:not(:has(.note-card, …)) { display: none }`, (0,3,0), which today
+wins only by load order). The print branch is therefore restricted to pops WITH printable
+content — the same class list as the print un-float, written as descendant alternatives — so
+it cannot resurrect an empty pop as a stray box however specific its selector is.
+
+**Print (D9).** No float override. The plan verifies the print mm caps (`@media print` image
+block) still apply to a floated image and that the float survives in print emulation.
+Exception: `notes.css`'s print block prints the in-flow pop of every block that has note cards;
+inside a float that is ~45mm wide on A4 and makes the float tall. So in print a floated block
+whose pop has printable notes UN-FLOATS — the print counterpart of the below-rail notes rule.
+It uses the SAME CLASS LIST as the notes print rule (`.note-card`, `.note-composer--edit`,
+`.note-composer--has-draft`, `.note-composer__error` today), but NOT its literal form: that rule
+is `.block-notes__pop:not(:has(…))`, and keying a block on it would need `:has(… :has(…))` —
+nested `:has()` is invalid, so the whole rule would be dropped silently (served but not parsed;
+source greps stay green). Write it as descendant alternatives on the block:
+`:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, …)`. A source test
+asserts the class list equals notes.css's; the falsified print e2e proves the rule parses.
+
+**Builder preview containment.** `_preview.html` renders `section.prev-el` straight into
+`.prev-inner` — no `.slide`. `.prev-inner:has(.el--image--float)` gets the same clearing
+`::after`, and a slide-break preview element after a float clears like any non-text element.
+
+**Scoping (D10).** Every new rule except the clearing rules (sibling clear, heading
+self-clear, `pre` self-clear — see Clearing) is keyed on
+`.el--image--float` (directly or through `:has()`); in particular no `::after` or float rule applies to a page with no floated image. A CSS source test asserts this
+over the new block.
+
+### Transfer
+
+- `_ser_image` emits `"float_right"`; `_val_image` does `setdefault("float_right", False)`
+  BEFORE `_exact_keys`, then COERCES a non-bool to `False`, like `size`'s coercion to `full` —
+  `_val_image`'s own policy is that a cosmetic field with a lossless default must never fail an
+  import (`courses/transfer/payloads.py`, the `size` comment). `_build_image` passes it.
+- `FORMAT_VERSION` 16 → 17 in `courses/transfer/schema.py`; the "added in FORMAT_VERSION 17"
+  note goes beside `_val_image`'s existing version comments in `payloads.py`. Bump EVERY test that pins 16 — derive
+  the list by grep at plan time (`== 16`, `format_version`, `_16` in test names, across BOTH
+  `tests/` and `courses/tests/`); do not trust a remembered count. ⚠ Two branches bumping the same constant merge silently — check master's
+  value before the PR.
+- Duplicate / copy-to-unit reuse the serializer and builder, so they carry the flag; a test
+  proves it.
+
+### Out of scope
+
+Float left; Medium/Large/Full floats (Medium is a possible follow-up — D5); float for gallery, video, table-cell images; inline images in
+text (the Task 4 dice — the owner was advised to use the Unicode die faces ⚀–⚅); LAL importer.
+
+## Testing
+
+Unit (pytest):
+- model default False; `floats` truth table over 4 sizes × 2 flag values (true only for Small);
+- form saves the flag; a Medium/Large/Full POST with the flag stores False; an edit without the key
+  stores False;
+- editor template: checkbox state from the form's values — unbound: a stored `true` on Medium →
+  unchecked + disabled; create flow → disabled; an INVALID POST (Small + ticked + bad caption)
+  re-renders Small checked, box checked and enabled;
+- render: the class appears only when `floats`; at lesson top level, quiz top level, and nested
+  in each container;
+- transfer: round-trip, missing key → False, non-bool COERCED to False (import succeeds),
+  version 17, duplicate keeps it;
+- editor JS source: branch in the one delegated handler;
+- CSS source: every new rule but the clearing rules (sibling, heading, `pre`) is
+  keyed on `.el--image--float` (D10); and every selector in the new block that contains
+  `section[data-element-id]` also contains the chosen quiz scope — a mutant dropping the scope
+  must turn the test RED; and the new block contains no `container-type` / `@container` (D5);
+- i18n: the Polish entry exists and is not fuzzy.
+
+e2e (Playwright), each FALSIFIED (rule removed → RED, from the failure mode). The `<img>` carries
+no width/height, so EVERY geometry assertion first waits until all fixture images have loaded
+(`img.complete && img.naturalWidth > 0`, polled in a loop inside `evaluate` — not
+`wait_for_function` with an async predicate):
+1. Small at 367px and 1300px: the image's right edge equals the column's right edge; the
+   following paragraph's first line starts left of the image and ends before it. Includes a
+   SMALL-natural-width image (narrower than 25%): no gap between it and the text; and a
+   narrow image with a figcaption longer than the image: the IMAGE's right edge still equals
+   the column's right edge; and a tall portrait (e.g. 1:2) at a 1300×700 viewport whose `max-height` cap
+   binds — the test first asserts the img's rendered height equals its computed `max-height`: the gap between the text's line end and the image's left edge is ≤ `--space-4`.
+   Clicking the floated image opens the zoom dialog at 1300px with `notes-js` (stacking) and at
+   367px. The image's top is within 2px of the first wrapped line's top, at top level AND inside
+   a callout (margins win over container rules); a callout ending in a float has no more
+   trailing space below the image than below an unfloated last child.
+2. Two text elements after the image both wrap (D3) — Task 2's shape — in a LESSON (proves no
+   quiz-context rule clears lesson text) and in a QUIZ. A maths element after the image sits
+   beside it (its right edge left of the image's left edge) and the page does not scroll
+   horizontally at 367px; a display formula whose scroller is narrowed beside the float and
+   scrolls horizontally inside it is accepted.
+3. A heading element, a spoiler and a second image after the float each start below the image's
+   bottom; a text element with a paragraph then an `<h3>` wraps the paragraph and drops the h3.
+4. A stored `float_right = true` on a MEDIUM image (import/legacy): not floated at 367px or
+   1300px, its box equals an unflagged Medium's.
+5. Containment in each of the five containers (tabs in BOTH tab and carousel mode): the
+   container's bottom ≥ the image's bottom when the text is shorter than the image; the next
+   top-level block starts below both. PLUS a float at the end of a NON-LAST list in a stacked
+   state — tabs with JS off, tabs in print, before/after with JS off (or `.ba--dead`),
+   before/after in print: the next list's label/heading and its first child start below the
+   image's bottom. (The container-bottom assertion alone stays green when a float leaks between
+   two lists of the same container.)
+6. Top level, image as the last element: the unit footer starts below it; multi-slide unit with
+   JS off: the next slide starts below it.
+7. Notes rail at 1300px: the floated block's handle intersects neither paragraph handle of the
+   Task 2 shape; each pop still opens; opening the floated block's pop leaves the block FLOATED
+   (the un-float rule is below-rail only).
+   Also: with the floated block's pop open: the image near the viewport bottom → `elementFromPoint`
+   inside the pop returns the pop, not `.unit-foot`; in `--clamped` mode above a following
+   drag-to-image block → the pop, not `.dragimage__target`.
+8. Notes pop below the rail at 367px: opening the floated block's notes un-floats it, the pop
+   is as wide as the column, and the image's box equals an unflagged Small's (centred, ≤25%).
+   An annotated block FAR below the float (not beside it): its pop's first-card offset equals
+   the same block's on a page with no float (spacing invariant).
+   A SHORT paragraph wrapping beside a floated Small: opening ITS notes (and, in print emulation,
+   a block with a note) — the note card's border box does not intersect the image.
+9. Quiz unit: a top-level floated image floats, as in the builder preview.
+10. Builder preview, on a SMALL image: ticking the box floats the preview without saving;
+    choosing Medium (and Large) disables and unchecks the box and un-floats the preview;
+    choosing Small again re-enables it unchecked; save round-trips. An image as the last preview
+    element does not overflow `.prev-inner`; a slide-break after a float starts below it.
+11. Dark theme: the image plate is intact on the floated image.
+12. Print emulation: still floated, mm cap applied; a float at the end of a carousel-mode tab and
+    at the end of a deck slide (multi-slide unit) stays contained — the next section/slide
+    starts below it; an EMPTY pop of a note-less text block beside a float stays `display: none` in print;
+    a floated image WITH a note prints un-floated, its notes at column width, the image's box equal
+    to an unflagged Small's (centred, ≤25%).
+
+Run every `tests/test_*css*.py` after the CSS edit (marker tests partition on text).

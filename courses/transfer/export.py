@@ -88,6 +88,7 @@ def _ser_image(el, ids):
         "alt": el.alt,
         "figcaption": el.figcaption,
         "size": el.size,
+        "float_right": el.float_right,
     }
 
 

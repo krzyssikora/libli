@@ -43,6 +43,17 @@
         data-size-preset data-for-element="{{ form.instance.pk|default_if_none:'' }}"> {{ label }}</label>
     {% endfor %}
   </fieldset>
+  {% comment %}Float right (Small only, spec D1/D2). State comes from the FORM's values,
+     like the size radios: an invalid POST keeps the author's tick; an unbound form shows
+     the stored values, so a legacy True on a non-Small image shows unchecked.{% endcomment %}
+  {% with size=form.size.value|stringformat:"s" %}
+  <label class="float-right-toggle">
+    <input type="checkbox" name="float_right" data-float-right
+      data-for-element="{{ form.instance.pk|default_if_none:'' }}"
+      {% if form.float_right.value and size == "small" %} checked{% endif %}
+      {% if size != "small" %} disabled{% endif %}> {% trans "Float right" %}
+  </label>
+  {% endwith %}
   {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
   {% for e in form.media.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 </div>

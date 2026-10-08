@@ -42,6 +42,7 @@ ignore = ["S101"]
 "**/tests/**" = ["S105", "S106", "S107"]
 "demo/**" = ["S311"]        # deterministic content generation; secrets covers
 "tests/demo/**" = ["S311"]  # the seed and the passwords (spec R5/§4.6)
+"tests/test_e2e_image_float_*.py" = ["S105", "S106", "S107", "F403", "F405"]  # star import of tests/image_float_kit.py
 
 [tool.ruff.lint.isort]
 force-single-line = true

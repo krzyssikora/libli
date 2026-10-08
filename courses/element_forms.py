@@ -129,11 +129,19 @@ class ImageElementForm(_CourseScopedMediaForm):
 
     class Meta:
         model = ImageElement
-        fields = ["media", "alt", "figcaption", "size"]
+        fields = ["media", "alt", "figcaption", "size", "float_right"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["media"].required = True
+
+    def clean(self):
+        cleaned = super().clean()
+        # Only Small floats. The checkbox is disabled (so unsubmitted) for other
+        # sizes; this makes a hand-crafted POST agree with it.
+        if cleaned.get("size") != ImageElement.Size.SMALL:
+            cleaned["float_right"] = False
+        return cleaned
 
     def clean_figcaption(self):
         """Sanitise first, THEN measure.

@@ -323,7 +323,7 @@ def test_a_hand_edited_numbered_summary_imports_unnumbered():
 
 
 @pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
-def test_exporting_a_summary_card_keeps_format_version_16():
+def test_exporting_a_summary_card_keeps_format_version_17():
     """T8 / D7: a new kind never changes an existing payload shape."""
     from courses.transfer import export as _export
     from tests.factories import add_element
@@ -332,7 +332,7 @@ def test_exporting_a_summary_card_keeps_format_version_16():
     course, unit = make_course_with_unit()
     add_element(unit, CalloutElement.objects.create(kind="summary", body="<p>x</p>"))
     manifest, document, _media, _problems = _export.build_export(course)
-    assert manifest["format_version"] == 16
+    assert manifest["format_version"] == 17
     callout = next(e for e in document["elements"] if e["type"] == "callout")
     assert callout["data"]["kind"] == "summary"
 

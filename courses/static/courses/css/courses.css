@@ -172,6 +172,202 @@ blockquote {
   [data-theme="dark"] .el--image img { background: none; padding: 0; }
 }
 
+/* === Image "Float right" (Small only) ===========================================
+   Spec: docs/superpowers/specs/2026-10-07-image-float-right-design.md (D1-D10).
+   The image's WRAPPER floats, never the figure alone: at the top level the wrapper
+   also carries the notes handle, which a figure-only float left on top of the image.
+   Floated wrapper per context:
+     lesson top level   .lesson-block:has(> .lesson-block__body > .el--image--float)
+     quiz top level     .quiz .slide > section[data-element-id]:has(...)  -- SCOPED:
+                        lesson and preview blocks are section[data-element-id] too
+     builder preview    section.prev-el:has(...)  -- `section` REQUIRED: container
+                        children in preview carry .prev-el as well
+     containers         .callout__child / .tabs__child / .twocolumn__child /
+                        .spoiler__child / .ba__child
+   No container queries here, ever (spec D5, withdrawn): container-type's containment
+   makes a stacking context that traps every notes pop under .unit-foot.
+   The float is OFF -- the image renders as an unflagged Small -- while a floated
+   block's own notes are in flow and open, and in print when it has printable notes. */
+/* Rail active: the pop is absolutely positioned, so an open panel never un-floats. */
+@media screen and (min-width: 1200px) {
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float),
+  html.notes-js .quiz .slide > section[data-element-id]:has(> .el--image--float),
+  html.notes-js section.prev-el:has(> .el--image--float),
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) {
+    float: right; max-width: 25%; margin: 0 0 var(--space-3) var(--space-4);
+  }
+  /* notes.css makes every .lesson-block position:relative here; the LATER paragraph
+     block would paint and hit-test above the float (zoom dead -- verified on the
+     mockup). Task 8 raises this to 50 while the block's own panel is open. */
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float) { z-index: 1; }
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float) .el--image--float,
+  html.notes-js .quiz .slide > section[data-element-id]:has(> .el--image--float) .el--image--float,
+  html.notes-js section.prev-el:has(> .el--image--float) .el--image--float,
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) .el--image--float {
+    max-width: 100%; margin: 0 0 1rem;
+  }
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float) .el--image--float img,
+  html.notes-js .quiz .slide > section[data-element-id]:has(> .el--image--float) .el--image--float img,
+  html.notes-js section.prev-el:has(> .el--image--float) .el--image--float img,
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) .el--image--float img {
+    margin-inline: auto 0;
+  }
+}
+/* Pop in flow: un-float while this block's own panel is open. */
+@media screen and (max-width: 1199.98px) {
+  .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])),
+  .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__panel[open])),
+  section.prev-el:has(> .el--image--float):not(:has(.block-notes__panel[open])),
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) {
+    float: right; max-width: 25%; margin: 0 0 var(--space-3) var(--space-4);
+  }
+  .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float,
+  .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float,
+  section.prev-el:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float,
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float {
+    max-width: 100%; margin: 0 0 1rem;
+  }
+  .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img,
+  .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img,
+  section.prev-el:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img,
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img {
+    margin-inline: auto 0;
+  }
+}
+/* No notes.js: the pop is in flow at every width. */
+@media screen {
+  html:not(.notes-js) .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])),
+  html:not(.notes-js) .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__panel[open])),
+  html:not(.notes-js) section.prev-el:has(> .el--image--float):not(:has(.block-notes__panel[open])),
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) {
+    float: right; max-width: 25%; margin: 0 0 var(--space-3) var(--space-4);
+  }
+  html:not(.notes-js) .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float,
+  html:not(.notes-js) .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float,
+  html:not(.notes-js) section.prev-el:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float,
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float {
+    max-width: 100%; margin: 0 0 1rem;
+  }
+  html:not(.notes-js) .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img,
+  html:not(.notes-js) .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img,
+  html:not(.notes-js) section.prev-el:has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img,
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) .el--image--float img {
+    margin-inline: auto 0;
+  }
+}
+/* Print keeps the float (D9) unless the block prints notes. Descendant alternatives,
+   NOT notes.css's `.block-notes__pop:not(:has(...))`: nested :has() is invalid and
+   the browser would drop this whole rule silently. Class list pinned by
+   test_image_float_css.py against notes.css's print rule. */
+@media print {
+  .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)),
+  .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)),
+  section.prev-el:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)),
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) {
+    float: right; max-width: 25%; margin: 0 0 var(--space-3) var(--space-4);
+  }
+  .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float,
+  .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float,
+  section.prev-el:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float,
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float {
+    max-width: 100%; margin: 0 0 1rem;
+  }
+  .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float img,
+  .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float img,
+  section.prev-el:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float img,
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float img {
+    margin-inline: auto 0;
+  }
+}
+/* D3. Unscoped on purpose (D10 exemptions): `clear` is a no-op when no float precedes,
+   and the project CSS declares no other float. */
+.lesson-block:not(:has(> .lesson-block__body > :is(.el--text, .el--math))),
+.quiz .slide > section[data-element-id]:not(:has(> :is(.el--text, .el--math))),
+section.prev-el:not(:has(> :is(.el--text, .el--math))),
+:is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):not(:has(> :is(.el--text, .el--math))) { clear: right; }
+.el--text :is(h2, h3, h4), .el--text pre { clear: right; }   /* heading list = sanitize.ALLOWED_TAGS */
+
+/* Contain a float inside its slide (deck slides included: print makes them static)
+   and the builder preview. .slide is display:contents outside a slideshow; its
+   ::after still generates and lands in the article. These boxes must never carry
+   .scroll-y, whose ::after is an absolutely positioned shadow. */
+:is(.slide, .prev-inner):has(.el--image--float)::after { content: ""; display: block; clear: both; }
+
+/* D4: contain a float in EVERY list, not once per container -- tabs (no JS / print)
+   and before/after (no JS / dead / print) stack their lists, and a float at the end of
+   list 1 would spill into list 2 (whose label is outside any .el--text). Two-column and
+   carousel sections already contain floats on screen, but print makes the carousel
+   static, so they get it too. */
+:is(.callout__children, .tabs__panel, .twocolumn__column, .spoiler__children, .ba__panel):has(.el--image--float)::after {
+  content: ""; display: block; clear: both;
+}
+/* In a container the figure needs no notes-handle clearance (notes attach to top-level
+   blocks only); a floated LAST child adds no trailing space. Not every W branch out-ranks
+   `.el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child` ((0,4,0),
+   later; html:not(.notes-js) does), so margin-top: 0 is explicit in all four below. */
+@media screen and (min-width: 1200px) {
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) > .el--image--float { margin-bottom: 0; }
+  html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
+  html.notes-js .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float) { margin-top: 0; }
+}
+@media screen and (max-width: 1199.98px) {
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
+  .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__panel[open])) { margin-top: 0; }
+}
+@media screen {
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
+  html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
+  html:not(.notes-js) .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__panel[open])) { margin-top: 0; }
+}
+@media print {
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) > .el--image--float { margin-bottom: 0; }
+  :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)):last-child { margin-bottom: 0; }
+  .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) { margin-top: 0; }
+}
+
+@media screen and (min-width: 1200px) {
+  /* z-index 1 is Task 6's (rail branch). While the floated block's panel is open it
+     rises to the pop's own 50, else the pop (trapped in that stacking context) would
+     sit under .unit-foot (20) / .unit-toc-pin (21) / .dragimage__target (3). */
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float):has(.block-notes__panel[open]) { z-index: 50; }
+  /* D8: the floated block's rail handle gets its OWN column, one 2.75rem lane further
+     right, top-anchored (notes.css's top: 0) -- so the pop opens at the block's top
+     again (notes.js: handle.offsetTop). A bottom anchor was dropped: a short image's
+     bottom lands where paragraph 2's top-anchored handle sits (unit 914). */
+  html.notes-js [data-unit-shell] .lesson-block:has(> .lesson-block__body > .el--image--float) .block-notes__handle {
+    right: calc(-2.55rem - 2.75rem);
+  }
+  /* ...and its unclamped pop opens one lane further right too: notes.css's 3rem only
+     clears the FIRST column, so at >=~1450px the pop covered (and hid) this handle. */
+  html.notes-js [data-unit-shell] .lesson-block:has(> .lesson-block__body > .el--image--float) .block-notes__panel[open] .block-notes__pop:not(.block-notes__pop--clamped) {
+    left: calc(100% + 3rem + 2.75rem);
+  }
+}
+/* A neighbour's in-flow note card / composer becomes a BFC so it narrows beside the
+   float instead of running under it. Cards and composers, NOT the pop: a BFC pop would
+   stop the first card's margin collapsing and double the gap on every annotated block.
+   The pop's own display is never touched, so notes.css's print hide of EMPTY pops holds. */
+@media screen and (max-width: 1199.98px) {
+  .slide:has(.el--image--float) :is(.note-card, .note-composer) { display: flow-root; }
+  /* Hovering a notes handle dims every OTHER .lesson-block (notes.css .is-dimmed,
+     opacity .45): each becomes a stacking context that paints and hit-tests ABOVE this
+     unpositioned float, so the paragraph beside it swallows the mousedown on the
+     image's own handle (and its zoom). Lift the floated block above them; un-floated
+     (panel open) it is plain again, so its in-flow pop is never trapped. */
+  html.notes-js .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__panel[open])) {
+    position: relative; z-index: 1;
+  }
+}
+@media screen {
+  html:not(.notes-js) .slide:has(.el--image--float) :is(.note-card, .note-composer) { display: flow-root; }
+}
+@media print {
+  .slide:has(.el--image--float) :is(.note-card, .note-composer) { display: flow-root; }
+}
+
+/* === end Image "Float right" === */
+
 .unit-progress { margin: 0; }
 
 /* --- Responsive embed: wrapper uses the pasted aspect ratio when known, else 16:9 --- */
