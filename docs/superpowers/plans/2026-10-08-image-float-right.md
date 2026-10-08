@@ -568,7 +568,7 @@ def test_preview_floats_live_and_size_change_unticks(page, live_server):
     assert img.float_right is True and img.floats
 ```
 
-- [ ] **Step 6: Run** (green at Task 3 — it asserts classes editor.js toggles, not layout): `uv run pytest tests/test_e2e_image_float_editor.py -m e2e -p no:cacheprovider` → PASS. Falsify: comment out the `fig.classList.toggle("el--image--float", …)` line in the float branch → RED on the first class assertion; restore.
+- [ ] **Step 6: Run** (green at Task 3 — it asserts classes editor.js toggles, not layout): `uv run pytest tests/test_e2e_image_float_editor.py -m e2e -p no:cacheprovider` → PASS. Falsify: comment out `ffig.classList.toggle("el--image--float", floatBox.checked)` in the float branch → RED on the first class assertion; restore.
 
 - [ ] **Step 7: Commit**
 
@@ -831,7 +831,8 @@ def test_small_floats_right_and_text_wraps(page, live_server, vp):
     line = first_line(page, ".el--text p")
     assert abs(img["right"] - col["right"]) < EPS, (img, col)
     assert line["right"] <= img["left"] + EPS, (line, img)  # wraps beside, not under
-    assert abs(img["top"] - line["top"]) < 2 + EPS, (img, line)  # top-aligned
+    para = rect(page, ".lesson-block:not(:has(.el--image--float)) .el--text p")
+    assert abs(img["top"] - para["top"]) < 2 + EPS, (img, para)  # top-aligned (box, not glyphs)
     second = first_line(page, '.lesson-block:nth-of-type(3) .el--text p')
     assert second["top"] >= line["top"]  # 2nd text element also present (Task 2 shape)
 
@@ -869,6 +870,7 @@ def test_non_text_after_float_starts_below(page, live_server):
     open_page(page, unit_url(live_server, unit), DESKTOP)
     img = rect(page, ".el--image--float img")
     assert rect(page, ".spoiler")["top"] >= img["bottom"] - EPS
+    assert rect(page, ".el--text h3")["top"] >= img["bottom"] - EPS
 
 
 def test_mid_body_heading_drops_but_its_paragraph_wraps(page, live_server):
@@ -1040,8 +1042,12 @@ def test_height_capped_portrait_leaves_no_gap(page, live_server):
     h, cap = im.evaluate("e => [e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).maxHeight)]")
     assert abs(h - cap) < EPS, "fixture must be height-capped or the test is vacuous"
     img = rect(page, ".el--image--float img")
-    line = first_line(page, ".el--text p")
-    assert img["left"] - line["right"] <= 16 + EPS  # <= --space-4
+    # The float box must shrink-wrap the height-capped image: its left edge IS the
+    # image's. (Not the text's line end: lesson text is ragged-right, so a Range rect
+    # ends at the last glyph, up to a word short of the line box.)
+    wrapper = rect(page, ".lesson-block:has(.el--image--float)")
+    assert abs(wrapper["left"] - img["left"]) < EPS, (wrapper, img)
+    assert first_line(page, ".el--text p")["right"] <= img["left"] + EPS
 ```
 
 (Before running, confirm class names exist: `RevealGateElement`, `MathElement` in `courses/models.py`; `RevealGateElement` may need extra fields — read its model and pass required ones.)
@@ -1263,14 +1269,22 @@ def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server, vp,
     a = callout([image(course, px=(300, 200)), text()])  # image first: top alignment
     b = callout([text("Krótko."), image(course, px=(300, 200))])  # float is LAST child
     c = callout([text("Krótko."), image(course, px=(300, 200), float_right=False)])  # twin
+    # Two-column, floated image NOT first in its column: the (0,4,0) `+` rule must lose.
+    from courses.models import TwoColumnElement
+
+    tc = TwoColumnElement.objects.create(data=TwoColumnElement.default_data())
+    tc_join = add_element(unit, tc)
+    col_id = tc.data["columns"][0]["id"]
+    for child in (text("Pierwszy."), image(course, px=(300, 200)), text()):
+        Element.objects.create(unit=unit, content_object=child, parent=tc_join, tab_id=col_id)
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), vp)
     if medium == "print":
         page.emulate_media(media="print")
 
     img_a = rect(page, f'[data-element-id="{a.pk}"] .el--image img')
-    line_a = first_line(page, f'[data-element-id="{a.pk}"] .callout__child .el--text p')
-    assert abs(img_a["top"] - line_a["top"]) <= 2 + 1.5, (img_a, line_a)
+    para_a = rect(page, f'[data-element-id="{a.pk}"] .callout__child .el--text p')
+    assert abs(img_a["top"] - para_a["top"]) <= 2 + 1.5, (img_a, para_a)
 
     def trailing(join):
         box = rect(page, f'[data-element-id="{join.pk}"] .callout')
@@ -1278,6 +1292,10 @@ def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server, vp,
         return box["bottom"] - img["bottom"]
 
     assert trailing(b) <= trailing(c) + 1.5, (trailing(b), trailing(c))
+
+    tc_img = rect(page, f'[data-element-id="{tc_join.pk}"] .el--image img')
+    tc_next = rect(page, f'[data-element-id="{tc_join.pk}"] .twocolumn__child:last-child .el--text p')
+    assert abs(tc_img["top"] - tc_next["top"]) <= 2 + 1.5, (tc_img, tc_next)
 ```
 
 Write `seed_container` / `seed_stacked` in the test file following the nesting idiom above (seed_container(kind, slug) -> (owner, unit, '[data-element-id="<join pk>"]'); seed_stacked puts the floated image as the LAST child of the FIRST list and one text child in the second list).
@@ -1295,9 +1313,9 @@ Write `seed_container` / `seed_stacked` in the test file following the nesting i
   content: ""; display: block; clear: both;
 }
 /* In a container the figure needs no notes-handle clearance (notes attach to top-level
-   blocks only); a floated LAST child adds no trailing space. Specificity of the W
-   selectors ((0,3,1)+ via :is) already beats the container child-spacing rules
-   ((0,4,0) two-column `+`, (0,3,0) tabs/callout); verify with the e2e, not by eye. */
+   blocks only); a floated LAST child adds no trailing space. The W selectors do NOT
+   out-rank `.el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child`
+   ((0,4,0), later in the file): its margin-top is zeroed explicitly below. */
 ```
 
 and the container margin rules, one per Task 6 media branch, each carrying THAT branch's
@@ -1309,22 +1327,26 @@ they MUST sit after the Task 6 branches:
 @media screen and (min-width: 1200px) {
   html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float) > .el--image--float { margin-bottom: 0; }
   html.notes-js :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):last-child { margin-bottom: 0; }
+  html.notes-js .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float) { margin-top: 0; }
 }
 @media screen and (max-width: 1199.98px) {
   :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
   :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
+  .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__panel[open])) { margin-top: 0; }
 }
 @media screen {
   html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])) > .el--image--float { margin-bottom: 0; }
   html:not(.notes-js) :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__panel[open])):last-child { margin-bottom: 0; }
+  html:not(.notes-js) .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__panel[open])) { margin-top: 0; }
 }
 @media print {
   :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) > .el--image--float { margin-bottom: 0; }
   :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)):last-child { margin-bottom: 0; }
+  .el--twocolumn > .twocolumn__column > .twocolumn__child:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) { margin-top: 0; }
 }
 ```
 
-If the e2e shows a container rule still winning (e.g. `.el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child { margin-top }` at (0,4,0)), add `margin-top: 0` for the floated child inside the same four blocks and re-run.
+The two-column `margin-top: 0` lines are required, not conditional: the two-column `+` rule ((0,4,0), later in courses.css) otherwise keeps a floated non-first child `var(--space-4)` low.
 
 - [ ] **Step 5: Run** containers e2e + all CSS source tests → PASS. Falsify: drop `.tabs__panel` from the `::after` list → tabs `nojs` RED; restore.
 - [ ] **Step 6: Commit** `git commit -m "feat(css): contain floated images in every container list"`.
@@ -1549,6 +1571,20 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
     assert _float(page, joins[2]) == "none"
     assert page.locator(f"{_block(joins[1])} .block-notes__pop").evaluate(
         "e => getComputedStyle(e).display") == "none"  # an EMPTY pop stays hidden
+    pop = rect(page, f"{_block(joins[2])} .block-notes__pop")
+    col = rect(page, f"{_block(joins[1])} .lesson-block__body")
+    assert abs(pop["width"] - col["width"]) < 2, (pop, col)
+    a = rect(page, f"{_block(joins[2])} img")
+    _c2, twin, _j2, _s2 = seed_student_lesson(
+        "fn-print-twin", "fn_print_twin",
+        [lambda c: image(c, px=(300, 220), float_right=False), lambda c: text()],
+    )
+    page.context.clear_cookies()
+    login(page, live_server, "fn_print_twin")
+    open_page(page, unit_url(live_server, twin), DESKTOP)
+    page.emulate_media(media="print")
+    b = rect(page, ".el--image img")
+    assert all(abs(a[k] - b[k]) < 1 for k in ("left", "width")), (a, b)
 
 
 def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
@@ -1595,7 +1631,7 @@ def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
     assert on_top, "the floated block's open pop is under the drag-image target"
 ```
 
-- [ ] **Step 2: Run** → stacking/handle/pop/print/neighbour tests FAIL.
+- [ ] **Step 2: Run** → RED: footer, clamped drag-image, rail-handle intersection, neighbour-card (screen and print). Already GREEN, expected: print un-float and below-rail un-float (Task 6 rules), and the spacing invariant (it guards against a regression this task could introduce).
 - [ ] **Step 3: Implement**
 
 ```css
