@@ -662,8 +662,6 @@ def _nest(unit, kind, child):
 @pytest.mark.parametrize("unit_type", ["lesson", "quiz"])
 @pytest.mark.parametrize("where", ["top"] + CONTAINER_KINDS)
 def test_class_reaches_the_page_in_every_context(client, unit_type, where):
-    from django.contrib.auth import get_user_model
-
     from tests.factories import add_element
 
     course, unit = make_course_with_unit()
@@ -677,10 +675,21 @@ def test_class_reaches_the_page_in_every_context(client, unit_type, where):
         add_element(unit, flagged)
     else:
         _nest(unit, where, flagged)
-    staff = get_user_model().objects.create_user("staff-fl", is_staff=True)
-    client.force_login(staff)  # READ access keys on is_staff (course-access memory)
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_verified_user
+
+    # VERIFIED email: allauth's mandatory verification would otherwise redirect
+    # (tests/factories.py::make_login). READ access keys on is_staff.
+    staff = make_verified_user(
+        username="staff-fl", email="staff-fl@t.example.com", password=TEST_PASSWORD
+    )
+    staff.is_staff = True
+    staff.save()
+    client.force_login(staff)
     path = f"/courses/{course.slug}/u/{unit.pk}/" + ("quiz/" if unit_type == "quiz" else "")
-    html = client.get(path).content.decode()
+    resp = client.get(path)
+    assert resp.status_code == 200, resp.status_code
+    html = resp.content.decode()
     assert html.count("el--image--float") == 1, where
 ```
 
@@ -1087,7 +1096,7 @@ def test_height_capped_portrait_leaves_no_gap(page, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_image_float_layout.py -m e2e -n 2 -p no:cacheprovider`
-Expected RED (no float yet): `test_small_floats_right_and_text_wraps`, `test_two_text_elements_both_wrap_in_a_quiz`, `test_mid_body_heading…`, `test_float_as_first_element`, `test_maths_beside…`, `test_narrow_and_captioned…`, `test_height_capped…`. Expected GREEN already (nothing floats, so nothing can overlap): `test_two_floats_stack`, `test_non_text_after_float_starts_below`, `test_float_before_reveal_gate`, the slide/deck/preview containment tests, the zoom tests — their falsification is in Step 5.
+Expected RED (no float yet): `test_small_floats_right_and_text_wraps`, `test_two_text_elements_both_wrap_in_a_quiz`, `test_mid_body_heading…`, `test_float_as_first_element`, `test_maths_beside…`, `test_narrow_and_captioned…`, `test_height_capped…`. Expected GREEN already (nothing floats, so nothing can overlap): `test_two_floats_stack`, `test_non_text_after_float_starts_below`, `test_float_before_reveal_gate`, the slide/deck/preview containment tests — their falsification is in Step 5. The zoom tests are RED too, on their `fixture: the paragraph must start beside the image` precondition (nothing floats yet) — expected; do NOT touch the fixture.
 
 - [ ] **Step 3: Implement the CSS block** — insert after the image print block. The four branches are written out EXACTLY as below. Duplication across branches is deliberate: every float declaration on wrapper, figure and img must sit under ONE condition per branch (spec "Every float-specific declaration…"); there is no preprocessor.
 
@@ -1283,7 +1292,9 @@ def _assert_next_list_below(page, kind, sel):
 
 
 @pytest.mark.parametrize(
-    "vp,medium", [(PHONE, "screen"), (DESKTOP, "screen"), (DESKTOP, "print")]
+    "vp,medium",
+    [(PHONE, "screen"), (DESKTOP, "screen"), (DESKTOP, "print")],
+    ids=["phone-screen", "desktop-screen", "desktop-print"],
 )
 def test_top_alignment_and_no_trailing_space_in_a_callout(page, live_server, vp, medium):
     from courses.models import CalloutElement
@@ -1397,7 +1408,7 @@ def seed_stacked(kind, slug):
 ```
 
 
-- [ ] **Step 3: Run** → RED: the stacked `nojs`/`print` cases for tabs, carousel and beforeafter (float leaks into list 2), `test_float_is_contained_by_its_container[callout|spoiler|tabs]` (the image is taller than the list), and the callout margins test (phone/print trailing space, two-column top). GREEN already, expected: `test_float_is_contained…[twocolumn|carousel]` on screen (a flex item / an absolutely positioned section contains floats) — guarded instead by the print cases.
+- [ ] **Step 3: Run** → RED: the stacked `nojs`/`print` cases for tabs, carousel and beforeafter (float leaks into list 2), `test_float_is_contained_by_its_container[callout|spoiler|tabs]` (the image is taller than the list), and the callout margins test (phone/print trailing space, two-column top). `[beforeafter]` on screen with JS: RED expected like callout (the visible `.ba__panel` is a plain block); if it is GREEN, `.ba__panel` containment is still guarded by `…non_last_list…[beforeafter-nojs]` — note which in the PR. GREEN already, expected: `test_float_is_contained…[twocolumn|carousel]` on screen (a flex item / an absolutely positioned section contains floats) — guarded instead by the print cases.
 - [ ] **Step 4: Implement**
 
 ```css
@@ -1445,9 +1456,9 @@ they MUST sit after the Task 6 branches:
 
 The two-column `margin-top: 0` lines are required, not conditional: the two-column `+` rule ((0,4,0), later in courses.css) otherwise keeps a floated non-first child `var(--space-4)` low.
 
-- [ ] **Step 5: Run** containers e2e + all CSS source tests → PASS. Falsify, one family at a time, by hand, restoring after each and reading `git diff`:
-  - drop `.tabs__panel` from the `::after` list → `…non_last_list…[nojs-tabs]` and `[print-carousel]` RED;
-  - drop `.ba__panel` → `…[nojs-beforeafter]` RED; drop `.callout__children` → `…contained…[callout]` RED; drop `.spoiler__children` → `[spoiler]` RED; drop `.twocolumn__column` → none on screen (flex item) — note it in the PR as print-only protection;
+- [ ] **Step 5: Run** containers e2e + all CSS source tests → PASS. (Stacked-test ids are `kind-state`: the BOTTOM parametrize decorator's id comes first.) Falsify, one family at a time, by hand, restoring after each and reading `git diff`:
+  - drop `.tabs__panel` from the `::after` list → `…non_last_list…[tabs-nojs]` and `[carousel-print]` RED;
+  - drop `.ba__panel` → `…[beforeafter-nojs]` RED; drop `.callout__children` → `…contained…[callout]` RED; drop `.spoiler__children` → `[spoiler]` RED; drop `.twocolumn__column` → none on screen (flex item) — note it in the PR as print-only protection;
   - delete the two-column `margin-top: 0` line in the max-width:1199.98px block → callout test `[phone-screen]` RED on the `tc_img`/`tc_next` assertion;
   - delete the `:last-child { margin-bottom: 0 }` line in the same block → `[phone-screen]` RED on `trailing(b)`;
   - delete the `> .el--image--float { margin-bottom: 0 }` line in the `@media print` block → `[desktop-print]` RED on `trailing(b)`.
@@ -1890,7 +1901,13 @@ def test_a_stored_true_on_medium_does_not_float(page, live_server, vp):
 
 
 def test_dark_plate_on_a_floated_image(page, live_server):
-    owner, unit, _ = _seed("fl-dark", lambda c: image(c), text())
+    # A caption LONGER than the image makes the figure wider than the img, so the
+    # img's margin-inline decides where it sits -- without it both values look alike.
+    owner, unit, _ = _seed(
+        "fl-dark",
+        lambda c: image(c, px=(90, 90), caption="Bardzo długi podpis pod małym obrazkiem"),
+        text(),
+    )
     login(page, live_server, owner.username)
     open_page(page, unit_url(live_server, unit), DESKTOP)
     page.evaluate("document.documentElement.dataset.theme = 'dark'")
