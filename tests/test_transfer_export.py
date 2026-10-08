@@ -73,7 +73,13 @@ def test_image_element_registers_media(course, image_asset):
     ids = MediaIdMap()
     key, data = serialize_element_data(el, ids)
     assert key == "image"
-    assert data == {"media": "m1", "alt": "a", "figcaption": "c", "size": "full"}
+    assert data == {
+        "media": "m1",
+        "alt": "a",
+        "figcaption": "c",
+        "size": "full",
+        "float_right": False,
+    }
     assert ids.items() == [("m1", image_asset)]
 
 
@@ -219,7 +225,7 @@ def test_build_export_full_course_document(course, image_asset):
     _attach(unit, TextElement.objects.create(body="hi"))
     _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
     manifest, doc, media, _problems = build_export(course)
-    assert manifest["format_version"] == 16
+    assert manifest["format_version"] == 17
     assert manifest["kind"] == "course"
     assert manifest["course"] == {"title": "Src", "slug": "src"}
     assert doc["course"]["title"] == "Src"

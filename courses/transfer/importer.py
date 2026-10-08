@@ -507,6 +507,7 @@ def _build_image(data, assets):
         alt=data["alt"],
         figcaption=data["figcaption"],
         size=data["size"],
+        float_right=data["float_right"],
     )
     return _clean_save(el), ()
 
