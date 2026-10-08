@@ -664,7 +664,7 @@ def test_class_reaches_the_page_in_every_context(client, unit_type, where):
         add_element(unit, flagged)
     else:
         _nest(unit, where, flagged)
-    staff = get_user_model().objects.create_user("staff-fl", password="x", is_staff=True)  # noqa: S106
+    staff = get_user_model().objects.create_user("staff-fl", is_staff=True)
     client.force_login(staff)  # READ access keys on is_staff (course-access memory)
     path = f"/courses/{course.slug}/u/{unit.pk}/" + ("quiz/" if unit_type == "quiz" else "")
     html = client.get(path).content.decode()
@@ -923,7 +923,9 @@ def test_float_ending_a_slide_stays_in_it_without_js(browser, live_server):
         login(page, live_server, owner.username)
         open_page(page, unit_url(live_server, unit), DESKTOP)
         img = rect(page, ".el--image--float img")
-        nxt = rect(page, ".slide:nth-of-type(2) .el--text p")
+        # NOT .slide:nth-of-type(2): div.lesson-unit__head precedes the slides and
+        # :nth-of-type counts every div, so that would be slide ONE.
+        nxt = rect(page, ".slide ~ .slide .el--text p")
         assert nxt["top"] >= img["bottom"] - EPS, (nxt, img)
     finally:
         ctx.close()
@@ -945,7 +947,7 @@ def test_float_ending_a_deck_slide_stays_in_it_in_print(page, live_server):
     page.wait_for_selector(".slideshow-deck")
     page.emulate_media(media="print")
     img = rect(page, ".el--image--float img")
-    nxt = rect(page, ".slide:nth-of-type(2) .el--text p")
+    nxt = rect(page, ".slide ~ .slide .el--text p")
     assert nxt["top"] >= img["bottom"] - EPS, (nxt, img)
 
 
@@ -1182,7 +1184,7 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 ```
 
 - [ ] **Step 4: Run** the layout e2e → PASS. Then run `uv run pytest $(ls tests/test_*css*.py courses/tests/test_*css*.py) -n 4 -p no:cacheprovider` → PASS (marker tests partition on text).
-- [ ] **Step 5: Falsify** (by hand, one at a time, restore after each): (a) delete `float: right;` from the max-width:1199.98px branch → phone `test_small_floats_right_and_text_wraps` RED; (b) remove the sibling `clear: right` rule → `test_non_text_after_float_starts_below` RED; (c) remove `.el--text :is(h2…)` → `test_mid_body_heading…` RED; (d) remove `.slide` from the `::after` rule → `test_float_ending_a_slide_stays_in_it_without_js` AND `…deck_slide…in_print` RED; remove `.prev-inner` → `test_preview_contains…` RED; (f) remove the rail `z-index: 1` → `test_clicking_the_floated_image_opens_zoom[desktop]` RED; (e) change the quiz selector to an unscoped `section[data-element-id]` → `test_small_floats_right_and_text_wraps` RED (lesson text cleared). Read `git diff` after each restore — it must show only the intended block.
+- [ ] **Step 5: Falsify** (by hand, one at a time, restore after each): (a) delete `float: right;` from the max-width:1199.98px branch → phone `test_small_floats_right_and_text_wraps` RED; (b) remove the sibling `clear: right` rule → `test_non_text_after_float_starts_below` RED; (c) remove `.el--text :is(h2…)` → `test_mid_body_heading…` RED; (d) remove `.slide` from the `::after` rule → `test_float_ending_a_slide_stays_in_it_without_js` AND `…deck_slide…in_print` RED; remove `.prev-inner` → `test_preview_contains…` RED; (f) remove the rail `z-index: 1` → `test_clicking_the_floated_image_opens_zoom[desktop]` RED; (e) in the D3 clearing rule ONLY, change `.quiz .slide > section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` to `section[data-element-id]:not(:has(> :is(.el--text, .el--math)))` → `test_small_floats_right_and_text_wraps` RED on `line["right"] <= img["left"]` (every lesson text block now clears, so the paragraph starts BELOW the image). Read `git diff` after each restore — it must show only the intended block.
 - [ ] **Step 6: Commit** `git commit -m "feat(css): float Small images right; clear non-text; contain per slide"`.
 
 ---
@@ -1375,6 +1377,24 @@ def note(student, unit, join, body="notatka"):
     return Note.objects.create(author=student, unit=unit, element=join, body=body)
 
 
+def open_notes(page, join):
+    """Open `join`'s notes and wait until the pop is where it will stay.
+
+    <details> fires `toggle` ASYNCHRONOUSLY: at the rail (>=1200px + notes.js) the pop
+    paints at its unanchored top:0 until notes.js's positionPop stamps an inline top --
+    measuring in that window passed locally and failed on CI
+    (tests/test_e2e_notes_rail.py). Below the rail the pop is in flow: no wait."""
+    sel = f'.lesson-block[data-element-id="{join.pk}"]'
+    page.locator(f"{sel} .block-notes__handle").click()
+    page.wait_for_function(
+        """(s) => { const pop = document.querySelector(s + ' .block-notes__pop');
+             const rail = matchMedia('screen and (min-width: 1200px)').matches
+                          && document.documentElement.classList.contains('notes-js');
+             return !!pop && (!rail || pop.style.top !== ''); }""",
+        arg=sel,
+    )
+
+
 def boxes_intersect(a, b):
     return not (
         a["right"] <= b["left"] or b["right"] <= a["left"]
@@ -1411,7 +1431,7 @@ def test_rail_handles_do_not_intersect_and_pop_opens_at_handle(page, live_server
     img_h = rect(page, f"{_block(joins[0])} .block-notes__handle")
     for j in joins[1:]:
         assert not boxes_intersect(img_h, rect(page, f"{_block(j)} .block-notes__handle"))
-    page.locator(f"{_block(joins[0])} .block-notes__handle").click()
+    open_notes(page, joins[0])
     pop = rect(page, f"{_block(joins[0])} .block-notes__pop")
     handle = rect(page, f"{_block(joins[0])} .block-notes__handle")
     assert abs(pop["top"] - handle["top"]) < 2, (pop, handle)
@@ -1437,7 +1457,7 @@ def test_open_pop_beats_the_sticky_footer(page, live_server):
                  window.scrollBy(0, h.getBoundingClientRect().top - innerHeight + 140); }""",
             handle,
         )
-        page.locator(handle).click()
+        open_notes(page, j)
         pop_r = rect(page, f"{_block(j)} .block-notes__pop")
         assert boxes_intersect(pop_r, rect(page, ".unit-foot")), (
             "fixture: the open pop must overlap .unit-foot, or this proves nothing")
@@ -1461,7 +1481,7 @@ def test_below_rail_open_notes_unfloat_to_an_unflagged_small(page, live_server):
     )
     login(page, live_server, "fn_phone")
     open_page(page, unit_url(live_server, unit), PHONE)
-    page.locator(f"{_block(joins[0])} .block-notes__handle").click()
+    open_notes(page, joins[0])
     assert _float(page, joins[0]) == "none"
     pop = rect(page, f"{_block(joins[0])} .block-notes__pop")
     col = rect(page, f"{_block(joins[1])} .lesson-block__body")
@@ -1486,7 +1506,7 @@ def test_neighbour_note_card_never_runs_under_the_image(page, live_server, mediu
     if medium == "print":
         page.emulate_media(media="print")  # notes.css prints pops that have cards
     else:
-        page.locator(f"{_block(joins[1])} .block-notes__handle").click()
+        open_notes(page, joins[1])
     card = rect(page, f"{_block(joins[1])} .note-card")
     img = rect(page, f"{_block(joins[0])} img")
     assert not boxes_intersect(card, img), (card, img)
@@ -1506,7 +1526,7 @@ def test_spacing_unchanged_for_a_block_far_from_the_float(page, live_server):
         page.context.clear_cookies()
         login(page, live_server, user)
         open_page(page, unit_url(live_server, u), PHONE)
-        page.locator(f"{_block(j)} .block-notes__handle").click()
+        open_notes(page, j)
         return (rect(page, f"{_block(j)} .note-card")["top"]
                 - rect(page, f"{_block(j)} .block-notes__pop")["top"])
 
@@ -1533,27 +1553,40 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
 
 def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
     # z-index 50 while open exists to beat positive-z content in the root context;
-    # .dragimage__target / __badge (3/4) is one. 1400px clamps the pop over the column
-    # (tests/test_e2e_notes_rail.py, "clamped").
-    from tests.reveal_pr2_kit import build
-    from tests.test_e2e_quiz_reveal_pr2 import _size_stages
+    # .dragimage__target / __badge (3/4) is one. 1400px clamps the pop over the column's
+    # RIGHT end (right: 0, 15rem wide -- tests/test_e2e_notes_rail.py "clamped"), so the
+    # drop zone is placed at the stage's right end on a REAL, column-wide image: the
+    # reveal kit's MediaAssetFactory file is never served (no geometry) and its zones
+    # sit at x 0.1-0.75, left of the pop.
+    from courses.models import DragToImageQuestionElement
+    from courses.models import DragZone
+
+    def drag_question(course):
+        q = DragToImageQuestionElement.objects.create(
+            stem="Label it.",
+            media=make_image_asset(course, size=(1600, 400), color="blue"),
+            distractors="gammadis",
+        )
+        DragZone.objects.create(
+            question=q, order=0, correct_label="alphakey", x=0.8, y=0.05, w=0.18, h=0.9
+        )
+        return q
 
     course, unit, joins, st = seed_student_lesson(
         "fn-drag", "fn_drag",
-        [lambda c: image(c, px=(300, 220)), lambda c: text("Krótko."),
-         lambda c: build("dragimage").question],
+        [lambda c: image(c, px=(300, 220)), lambda c: text("Krótko."), drag_question],
     )
-    note(st, unit, joins[0], body="notatka " * 30)
+    note(st, unit, joins[0], body="notatka " * 60)  # a tall pop reaches the stage
     login(page, live_server, "fn_drag")
     open_page(page, unit_url(live_server, unit), {"width": 1400, "height": 950})
-    _size_stages(page)  # the factory image is not served; give the stage real size
     page.wait_for_selector("html.notes-js")
-    page.locator(f"{_block(joins[0])} .block-notes__handle").click()
+    open_notes(page, joins[0])
     pop_sel = f"{_block(joins[0])} .block-notes__pop"
     page.wait_for_selector(f"{pop_sel}.block-notes__pop--clamped")
     pop = rect(page, pop_sel)
     target = rect(page, ".dragimage__target")
-    assert boxes_intersect(pop, target), "fixture: the pop must overlap a target"
+    assert boxes_intersect(pop, target), (
+        f"fixture: pop {pop} must overlap target {target}; adjust the zone/note length")
     x = (max(pop["left"], target["left"]) + min(pop["right"], target["right"])) / 2
     y = (max(pop["top"], target["top"]) + min(pop["bottom"], target["bottom"])) / 2
     on_top = page.evaluate(
@@ -1567,11 +1600,6 @@ def test_clamped_pop_beats_a_following_drag_to_image_target(page, live_server):
 
 ```css
 @media screen and (min-width: 1200px) {
-  /* notes.css makes every block position:relative here; a later positioned block
-     (the paragraph beside the float) would paint and hit-test ABOVE the float --
-     zoom dead (verified on the mockup). z-index 1 lifts the float; while its panel
-     is open it rises to the pop's own 50, else the pop (trapped in this stacking
-     context) would sit under .unit-foot (20) / .unit-toc-pin (21). */
   /* z-index 1 is Task 6's (rail branch). While the floated block's panel is open it
      rises to the pop's own 50, else the pop (trapped in that stacking context) would
      sit under .unit-foot (20) / .unit-toc-pin (21) / .dragimage__target (3). */
