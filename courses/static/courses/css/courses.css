@@ -3346,3 +3346,30 @@ dialog.imgzoom:not([open]) { display: none; }
 .unit-strip__print { display: none; }
 html.js .unit-strip__print { display: inline-flex; }
 @media print { html.js .unit-strip__print { display: none; } }
+
+/* == Print layout for units (spec 2026-10-11-print-layout-for-units) == */
+/* ONE print block, appended last, so it follows every screen rule it overrides
+   (`.unit-shell`, `.unit-strip`, `.draft-banner`, the stepper hide, the gallery
+   carousel). Every hide is !important: e.g. app.css's
+   `.guessnumber button[data-guess-check]` outweighs a bare attribute selector
+   wherever it sits. */
+@media print {
+  /* D1: screen chrome and controls. Kept: .unit-kind-chip, .answer-switch, the
+     switch cyclers (their text IS the student's value), .question__feedback,
+     notes, and closed spoilers (they keep their on-screen state). */
+  .unit-foot, .unit-tree, .unit-drawer, .unit-strip, .draft-banner,
+  .unit-done, .lesson-unit__reset,
+  .quiz-finish, .quiz-results > .btn,
+  .el--question .question__form button[type="submit"],
+  .filltable__confirm, .markdone__save, .fillgate__confirm, .stepper__next,
+  .switchgate__confirm, .switchgrid__confirm, [data-guess-check] { display: none !important; }
+
+  /* Block flow, scoped by attribute: manage/review_submission.html reuses the
+     bare `.unit-shell` wrapper for its own two-column layout. */
+  [data-unit-shell], [data-unit-shell] > .unit-shell__main { display: block; }
+
+  /* Steppers print every step (reveal-gate precedent). First selector: after
+     stepper.js boots; second: lesson_unit.html's pre-boot `.stepper-armed` hide. */
+  .stepper.is-stepping [data-stepper-step]:not(.stepper-shown),
+  .stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child) { display: revert !important; }
+}

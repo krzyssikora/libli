@@ -132,3 +132,218 @@ def test_page_frame_header_and_flash(page, live_server, theme):
         }"""
     )
     assert style == ["rgba(0, 0, 0, 0)", "none", "0px"], style
+
+
+@pytest.mark.django_db(transaction=True)
+def test_lesson_unit_chrome_hidden(page, live_server):
+    """Spec test 4 (courses.css half)."""
+    course, unit, user = _lesson("chrome-stu")
+    # A required lesson has no kind chip (unit_marker -> MARKER_NONE); mark it
+    # additional so the chip exists and the "kept in print" check is not vacuous.
+    unit.obligatory = False
+    unit.save(update_fields=["obligatory"])
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".lesson-unit__title")
+    for sel in (
+        ".unit-foot",
+        ".unit-strip",
+        ".unit-done",
+        '.el--question .question__form button[type="submit"]',
+    ):
+        _shown(page, sel)
+    assert page.locator(".unit-tree").count() >= 1
+
+    page.emulate_media(media="print")
+    for sel in (
+        ".unit-foot",
+        ".unit-strip",
+        ".unit-done",
+        '.el--question .question__form button[type="submit"]',
+    ):
+        _hidden(page, sel)
+    tree_display = page.evaluate(
+        "getComputedStyle(document.querySelector('.unit-tree')).display"
+    )
+    assert tree_display == "none"
+    _shown(page, ".unit-crumbs")
+    _shown(page, ".unit-kind-chip")
+    shell_x, main_x, shell_display = page.evaluate(
+        """() => {
+          const shell = document.querySelector('[data-unit-shell]');
+          const main = shell.querySelector(':scope > .unit-shell__main');
+          return [shell.getBoundingClientRect().left,
+                  main.getBoundingClientRect().left,
+                  getComputedStyle(shell).display];
+        }"""
+    )
+    assert abs(shell_x - main_x) <= 1, (shell_x, main_x)  # covers the tree hide
+    assert shell_display == "block"  # covers the block-flow rule itself
+
+
+@pytest.mark.django_db(transaction=True)
+def test_toc_pin_hidden_in_print_when_collapsed(page, live_server):
+    """Pre-existing coverage, kept for completeness (spec §3); not new-rule evidence."""
+    course, unit, user = _lesson("pin-stu")
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".lesson-unit__title")
+    page.evaluate("document.documentElement.classList.add('unit-tree-collapsed')")
+    _shown(page, ".unit-toc-pin")
+    page.emulate_media(media="print")
+    _hidden(page, ".unit-toc-pin")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_draft_banner_hidden_for_author(page, live_server):
+    from courses.models import TextElement
+
+    owner = make_verified_user(
+        username="owner-pr", email="owner-pr@test.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", title="Draft", published=False
+    )
+    add_element(unit, TextElement.objects.create(body="<p>x</p>"))
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, owner)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".lesson-unit__title")
+    _shown(page, ".draft-banner")
+    page.emulate_media(media="print")
+    _hidden(page, ".draft-banner")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_open_mobile_drawer_not_printed(page, live_server):
+    """Review Focus 4. The leaking rule is `.unit-drawer:not([hidden])` inside
+    max-width: 640px, so the drawer must be OPENED (real Contents trigger) at a
+    narrow viewport first; a freshly loaded page would pass vacuously."""
+    course, unit, user = _lesson("drawer-stu")
+    page.set_viewport_size({"width": 500, "height": 900})
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".lesson-unit__title")
+    page.locator("[data-unit-drawer-open]").click()
+    _shown(page, ".unit-drawer")
+    page.emulate_media(media="print")
+    _hidden(page, ".unit-drawer")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_multi_slide_prints_every_question(page, live_server):
+    """Spec test 5."""
+    from tests.factories import seed_slideshow_unit
+
+    course = CourseFactory()
+    unit = seed_slideshow_unit(course, "quiz", layout=["q", "brk", "q", "brk", "q"])
+    user = _student("quiz-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:quiz_unit", unit))
+    page.wait_for_selector(".slideshow-bar")
+    _inject_alerts(page)
+    for sel in (".app-header__cluster", ".unit-foot", ".unit-strip", ".slideshow-bar"):
+        _shown(page, sel)
+    assert page.locator(".quiz-finish").count() >= 1
+
+    page.emulate_media(media="print")
+    for sel in (
+        ".app-header__cluster",
+        ".unit-foot",
+        ".unit-strip",
+        ".alert--flash",
+        ".slideshow-bar",
+        ".quiz-finish",
+    ):
+        _hidden(page, sel)
+    for sel in (".brand", ".unit-crumbs", ".unit-kind-chip"):
+        _shown(page, sel)
+    tree_display = page.evaluate(
+        "getComputedStyle(document.querySelector('.unit-tree')).display"
+    )
+    assert tree_display == "none"
+    assert page.locator(".el--question").count() == 3
+    _shown(page, ".el--question")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_single_slide_quiz_finish_hidden(page, live_server):
+    from tests.factories import seed_slideshow_unit
+
+    course = CourseFactory()
+    unit = seed_slideshow_unit(course, "quiz", layout=["q"])
+    user = _student("quiz1-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:quiz_unit", unit))
+    page.wait_for_selector(".quiz-finish")
+    _shown(page, ".quiz-finish")
+    page.emulate_media(media="print")
+    _hidden(page, ".quiz-finish")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_action_buttons_hidden_and_stepper_prints_all(page, live_server):
+    """Spec test 10."""
+    from courses.models import FillTableElement
+    from courses.models import MarkDoneElement
+    from courses.models import MarkDoneItem
+    from courses.models import StepperElement
+    from courses.models import StepperStep
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", title="Stateful"
+    )
+    ft = FillTableElement.objects.create(
+        data=FillTableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "prompt": "",
+                "case_sensitive": False,
+                "cells": [
+                    [
+                        {
+                            "kind": "answer",
+                            "answer": "4",
+                            "halign": "left",
+                            "valign": "top",
+                        }
+                    ]
+                ],
+            }
+        )
+    )
+    add_element(unit, ft)
+    md = MarkDoneElement.objects.create(prompt="Do it")
+    MarkDoneItem.objects.create(element=md, content="a")
+    add_element(unit, md)
+    st = StepperElement.objects.create(prompt="")
+    for c in ("one", "two", "three"):
+        StepperStep.objects.create(stepper=st, content=c)
+    add_element(unit, st)
+    user = _student("act-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".stepper.is-stepping")  # proves stepper.js booted
+    _shown(page, ".stepper__next")
+    _shown(page, ".filltable__confirm")
+    _shown(page, ".lesson-unit__reset")
+    # .markdone__save is NOT asserted here: markdone.js sets it [hidden] on boot,
+    # so a print check would pass vacuously. It is the no-JS fallback; only the
+    # Task 4 source test covers it.
+    steps = page.locator("[data-stepper-step]")
+    assert steps.count() == 3
+    assert [steps.nth(i).is_visible() for i in range(3)] == [True, False, False]
+
+    page.emulate_media(media="print")
+    for sel in (".filltable__confirm", ".stepper__next", ".lesson-unit__reset"):
+        _hidden(page, sel)
+    _shown(page, "[data-stepper-step]")
