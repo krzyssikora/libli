@@ -88,10 +88,19 @@ A new shared partial `templates/courses/_print_page_header.html`, included from 
   Polish printout reads `Strona 3 / 7`. The label goes through the same CSS-string escaping
   as the title (it is author-controlled via the `.po` file, and a translator's quote must
   not break the rule).
-- Long unit titles: the top-left box must not overflow into the top-right box. Margin boxes
-  size by content; constrain with `overflow: hidden; white-space: nowrap; text-overflow:
-  ellipsis` on `@top-left` where the engine honours it — a truncated title in the header is
-  acceptable because the full title is printed as the `<h1>` on page 1.
+- Long unit titles: the header title is truncated **server-side** so the result does not
+  depend on the engine: `{{ unit.title|strip_math_delimiters|truncatechars:70|css_string }}`
+  (70 characters incl. the ellipsis fits the A4 top-left box at ~8pt beside the page
+  counter). `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` on `@top-left`
+  stays as a belt-and-braces bonus only. A truncated title in the header is acceptable
+  because the full title is printed as the `<h1>` on page 1.
+- The translated label is bound with the `as` form, since `{% trans %}` output cannot be
+  piped into a filter: `{% translate "Page" context "print page counter" as page_label %}`
+  then `{{ page_label|css_string }}`. The `context` (pgettext) keeps this msgid separate
+  from the existing `"Page"` msgid used by the support issue-report templates
+  (`locale/pl/LC_MESSAGES/django.po`). The `pl` catalogue gets the entry
+  `msgctxt "print page counter" / msgid "Page" / msgstr "Strona"` and the `.mo` is
+  recompiled.
 - Breadcrumbs (D3) stay in the content flow above the `<h1>`; they are **not** moved into
   the header (a three-level path plus title does not fit a margin box cleanly).
 
@@ -109,27 +118,33 @@ plain string and returns the **inside** of a CSS double-quoted string, marked sa
 
 Escaping `<` and `>` is what makes `</style>` in an author title inert. The input is first
 passed through `strip_math_delimiters` (an author title like `Funkcja $f(x)=x^2$` must
-read `Funkcja f(x)=x^2` in the header, matching the `<title>` element). Order in the
-template: `{{ unit.title|strip_math_delimiters|css_string }}`.
+read `Funkcja f(x)=x^2` in the header, matching the `<title>` element) and
+`truncatechars:70`. Order in the template:
+`{{ unit.title|strip_math_delimiters|truncatechars:70|css_string }}`.
 
 ### 3. Hiding screen chrome in print (D1, D2)
 
 New `@media print` rules:
 
-- In `app.css` (owns the header): `.app-header__spacer, .app-header__cluster { display:
-  none; }`; the `.app-header` itself loses its background, bottom border, and horizontal
-  padding in print so the brand sits flush with the content's left edge, followed by a
-  small gap. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
+- In `app.css` (owns the header and `.app-main`):
+  `.app-header__spacer, .app-header__cluster { display: none; }`; `.app-header` in print
+  gets `padding: 0 0 var(--space-4); background: none; border: 0;`; `.app-main` in print
+  gets `padding: 0; max-width: none;`. So the brand and the article share the 15 mm page
+  edge. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
   once because the header is in normal flow at the top of the document.
+- Also in `app.css`: Django flash messages (`.app-main > .alert`) → `display: none` in
+  print. They are transient UI feedback, not unit content (D1).
 - In `courses.css` (owns the unit shell): `.unit-foot`, `.unit-tree`, `.unit-drawer`,
-  `.unit-toc-pin` (all states), and `.unit-strip` controls that are not content
-  (`.unit-strip__print` and `.unit-strip__edit` are already hidden; the tags line in
-  `.unit-strip` is unit metadata — see "Open question resolved by the spec" below) →
-  `display: none`.
-- `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print (the
-  article fills the page width).
-- `.app-main` padding is reduced in print so the content does not add a second, screen-sized
-  inset on top of the 15 mm page margin.
+  `.unit-toc-pin` (all states), the **whole** `.unit-strip` (it holds only the tag panel,
+  Print and Edit — see "Open question resolved by the spec" below), and the **whole**
+  `.draft-banner` (author-only "this unit is unpublished" notice; today only its form is
+  hidden in print) → `display: none`.
+- `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
+  `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
+- **Not touched:** student notes (`.block-notes`, the unanchored-notes panel). They have a
+  deliberate, existing print behaviour (`notes.css` print block, `print.js`) that prints a
+  student's own notes beside the content they annotate. Notes are the student's work on the
+  content, so they stay; tags are a navigation/filing aid, so they go.
 
 Each new print block sits **after** every screen rule it overrides (media queries add no
 specificity; this codebase has been bitten by that repeatedly — see the comments at
@@ -140,7 +155,7 @@ that weight.
 
 **Open question resolved by the spec:** the unit strip's tag chips (`.unit-tags`) are the
 student's own tags on the unit, which is personal metadata, not unit content. They are
-hidden in print along with the rest of the strip. (Reviewer: if you disagree, the D1
+hidden in print with the rest of the strip: `@media print { .unit-strip { display: none; } }`. (Reviewer: if you disagree, the D1
 wording "only the unit's content" is the deciding text.)
 
 ### 4. Keeping images and questions whole (D6)
@@ -150,24 +165,45 @@ affected selectors:
 
 ```css
 @media print {
-  .el--image,                       /* figure: img + figcaption */
-  .el--gallery .gallery__item,      /* one gallery card: frame + description */
-  .cell-img,                        /* fill-table / table cell image */
-  .dragimage,                       /* drag-to-image board (img + badges) */
+  .el--image,                    /* figure: img + figcaption (incl. .el--image--float) */
+  .el--gallery .gallery__item,   /* one gallery card: frame + description */
+  img.cell-img,                  /* table / fill-table cell image (class is on the <img>) */
+  .dragimage__stage,             /* drag-to-image board: img + percent-placed badges */
   .el--question { break-inside: avoid; }
 }
 ```
 
-(Exact class names for the cell-image wrapper and the drag-to-image board root are
-confirmed against the templates in the plan; the list above names the intent.)
+D6 noun → selector map (the source for the coverage test):
 
-- **Floats:** `.el--image--float` is a `.el--image`, so it is covered.
-- **Height caps:** every capped image keeps its existing cap. `.dragimage__img` gets a print
-  cap of `max-height: 170mm` **only if** the badges overlaid on it stay aligned (they are
-  absolutely positioned in percent of the board); if capping the `<img>` alone would
-  misalign them, the cap is applied in a way that keeps the board shrink-wrapped to the
-  image (e.g. `width: fit-content` on the board) or, failing that, is left out and the
-  plan records why. The gallery frame needs no new cap (see "Current state").
+| D6 noun | Selector |
+|---|---|
+| el--image figure (with caption) | `.el--image` |
+| float images | `.el--image` (`.el--image--float` is also `.el--image`) |
+| table-cell images | `img.cell-img` (`_table_cell.html`, `_filltable_cell.html`) |
+| gallery frame | `.el--gallery .gallery__item` (frame + description) |
+| dragimage | `.dragimage__stage`; its element root `.el--dragimage` is also `.el--question` |
+| question images / single questions | `.el--question` (covers images in stems and options) |
+
+- **Height caps:** every capped image keeps its existing cap. `.dragimage__img` gets
+  `max-height: 170mm` in print. This is safe for the badges: `.dragimage__stage` is
+  `display: inline-block; max-width: 100%` (shrink-to-fit) and `.dragimage__img` is
+  `display: block; height: auto`, so a max-height scales the image's width proportionally,
+  the stage follows, and the percent-placed badges stay on their spots. An e2e test pins
+  this (Testing #8). The gallery frame needs no new cap (see "Current state").
+- **Gallery carousel in print:** once `gallery.js` enhances a gallery
+  (`.el--gallery.gallery--js`), every `.gallery__item` is `position: absolute; opacity: 0`
+  except `.is-active`, and `gallery.js` sets an inline `min-height` on `.gallery__stage`
+  and on `.gallery__desc`. No print rule undoes this today, so a printed gallery shows one
+  image (the rest stacked invisibly) plus its prev/next bar, and `break-inside` on
+  overlapping absolute items does nothing. A new print block, on the pattern of the
+  slideshow (~:3302) and tabs-carousel (~:2629) print blocks, placed after the gallery
+  screen rules:
+  `.el--gallery.gallery--js .gallery__stage { position: static !important; min-height: 0 !important; }`,
+  `.el--gallery.gallery--js .gallery__item { position: static !important; opacity: 1 !important; transition: none !important; }`
+  plus the same `margin-top: var(--space-4)` gap between items as the no-JS stack,
+  `.el--gallery.gallery--js .gallery__desc { min-height: 0 !important; }`, and
+  `.el--gallery .gallery__bar, .el--gallery .gallery__status { display: none !important; }`.
+  So every gallery image prints, stacked, each card unsplit.
 - **A4 budget:** A4 is 297 mm tall; minus 2 × 15 mm margins = 267 mm content height. The
   largest cap (170 mm) plus a caption fits with room to spare, so `break-inside: avoid`
   can always be honoured for a single image.
@@ -212,28 +248,44 @@ Unit / template tests (fast, non-e2e):
    through; `</style>` input produces no literal `<`.
 2. Template render of a lesson unit and a quiz unit: the response contains the `@page`
    block with `@top-left` holding the stripped, escaped title, and `@top-right` holding
-   `counter(page)` and `counter(pages)`. In Polish (`pl`), the label is `Strona`.
+   `counter(page)` and `counter(pages)`. In Polish (`pl`), the label is `Strona`. A unit
+   with a 200-character title emits a header title of at most 70 characters ending in the
+   ellipsis.
 3. CSS source tests, in the established style of `tests/test_*css*.py`: the `@page` margin
    rule exists in `app.css`; each new print rule appears **after** the screen rule it
    overrides (source-order assertion, the same technique as `test_print_tokens_css.py`);
-   the `break-inside: avoid` selector list covers every image-bearing selector named in D6.
+   the `break-inside: avoid` selector list contains every selector in the D6 noun →
+   selector map, **and** each of those class names is found in at least one template under
+   `templates/courses/` (or in `gallery.js` for classes it creates), so a selector that
+   matches nothing fails the test.
 
 e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 
 4. Lesson unit in print media: `.app-header__cluster`, `.unit-foot`, `.unit-tree`,
-   `.unit-toc-pin`, `.unit-strip` are not visible; `.brand` is visible; the crumbs are
-   visible; the article is laid out at full width (no tree column reserved).
+   `.unit-toc-pin`, `.unit-strip`, a flash `.alert`, and (author viewing an unpublished
+   unit) `.draft-banner` are not visible; `.brand` and the crumbs are visible;
+   `.unit-tree` computes `display: none` and `.unit-shell__main`'s bounding-box left edge
+   equals `.unit-shell`'s (no tree track reserved). `emulate_media` keeps the browser
+   viewport rather than the A4 page area, so the real page-width layout is covered only by
+   the `page.pdf()` check below.
 5. Quiz unit (multi-slide) in print media: same chrome assertions, and **every** question
    of every slide is visible.
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
    `.el--question` in print media.
 7. Light **and** dark stored theme for test 4 (dark theme already maps to the light palette
    in print; this checks the hidden header did not leave a dark band).
+8. Drag-to-image question with a tall image (taller than 170 mm at print width) in print
+   media: `.dragimage__img` height ≤ 170 mm, and every badge's bounding box lies inside the
+   image's bounding box.
+9. A JS-enhanced gallery with ≥3 images in print media: every `.gallery__item` image is
+   visible (non-zero box, opacity 1), the items do not overlap, and `.gallery__bar` is not
+   visible.
 
 Visual verification (manual, recorded in the PR): `page.pdf()` of a long lesson with images
-and of a multi-slide quiz, A4, rendered in Chromium, opened and checked for: running
-header text and page numbers on every page, ~15 mm margins, no image split across a page
-boundary, no screen chrome. Screenshots in the PR description.
+(including a gallery and a unit with a very long title) and of a multi-slide quiz, A4,
+rendered in Chromium, opened and checked for: running header text and page numbers on
+every page, ~15 mm margins, no image split across a page boundary, no screen chrome.
+Screenshots in the PR description.
 
 Margin-box content cannot be read from the DOM, so automated tests assert the **emitted
 CSS** (test 2) and the visual check covers the rendered result. No new dependency (such as
