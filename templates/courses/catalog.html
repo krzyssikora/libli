@@ -17,7 +17,7 @@
     <label class="catalog__field"><span>{% trans "Language" %}</span>
       <select name="language">
         <option value="">{% trans "All languages" %}</option>
-        {% for l in languages %}
+        {% for l in course_languages %}
           <option value="{{ l.code }}" {% if sel_language == l.code %}selected{% endif %}>{{ l.label }}</option>
         {% endfor %}
       </select>
@@ -51,7 +51,8 @@
     {% endfor %}
   </ul>
   {% else %}
-    <p class="catalog__empty">{% trans "No courses available to join right now." %}</p>
+    <p class="catalog__empty">{% trans "No courses available to join right now." %}
+      {% if has_enrollments %}<a href="{% url 'courses:my_courses' %}">{% trans "Go to my courses" %}</a>{% endif %}</p>
   {% endif %}
 
   <div class="modal" data-catalog-modal hidden>
