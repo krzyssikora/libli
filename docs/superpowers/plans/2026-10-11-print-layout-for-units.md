@@ -36,7 +36,7 @@
 1. **A title containing `"`, `&`, `\` or `</style>`** — the header must show the literal characters and the page must not break (stylesheet must not end early). Pinned by Task 1 (filter) and Task 2 (`Funkcja \(f(x)\) "x" </style>` render test).
 2. **A dark-theme student printing** — no dark header band, no dark surfaces. Pinned by Task 3's e2e run in both stored themes.
 3. **A unit printed before JS finishes booting** (stepper pre-hide still active, gallery not yet enhanced) — steps must still print. Pinned by Task 4's source test asserting the pre-boot stepper selector is in the reveal rule.
-4. **Printing on small paper (A5)** — the open mobile drawer's `max-width: 640px` rule must not print. Pinned by `!important` on `.unit-drawer` (Task 4 source test) and the A5 PDF in Task 6.
+4. **Printing on small paper (A5)** — the open mobile drawer's `max-width: 640px` rule must not print. Pinned by `!important` on `.unit-drawer` (Task 4 source test) and by Task 4's `test_open_mobile_drawer_not_printed` (500px viewport, drawer opened via the real Contents trigger, then print media).
 5. **A submitted quiz** — the student prints the results page, which must get the same header and break rules. Pinned by Task 2 (header render on `quiz_results`) and Task 4/5 e2e on the results page.
 
 ---
@@ -880,6 +880,22 @@ def test_draft_banner_hidden_for_author(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_open_mobile_drawer_not_printed(page, live_server):
+    """Review Focus 4. The leaking rule is `.unit-drawer:not([hidden])` inside
+    max-width: 640px, so the drawer must be OPENED (real Contents trigger) at a
+    narrow viewport first; a freshly loaded page would pass vacuously."""
+    course, unit, user = _lesson("drawer-stu")
+    page.set_viewport_size({"width": 500, "height": 900})
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".lesson-unit__title")
+    page.locator("[data-unit-drawer-open]").click()
+    _shown(page, ".unit-drawer")
+    page.emulate_media(media="print")
+    _hidden(page, ".unit-drawer")
+
+
+@pytest.mark.django_db(transaction=True)
 def test_quiz_multi_slide_prints_every_question(page, live_server):
     """Spec test 5."""
     from tests.factories import seed_slideshow_unit
@@ -960,13 +976,15 @@ def test_action_buttons_hidden_and_stepper_prints_all(page, live_server):
     _shown(page, ".stepper__next")
     _shown(page, ".filltable__confirm")
     _shown(page, ".lesson-unit__reset")
-    assert page.locator(".markdone__save").count() >= 1
+    # .markdone__save is NOT asserted here: markdone.js sets it [hidden] on boot,
+    # so a print check would pass vacuously. It is the no-JS fallback; only the
+    # Task 4 source test covers it.
     steps = page.locator("[data-stepper-step]")
     assert steps.count() == 3
     assert [steps.nth(i).is_visible() for i in range(3)] == [True, False, False]
 
     page.emulate_media(media="print")
-    for sel in (".filltable__confirm", ".markdone__save", ".stepper__next", ".lesson-unit__reset"):
+    for sel in (".filltable__confirm", ".stepper__next", ".lesson-unit__reset"):
         _hidden(page, sel)
     _shown(page, "[data-stepper-step]")
 ```
@@ -1358,7 +1376,7 @@ Run `git diff` after each restore: it must be empty for the touched file.
 - [ ] **Step 2: Generate PDFs**
 
 Write a TEMPORARY `tests/test_zz_print_pdfs.py` (it must live under `tests/` to get the repo conftest, `live_server` and DB setup; run it with `uv run pytest -m e2e tests/test_zz_print_pdfs.py`; write PDFs into the scratchpad `print-pdfs/` dir; delete the file before any commit and confirm with `git status`). Start it by copying the module header of `tests/test_e2e_print_layout.py` verbatim — `pytestmark = pytest.mark.e2e` (without it `-m e2e` selects nothing and no PDF is written), the `_allow_async_unsafe` and `_isolated_media` fixtures, `_login`, `_student`, `_url`, `_png`. Each test builds, logs in and calls `page.pdf(path=…, format="A4", print_background=True)` — background graphics ON, so a leaked dark surface would actually show — for:
-- a long lesson: 15 paragraphs, a `full` image, a `medium` float-right image placed after ~6 paragraphs (near a page boundary), a 3-image gallery, a tall drag-to-image question, a stepper, a 200-character title;
+- a long lesson: 15 paragraphs, a `full` image, a float-right image (`ImageElement(size="small", float_right=True)` — Float right is SMALL-ONLY; `ImageElement.floats` ignores `float_right` on any other size) placed after ~6 paragraphs (near a page boundary), a 3-image gallery, a tall drag-to-image question, a stepper, a 200-character title;
 - the same lesson as `format="A5"`;
 - a 3-slide quiz;
 - a submitted quiz's results page;
@@ -1368,7 +1386,7 @@ After the run, list `print-pdfs/` and confirm every expected PDF exists and is n
 
 - [ ] **Step 3: Inspect every PDF**
 
-Open each with the Read tool (it renders PDF pages). Check and write down, per PDF: running header `libli · …` top-left and `Page n / N` top-right on EVERY page; margins ≈ 15 mm; no image or question split across a page boundary; no header nav, footer bar, tags strip, buttons; gallery shows all 3 images; all stepper steps present; A5 shows no drawer; dark-theme PDF is dark-on-white with no dark fills (it should match its light control). Any defect → Step 3b.
+Open each with the Read tool (it renders PDF pages). Check and write down, per PDF: running header `libli · …` top-left and `Page n / N` top-right on EVERY page; margins ≈ 15 mm; no image or question split across a page boundary (first confirm the float image actually floated — text wraps beside it — before judging its page break); no header nav, footer bar, tags strip, buttons; gallery shows all 3 images; all stepper steps present; A5 layout reads sensibly (the open-drawer case is covered by the e2e test, not this PDF); dark-theme PDF is dark-on-white with no dark fills (it should match its light control). Any defect → Step 3b.
 
 - [ ] **Step 3b (only if Step 3 found a defect): fix, pin, commit**
 
