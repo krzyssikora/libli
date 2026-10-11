@@ -396,14 +396,22 @@ Unit / template tests (fast, non-e2e):
    the `break-inside: avoid` selector list contains every selector in the D6 noun →
    selector map, **and** each of those class names is found in at least one template under
    `templates/courses/` (or in `gallery.js` for classes it creates), so a selector that
-   matches nothing fails the test.
+   matches nothing fails the test. The same source test asserts that the action-button
+   hide rule contains every selector in §3's non-question list, and that each of those
+   class/attribute names is found in `templates/courses/elements/` or in
+   `courses/templatetags/courses_extras.py`. This is the **only** coverage for
+   `.fillgate__confirm`, `.switchgate__confirm`, `.switchgrid__confirm` and
+   `[data-guess-check]`: the first three of those (and `[data-guess-check]`) render with the
+   `hidden` attribute until JS reveals them, so an e2e "not visible in print" check on them
+   would pass vacuously; that omission from e2e is deliberate.
 
 e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 
 4. Lesson unit in print media: `.app-header__cluster`, `.unit-foot`, `.unit-tree`,
    `.unit-toc-pin`, `.unit-strip`, a flash message (`.alert--flash`), a question's
-   Check button, `.unit-done` (the lesson is not yet completed, so its "Mark as done"
-   button form renders), and (author viewing an unpublished unit) `.draft-banner` are not
+   Check button, `.unit-done` (whichever state renders — `progress.js` may auto-complete
+   the unit and flip the "Mark as done" form to the "Completed" pill during the test; both
+   states are hidden, and the assertion is on the `.unit-done` container), and (author viewing an unpublished unit) `.draft-banner` are not
    visible (each first asserted attached); `.unit-kind-chip` is visible; `.brand` and the crumbs are visible;
    `.unit-tree` computes `display: none` and `.unit-shell__main`'s bounding-box left edge
    equals `.unit-shell`'s (no tree track reserved). `emulate_media` keeps the browser
