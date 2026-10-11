@@ -94,7 +94,10 @@ template does not inherit its parent's loads). It emits:
   never `var(...)`, because custom properties do not reach margin boxes reliably.
 - The page label is a translatable string (bound as described in the next bullet but one,
   with the `print page counter` context) → Polish `Strona`, so the
-  Polish printout reads `Strona 3 / 7`. The label goes through the same CSS-string escaping
+  Polish printout reads `Strona 3 / 7`. The label follows the viewer's **UI language**
+  (the request's active language, as every other `{% translate %}` string does), not the
+  course language; a student with an English UI printing a Polish course gets
+  `Page 3 / 7` over Polish content, and that mix is accepted. The label goes through the same CSS-string escaping
   as the title (it is author-controlled via the `.po` file, and a translator's quote must
   not break the rule).
 - Long unit titles: the header title is truncated **server-side** so the result does not
@@ -115,8 +118,11 @@ template does not inherit its parent's loads). It emits:
 
 ### 2. CSS-string escaping filter
 
-A new template filter `css_string` in `courses/templatetags/courses_extras.py`. It takes a
-plain string and returns the **inside** of a CSS double-quoted string, marked safe:
+A new template filter `css_string` in `courses/templatetags/courses_extras.py`. It
+coerces its input with `str()` (`None` → `""`; lazy translation proxies and other
+non-str values are stringified) and never raises — like `strip_math_delimiters`, since a
+raising filter takes down the whole page render. It returns the **inside** of a CSS
+double-quoted string, marked safe:
 
 - every character that is not printable-safe in a CSS string inside an HTML `<style>`
   element is replaced with a CSS hex escape: backslash, the code point in **minimal
@@ -340,14 +346,17 @@ Unit / template tests (fast, non-e2e):
 
 1. `css_string` filter: each escaped character class (`"`, `'`, `\`, `<`, `>`, `&`,
    newline, other control chars) produces the documented hex escape; Polish diacritics pass
-   through; `</style>` input produces no literal `<`.
-2. Template render of a lesson unit and a quiz unit: the response contains the `@page`
+   through; `</style>` input produces no literal `<`; `None` → `""`, and a lazy
+   `gettext_lazy` string is stringified, neither raising.
+2. Template render of a lesson unit, a quiz unit, and a submitted quiz's results page
+   (`quiz_results.html`): each response contains the `@page`
    block with `@top-left` holding the stripped, escaped title, and `@top-right` holding
    `counter(page)` and `counter(pages)`. Fixture title
    `Funkcja \(f(x)\) "x" </style>` → the `@top-left` content is exactly
    `"libli · Funkcja f(x) \22 x\22  \3c /style\3e "`, and the response contains no literal
-   `</style>` between the partial's opening `<style>` and its own closing tag. In Polish
-   (`pl`), the label is `Strona`. A unit
+   `</style>` between the partial's opening `<style>` and its own closing tag. With the UI
+   language set to Polish (`translation.override("pl")` around the render, or the
+   `set_ui_language` endpoint in a client test), the label is `Strona`. A unit
    with a 200-character title made only of letters and spaces (no character `css_string`
    escapes) emits a header title of at most 70 characters ending in the ellipsis `…`.
 3. CSS source tests, in the established style of `tests/test_*css*.py`: the `@page` margin
@@ -376,8 +385,7 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    `<html>` (the only state in which the pin displays on screen): assert the pin is
    visible under screen media first, then not visible under print media — otherwise the
    assertion is vacuous.
-5. Quiz unit (multi-slide) in print media (and test 2's `@page`-block assertion is also
-   run against the submitted quiz's `quiz_results.html` render): same chrome assertions, **every** question of
+5. Quiz unit (multi-slide) in print media: same chrome assertions, **every** question of
    every slide is visible, and neither `.slideshow-bar` nor any `.quiz-finish` is visible.
    A single-slide quiz: its in-article `.quiz-finish` is not visible.
    Submitted quiz → `quiz_results.html` in print media: `.unit-strip` and the
