@@ -11,41 +11,20 @@ print, with the gated fill-table carved out because its node IS the student's
 work) is gone together with the print reveal it paired with.
 """
 
-import re
-from pathlib import Path
+from tests.print_css_kit import all_print_css
 
-CSS = Path("core/static/core/css/app.css").read_text(encoding="utf-8")
-COURSES_CSS = Path("courses/static/courses/css/courses.css").read_text(encoding="utf-8")
-
-
-def _strip_comments(css):
-    # A comment mentioning `[data-reveal-gate]` must not satisfy or falsify the
-    # assertions below; only real rules count.
-    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-
-
-def _print_blocks(css):
-    css = _strip_comments(css)
-    out = []
-    for m in re.finditer(r"@media print\s*\{", css):
-        depth, j = 1, m.end()
-        while depth and j < len(css):
-            depth += {"{": 1, "}": -1}.get(css[j], 0)
-            j += 1
-        out.append(css[m.end() : j - 1])
-    return "\n".join(out)
+# Comments are stripped by print_css_kit, so a comment mentioning these tokens
+# can neither satisfy nor falsify the assertions; only real rules count.
 
 
 def test_no_print_rule_mentions_a_reveal_gate():
-    for name, css in (("app.css", CSS), ("courses.css", COURSES_CSS)):
-        assert "[data-reveal-gate]" not in _print_blocks(css), (
-            f"{name}: a print rule targets [data-reveal-gate]; D8 prints gates "
-            "as on screen"
+    for token in ("data-reveal-gate", ".reveal-gate", "fillgate", "switchgate"):
+        assert token not in all_print_css(), (
+            f"a print rule targets {token!r}; D8 prints gates as on screen"
         )
 
 
 def test_no_print_rule_reveals_prehidden_blocks():
-    for name, css in (("app.css", CSS), ("courses.css", COURSES_CSS)):
-        assert ".reveal-armed" not in _print_blocks(css), (
-            f"{name}: a print rule overrides the reveal-armed pre-hide"
-        )
+    assert ".reveal-armed" not in all_print_css(), (
+        "a print rule overrides the reveal-armed pre-hide"
+    )

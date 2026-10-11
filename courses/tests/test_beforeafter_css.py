@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 
 from courses.models import BeforeAfterElement
+from tests.print_css_kit import all_print_css
 
 COURSES_CSS = "courses/static/courses/css/courses.css"
 APP_CSS = "core/static/core/css/app.css"
@@ -139,12 +140,11 @@ def test_print_does_not_unhide_a_gated_child():
     units): gated content prints exactly as the screen shows it, so the print
     block un-hides the two SIDES (layout) but never a gated child.
 
-    Mutant: restore `.ba__child[hidden] { display: block !important; }` in the
-    print block -> unrevealed children print.
+    Mutant: restore `.ba__child[hidden] { display: block !important; }` in ANY
+    print block of app.css or courses.css -> unrevealed children print.
     """
-    block = re.sub(r"/\*.*?\*/", "", _print_block(_read(COURSES_CSS)), flags=re.S)
-    assert ".ba__child[hidden]" not in block
-    assert ".ba__panel[hidden]" in block  # the sides still both print
+    assert ".ba__child[hidden]" not in all_print_css()
+    assert ".ba__panel[hidden]" in _print_block(_read(COURSES_CSS))  # sides print
 
 
 def test_no_js_rules_revert_the_same_five_properties():

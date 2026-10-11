@@ -1526,13 +1526,13 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    revealed stay hidden on paper too, and an unconsumed gate (a "Show more"
    button, a fill gate's blanks + Confirm, a switch gate's cycler + Confirm, a
    gated fill-table) prints as the marker that more content waits behind it.
-   A consumed gate hides itself on screen ([hidden] or its done state), so it
-   is absent on paper as well. A print rule that reverted the pre-hide and hid
-   every gate used to live here; it printed answers the student had not
-   reached. courses/tests/test_filltable_gate_print.py and
-   courses/tests/test_reveal_scope_agreement.py keep it from coming back.
-   (Same line count as the removed rule, so citations below stay valid.)
-*/
+   A consumed gate prints as the screen shows it too: a "Show more" button
+   hides itself ([hidden]); a done fill or switch gate keeps its wrapper and
+   shows the student's locked answers without Confirm, and so does the paper.
+   A print rule that reverted the pre-hide and hid every gate used to live
+   here; it printed answers the student had not reached.
+   courses/tests/test_filltable_gate_print.py guards against its return; the
+   before/after print block in courses.css follows the same rule (D8). */
 
 /* Fill gate — a fill-the-blank(s) question wrapped in the same reveal-gate
    mechanics as "Show more", but consumed by a correct Confirm instead of a
@@ -2635,7 +2635,7 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    `.app-header`, `.app-header__cluster` and `.app-main` screen rule, including the
    max-width: 640px block (print on small paper matches it). Every hide is
    !important so position and specificity never decide it. */
-@page { margin: 15mm 25mm; } /* D10: a printed line about as long as the screen column */
+@page { margin: 15mm; }
 @media print {
   /* Paper stays white when "Background graphics" is on (the screen body is beige). */
   html, body { background: #fff !important; }

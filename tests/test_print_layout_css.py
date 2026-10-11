@@ -7,6 +7,9 @@ so each screen rule they override is provably earlier in the file.
 import re
 from pathlib import Path
 
+from tests.print_css_kit import all_print_css
+from tests.print_css_kit import rule_selectors
+
 ROOT = Path(__file__).resolve().parent.parent
 APP = (ROOT / "core/static/core/css/app.css").read_text(encoding="utf-8")
 APP_MARK = "/* == Print page frame (spec 2026-10-11-print-layout-for-units) == */"
@@ -37,9 +40,13 @@ def _hides_are_important(block):
 
 
 def test_page_margin():
-    # D10: 15mm top/bottom, 25mm left/right so a printed line is about as long
-    # as the on-screen column.
-    assert re.search(r"@page\s*\{\s*margin:\s*15mm 25mm;\s*\}", APP)
+    # Global safe margin for every page; the units' wider sides (D10) live in
+    # the unit-only print header partial so wide non-unit pages keep 180mm.
+    assert re.search(r"@page\s*\{\s*margin:\s*15mm;\s*\}", APP)
+    partial = (ROOT / "templates/courses/_print_page_header.html").read_text(
+        encoding="utf-8"
+    )
+    assert re.search(r"margin:\s*15mm 25mm;", partial)
 
 
 def test_app_block_after_screen_rules():
@@ -101,19 +108,6 @@ ACTION_HIDES = [
     # D8: an opened spoiler's "Hide" toggle is a control, not a marker.
     "details.spoiler[open] > .spoiler__toggle",
 ]
-# D8: gated content prints as the screen shows it, and the button that would
-# reveal more prints as a marker. None of these may be hidden or force-revealed.
-GATE_MARKERS = [
-    ".fillgate__confirm",
-    ".stepper__next",
-    ".switchgate__confirm",
-    "[data-reveal-gate]",
-    ".filltable__confirm",
-]
-STEPPER_REVEALS = [
-    ".stepper.is-stepping [data-stepper-step]:not(.stepper-shown)",
-    ".stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child)",
-]
 
 
 def _courses_block():
@@ -168,44 +162,51 @@ def test_action_hide_names_exist_in_source():
         assert name in src, f"{name} matches nothing in templates/templatetags"
 
 
-def _all_print_blocks(css):
-    """Comment-free text of every `@media print { ... }` block in `css`."""
-    css = _strip_comments(css)
-    out = []
-    for m in re.finditer(r"@media print\s*\{", css):
-        depth, j = 1, m.end()
-        while depth and j < len(css):
-            depth += {"{": 1, "}": -1}.get(css[j], 0)
-            j += 1
-        out.append(css[m.end() : j - 1])
-    return "\n".join(out)
-
-
 def test_no_print_rule_reveals_gated_content():
-    """D8: neither sheet may force unrevealed steps or gated blocks visible."""
-    for css in (APP, COURSES):
-        revealed = _rule_selectors(_all_print_blocks(css), r"display:\s*revert")
-        for sel in STEPPER_REVEALS:
-            assert sel not in revealed, f"{sel} still force-revealed in print"
-        assert not [s for s in revealed if ".reveal-armed" in s], revealed
+    """D8: no print block in either sheet may force unrevealed content visible:
+    no stepper step, no reveal-armed pre-hidden block, no hidden gated child."""
+    printed = all_print_css()
+    revealing = rule_selectors(printed, r"display:\s*(revert|block)")
+    for sel in revealing:
+        assert "stepper-step" not in sel, f"{sel} force-reveals steps in print"
+        assert ".reveal-armed" not in sel, f"{sel} overrides the reveal pre-hide"
+        assert "__child[hidden]" not in sel, f"{sel} un-hides a gated child"
+
+
+# Every gate family's class/attribute name (D8). A print rule whose selector
+# mentions any of these and hides something would hide a marker or the
+# student's gated work -- whatever the exact selector spelling.
+GATE_TOKENS = (
+    "reveal-gate",
+    "fillgate",
+    "switchgate",
+    "filltablegate",
+    "stepper__next",
+)
 
 
 def test_gate_markers_are_not_hidden_in_print():
     """D8: the button that would reveal more prints as the marker."""
-    for css in (APP, COURSES):
-        hidden = _rule_selectors(_all_print_blocks(css), r"display:\s*none")
-        for sel in GATE_MARKERS:
-            assert sel not in hidden, f"gate marker {sel} hidden in print"
-        assert not [s for s in hidden if s.startswith("[data-reveal-gate]")], hidden
+    hidden = rule_selectors(all_print_css(), r"display:\s*none")
+    for sel in hidden:
+        if sel == ".filltable:not([data-filltablegate]) .filltable__confirm":
+            continue  # the NON-gate table's self-check (allowed control)
+        for token in GATE_TOKENS:
+            assert token not in sel, f"print hides gate-related {sel!r}"
+        if "filltable__confirm" in sel:
+            raise AssertionError(f"{sel!r} also hides a gated table's Check")
 
 
 def test_callouts_keep_together():
     """D9: a callout moves whole to the next page rather than leaving its
-    heading alone at the bottom; one taller than a page keeps its header with
-    its first child."""
+    heading alone at the bottom; one taller than a page keeps its heading
+    with its first child. A summary ("W skrócie") callout has no header
+    wrapper -- its h3.callout__title takes that place."""
     _, block = _courses_block()
     assert ".callout" in _rule_selectors(block, r"break-inside:\s*avoid")
-    assert ".callout__header" in _rule_selectors(block, r"break-after:\s*avoid")
+    after = _rule_selectors(block, r"break-after:\s*avoid")
+    assert ".callout__header" in after
+    assert ".callout__title" in after
 
 
 def test_unit_shell_block_is_scoped():

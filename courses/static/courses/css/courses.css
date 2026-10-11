@@ -2909,8 +2909,8 @@ html:not(.ba-js) .ba__toggle,
    gate stays hidden: owner decision D8 prints gated content exactly as the
    screen shows it (see the pre-hide comment above `.reveal-gate[hidden]`).
    The toggle is meaningless ink once both panels show (house precedent:
-   .unit-strip__edit is hidden in print). Placeholder lines keep the count
-   of this comment unchanged so line citations below stay valid.
+   .unit-strip__edit is hidden in print). courses/tests/test_beforeafter_css.py
+   checks that no print block anywhere un-hides a gated `.ba__child`.
    */
 @media print {
   .ba__panel[hidden] { display: block !important; }
@@ -3349,8 +3349,8 @@ html.js .unit-strip__print { display: inline-flex; }
 
 /* == Print layout for units (spec 2026-10-11-print-layout-for-units) == */
 /* ONE print block, appended last, so it follows every screen rule it overrides
-   (`.unit-shell`, `.unit-strip`, `.draft-banner`, the stepper hide, the gallery
-   carousel). Every hide is !important: e.g. app.css's
+   (`.unit-shell`, `.unit-strip`, `.draft-banner`, the gallery carousel).
+   Every hide is !important: e.g. app.css's
    `.guessnumber button[data-guess-check]` outweighs a bare attribute selector
    wherever it sits. */
 @media print {
@@ -3384,10 +3384,11 @@ html.js .unit-strip__print { display: inline-flex; }
 
   /* D9: a callout moves to the next page whole instead of leaving its heading
      stranded at the bottom of one page with its content on the next. A callout
-     taller than a page must still split; its header then stays with the
-     first child. */
+     taller than a page must still split; its heading then stays with the
+     first child. A summary ("W skrócie") callout has no header wrapper: its
+     h3.callout__title stands in that place. */
   .callout { break-inside: avoid; }
-  .callout__header { break-after: avoid; }
+  .callout__header, .callout__title { break-after: avoid; }
 
   /* D6 caps (A4 minus 2 x 15mm = 267mm of content height). The drag stage is
      shrink-to-fit, so capping the <img> scales its width and the percent-placed
