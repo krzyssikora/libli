@@ -82,8 +82,10 @@ A new shared partial `templates/courses/_print_page_header.html`, included from 
 
 - Placement: top-left and top-right, both in the top margin, so the bottom margin stays
   clean. Typography: small (~8pt), secondary grey (`#5A544A`, the light-palette
-  `--text-secondary`; literal because custom properties do not reach margin boxes
-  reliably), the body font family stack.
+  `--text-secondary`), and the body font family stack. Both colour and font stack are
+  written as **literal values** inside the inline `@page` block (the font stack copied
+  verbatim from the body font token in `tokens.css`), never `var(...)`, because custom
+  properties do not reach margin boxes reliably.
 - The page label is a translatable string, `{% trans "Page" %}` → Polish `Strona`, so the
   Polish printout reads `Strona 3 / 7`. The label goes through the same CSS-string escaping
   as the title (it is author-controlled via the `.po` file, and a translator's quote must
@@ -117,8 +119,11 @@ plain string and returns the **inside** of a CSS double-quoted string, marked sa
   unchanged.
 
 Escaping `<` and `>` is what makes `</style>` in an author title inert. The input is first
-passed through `strip_math_delimiters` (an author title like `Funkcja $f(x)=x^2$` must
-read `Funkcja f(x)=x^2` in the header, matching the `<title>` element) and
+passed through `strip_math_delimiters`, which removes only `\(`, `\)`, `\[`, `\]` (an
+author title like `Funkcja \(f(x)=x^2\)` must read `Funkcja f(x)=x^2` in the header,
+matching the `<title>` element; a `$…$` title passes through unchanged, and leftover
+LaTeX backslashes such as `\frac` are expected and are escaped by `css_string`; the filter
+itself is NOT changed, it has other callers) and
 `truncatechars:70`. Order in the template:
 `{{ unit.title|strip_math_delimiters|truncatechars:70|css_string }}`.
 
@@ -129,11 +134,27 @@ New `@media print` rules:
 - In `app.css` (owns the header and `.app-main`):
   `.app-header__spacer, .app-header__cluster { display: none; }`; `.app-header` in print
   gets `padding: 0 0 var(--space-4); background: none; border: 0;`; `.app-main` in print
-  gets `padding: 0; max-width: none;`. So the brand and the article share the 15 mm page
-  edge. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
+  gets `padding: 0; max-width: none;`. The brand sits at the 15 mm page edge; the article
+  keeps its existing screen padding (`.unit-shell__main > .lesson/.quiz`, `1.25rem 1.5rem`,
+  courses.css ~:1075), so its text is inset 1.5rem from the brand. That inset is accepted
+  and not changed. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
   once because the header is in normal flow at the top of the document.
 - Also in `app.css`: Django flash messages (`.app-main > .alert`) → `display: none` in
-  print. They are transient UI feedback, not unit content (D1).
+  print. They are transient UI feedback, not unit content (D1). The selector is the
+  direct-child form on purpose: the quiz **preview** notice
+  (`aside.alert.alert--info[data-quiz-preview-notice]`, inside the article) is also an
+  `.alert` and intentionally **prints**, because it explains what the printout is (an
+  author's preview).
+- Interactive question/quiz controls, in `courses.css` → `display: none` in print:
+  - `.quiz-finish` (the "Finish quiz" form). On a multi-slide quiz it now lives in
+    `.slideshow-bar` (merged #370), which the existing slideshow print block already
+    hides; on a single-slide quiz it sits at the end of the article. The rule hides it in
+    both places.
+  - `.el--question .question__form button[type="submit"]` — every question's
+    Check/Submit button and the reveal button (`_reveal_button.html`, also
+    `type="submit"`), in lessons and quizzes alike.
+  - Kept: `.question__feedback` (the student's verdict, marks and attempts-left line) —
+    that is the student's result, i.e. content of their printout.
 - In `courses.css` (owns the unit shell): `.unit-foot`, `.unit-tree`, `.unit-drawer`,
   `.unit-toc-pin` (all states), the **whole** `.unit-strip` (it holds only the tag panel,
   Print and Edit — see "Open question resolved by the spec" below), and the **whole**
@@ -170,6 +191,7 @@ affected selectors:
   img.cell-img,                  /* table / fill-table cell image (class is on the <img>) */
   .dragimage__stage,             /* drag-to-image board: img + percent-placed badges */
   .el--question { break-inside: avoid; }
+  .el__qnum { break-after: avoid; }  /* quiz "3 / 10" badge stays with its question */
 }
 ```
 
@@ -183,6 +205,7 @@ D6 noun → selector map (the source for the coverage test):
 | gallery frame | `.el--gallery .gallery__item` (frame + description) |
 | dragimage | `.dragimage__stage`; its element root `.el--dragimage` is also `.el--question` |
 | question images / single questions | `.el--question` (covers images in stems and options) |
+| quiz question-number badge | `.el__qnum` (`break-after: avoid`; it is a sibling before `.el--question` in `section[data-element-id]`) |
 
 - **Height caps:** every capped image keeps its existing cap. `.dragimage__img` gets
   `max-height: 170mm` in print. This is safe for the badges: `.dragimage__stage` is
@@ -200,7 +223,9 @@ D6 noun → selector map (the source for the coverage test):
   screen rules:
   `.el--gallery.gallery--js .gallery__stage { position: static !important; min-height: 0 !important; }`,
   `.el--gallery.gallery--js .gallery__item { position: static !important; opacity: 1 !important; transition: none !important; }`
-  plus the same `margin-top: var(--space-4)` gap between items as the no-JS stack,
+  `.el--gallery.gallery--js .gallery__item + .gallery__item { margin-top: var(--space-4); }`
+  (the same gap as the no-JS stack; safe because gallery.js appends `.gallery__bar` after
+  the last item),
   `.el--gallery.gallery--js .gallery__desc { min-height: 0 !important; }`, and
   `.el--gallery .gallery__bar, .el--gallery .gallery__status { display: none !important; }`.
   So every gallery image prints, stacked, each card unsplit.
@@ -249,8 +274,8 @@ Unit / template tests (fast, non-e2e):
 2. Template render of a lesson unit and a quiz unit: the response contains the `@page`
    block with `@top-left` holding the stripped, escaped title, and `@top-right` holding
    `counter(page)` and `counter(pages)`. In Polish (`pl`), the label is `Strona`. A unit
-   with a 200-character title emits a header title of at most 70 characters ending in the
-   ellipsis.
+   with a 200-character title made only of letters and spaces (no character `css_string`
+   escapes) emits a header title of at most 70 characters ending in the ellipsis `…`.
 3. CSS source tests, in the established style of `tests/test_*css*.py`: the `@page` margin
    rule exists in `app.css`; each new print rule appears **after** the screen rule it
    overrides (source-order assertion, the same technique as `test_print_tokens_css.py`);
@@ -262,14 +287,15 @@ Unit / template tests (fast, non-e2e):
 e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 
 4. Lesson unit in print media: `.app-header__cluster`, `.unit-foot`, `.unit-tree`,
-   `.unit-toc-pin`, `.unit-strip`, a flash `.alert`, and (author viewing an unpublished
-   unit) `.draft-banner` are not visible; `.brand` and the crumbs are visible;
+   `.unit-toc-pin`, `.unit-strip`, a flash message (`.app-main > .alert`), a question's
+   Check button, and (author viewing an unpublished unit) `.draft-banner` are not visible; `.brand` and the crumbs are visible;
    `.unit-tree` computes `display: none` and `.unit-shell__main`'s bounding-box left edge
    equals `.unit-shell`'s (no tree track reserved). `emulate_media` keeps the browser
    viewport rather than the A4 page area, so the real page-width layout is covered only by
    the `page.pdf()` check below.
-5. Quiz unit (multi-slide) in print media: same chrome assertions, and **every** question
-   of every slide is visible.
+5. Quiz unit (multi-slide) in print media: same chrome assertions, **every** question of
+   every slide is visible, and neither `.slideshow-bar` nor any `.quiz-finish` is visible.
+   A single-slide quiz: its in-article `.quiz-finish` is not visible.
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
    `.el--question` in print media.
 7. Light **and** dark stored theme for test 4 (dark theme already maps to the light palette
