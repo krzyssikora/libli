@@ -84,9 +84,11 @@ A new shared partial `templates/courses/_print_page_header.html`, included from 
   clean. Typography: small (~8pt), secondary grey (`#5A544A`, the light-palette
   `--text-secondary`), and the body font family stack. Both colour and font stack are
   written as **literal values** inside the inline `@page` block (the font stack copied
-  verbatim from the body font token in `tokens.css`), never `var(...)`, because custom
-  properties do not reach margin boxes reliably.
-- The page label is a translatable string, `{% trans "Page" %}` → Polish `Strona`, so the
+  verbatim from `--font-ui` in `tokens.css`:
+  `"Inter", "libli-dice", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`),
+  never `var(...)`, because custom properties do not reach margin boxes reliably.
+- The page label is a translatable string (bound as described in the next bullet but one,
+  with the `print page counter` context) → Polish `Strona`, so the
   Polish printout reads `Strona 3 / 7`. The label goes through the same CSS-string escaping
   as the title (it is author-controlled via the `.po` file, and a translator's quote must
   not break the rule).
@@ -178,9 +180,9 @@ New `@media print` rules:
   are global, on purpose, like `@page`: every page that extends `base.html` (course page,
   results, dashboards, manage pages) prints without the nav cluster and flash messages
   and with an unpadded main. None of that chrome is useful on paper on any page, and one
-  global rule is simpler than a per-page opt-in. Standalone print pages
-  (`gradebook_print.html`) do not extend `base.html` and are unaffected except for
-  `@page`'s margin, which they get too.
+  global rule is simpler than a per-page opt-in. The standalone gradebook print page
+  (`gradebook_print.html`) neither extends `base.html` nor loads `app.css`, so it is
+  entirely unaffected (including `@page`); no test asserts anything about it.
 - `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
   `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
 - **Not touched:** student notes (`.block-notes`, the unanchored-notes panel). They have a
@@ -313,7 +315,11 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    `.unit-tree` computes `display: none` and `.unit-shell__main`'s bounding-box left edge
    equals `.unit-shell`'s (no tree track reserved). `emulate_media` keeps the browser
    viewport rather than the A4 page area, so the real page-width layout is covered only by
-   the `page.pdf()` check below.
+   the `page.pdf()` check below. The flash message is produced by injecting
+   `<div class="alert alert--info">x</div>` as the first child of `.app-main` via
+   `page.evaluate` before emulating print (this test checks a style rule, not a user
+   flow); the test first asserts the injected `.app-main > .alert` count is 1, then that it
+   is not visible.
 5. Quiz unit (multi-slide) in print media: same chrome assertions, **every** question of
    every slide is visible, and neither `.slideshow-bar` nor any `.quiz-finish` is visible.
    A single-slide quiz: its in-article `.quiz-finish` is not visible.
@@ -323,14 +329,15 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    in print). In both, under print media `.app-header` computes `background-color`
    `rgba(0, 0, 0, 0)`, `background-image` `none`, and `border-bottom-width` `0px` — so the
    hidden header leaves no band.
-10. A lesson with a fill-table, a mark-done element and a stepper in print media:
-   `.filltable__confirm`, `.markdone__save` and `.stepper__next` are not visible.
 8. Drag-to-image question with a tall image (taller than 170 mm at print width) in print
    media: `.dragimage__img` height ≤ 170 mm, and every badge's bounding box lies inside the
    image's bounding box.
 9. A JS-enhanced gallery with ≥3 images in print media: every `.gallery__item` image is
    visible (non-zero box, opacity 1), the items do not overlap, and `.gallery__bar` is not
    visible.
+10. A lesson with a fill-table, a mark-done element and a stepper in print media:
+   `.filltable__confirm`, `.markdone__save` and `.stepper__next` are not visible (each
+   first asserted attached, count ≥ 1).
 
 Visual verification (manual, recorded in the PR): `page.pdf()` of a long lesson with images
 (including a gallery and a unit with a very long title) and of a multi-slide quiz, A4,
