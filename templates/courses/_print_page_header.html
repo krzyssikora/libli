@@ -4,8 +4,11 @@ boxes are Chromium 131+; other engines ignore them silently and keep app.css's
 @page margin. Colour and font are LITERAL because custom properties do not reach
 margin boxes reliably. The title is truncated server-side so the result does not
 depend on the engine honouring text-overflow in a margin box.
+The 25mm sides (D10) are set HERE, not in app.css's global @page, so only unit
+pages get the narrower text block; wide non-unit printouts keep 15mm sides.
 {% endcomment %}{% translate "Page" context "print page counter" as page_label %}<style data-print-page>
 @page {
+  margin: 15mm 25mm;
   @top-left {
     content: "libli · {{ unit.title|strip_math_delimiters|truncatechars:70|css_string }}";
     font-family: "Inter", "libli-dice", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

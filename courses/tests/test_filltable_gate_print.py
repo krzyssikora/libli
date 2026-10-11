@@ -1,64 +1,30 @@
-"""The @media print gate-hiding rule must not swallow a gated fill-table.
+"""No print rule may hide a reveal gate.
 
-For the three control-shaped gate families the node carrying [data-reveal-gate]
-is a button / blanks form / cycler, and hiding it on paper is right. For a
-fill-table that node IS the student's work, so the bare selector would delete
-the whole table from every printout.
+Owner decision D8 (spec 2026-10-11-print-layout-for-units): gated content prints
+exactly as the screen shows it, and an unconsumed gate -- a "Show more" button, a
+fill gate's blanks + Confirm, a switch gate's cycler + Confirm, a gated fill-table
+-- prints as the marker that more content waits behind it. A consumed gate hides
+itself on screen ([hidden] / its own done state), so it is absent on paper too.
+
+The previous rule here (`[data-reveal-gate]:not([data-filltablegate])` hidden in
+print, with the gated fill-table carved out because its node IS the student's
+work) is gone together with the print reveal it paired with.
 """
 
-import re
-from pathlib import Path
+from tests.print_css_kit import all_print_css
 
-CSS = Path("core/static/core/css/app.css").read_text(encoding="utf-8")
-COURSES_CSS = Path("courses/static/courses/css/courses.css").read_text(encoding="utf-8")
-
-
-def _strip_comments(css):
-    # Mirrors courses/tests/test_beforeafter_css.py:14-18. Step 9 adds a CSS
-    # COMMENT directly above the rule these assertions look for, and both
-    # assertions below scan raw text: a comment mentioning the carve-out
-    # selector would satisfy the positive one, and a rewrap that put
-    # `[data-reveal-gate]` at the start of a comment line would falsify the
-    # negative one on a CORRECT build. Strip comments so neither can happen.
-    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+# Comments are stripped by print_css_kit, so a comment mentioning these tokens
+# can neither satisfy nor falsify the assertions; only real rules count.
 
 
-def _print_block(css):
-    m = re.search(r"@media print\s*\{(.*?)\n\}", _strip_comments(css), re.S)
-    assert m, "no @media print block in app.css"
-    return m.group(1)
+def test_no_print_rule_mentions_a_reveal_gate():
+    for token in ("data-reveal-gate", ".reveal-gate", "fillgate", "switchgate"):
+        assert token not in all_print_css(), (
+            f"a print rule targets {token!r}; D8 prints gates as on screen"
+        )
 
 
-def test_courses_css_crossref_clause_stays_inside_its_comment():
-    # Guards Step 10's edit. That clause is appended to a comment whose closing
-    # `*/` sits on the very line being replaced, and a real @media print block
-    # (.ba__panel[hidden] et al) begins on the NEXT line -- so a literal append
-    # after the terminator emits bare text at top level directly above it.
-    #
-    # Deliberately NOT an "@media print block still parses" regex: a comment
-    # terminator is invisible to a regex, so the block would still match on a
-    # broken file and the assertion could not fail. courses.css also holds TEN
-    # @media print blocks, so a first-match regex reads the wrong one anyway.
-    #
-    # Reads COURSES_CSS RAW, deliberately -- do NOT route it through
-    # _strip_comments(), which exists for the app.css assertions below. This
-    # test's whole subject is text INSIDE a comment; stripping them first
-    # would leave it asserting on an empty string.
-    i = COURSES_CSS.index("unit-strip__edit are both hidden in print")
-    terminator = COURSES_CSS.index("*/", i)
-    assert "filltablegate" in COURSES_CSS[i:terminator], (
-        "the fill-table carve-out clause landed AFTER the comment's `*/`, "
-        "emitting bare text above the @media print block on the next line"
+def test_no_print_rule_reveals_prehidden_blocks():
+    assert ".reveal-armed" not in all_print_css(), (
+        "a print rule overrides the reveal-armed pre-hide"
     )
-
-
-def test_print_hide_rule_excludes_the_filltable_gate():
-    block = _print_block(CSS)
-    assert re.search(r"\[data-reveal-gate\]:not\(\[data-filltablegate\]\)\s*\{", block)
-    # ...and the BARE selector is gone. Boundary-anchored (^ under re.M): the rule
-    # starts its own line, so this matches the pre-change text and stops matching
-    # after. `}` closes the preceding revert rule on the line directly above and
-    # is not whitespace, so ^\s* cannot bridge into this rule from earlier.
-    # A lookbehind-on-colon form was tried and is INERT -- it matches nothing in
-    # EITHER state, so it would have been an assertion that could not fail.
-    assert not re.search(r"^\s*\[data-reveal-gate\]\s*\{", block, re.M)

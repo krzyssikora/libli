@@ -23,9 +23,15 @@ never split between two pages.
 | D5 | Running header/footer via @page margin boxes: "libli · <unit title>" (top-left) and page "n / total" (counter(page) / counter(pages)), localised (Polish "Strona n / N" via i18n). Unit title must be emitted per page (inline <style> in the template; title needs CSS-string escaping and strip_math_delimiters). Supported in Chrome/Edge 131+; other browsers gracefully get margins without the header — acceptable. Text "libli" in the margin box, not an image. |
 | D6 | Images must not be split across pages: break-inside: avoid on each image's box incl. its caption (el--image figure, table-cell images, gallery frame, dragimage/question images, float images). Every image-bearing element must have a print height cap that fits an A4 page with the D4 margins (existing caps 45/75/110/170 mm; add caps where missing, e.g. gallery, dragimage). Single questions also break-inside: avoid; long text, callouts and tables flow normally. |
 | D7 | Scope: both lesson units (lesson_unit.html) and quiz units. Verify quiz print shows all questions; if the quiz page needs more than CSS to print sensibly, surface it rather than expanding scope silently. |
+| D8 | (Added after #375, 2026-10-11.) Gated content prints exactly as the screen shows it: whatever the student has not revealed (behind "Show more", a fill gate, a switch gate, a gated fill-table, unreached stepper steps, a closed spoiler) stays hidden on paper. The button that would reveal more prints as the marker that more exists. Buttons that only hide (an opened spoiler's "Hide") do not print. Layout elements (tabs, before/after sides, galleries, slides) still print in full. **Supersedes** §3's "Steppers print every step" and the pre-existing app.css print reveal of reveal-gated blocks. |
+| D9 | (Added 2026-10-11.) A callout is kept on one page (`break-inside: avoid`) so its heading is never left alone at the bottom of a page with its content on the next; a callout taller than a page keeps its header with its first child. **Amends** D6's "callouts … flow normally". |
+| D10 | (Added 2026-10-11.) Left/right page margins are 25 mm (top/bottom stay 15 mm), so a printed line is about as long as the on-screen column. **Amends** D4. |
 
 The user's words when approving: "Lessons and quizzes both, keep breadcrumbs (can be moved
-to header, too), go ahead".
+to header, too), go ahead". On D8: "keep it as the screen shows. If a student wants the full
+content, they should go through it"; "print the button as a marker, yes. However, hide
+buttons like 'hide' when content is revealed." On D9: "I guess the whole callout should be
+moved." On D10: "left and right margins can be increased" (25 mm agreed).
 
 ## Current state (verified on master `17b734da`)
 

@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 
 from courses.models import BeforeAfterElement
+from tests.print_css_kit import all_print_css
 
 COURSES_CSS = "courses/static/courses/css/courses.css"
 APP_CSS = "core/static/core/css/app.css"
@@ -133,20 +134,17 @@ def test_print_carries_the_eyebrow_and_separation_rules():
     assert ".ba__panel + .ba__panel" in block
 
 
-def test_print_child_rule_follows_the_app_css_guard_in_document_order():
-    """Both are `.ba__child[hidden]` at specificity 0-2-0 with !important, so
-    NEITHER specificity nor @media print decides the winner -- only document
-    order does. base.html loads app.css before courses.css, so the print
-    declaration living in courses.css is what makes it win.
+def test_print_does_not_unhide_a_gated_child():
+    """A `.ba__child` carries [hidden] only when a reveal gate inside the panel
+    has not been opened. Owner decision D8 (spec 2026-10-11-print-layout-for-
+    units): gated content prints exactly as the screen shows it, so the print
+    block un-hides the two SIDES (layout) but never a gated child.
 
-    Mutant: move the print block into app.css above :1010 -> the child stays
-    hidden in print.
+    Mutant: restore `.ba__child[hidden] { display: block !important; }` in ANY
+    print block of app.css or courses.css -> unrevealed children print.
     """
-    assert ".ba__child[hidden]" in _print_block(_read(COURSES_CSS))
-    # NOTE: the "moved into app.css" mutant is killed by _blocks()'s
-    # `assert ".ba__panel[hidden]" in printed`, not by a check here -- after Step 3
-    # app.css contains .ba__child[hidden] exactly once, so any count-based branch
-    # would be dead code.
+    assert ".ba__child[hidden]" not in all_print_css()
+    assert ".ba__panel[hidden]" in _print_block(_read(COURSES_CSS))  # sides print
 
 
 def test_no_js_rules_revert_the_same_five_properties():

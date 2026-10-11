@@ -2905,17 +2905,17 @@ html:not(.ba-js) .ba__toggle,
    Print reveals both sides. `display: block !important`, NOT `revert`: revert
    rolls back to the UA origin, which is exactly where [hidden] { display: none }
    lives, so it cannot un-hide an element carrying the attribute.
-   The .ba__child line is here because the shared print block in app.css uses
-   `display: revert !important` and so cannot un-hide a cascade-hidden child --
-   that entry satisfies scope agreement, this one does the work.
+   Only the two SIDES are un-hidden (layout). A `.ba__child` hidden by a reveal
+   gate stays hidden: owner decision D8 prints gated content exactly as the
+   screen shows it (see the pre-hide comment above `.reveal-gate[hidden]`).
    The toggle is meaningless ink once both panels show (house precedent:
-   [data-reveal-gate] and .unit-strip__edit are both hidden in print; a
-   fill-table gate is carved out -- see the :not([data-filltablegate])
-   rule in app.css). */
+   .unit-strip__edit is hidden in print). courses/tests/test_beforeafter_css.py
+   checks that no print block anywhere un-hides a gated `.ba__child`.
+   */
 @media print {
   .ba__panel[hidden] { display: block !important; }
   html.ba-armed .ba__panels > [data-ba-side="after"] { display: block !important; }
-  .ba__child[hidden] { display: block !important; }
+  /* .ba__child[hidden] is NOT un-hidden in print (D8) */
   .ba__toggle { display: none !important; }
   .ba__side-heading {
     position: static !important; width: auto !important; height: auto !important;
@@ -3349,36 +3349,46 @@ html.js .unit-strip__print { display: inline-flex; }
 
 /* == Print layout for units (spec 2026-10-11-print-layout-for-units) == */
 /* ONE print block, appended last, so it follows every screen rule it overrides
-   (`.unit-shell`, `.unit-strip`, `.draft-banner`, the stepper hide, the gallery
-   carousel). Every hide is !important: e.g. app.css's
+   (`.unit-shell`, `.unit-strip`, `.draft-banner`, the gallery carousel).
+   Every hide is !important: e.g. app.css's
    `.guessnumber button[data-guess-check]` outweighs a bare attribute selector
    wherever it sits. */
 @media print {
   /* D1: screen chrome and controls. Kept: .unit-kind-chip, .answer-switch, the
      switch cyclers (their text IS the student's value), .question__feedback,
-     notes, and closed spoilers (they keep their on-screen state). */
+     notes.
+     D8: gated content prints exactly as the screen shows it, so the buttons that
+     would reveal more (.stepper__next, a gate's Confirm, a gated fill-table's
+     Check, a closed spoiler's "Reveal" toggle) are NOT hidden -- they print as
+     the marker that more waits behind them, and hide themselves on screen once
+     used. Only an OPENED spoiler's toggle (it reads "Hide") is a pure control.
+     The non-gate fill-table's Check is a self-check control, so it is hidden. */
   .unit-foot, .unit-tree, .unit-drawer, .unit-strip, .draft-banner,
   .unit-done, .lesson-unit__reset,
   .quiz-finish, .quiz-results > .btn,
   .el--question .question__form button[type="submit"],
-  .filltable__confirm, .markdone__save, .fillgate__confirm, .stepper__next,
-  .switchgate__confirm, .switchgrid__confirm, [data-guess-check] { display: none !important; }
+  .filltable:not([data-filltablegate]) .filltable__confirm, .markdone__save,
+  .switchgrid__confirm, [data-guess-check],
+  details.spoiler[open] > .spoiler__toggle { display: none !important; }
 
   /* Block flow, scoped by attribute: manage/review_submission.html reuses the
      bare `.unit-shell` wrapper for its own two-column layout. */
   [data-unit-shell], [data-unit-shell] > .unit-shell__main { display: block; }
 
-  /* Steppers print every step (reveal-gate precedent). First selector: after
-     stepper.js boots; second: lesson_unit.html's pre-boot `.stepper-armed` hide. */
-  .stepper.is-stepping [data-stepper-step]:not(.stepper-shown),
-  .stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child) { display: revert !important; }
-
   /* D6: never split an image (with its caption) or a single question. Long
-     text, callouts and tables flow normally. img.cell-img is an atomic box
-     anyway; listed for coverage. */
+     text and tables flow normally. img.cell-img is an atomic box anyway;
+     listed for coverage. */
   .el--image, .el--gallery .gallery__item, img.cell-img, .dragimage__stage,
   .el--question, .quiz-results__item { break-inside: avoid; }
   .el__qnum { break-after: avoid; }
+
+  /* D9: a callout moves to the next page whole instead of leaving its heading
+     stranded at the bottom of one page with its content on the next. A callout
+     taller than a page must still split; its heading then stays with the
+     first child. A summary ("W skrócie") callout has no header wrapper: its
+     h3.callout__title stands in that place. */
+  .callout { break-inside: avoid; }
+  .callout__header, .callout__title { break-after: avoid; }
 
   /* D6 caps (A4 minus 2 x 15mm = 267mm of content height). The drag stage is
      shrink-to-fit, so capping the <img> scales its width and the percent-placed

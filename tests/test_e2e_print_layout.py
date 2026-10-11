@@ -291,8 +291,10 @@ def test_single_slide_quiz_finish_hidden(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_action_buttons_hidden_and_stepper_prints_all(page, live_server):
-    """Spec test 10."""
+def test_action_buttons_hidden_and_stepper_prints_as_screen(page, live_server):
+    """Spec test 10, as amended by D8: the non-gate fill-table Check and Start
+    fresh are hidden; the stepper prints only the steps reached, with its
+    "Show next" button as the marker that more steps exist."""
     from courses.models import FillTableElement
     from courses.models import MarkDoneElement
     from courses.models import MarkDoneItem
@@ -348,9 +350,106 @@ def test_action_buttons_hidden_and_stepper_prints_all(page, live_server):
     assert [steps.nth(i).is_visible() for i in range(3)] == [True, False, False]
 
     page.emulate_media(media="print")
-    for sel in (".filltable__confirm", ".stepper__next", ".lesson-unit__reset"):
+    for sel in (".filltable__confirm", ".lesson-unit__reset"):
         _hidden(page, sel)
-    _shown(page, "[data-stepper-step]")
+    _shown(page, ".stepper__next")  # D8: the marker prints
+    assert [steps.nth(i).is_visible() for i in range(3)] == [True, False, False]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reveal_gate_prints_as_screen(page, live_server):
+    """D8: content behind an unclicked "Show more" stays hidden on paper and the
+    button prints as the marker; after the click, the revealed content prints
+    and the consumed button does not."""
+    from courses.models import RevealGateElement
+    from courses.models import TextElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    add_element(unit, TextElement.objects.create(body="<p>intro block</p>"))
+    add_element(unit, RevealGateElement.objects.create(label="Reveal A"))
+    add_element(unit, TextElement.objects.create(body="<p>block B</p>"))
+    user = _student("gate-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    gate = page.get_by_role("button", name="Reveal A")
+    gate.wait_for(state="visible")
+    assert not page.get_by_text("block B").is_visible()
+
+    page.emulate_media(media="print")
+    assert gate.is_visible(), "unclicked gate must print as the marker"
+    assert not page.get_by_text("block B").is_visible(), "gated block printed"
+
+    page.emulate_media(media="screen")
+    gate.click()
+    page.get_by_text("block B").wait_for(state="visible")
+    page.emulate_media(media="print")
+    assert page.get_by_text("block B").is_visible()
+    assert not gate.is_visible(), "consumed gate printed"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_spoiler_toggle_prints_only_while_closed(page, live_server):
+    """D8: a closed spoiler prints its "Reveal" toggle and not its body; an
+    opened one prints its body and not its "Hide" toggle."""
+    from courses.models import SpoilerElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    add_element(
+        unit, SpoilerElement.objects.create(label="Reveal", body="<p>SECRET</p>")
+    )
+    user = _student("spoil-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    toggle = page.locator("details.spoiler > .spoiler__toggle")
+    toggle.wait_for(state="visible")
+
+    page.emulate_media(media="print")
+    assert toggle.is_visible(), "closed spoiler's Reveal toggle must print"
+    assert not page.get_by_text("SECRET").is_visible()
+
+    page.emulate_media(media="screen")
+    toggle.click()
+    page.get_by_text("SECRET").wait_for(state="visible")
+    _shown(page, "details.spoiler[open] > .spoiler__toggle")
+    page.emulate_media(media="print")
+    _hidden(page, "details.spoiler[open] > .spoiler__toggle")
+    assert page.get_by_text("SECRET").is_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_callout_keeps_together_in_print(page, live_server):
+    """D9 (cascade check; the PDF check covers real pagination)."""
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import TextElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    callout = CalloutElement.objects.create(kind="example")
+    join = add_element(unit, callout)
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>inside</p>"),
+        parent=join,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    user = _student("callout-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".callout__header")
+    page.emulate_media(media="print")
+    breaks = page.evaluate(
+        """() => [
+          getComputedStyle(document.querySelector('.callout')).breakInside,
+          getComputedStyle(document.querySelector('.callout__header')).breakAfter,
+        ]"""
+    )
+    assert breaks == ["avoid", "avoid"], breaks
 
 
 def _png(size, rgb=(90, 120, 200)):
