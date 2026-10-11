@@ -246,7 +246,7 @@ New `@media print` rules:
   `_unit_shell.html` carries `data-unit-shell`; the teacher review-submission page
   (`manage/review_submission.html`) reuses the bare `.unit-shell` wrapper for its own
   two-column roster layout and must keep it, so a bare `.unit-shell` selector is not
-  allowed here. This makes the content is paginated as normal block flow rather than as
+  allowed here. This makes the content paginate as normal block flow rather than as
   flex items, whose fragmentation and `break-inside` support has historically been weaker
   in some engines. Non-Chromium pagination is otherwise not checked (the manual PDF check
   is Chromium-only).
@@ -427,7 +427,7 @@ Unit / template tests (fast, non-e2e):
    contains the exact expected `@top-left` content **and** the `@top-right` rule with
    `counter(pages)` — if a title's `</style>` leaked unescaped, the block would end early
    and those would be missing. With the UI
-   language set to Polish, the label is `Strona`. These are test-client renders, and
+   language set to Polish, the `@top-right` content inside the same `<style data-print-page>` slice is exactly `"Strona " counter(page) " / " counter(pages)`; in the default English render it is exactly `"Page " counter(page) " / " counter(pages)`. These are test-client renders, and
    `LanguageSeederMiddleware`/`SessionLocaleMiddleware` activate a language on every
    request, so `translation.override` around `client.get(...)` does **not** work. The test
    POSTs `language=pl` to `core:set_ui_language` first, then GETs the page. A unit
