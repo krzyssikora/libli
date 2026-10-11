@@ -386,8 +386,10 @@ Unit / template tests (fast, non-e2e):
    contains the exact expected `@top-left` content **and** the `@top-right` rule with
    `counter(pages)` — if a title's `</style>` leaked unescaped, the block would end early
    and those would be missing. With the UI
-   language set to Polish (`translation.override("pl")` around the render, or the
-   `set_ui_language` endpoint in a client test), the label is `Strona`. A unit
+   language set to Polish, the label is `Strona`. These are test-client renders, and
+   `LanguageSeederMiddleware`/`SessionLocaleMiddleware` activate a language on every
+   request, so `translation.override` around `client.get(...)` does **not** work. The test
+   POSTs `language=pl` to `core:set_ui_language` first, then GETs the page. A unit
    with a 200-character title made only of letters and spaces (no character `css_string`
    escapes) emits a header title of at most 70 characters ending in the ellipsis `…`.
 3. CSS source tests, in the established style of `tests/test_*css*.py`: the `@page` margin
