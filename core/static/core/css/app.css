@@ -1519,20 +1519,20 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .reveal-gate[hidden] { display: none !important; }
 .lesson-block[hidden], .tabs__child[hidden], .ba__child[hidden] { display: none !important; }
 
-/* Pre-hide is emitted render-blocking in the lesson <head> (see lesson_unit.html);
-   these rules support the reveal + print sides. */
-@media print {
-  .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block,
-  .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child,
-  .reveal-armed .spoiler__children > .spoiler__child:has(> [data-reveal-gate]) ~ .spoiler__child,
-  .reveal-armed .callout__children > .callout__child:has(> [data-reveal-gate]) ~ .callout__child,
-  .reveal-armed .ba__panel > .ba__child:has(> [data-reveal-gate]) ~ .ba__child {
-    display: revert !important;
-  }
-  /* A fill-table gate's marked node IS the student's work, not a control, so it
-     must survive printing. The other three families are buttons/forms/cyclers. */
-  [data-reveal-gate]:not([data-filltablegate]) { display: none !important; }
-}
+/* Pre-hide is emitted render-blocking in the lesson <head> (see lesson_unit.html).
+   PRINT: deliberately NO print rule here. Owner decision D8 (spec
+   2026-10-11-print-layout-for-units): gated content prints exactly as the screen
+   shows it. The pre-hide is not media-scoped, so blocks the student has not
+   revealed stay hidden on paper too, and an unconsumed gate (a "Show more"
+   button, a fill gate's blanks + Confirm, a switch gate's cycler + Confirm, a
+   gated fill-table) prints as the marker that more content waits behind it.
+   A consumed gate hides itself on screen ([hidden] or its done state), so it
+   is absent on paper as well. A print rule that reverted the pre-hide and hid
+   every gate used to live here; it printed answers the student had not
+   reached. courses/tests/test_filltable_gate_print.py and
+   courses/tests/test_reveal_scope_agreement.py keep it from coming back.
+   (Same line count as the removed rule, so citations below stay valid.)
+*/
 
 /* Fill gate — a fill-the-blank(s) question wrapped in the same reveal-gate
    mechanics as "Show more", but consumed by a correct Confirm instead of a
@@ -2635,7 +2635,7 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    `.app-header`, `.app-header__cluster` and `.app-main` screen rule, including the
    max-width: 640px block (print on small paper matches it). Every hide is
    !important so position and specificity never decide it. */
-@page { margin: 15mm; }
+@page { margin: 15mm 25mm; } /* D10: a printed line about as long as the screen column */
 @media print {
   /* Paper stays white when "Background graphics" is on (the screen body is beige). */
   html, body { background: #fff !important; }

@@ -37,7 +37,9 @@ def _hides_are_important(block):
 
 
 def test_page_margin():
-    assert re.search(r"@page\s*\{\s*margin:\s*15mm;\s*\}", APP)
+    # D10: 15mm top/bottom, 25mm left/right so a printed line is about as long
+    # as the on-screen column.
+    assert re.search(r"@page\s*\{\s*margin:\s*15mm 25mm;\s*\}", APP)
 
 
 def test_app_block_after_screen_rules():
@@ -90,13 +92,23 @@ CHROME_HIDES = [
     '.el--question .question__form button[type="submit"]',
 ]
 ACTION_HIDES = [
-    ".filltable__confirm",
+    # Only the NON-gate fill table's Check is a control; a gated table's Check is
+    # the marker that more content waits behind it (D8).
+    ".filltable:not([data-filltablegate]) .filltable__confirm",
     ".markdone__save",
+    ".switchgrid__confirm",
+    "[data-guess-check]",
+    # D8: an opened spoiler's "Hide" toggle is a control, not a marker.
+    "details.spoiler[open] > .spoiler__toggle",
+]
+# D8: gated content prints as the screen shows it, and the button that would
+# reveal more prints as a marker. None of these may be hidden or force-revealed.
+GATE_MARKERS = [
     ".fillgate__confirm",
     ".stepper__next",
     ".switchgate__confirm",
-    ".switchgrid__confirm",
-    "[data-guess-check]",
+    "[data-reveal-gate]",
+    ".filltable__confirm",
 ]
 STEPPER_REVEALS = [
     ".stepper.is-stepping [data-stepper-step]:not(.stepper-shown)",
@@ -138,6 +150,9 @@ def test_action_hide_names_exist_in_source():
     src = TEMPLATES + EXTRAS
     for name in [
         "filltable__confirm",
+        "data-filltablegate",
+        "spoiler__toggle",
+        "callout__header",
         "markdone__save",
         "fillgate__confirm",
         "stepper__next",
@@ -153,11 +168,44 @@ def test_action_hide_names_exist_in_source():
         assert name in src, f"{name} matches nothing in templates/templatetags"
 
 
-def test_stepper_reveal_covers_post_and_pre_boot():
+def _all_print_blocks(css):
+    """Comment-free text of every `@media print { ... }` block in `css`."""
+    css = _strip_comments(css)
+    out = []
+    for m in re.finditer(r"@media print\s*\{", css):
+        depth, j = 1, m.end()
+        while depth and j < len(css):
+            depth += {"{": 1, "}": -1}.get(css[j], 0)
+            j += 1
+        out.append(css[m.end() : j - 1])
+    return "\n".join(out)
+
+
+def test_no_print_rule_reveals_gated_content():
+    """D8: neither sheet may force unrevealed steps or gated blocks visible."""
+    for css in (APP, COURSES):
+        revealed = _rule_selectors(_all_print_blocks(css), r"display:\s*revert")
+        for sel in STEPPER_REVEALS:
+            assert sel not in revealed, f"{sel} still force-revealed in print"
+        assert not [s for s in revealed if ".reveal-armed" in s], revealed
+
+
+def test_gate_markers_are_not_hidden_in_print():
+    """D8: the button that would reveal more prints as the marker."""
+    for css in (APP, COURSES):
+        hidden = _rule_selectors(_all_print_blocks(css), r"display:\s*none")
+        for sel in GATE_MARKERS:
+            assert sel not in hidden, f"gate marker {sel} hidden in print"
+        assert not [s for s in hidden if s.startswith("[data-reveal-gate]")], hidden
+
+
+def test_callouts_keep_together():
+    """D9: a callout moves whole to the next page rather than leaving its
+    heading alone at the bottom; one taller than a page keeps its header with
+    its first child."""
     _, block = _courses_block()
-    revealed = _rule_selectors(block, r"display:\s*revert\s*!important")
-    for sel in STEPPER_REVEALS:
-        assert sel in revealed
+    assert ".callout" in _rule_selectors(block, r"break-inside:\s*avoid")
+    assert ".callout__header" in _rule_selectors(block, r"break-after:\s*avoid")
 
 
 def test_unit_shell_block_is_scoped():
