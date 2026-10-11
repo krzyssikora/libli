@@ -152,7 +152,7 @@ itself is NOT changed, it has other callers) and
 New `@media print` rules:
 
 - In `app.css` (owns the header and `.app-main`):
-  `.app-header__spacer, .app-header__cluster { display: none; }`; `.app-header` in print
+  `.app-header__spacer, .app-header__cluster { display: none !important; }`; `.app-header` in print
   gets `padding: 0 0 var(--space-4); background: none; border: 0;`; `.app-main` in print
   gets `padding: 0; max-width: none;`. The brand sits at the 15 mm page edge; the article
   keeps its existing screen padding (`.unit-shell__main > .lesson/.quiz`, `1.25rem 1.5rem`,
@@ -166,7 +166,7 @@ New `@media print` rules:
   transient UI feedback, not unit content (D1). They are marked, not matched by position:
   the flash loop in `base.html` (`{% for message in messages %}`) gets an extra class,
   `alert alert--flash alert--{{ message.tags }}`, and the print rule is
-  `.alert--flash { display: none; }`. A positional selector such as `.app-main > .alert`
+  `.alert--flash { display: none !important; }`. A positional selector such as `.app-main > .alert`
   is not used because pages also place persistent content alerts as direct children of
   `.app-main` (e.g. `support/manage/report_detail.html`'s "Not emailed" warning), and
   those must keep printing. Likewise the quiz **preview** notice
@@ -236,8 +236,9 @@ New `@media print` rules:
 - Weight of the `.unit-drawer` hide: `courses.css` ~:1405 has
   `.unit-drawer:not([hidden]) { display: block; position: fixed; … }` (0,2,0) inside
   `@media (max-width: 640px)`, which matches in print on small paper (print media is
-  evaluated against the page area). The print rule is therefore
-  `.unit-drawer, .unit-drawer:not([hidden]) { display: none; }`, placed after ~:1405.
+  evaluated against the page area). The print rule `.unit-drawer { display: none
+  !important; }` beats it regardless of weight or position (see the `!important` rule for
+  hides below).
 - `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
   `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
   Both are also set to `display: block` in print, **scoped to the unit shell**:
@@ -254,22 +255,37 @@ New `@media print` rules:
   student's own notes beside the content they annotate. Notes are the student's work on the
   content, so they stay; tags are a navigation/filing aid, so they go.
 
-Each new print block sits **after** every screen rule it overrides (media queries add no
+**Every new print hide is `display: none !important`.** That covers the header
+spacer/cluster, `.alert--flash`, `.unit-foot`, `.unit-tree`, `.unit-drawer`,
+`.unit-strip`, `.draft-banner`, `.unit-done`, `.lesson-unit__reset`, `.quiz-finish`,
+`.quiz-results > .btn`, the question submit buttons, the action-button list, and the
+gallery bar/status. Hand-matching every hide against every screen `display` rule's
+position and specificity is fragile. One example: `.guessnumber button[data-guess-check]`
+(`app.css` ~:2114, (0,2,1)) beats a bare `[data-guess-check]` wherever it sits, and
+`.unit-strip` (~:3117) and `.draft-banner` (~:3177) sit late in `courses.css`. The
+codebase already uses `!important` in its print blocks (tabs, before/after, reveal
+gates), and no screen rule sets a competing `display: … !important` on any of these
+selectors (the only `!important` ones are `[hidden]` → `display: none`, which agree). So
+hides need no source-order or specificity bookkeeping. Test 3 asserts that every
+`display: none` declaration in the new print blocks carries `!important`.
+
+The non-hide print rules (layout, caps, reveals) do depend on the cascade. Each of them
+sits **after** every screen rule it overrides (media queries add no
 specificity; this codebase has been bitten by that repeatedly — see the comments at
 `courses.css` ~:166 and ~:1527). Selector weight must match or exceed the screen rule it
 overrides; where a screen rule is a state-gated reveal (like the TOC pin's
 `html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin`), the print rule matches
 that weight.
 
-Source-order pairs (each new print rule must come after **every** listed screen rule;
-test 3 checks each pair; line numbers are approximate, from master `17b734da`):
+Source-order pairs for the **non-hide** print rules (each must come after **every**
+listed screen rule; test 3 checks each pair; line numbers are approximate, from master
+`17b734da`):
 
 | New print selector | Screen rule(s) it must follow |
 |---|---|
 | `.app-main` | `app.css` ~:34 (base) and ~:304 (`@media (max-width: 640px)`) |
 | `.app-header` | `app.css` ~:22 (base) and ~:303 (`max-width: 640px`) |
 | `[data-unit-shell]`, `[data-unit-shell] > .unit-shell__main` | `courses.css` ~:1072 (base) and ~:1393 (`max-width: 640px`) |
-| `.unit-drawer`, `.unit-drawer:not([hidden])` | `courses.css` ~:1405 |
 | `.dragimage__img` cap | `courses.css` ~:901 |
 | stepper step reveal | `courses.css` ~:2932 |
 | gallery `--js` reset + frame cap | `courses.css` ~:2366–2378 and ~:2402–2404 |
@@ -278,7 +294,7 @@ The test anchors each pair on selector text, not line numbers.
 
 **Open question resolved by the spec:** the unit strip's tag chips (`.unit-tags`) are the
 student's own tags on the unit, which is personal metadata, not unit content. They are
-hidden in print with the rest of the strip: `@media print { .unit-strip { display: none; } }`. (Reviewer: if you disagree, the D1
+hidden in print with the rest of the strip: `@media print { .unit-strip { display: none !important; } }`. (Reviewer: if you disagree, the D1
 wording "only the unit's content" is the deciding text.)
 
 ### 4. Keeping images and questions whole (D6)
@@ -359,7 +375,7 @@ This page is the printout of a submitted quiz (see §1). Beyond the running head
 
 - **Chrome:** it includes `_unit_strip.html` (hidden by §3's `.unit-strip` rule) and ends
   with a "Back to course" link `a.btn.btn--ghost`, a direct child of
-  `article.quiz-results` → `.quiz-results > .btn { display: none; }` in print.
+  `article.quiz-results` → `.quiz-results > .btn { display: none !important; }` in print.
 - **D6:** each result row is `li.quiz-results__item`. Rows for reveal-capable questions
   wrap a rendered `.el--question`; rows for other questions render stem, badge, feedback
   and explanation directly in the `<li>` with no `.el--question`. So
