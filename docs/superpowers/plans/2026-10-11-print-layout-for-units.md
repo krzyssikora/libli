@@ -175,7 +175,7 @@ def css_string(value):
             out.append(f"\\{cp:x} ")
         else:
             out.append(ch)
-    return mark_safe("".join(out))  # noqa: S308 — every special/control char is hex-escaped
+    return mark_safe("".join(out))  # noqa: S308 — specials hex-escaped
 ```
 
 - [ ] **Step 5: Run to verify they pass**
@@ -186,6 +186,7 @@ Expected: all PASS (grep the summary line for `passed`, not just the exit code).
 - [ ] **Step 6: Lint + commit**
 
 ```bash
+uv run ruff format courses/templatetags/courses_extras.py tests/test_css_string_filter.py
 uv run ruff check --no-cache courses/templatetags/courses_extras.py tests/test_css_string_filter.py
 uv run ruff format --check courses/templatetags/courses_extras.py tests/test_css_string_filter.py
 git add courses/templatetags/courses_extras.py tests/test_css_string_filter.py
@@ -311,12 +312,16 @@ def test_header_uses_literal_typography(client):
 
 
 def test_flash_messages_carry_marker_class():
-    base = (Path(__file__).resolve().parent.parent / "templates/base.html").read_text(
-        encoding="utf-8"
-    )
-    assert 'class="alert alert--flash alert--{{ message.tags }}"' in base
+    """RENDER the flash loop: a source grep passes even in a dead branch."""
+    from django.contrib.messages import constants
+    from django.contrib.messages.storage.base import Message
+    from django.template.loader import render_to_string
+
+    html = render_to_string("base.html", {"messages": [Message(constants.INFO, "Hi")]})
+    assert 'class="alert alert--flash alert--info">Hi</div>' in html
 ```
 
+`test_flash_messages_carry_marker_class` renders `base.html` without a request (no context processors run; anonymous branches render). If that render raises on a context-processor-only variable, instead log in with `make_login`, POST the settings form at `core:user_settings` (it calls `messages.success`), follow the redirect, and assert `'class="alert alert--flash alert--success"'` in the final response. Remove the now-unused `Path` import if ruff flags it.
 Check `make_login`'s signature in `tests/factories.py` (it takes `(client, username)` and returns the logged-in user). If `quiz_unit` redirects a submitted quiz, the `submitted=True` path deliberately GETs `quiz_results` directly.
 
 - [ ] **Step 2: Run to verify they fail**
@@ -394,7 +399,7 @@ git diff --stat locale/
 - [ ] **Step 7: Run to verify they pass**
 
 Run: `uv run pytest tests/test_print_page_header.py tests/test_print_button_template.py`
-Then the catalog hygiene tests: `uv run pytest -k "catalog or fuzzy or obsolete or i18n"`
+Then the catalog hygiene tests: `uv run pytest tests/test_i18n_po_health.py`
 Expected: all PASS.
 
 - [ ] **Step 8: Commit**
@@ -427,7 +432,7 @@ Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6"
 Create `tests/test_print_layout_css.py`:
 
 ```python
-"""Source tests for the unit print layout (spec 2026-10-11-print-layout-for-units, test 3).
+"""Source tests for the unit print layout (spec test 3).
 
 Both new blocks are APPENDED to their sheets and found by their marker comment,
 so each screen rule they override is provably earlier in the file.
@@ -438,7 +443,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = (ROOT / "core/static/core/css/app.css").read_text(encoding="utf-8")
-APP_MARK = "/* == Print page frame (spec 2026-10-11-print-layout-for-units) == */"
+APP_MARK = (
+    "/* == Print page frame "
+    "(spec 2026-10-11-print-layout-for-units) == */"
+)
 
 
 def _strip_comments(css):
@@ -567,12 +575,14 @@ def _url(live_server, name, unit):
 
 
 def _inject_alerts(page):
-    """A flash (hidden in print) and a content alert (printed), both direct children of .app-main."""
+    """Inject a flash (hidden in print) and a content alert (printed) into .app-main."""
     page.evaluate(
         """() => {
           const m = document.querySelector('.app-main');
           const p = document.createElement('p');
-          p.className = 'alert alert--warning'; p.id = 'content-alert'; p.textContent = 'y';
+          p.className = 'alert alert--warning';
+          p.id = 'content-alert';
+          p.textContent = 'y';
           m.prepend(p);
           const d = document.createElement('div');
           d.className = 'alert alert--flash alert--info'; d.textContent = 'x';
@@ -700,7 +710,10 @@ Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6"
 
 ```python
 COURSES = (ROOT / "courses/static/courses/css/courses.css").read_text(encoding="utf-8")
-COURSES_MARK = "/* == Print layout for units (spec 2026-10-11-print-layout-for-units) == */"
+COURSES_MARK = (
+    "/* == Print layout for units "
+    "(spec 2026-10-11-print-layout-for-units) == */"
+)
 TEMPLATES = "\n".join(
     p.read_text(encoding="utf-8") for p in (ROOT / "templates/courses").rglob("*.html")
 )
@@ -818,16 +831,22 @@ def test_lesson_unit_chrome_hidden(page, live_server):
     assert page.evaluate("getComputedStyle(document.querySelector('.unit-tree')).display") == "none"
     _shown(page, ".unit-crumbs")
     _shown(page, ".unit-kind-chip")
-    shell_x, main_x = page.evaluate(
-        """() => [document.querySelector('[data-unit-shell]').getBoundingClientRect().left,
-                  document.querySelector('[data-unit-shell] > .unit-shell__main').getBoundingClientRect().left]"""
+    shell_x, main_x, shell_display = page.evaluate(
+        """() => {
+          const shell = document.querySelector('[data-unit-shell]');
+          const main = shell.querySelector(':scope > .unit-shell__main');
+          return [shell.getBoundingClientRect().left,
+                  main.getBoundingClientRect().left,
+                  getComputedStyle(shell).display];
+        }"""
     )
-    assert abs(shell_x - main_x) <= 1, (shell_x, main_x)
+    assert abs(shell_x - main_x) <= 1, (shell_x, main_x)  # covers the tree hide
+    assert shell_display == "block"  # covers the block-flow rule itself
 
 
 @pytest.mark.django_db(transaction=True)
 def test_toc_pin_hidden_in_print_when_collapsed(page, live_server):
-    """Pre-existing coverage kept for completeness (spec §3): NOT evidence for new rules."""
+    """Pre-existing coverage, kept for completeness (spec §3); not new-rule evidence."""
     course, unit, user = _lesson("pin-stu")
     page.set_viewport_size(VIEWPORT)
     _login(page, live_server, user)
@@ -1174,7 +1193,11 @@ def test_tall_dragimage_capped_and_badges_aligned(page, live_server):
             return {cx: r.left + r.width / 2, cy: r.top + r.height / 2,
                     x: parseFloat(b.dataset.x), y: parseFloat(b.dataset.y)};
           });
-          return {img: [img.left, img.top, img.width, img.height], stageW: st.width, badges};
+          return {
+            img: [img.left, img.top, img.width, img.height],
+            stageW: st.width,
+            badges,
+          };
         }"""
     )
     left, top, w, h = geo["img"]
@@ -1262,7 +1285,7 @@ def test_quiz_results_chrome_and_row_break(page, live_server):
 uv run pytest tests/test_print_layout_css.py
 uv run pytest -m e2e tests/test_e2e_print_layout.py -k "break_inside or dragimage or gallery or quiz_results"
 ```
-Expected: FAIL (`missing from break-inside`, `h > 642`, overlapping gallery items, `row_break == "auto"`). `test_quiz_results_chrome_and_row_break`'s `.unit-strip` / `.btn` hides are already green from Task 4 — the `row_break` assertion is the new red.
+Expected: FAIL (`missing from break-inside`; `h > 642` in the dragimage test; the gallery test fails FIRST at `.el--gallery .gallery__bar[0] still visible in print`, before its overlap check; `row_break == "auto"`). `test_quiz_results_chrome_and_row_break`'s `.unit-strip` / `.btn` hides are already green from Task 4 — the `row_break` assertion is the new red.
 
 - [ ] **Step 4: Implement** — insert INSIDE the Task 4 `@media print` block, after the stepper rule, before the closing `}`:
 
@@ -1316,7 +1339,7 @@ Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6"
 
 ### Task 6: Visual verification with real PDFs + mutation check
 
-**Files:** none committed. Scratch only: `C:\Users\krzys\AppData\Local\Temp\claude\C--Users-krzys-Documents-Python-own-libli\dfdb22bc-bd2e-491e-b305-c6349e51118a\scratchpad\print-pdfs\`.
+**Files:** nothing committed UNLESS Step 3 finds a defect (then see Step 3b). Scratch only: `C:\Users\krzys\AppData\Local\Temp\claude\C--Users-krzys-Documents-Python-own-libli\dfdb22bc-bd2e-491e-b305-c6349e51118a\scratchpad\print-pdfs\`.
 
 - [ ] **Step 1: Falsify the key tests (they must go RED on a broken build)**
 
@@ -1329,16 +1352,23 @@ Run `git diff` after each restore: it must be empty for the touched file.
 
 - [ ] **Step 2: Generate PDFs**
 
-Write a TEMPORARY `tests/test_zz_print_pdfs.py` (it must live under `tests/` to get the repo conftest, `live_server` and DB setup; run it with `uv run pytest -m e2e tests/test_zz_print_pdfs.py`; write PDFs into the scratchpad `print-pdfs/` dir; delete the file before any commit and confirm with `git status`) that builds, logs in and calls `page.pdf(path=…, format="A4", print_background=False)` for:
+Write a TEMPORARY `tests/test_zz_print_pdfs.py` (it must live under `tests/` to get the repo conftest, `live_server` and DB setup; run it with `uv run pytest -m e2e tests/test_zz_print_pdfs.py`; write PDFs into the scratchpad `print-pdfs/` dir; delete the file before any commit and confirm with `git status`). Start it by copying the module header of `tests/test_e2e_print_layout.py` verbatim — `pytestmark = pytest.mark.e2e` (without it `-m e2e` selects nothing and no PDF is written), the `_allow_async_unsafe` and `_isolated_media` fixtures, `_login`, `_student`, `_url`, `_png`. Each test builds, logs in and calls `page.pdf(path=…, format="A4", print_background=True)` — background graphics ON, so a leaked dark surface would actually show — for:
 - a long lesson: 15 paragraphs, a `full` image, a `medium` float-right image placed after ~6 paragraphs (near a page boundary), a 3-image gallery, a tall drag-to-image question, a stepper, a 200-character title;
 - the same lesson as `format="A5"`;
 - a 3-slide quiz;
 - a submitted quiz's results page;
-- the lesson in the dark stored theme.
+- the lesson in the dark stored theme (and the same lesson in light, as its control).
+
+After the run, list `print-pdfs/` and confirm every expected PDF exists and is non-empty before inspecting.
 
 - [ ] **Step 3: Inspect every PDF**
 
-Open each with the Read tool (it renders PDF pages). Check and write down, per PDF: running header `libli · …` top-left and `Page n / N` top-right on EVERY page; margins ≈ 15 mm; no image or question split across a page boundary; no header nav, footer bar, tags strip, buttons; gallery shows all 3 images; all stepper steps present; A5 shows no drawer; dark-theme PDF is dark-on-white. Any defect → fix in CSS, add a test that pins it, re-run Tasks 3–5 test commands.
+Open each with the Read tool (it renders PDF pages). Check and write down, per PDF: running header `libli · …` top-left and `Page n / N` top-right on EVERY page; margins ≈ 15 mm; no image or question split across a page boundary; no header nav, footer bar, tags strip, buttons; gallery shows all 3 images; all stepper steps present; A5 shows no drawer; dark-theme PDF is dark-on-white with no dark fills (it should match its light control). Any defect → Step 3b.
+
+- [ ] **Step 3b (only if Step 3 found a defect): fix, pin, commit**
+
+Fix the CSS (inside the existing print blocks), add a test to `tests/test_print_layout_css.py` or `tests/test_e2e_print_layout.py` that fails without the fix, re-run Tasks 3–5's test commands plus every `test_*css*.py`, run the lint gate on the touched test files, then commit with explicit paths:
+`git add <css file(s)> <test file(s)>` and `git commit -m "fix(print): <defect>"` with the two trailer lines. Regenerate and re-inspect the affected PDF.
 
 - [ ] **Step 4: Record**
 
