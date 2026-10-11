@@ -711,6 +711,8 @@ def course_outline(request, slug):
             ),
             "has_math": has_math,
             "resume": resume,
+            # Gates the course-level "Start fresh": no saved work, nothing to clear.
+            "has_saved_work": any(item["has_state"] for item in outline),
         },
     )
 

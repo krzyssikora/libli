@@ -12,7 +12,7 @@
             data-label-collapse="{% trans 'Collapse all' %}"></button>
     <a class="btn btn--ghost btn--small outline__results" href="{% url 'courses:course_results' slug=course.slug %}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="12" width="4" height="7" rx="1"/><rect x="10" y="6" width="4" height="13" rx="1"/><rect x="16" y="9" width="4" height="10" rx="1"/></svg> {% trans "My results" %}</a>
     <a class="btn btn--ghost btn--small outline__notes" href="{% url 'notes:course_notes' slug=course.slug %}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg> {% trans "My notes" %}</a>
-    <a class="btn btn--ghost btn--small outline__reset" href="{% url 'courses:progress_reset_course' slug=course.slug %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
+    {% if has_saved_work %}<a class="btn btn--ghost btn--small outline__reset" href="{% url 'courses:progress_reset_course' slug=course.slug %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>{% endif %}
   </div>
   {% if resume %}{% include "courses/_resume_card.html" with resume=resume course=course only %}{% endif %}
   {% include "courses/_tags_filter_bar.html" %}

@@ -44,16 +44,18 @@
       {% comment %}D9: a SIBLING of the <details>, not a child of the <summary> —
          nesting a focusable link inside a button-role control both corrupts the
          disclosure's accessible name and is exposed inconsistently by screen
-         readers. app.css grid-places it back onto the head row.{% endcomment %}
-      <a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
-         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
+         readers. app.css grid-places it back onto the head row. Offered only
+         where a unit below holds saved work (build_outline's has_state):
+         anywhere else the reset clears nothing.{% endcomment %}
+      {% if item.has_state %}<a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
+         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>{% endif %}
     {% else %}
       <div class="outline-node__head">
         <span class="outline-node__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
         {% if item.required_total %}<span class="rollup">{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}</span>{% endif %}
         {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
-        <a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
-           href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
+        {% if item.has_state %}<a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
+           href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>{% endif %}
       </div>
     {% endif %}
   {% endif %}

@@ -4,7 +4,10 @@ import logging
 from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import BooleanField
 from django.db.models import Count
+from django.db.models import ExpressionWrapper
+from django.db.models import Q
 from django.utils.translation import gettext_lazy
 
 from courses.htmlsandbox import titles_have_math
@@ -220,21 +223,37 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
 
     Folds the shared _walk_preorder stream into a tree (pre-order guarantees a parent
     is yielded before its children, so the parent dict exists when a child arrives),
-    then a post-order pass sums the rollups. Two queries (nodes + the user's completed
-    unit ids). `required` counts only obligatory lesson units; `additional_done` counts
+    then a post-order pass sums the rollups. Two queries (nodes + the user's progress
+    rows). `required` counts only obligatory lesson units; `additional_done` counts
     completed non-obligatory lesson units; quiz units are excluded from both.
+    `has_state` is True on a unit holding saved practice work (non-empty
+    element_state) and on every container above one -- the outline offers
+    "Start fresh" only there, since a reset anywhere else clears nothing.
 
     `drafts`/`with_data` are validated here only in this task — the filtering
     itself (dict-creation gating + container pruning) is Task 5's deliverable.
     """
     _check_drafts(drafts, with_data)
     completed = set()
+    started = set()
     if user.is_authenticated:
-        completed = set(
-            UnitProgress.objects.filter(
-                student=user, unit__course=course, completed=True
-            ).values_list("unit_id", flat=True)
+        # ONE query for both sets: build_outline also feeds the unit rail, so it
+        # runs on every lesson page. The annotation keeps the blobs in the DB.
+        rows = (
+            UnitProgress.objects.filter(student=user, unit__course=course)
+            .filter(Q(completed=True) | ~Q(element_state={}))
+            .annotate(
+                has_state=ExpressionWrapper(
+                    ~Q(element_state={}), output_field=BooleanField()
+                )
+            )
+            .values_list("unit_id", "completed", "has_state")
         )
+        for unit_id, is_done, has_state in rows:
+            if is_done:
+                completed.add(unit_id)
+            if has_state:
+                started.add(unit_id)
 
     by_pk = {}
     roots = []
@@ -250,6 +269,7 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
             "additional_done": 0,
             "is_unit": is_unit,
             "completed": is_unit and node.pk in completed,
+            "has_state": is_unit and node.pk in started,
             # Additive only: build_outline also feeds build_unit_nav (the rail),
             # build_student_breakdown (the teacher tree) and outline_with_tags,
             # all of which ignore this key. Pre-order guarantees the parent dict
@@ -287,6 +307,9 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
             d["required_total"] = sum(k["required_total"] for k in d["children"])
             d["required_done"] = sum(k["required_done"] for k in d["children"])
             d["additional_done"] = sum(k["additional_done"] for k in d["children"])
+            # Over the PRUNED children: state in a unit this viewer cannot see
+            # does not light the link (the interstitial would count 0 anyway).
+            d["has_state"] = any(k["has_state"] for k in d["children"])
 
     for r in roots:
         rollup(r)

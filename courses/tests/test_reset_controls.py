@@ -90,14 +90,93 @@ def test_lesson_page_shows_the_reset_link_on_a_question_only_unit(client):
     assert _reset_url(course, unit) in r.content.decode()
 
 
+def _save_work(student, unit):
+    # A non-empty blob is all the outline gate reads; its shape is irrelevant there.
+    UnitProgress.objects.create(
+        student=student, unit=unit, element_state={"1": {"items": []}}
+    )
+
+
+def _chapter_unit(course, title):
+    # published=True: this fixture predates migration 0057, whose model default
+    # (published=False) would otherwise leave this raw-created unit -- and so
+    # the now-empty chapter above it -- invisible to the enrolled STUDENT this
+    # test logs in as. ContentNodeFactory opts into True for exactly this
+    # reason (see its docstring); a raw .objects.create() call must do the
+    # same to keep representing student-visible content.
+    ch = ContentNode.objects.create(
+        course=course, kind=ContentNode.Kind.CHAPTER, title=title
+    )
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        parent=ch,
+        unit_type=ContentNode.UnitType.LESSON,
+        title=f"{title} unit",
+        published=True,
+    )
+    return ch, unit
+
+
 def test_outline_links_to_the_course_level_reset(client):
-    course, _unit = make_course_with_unit()
-    _login(client, course)
+    course, unit = make_course_with_unit()
+    _save_work(_login(client, course), unit)
     r = client.get(reverse("courses:course_outline", args=[course.slug]))
     assert (
         reverse("courses:progress_reset_course", args=[course.slug])
         in r.content.decode()
     )
+
+
+def test_outline_offers_no_reset_to_a_student_with_no_saved_work(client):
+    # A fresh student has nothing to clear, so neither the course-level nor any
+    # per-container "Start fresh" is offered. Completion alone does not count:
+    # the reset leaves `completed` untouched.
+    course, unit = make_course_with_unit()
+    ch, ch_unit = _chapter_unit(course, "c")
+    student = _login(client, course)
+    UnitProgress.objects.create(student=student, unit=ch_unit, completed=True)
+    r = client.get(reverse("courses:course_outline", args=[course.slug]))
+    body = r.content.decode()
+    # Positive anchor: the chapter rendered, so its link's absence is the gate's.
+    assert r.status_code == 200
+    assert f'data-node="{ch.pk}"' in body
+    assert reverse("courses:progress_reset_course", args=[course.slug]) not in body
+    assert "outline-node__reset" not in body
+
+
+def test_outline_offers_reset_only_on_containers_above_saved_work(client):
+    course, _unit = make_course_with_unit()
+    ch_a, unit_a = _chapter_unit(course, "a")
+    ch_b, _unit_b = _chapter_unit(course, "b")
+    _save_work(_login(client, course), unit_a)
+    r = client.get(reverse("courses:course_outline", args=[course.slug]))
+    body = r.content.decode()
+    assert f'data-node="{ch_b.pk}"' in body
+    assert reverse("courses:progress_reset", args=[course.slug, ch_a.pk]) in body
+    assert reverse("courses:progress_reset", args=[course.slug, ch_b.pk]) not in body
+    assert reverse("courses:progress_reset_course", args=[course.slug]) in body
+
+
+def test_outline_ignores_saved_work_in_a_unit_the_student_cannot_see(client):
+    # The interstitial counts only visible units, so state stranded in a draft
+    # would offer a reset that reports "nothing to clear".
+    course, _unit = make_course_with_unit()
+    ch, _visible = _chapter_unit(course, "c")
+    hidden = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        parent=ch,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="draft",
+        published=False,
+    )
+    _save_work(_login(client, course), hidden)
+    r = client.get(reverse("courses:course_outline", args=[course.slug]))
+    body = r.content.decode()
+    assert f'data-node="{ch.pk}"' in body
+    assert reverse("courses:progress_reset", args=[course.slug, ch.pk]) not in body
+    assert reverse("courses:progress_reset_course", args=[course.slug]) not in body
 
 
 def test_outline_links_reset_per_grouping_node(client):
@@ -119,7 +198,7 @@ def test_outline_links_reset_per_grouping_node(client):
         title="u",
         published=True,
     )
-    _login(client, course)
+    _save_work(_login(client, course), ch.children.get())
     r = client.get(reverse("courses:course_outline", args=[course.slug]))
     assert (
         reverse("courses:progress_reset", args=[course.slug, ch.pk])

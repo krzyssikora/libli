@@ -4,6 +4,7 @@ import pytest
 from django.urls import reverse
 
 from courses.models import Enrollment
+from courses.models import UnitProgress
 from courses.rollups import build_outline
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -68,7 +69,13 @@ def test_reset_link_is_a_sibling_of_details_not_inside_the_summary(client):
     structure, not those consequences.
     """
     course, part, chapter, unit = _three_level_course()
-    html = _outline_html(client, course, "t3")
+    # The link renders only above saved work, so seed some before the request.
+    user = make_login(client, "t3")
+    Enrollment.objects.create(student=user, course=course)
+    UnitProgress.objects.create(student=user, unit=unit, element_state={"1": {}})
+    html = client.get(
+        reverse("courses:course_outline", kwargs={"slug": course.slug})
+    ).content.decode()
 
     _, _, rest = html.partition('<summary class="outline-node__head">')
     summary, _, _ = rest.partition("</summary>")
