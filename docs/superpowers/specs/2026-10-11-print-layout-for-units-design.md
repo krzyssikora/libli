@@ -145,8 +145,11 @@ New `@media print` rules:
   gets `padding: 0 0 var(--space-4); background: none; border: 0;`; `.app-main` in print
   gets `padding: 0; max-width: none;`. The brand sits at the 15 mm page edge; the article
   keeps its existing screen padding (`.unit-shell__main > .lesson/.quiz`, `1.25rem 1.5rem`,
-  courses.css ~:1075), so its text is inset 1.5rem from the brand. That inset is accepted
-  and not changed. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
+  courses.css ~:1075), so at A4/Letter width its text is inset 1.5rem from the brand. That
+  inset is accepted and not changed. On paper narrower than 640px of content width
+  (e.g. A5) the existing small-screen rules (`@media (max-width: 640px)`) apply in print
+  as well (article padding `1rem`, shell `display: block`); that is acceptable, and no
+  test or manual check assumes the 1.5rem inset on every paper size. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
   once because the header is in normal flow at the top of the document.
 - Also in `app.css`: Django flash messages (`.app-main > .alert`) → `display: none` in
   print. They are transient UI feedback, not unit content (D1). The selector is the
@@ -175,6 +178,13 @@ New `@media print` rules:
     (same selector, so equal weight; source order and `!important` beat the screen hide),
     also beats the `.stepper-armed` pre-hide inline in `lesson_unit.html`, which has no
     `!important`.
+  - Heading-row controls in `_lesson_article.html` (beside the `<h1>`, outside
+    `elements/`): the whole `.unit-done` (both states — the "Mark as done" button form
+    `.unit-progress` and the "✓ Completed" pill; completion is progress-tracking UI, not
+    unit content) and `.lesson-unit__reset` ("Start fresh", an action that resets
+    practice state) → `display: none` in print.
+  - Kept: `.unit-kind-chip` ("Lesson"/"Quiz" badge beside the title) — it labels what
+    the printout is.
   - Already hidden by existing print rules (no change, listed for completeness): the
     reveal-gate buttons (`[data-reveal-gate]:not([data-filltablegate])`, app.css) and
     `.ba__toggle` (courses.css before/after print block).
@@ -352,7 +362,9 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 
 4. Lesson unit in print media: `.app-header__cluster`, `.unit-foot`, `.unit-tree`,
    `.unit-toc-pin`, `.unit-strip`, a flash message (`.app-main > .alert`), a question's
-   Check button, and (author viewing an unpublished unit) `.draft-banner` are not visible; `.brand` and the crumbs are visible;
+   Check button, `.unit-done` (the lesson is not yet completed, so its "Mark as done"
+   button form renders), and (author viewing an unpublished unit) `.draft-banner` are not
+   visible (each first asserted attached); `.unit-kind-chip` is visible; `.brand` and the crumbs are visible;
    `.unit-tree` computes `display: none` and `.unit-shell__main`'s bounding-box left edge
    equals `.unit-shell`'s (no tree track reserved). `emulate_media` keeps the browser
    viewport rather than the A4 page area, so the real page-width layout is covered only by
@@ -394,8 +406,9 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    visible (non-zero box, opacity 1), the items do not overlap, and `.gallery__bar` is not
    visible.
 10. A lesson with a fill-table, a mark-done element and a stepper in print media:
-   `.filltable__confirm`, `.markdone__save` and `.stepper__next` are not visible (each
-   first asserted attached, count ≥ 1). The stepper has ≥3 steps and is left un-stepped
+   `.filltable__confirm`, `.markdone__save`, `.stepper__next` and `.lesson-unit__reset`
+   (rendered because the lesson has stateful elements) are not visible (each first
+   asserted attached, count ≥ 1). The stepper has ≥3 steps and is left un-stepped
    (only the first step shown on screen — asserted first); in print media **every**
    `[data-stepper-step]` is visible.
 
