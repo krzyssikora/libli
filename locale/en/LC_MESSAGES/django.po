@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-08 14:52+0200\n"
+"POT-Creation-Date: 2026-10-11 17:43+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -5127,6 +5127,11 @@ msgstr ""
 #: .\templates\courses\_outline_node.html:41
 #: .\templates\courses\_outline_node.html:56
 msgid "additional"
+msgstr ""
+
+#: .\templates\courses\_print_page_header.html:7
+msgctxt "print page counter"
+msgid "Page"
 msgstr ""
 
 #: .\templates\courses\_quiz_article.html:27
