@@ -2627,3 +2627,20 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border-top: 1px solid var(--border-subtle);
   color: var(--text-secondary); font-size: .875rem;
 }
+
+/* == Print page frame (spec 2026-10-11-print-layout-for-units) == */
+/* Global on purpose: every page extending base.html prints with safe margins and
+   without nav chrome or flash messages. The per-unit running header lives in
+   templates/courses/_print_page_header.html. Appended LAST so it follows every
+   `.app-header`, `.app-header__cluster` and `.app-main` screen rule, including the
+   max-width: 640px block (print on small paper matches it). Every hide is
+   !important so position and specificity never decide it. */
+@page { margin: 15mm; }
+@media print {
+  .app-header__spacer, .app-header__cluster { display: none !important; }
+  .app-header { padding: 0 0 var(--space-4); background: none; border: 0; }
+  .app-main { padding: 0; max-width: none; }
+  /* Only marked flash messages: content alerts that are direct children of
+     .app-main (e.g. support's "Not emailed" warning) must keep printing. */
+  .alert--flash { display: none !important; }
+}
