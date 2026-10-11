@@ -420,7 +420,7 @@ Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6"
 
 **Interfaces:**
 - Consumes: `alert--flash` (Task 2).
-- Produces: marker comment `/* == Print page frame (spec 2026-10-11-print-layout-for-units) == */` in app.css; the e2e module's helpers `_login`, `_student`, `_url`, `_inject_alerts`, `_hidden`, `_shown` reused by Tasks 4/5.
+- Produces: marker comment `/* == Print page frame (spec 2026-10-11-print-layout-for-units) == */` in app.css; the e2e module's helpers `_login`, `_student`, `_url`, `_inject_alerts`, `_hidden`, `_shown`, `_lesson` and the `VIEWPORT` constant, reused by Tasks 4/5; the source-test helpers `_strip_comments`, `_after`, `_before`, `_hides_are_important`, `HIDE` reused by Tasks 4/5.
 
 - [ ] **Step 1: Write the failing source tests**
 
@@ -667,8 +667,10 @@ Expected: source tests FAIL (`marker missing`); e2e FAILS on `.app-header__clust
 uv run pytest tests/test_print_layout_css.py
 uv run pytest -m e2e tests/test_e2e_print_layout.py
 uv run pytest tests/test_*css*.py courses/tests/test_*css*.py
+uv run pytest -m e2e tests/test_e2e_print_foundations.py
+uv run pytest -m e2e tests/test_e2e_print_lesson_notes.py
 ```
-Expected: all PASS. If the e2e header style assertion fails with a non-transparent colour, grep app.css for a `[data-theme="dark"] .app-header` or other heavier background rule and raise the print selector's weight to match — do not drop the assertion.
+(one command at a time, foreground — the global `.app-main`/header print rules touch every page). Expected: all PASS. If the e2e header style assertion fails with a non-transparent colour, grep app.css for a `[data-theme="dark"] .app-header` or other heavier background rule and raise the print selector's weight to match — do not drop the assertion.
 
 - [ ] **Step 6: Commit**
 
@@ -879,6 +881,10 @@ def test_quiz_multi_slide_prints_every_question(page, live_server):
         _hidden(page, sel)
     for sel in (".brand", ".unit-crumbs", ".unit-kind-chip"):
         _shown(page, sel)
+    tree_display = page.evaluate(
+        "getComputedStyle(document.querySelector('.unit-tree')).display"
+    )
+    assert tree_display == "none"
     assert page.locator(".el--question").count() == 3
     _shown(page, ".el--question")
 
