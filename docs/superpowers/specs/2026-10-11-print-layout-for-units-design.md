@@ -231,7 +231,8 @@ affected selectors:
   .el--gallery .gallery__item,   /* one gallery card: frame + description */
   img.cell-img,                  /* table / fill-table cell image (class is on the <img>) */
   .dragimage__stage,             /* drag-to-image board: img + percent-placed badges */
-  .el--question { break-inside: avoid; }
+  .el--question,
+  .quiz-results__item { break-inside: avoid; }  /* §6 */
   .el__qnum { break-after: avoid; }  /* quiz "3 / 10" badge stays with its question */
 }
 ```
@@ -246,6 +247,7 @@ D6 noun → selector map (the source for the coverage test):
 | gallery frame | `.el--gallery .gallery__item` (frame + description) |
 | dragimage | `.dragimage__stage`; its element root `.el--dragimage` is also `.el--question` |
 | question images / single questions | `.el--question` (covers images in stems and options) |
+| quiz results row (submitted quiz) | `.quiz-results__item` (see §6) |
 | quiz question-number badge | `.el__qnum` (`break-after: avoid`; it is a sibling before `.el--question` in `section[data-element-id]`) |
 
 - **Height caps:** every capped image keeps its existing cap. `.dragimage__img` gets
@@ -286,6 +288,23 @@ Quiz units render as a slide deck when they have more than one slide
 in print media. If it is not, and fixing it needs more than CSS, the run halts and reports
 it (D7) instead of expanding scope.
 
+### 6. Quiz results page (`quiz_results.html`)
+
+This page is the printout of a submitted quiz (see §1). Beyond the running header:
+
+- **Chrome:** it includes `_unit_strip.html` (hidden by §3's `.unit-strip` rule) and ends
+  with a "Back to course" link `a.btn.btn--ghost`, a direct child of
+  `article.quiz-results` → `.quiz-results > .btn { display: none; }` in print.
+- **D6:** each result row is `li.quiz-results__item`. Rows for reveal-capable questions
+  wrap a rendered `.el--question`; rows for other questions render stem, badge, feedback
+  and explanation directly in the `<li>` with no `.el--question`. So
+  `.quiz-results__item` is added to the `break-inside: avoid` list (it covers both row
+  kinds) and to the D6 map.
+- **D3:** the results page has no breadcrumbs on screen (it never includes
+  `_unit_crumbs.html`, and its view does not build `unit_nav`). They are knowingly left
+  absent in print too: the running header and the `<h1>` ("<title> — results") name the
+  unit. Adding crumbs to this page is out of scope.
+
 ## Data flow
 
 No server-side data change. The only new server-side output is the inline `<style>` block
@@ -314,7 +333,11 @@ Unit / template tests (fast, non-e2e):
    through; `</style>` input produces no literal `<`.
 2. Template render of a lesson unit and a quiz unit: the response contains the `@page`
    block with `@top-left` holding the stripped, escaped title, and `@top-right` holding
-   `counter(page)` and `counter(pages)`. In Polish (`pl`), the label is `Strona`. A unit
+   `counter(page)` and `counter(pages)`. Fixture title
+   `Funkcja \(f(x)\) "x" </style>` → the `@top-left` content is exactly
+   `"libli · Funkcja f(x) \22 x\22  \3c /style\3e "`, and the response contains no literal
+   `</style>` between the partial's opening `<style>` and its own closing tag. In Polish
+   (`pl`), the label is `Strona`. A unit
    with a 200-character title made only of letters and spaces (no character `css_string`
    escapes) emits a header title of at most 70 characters ending in the ellipsis `…`.
 3. CSS source tests, in the established style of `tests/test_*css*.py`: the `@page` margin
@@ -345,8 +368,14 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    run against the submitted quiz's `quiz_results.html` render): same chrome assertions, **every** question of
    every slide is visible, and neither `.slideshow-bar` nor any `.quiz-finish` is visible.
    A single-slide quiz: its in-article `.quiz-finish` is not visible.
+   Submitted quiz → `quiz_results.html` in print media: `.unit-strip` and the
+   `.quiz-results > .btn` "Back to course" link are not visible (each first asserted
+   attached); a non-reveal result row (`li.quiz-results__item` without `.el--question`)
+   computes `break-inside: avoid`.
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
-   `.el--question` in print media.
+   `.el--question` in print media. This is a **cascade** check only (the rule is not
+   overridden by anything later); whether a page break actually avoids the box is covered
+   by the manual `page.pdf()` check, which includes a float image near a page boundary.
 7. Light **and** dark stored theme for test 4 (dark theme already maps to the light palette
    in print). In both, under print media `.app-header` computes `background-color`
    `rgba(0, 0, 0, 0)`, `background-image` `none`, and `border-bottom-width` `0px` — so the
@@ -354,8 +383,13 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 8. Drag-to-image question with a tall portrait image (fixture ≥ 600×1600 px) at the
    default test viewport; precondition: its rendered height under screen media is
    > 643 px (170 mm at 96 dpi), so the cap actually engages. Then in print
-   media: `.dragimage__img` height ≤ 170 mm, and every badge's bounding box lies inside the
-   image's bounding box.
+   media: `.dragimage__img` height ≤ 170 mm (≤ 643 px); `.dragimage__stage`'s width equals
+   the image's width (±1 px); and each badge's **centre** equals
+   `img.left + data-x·img.width`, `img.top + data-y·img.height` within 2 px (badges are
+   centred with `translate(-50%,-50%)`, so containment would be the wrong check: it
+   passes when the stage stays wide and badges drift horizontally). Fixture zones at
+   interior coordinates (x, y in 0.2–0.8), including one with x = 0.8 so horizontal drift
+   shows.
 9. A JS-enhanced gallery with ≥3 images in print media: every `.gallery__item` image is
    visible (non-zero box, opacity 1), the items do not overlap, and `.gallery__bar` is not
    visible.
@@ -366,7 +400,8 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    `[data-stepper-step]` is visible.
 
 Visual verification (manual, recorded in the PR): `page.pdf()` of a long lesson with images
-(including a gallery and a unit with a very long title) and of a multi-slide quiz, A4,
+(including a gallery, a float-right image positioned near a page boundary, and a unit
+with a very long title), of a multi-slide quiz, and of a submitted quiz's results page, A4,
 rendered in Chromium, opened and checked for: running header text and page numbers on
 every page, ~15 mm margins, no image split across a page boundary, no screen chrome.
 Screenshots in the PR description.
