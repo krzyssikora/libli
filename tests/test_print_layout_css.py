@@ -184,3 +184,80 @@ def test_courses_block_after_screen_rules():
         ".draft-banner {",
     ):
         _before(COURSES, anchor, i)
+
+
+D6_AVOID = [
+    ".el--image",
+    ".el--gallery .gallery__item",
+    "img.cell-img",
+    ".dragimage__stage",
+    ".el--question",
+    ".quiz-results__item",
+]
+
+
+def test_d6_break_inside_list():
+    _, block = _courses_block()
+    avoid = _rule_selectors(block, r"break-inside:\s*avoid")
+    for sel in D6_AVOID:
+        assert sel in avoid, f"{sel} missing from break-inside: avoid"
+    assert ".el__qnum" in _rule_selectors(block, r"break-after:\s*avoid")
+
+
+def test_d6_class_names_exist():
+    src = TEMPLATES + GALLERY_JS
+    for name in (
+        "el--image",
+        "gallery__item",
+        "cell-img",
+        "dragimage__stage",
+        "el--question",
+        "quiz-results__item",
+        "el__qnum",
+        "gallery__bar",
+        "gallery__status",
+        "gallery__stage",
+        "gallery--js",
+    ):
+        assert name in src, f"{name} matches nothing"
+
+
+def test_d6_caps():
+    _, block = _courses_block()
+    assert ".dragimage__img" in _rule_selectors(block, r"max-height:\s*170mm")
+    assert ".el--gallery .gallery__frame" in _rule_selectors(
+        block, r"max-height:\s*170mm"
+    )
+
+
+def _decl(block, selector):
+    """Body of the rule whose selector list contains exactly `selector`."""
+    for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", _strip_comments(block)):
+        if selector in [s.strip() for s in m.group(1).split(",")]:
+            return m.group(2)
+    raise AssertionError(f"no rule for {selector}")
+
+
+def test_gallery_carousel_reset():
+    _, block = _courses_block()
+    item = _decl(block, ".el--gallery.gallery--js .gallery__item")
+    assert re.search(r"position:\s*static\s*!important", item)
+    assert re.search(r"opacity:\s*1\s*!important", item)
+    stage = _decl(block, ".el--gallery.gallery--js .gallery__stage")
+    assert re.search(r"position:\s*static\s*!important", stage)
+    assert re.search(r"min-height:\s*0\s*!important", stage)
+    desc = _decl(block, ".el--gallery.gallery--js .gallery__desc")
+    assert re.search(r"min-height:\s*0\s*!important", desc)
+    hidden = _rule_selectors(block, r"display:\s*none\s*!important")
+    assert ".el--gallery .gallery__bar" in hidden
+    assert ".el--gallery .gallery__status" in hidden
+
+
+def test_d6_block_after_screen_rules():
+    i, _ = _courses_block()
+    for anchor in (
+        ".dragimage__img {",
+        ".el--gallery .gallery__frame {",
+        ".el--gallery.gallery--js .gallery__item {",
+    ):
+        _before(COURSES, anchor, i)

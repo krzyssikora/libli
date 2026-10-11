@@ -347,3 +347,182 @@ def test_action_buttons_hidden_and_stepper_prints_all(page, live_server):
     for sel in (".filltable__confirm", ".stepper__next", ".lesson-unit__reset"):
         _hidden(page, sel)
     _shown(page, "[data-stepper-step]")
+
+
+def _png(size, rgb=(90, 120, 200)):
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", size, rgb).save(buf, "PNG")
+    return buf.getvalue()
+
+
+MM170_PX = 170 / 25.4 * 96  # 642.5
+
+
+@pytest.mark.django_db(transaction=True)
+def test_break_inside_cascade(page, live_server):
+    """Spec test 6: CASCADE check only; actual pagination is the Task 6 PDF check."""
+    from courses.models import ImageElement
+    from courses.models import ShortTextQuestionElement
+    from tests.factories import make_image_asset
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    asset = make_image_asset(course, filename="b.png", raw=_png((400, 300)))
+    add_element(unit, ImageElement.objects.create(media=asset, alt="b", size="medium"))
+    add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
+    user = _student("brk-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".el--image img")
+    page.emulate_media(media="print")
+    for sel in (".el--image", ".el--question"):
+        value = page.evaluate(
+            "s => getComputedStyle(document.querySelector(s)).breakInside", sel
+        )
+        assert value == "avoid", (sel, value)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tall_dragimage_capped_and_badges_aligned(page, live_server):
+    """Spec test 8."""
+    from courses.models import DragToImageQuestionElement
+    from courses.models import DragZone
+    from tests.factories import make_image_asset
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    asset = make_image_asset(course, filename="tall.png", raw=_png((600, 1600)))
+    q = DragToImageQuestionElement.objects.create(media=asset, alt="Tall")
+    for n, (x, y) in enumerate([(0.2, 0.2), (0.5, 0.5), (0.8, 0.8)]):
+        DragZone.objects.create(
+            question=q, correct_label=f"L{n}", x=x, y=y, w=0.1, h=0.1, order=n
+        )
+    add_element(unit, q)
+    user = _student("drag-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    img = page.locator(".dragimage__img").first
+    img.wait_for()
+    page.wait_for_function(
+        "el => el.complete && el.naturalWidth > 0", arg=img.element_handle()
+    )
+    assert img.bounding_box()["height"] > MM170_PX + 1, (
+        "fixture too short: cap would not engage"
+    )
+
+    page.emulate_media(media="print")
+    geo = page.evaluate(
+        """() => {
+          const stage = document.querySelector('.dragimage__stage');
+          const img = stage.querySelector('.dragimage__img').getBoundingClientRect();
+          const st = stage.getBoundingClientRect();
+          const badges = [...stage.querySelectorAll('.dragimage__badge')].map(b => {
+            const r = b.getBoundingClientRect();
+            return {cx: r.left + r.width / 2, cy: r.top + r.height / 2,
+                    x: parseFloat(b.dataset.x), y: parseFloat(b.dataset.y)};
+          });
+          return {
+            img: [img.left, img.top, img.width, img.height],
+            stageW: st.width,
+            badges,
+          };
+        }"""
+    )
+    left, top, w, h = geo["img"]
+    assert h <= MM170_PX + 0.5, h
+    assert abs(geo["stageW"] - w) <= 1, (geo["stageW"], w)
+    assert len(geo["badges"]) == 3
+    for b in geo["badges"]:
+        assert abs(b["cx"] - (left + b["x"] * w)) <= 2, b
+        assert abs(b["cy"] - (top + b["y"] * h)) <= 2, b
+
+
+@pytest.mark.django_db(transaction=True)
+def test_js_gallery_prints_every_image(page, live_server):
+    """Spec test 9."""
+    from courses.models import GalleryElement
+    from tests.factories import make_image_asset
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    assets = [
+        make_image_asset(
+            course, filename=f"g{n}.png", raw=_png((400, 300), (40 * n, 120, 200))
+        )
+        for n in range(3)
+    ]
+    add_element(
+        unit,
+        GalleryElement.objects.create(
+            data={
+                "images": [{"media": a.pk, "desc": ""} for a in assets],
+                "desc_pos": "below",
+            }
+        ),
+    )
+    user = _student("gal-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(".el--gallery.gallery--js")
+    _shown(page, ".el--gallery .gallery__bar")
+
+    page.emulate_media(media="print")
+    _hidden(page, ".el--gallery .gallery__bar")
+    boxes = page.evaluate(
+        """() => [...document.querySelectorAll('.gallery__item')].map(it => {
+          const r = it.getBoundingClientRect(); const img = it.querySelector('img');
+          const ir = img.getBoundingClientRect();
+          return {top: r.top, bottom: r.bottom, imgW: ir.width, imgH: ir.height,
+                  opacity: getComputedStyle(it).opacity};
+        })"""
+    )
+    assert len(boxes) == 3
+    for b in boxes:
+        assert b["imgW"] > 0 and b["imgH"] > 0 and b["opacity"] == "1", b
+    for a, b in zip(boxes, boxes[1:], strict=False):
+        assert a["bottom"] <= b["top"] + 0.5, (a, b)  # stacked, not overlapping
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_results_chrome_and_row_break(page, live_server):
+    """Spec test 5, results half.
+
+    Every QuestionElement subclass sets SUPPORTS_REVEAL = True, so today every
+    results row wraps a rendered .el--question; the "non-reveal row" branch of
+    quiz_results.html is unreachable (the spec's drag-to-image claim was wrong and
+    is corrected in Step 0). The rule is on .quiz-results__item itself, so the
+    row's own computed break-inside is what is asserted."""
+    from courses.models import QuizSubmission
+    from courses.models import ShortTextQuestionElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", title="Done"
+    )
+    add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
+    user = _student("res-stu", course)
+    QuizSubmission.objects.create(
+        student=user, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:quiz_results", unit))
+    page.wait_for_selector(".quiz-results")
+    _shown(page, ".unit-strip")
+    _shown(page, ".quiz-results > .btn")
+    assert page.locator(".quiz-results__item").count() >= 1
+
+    page.emulate_media(media="print")
+    _hidden(page, ".unit-strip")
+    _hidden(page, ".quiz-results > .btn")
+    row_break = page.evaluate(
+        "getComputedStyle(document.querySelector('.quiz-results__item')).breakInside"
+    )
+    assert row_break == "avoid"
