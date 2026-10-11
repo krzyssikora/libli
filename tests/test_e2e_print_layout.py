@@ -119,8 +119,12 @@ def test_page_frame_header_and_flash(page, live_server, theme):
     _inject_alerts(page)
     _shown(page, ".app-header__cluster")
     _shown(page, ".alert--flash")
+    body_bg = "getComputedStyle(document.body).backgroundColor"
+    # Precondition: the screen body is painted (beige / dark), so white is not default.
+    assert page.evaluate(body_bg) != "rgb(255, 255, 255)"
 
     page.emulate_media(media="print")
+    assert page.evaluate(body_bg) == "rgb(255, 255, 255)"
     _hidden(page, ".app-header__cluster")
     _hidden(page, ".alert--flash")
     _shown(page, "#content-alert")
@@ -178,7 +182,7 @@ def test_lesson_unit_chrome_hidden(page, live_server):
                   getComputedStyle(shell).display];
         }"""
     )
-    assert abs(shell_x - main_x) <= 1, (shell_x, main_x)  # covers the tree hide
+    assert abs(shell_x - main_x) <= 1, (shell_x, main_x)  # no tree column reserved
     assert shell_display == "block"  # covers the block-flow rule itself
 
 
@@ -526,3 +530,35 @@ def test_quiz_results_chrome_and_row_break(page, live_server):
         "getComputedStyle(document.querySelector('.quiz-results__item')).breakInside"
     )
     assert row_break == "avoid"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_focus_ring_and_deck_fill_do_not_print(page, live_server):
+    """slideshow.js focuses the active .slide on load; its ring must not print.
+    The quiz's .slideshow-deck card is painted on screen and must be unpainted."""
+    from tests.factories import seed_slideshow_unit
+
+    course = CourseFactory()
+    unit = seed_slideshow_unit(course, "quiz", layout=["q", "brk", "q"])
+    user = _student("focus-stu", course)
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:quiz_unit", unit))
+    page.wait_for_selector(".slideshow-bar")
+    ring = (
+        "() => { const s = document.querySelector('.slide.is-active');"
+        " return [document.activeElement === s, getComputedStyle(s).outlineStyle]; }"
+    )
+    deck_bg = (
+        "getComputedStyle(document.querySelector('.slideshow-deck')).backgroundColor"
+    )
+    focused, outline = page.evaluate(ring)
+    assert focused, "slideshow.js did not focus the active slide"
+    assert outline != "none", outline
+    assert page.evaluate(deck_bg) != "rgba(0, 0, 0, 0)"
+
+    page.emulate_media(media="print")
+    focused, outline = page.evaluate(ring)
+    assert focused
+    assert outline == "none", outline
+    assert page.evaluate(deck_bg) == "rgba(0, 0, 0, 0)"

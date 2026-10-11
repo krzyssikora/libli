@@ -2637,6 +2637,8 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    !important so position and specificity never decide it. */
 @page { margin: 15mm; }
 @media print {
+  /* Paper stays white when "Background graphics" is on (the screen body is beige). */
+  html, body { background: #fff !important; }
   .app-header__spacer, .app-header__cluster { display: none !important; }
   .app-header { padding: 0 0 var(--space-4); background: none; border: 0; }
   .app-main { padding: 0; max-width: none; }

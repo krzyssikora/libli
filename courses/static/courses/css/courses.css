@@ -3373,7 +3373,6 @@ html.js .unit-strip__print { display: inline-flex; }
   .stepper.is-stepping [data-stepper-step]:not(.stepper-shown),
   .stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child) { display: revert !important; }
 
-
   /* D6: never split an image (with its caption) or a single question. Long
      text, callouts and tables flow normally. img.cell-img is an atomic box
      anyway; listed for coverage. */
@@ -3394,4 +3393,7 @@ html.js .unit-strip__print { display: inline-flex; }
   .el--gallery.gallery--js .gallery__item + .gallery__item { margin-top: var(--space-4); }
   .el--gallery.gallery--js .gallery__desc { min-height: 0 !important; }
   .el--gallery .gallery__bar, .el--gallery .gallery__status { display: none !important; }
+
+  /* slideshow.js focuses the active .slide; a focus ring is not page content. */
+  :focus, :focus-visible { outline: none !important; }
 }
