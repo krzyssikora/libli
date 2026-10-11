@@ -48,8 +48,9 @@ to header, too), go ahead".
 - `print.js` handles notes on `beforeprint`/`afterprint`. Nothing in this change needs JS.
 - Image print caps exist for `.el--image--{small,medium,large,full} img`
   (45/75/110/170 mm) and `.cell-img--full` (170 mm). The gallery frame is
-  `aspect-ratio: 4/3; max-height: 70vh` (in print `vh` resolves against the page box, so it
-  already fits). `.dragimage__img` is `max-width: 100%; height: auto` with no height cap.
+  `aspect-ratio: 4/3; max-height: 70vh` with no print cap; a viewport unit is not a
+  reliable print bound (the codebase's own print-cap comment at `courses.css` ~:158 says
+  so for `dvh`), so it gets an mm cap (§4). `.dragimage__img` is `max-width: 100%; height: auto` with no height cap.
 - No `break-inside` rule exists for any content except `.lesson .note-card` (notes.css).
 - Questions render as `<div class="el el--question" data-question>`; in a quiz each element
   is wrapped in `.slide > section[data-element-id]`; in a lesson in
@@ -184,6 +185,11 @@ New `@media print` rules:
     `.markdone__save` (mark-done "Save"), `.fillgate__confirm`, `.stepper__next`
     ("Show next"), `.switchgate__confirm`, `.switchgrid__confirm`, and
     `[data-guess-check]` (guess-number check). These are all hidden in one rule.
+  - **Spoilers keep their on-screen state** (closed `details.spoiler` prints closed, an
+    opened one prints open). A spoiler usually hides an answer the student should work
+    out, so printing it closed keeps the exercise intact; and a closed `<details>` cannot
+    be opened by print CSS at all (see the `print.js` header comment) — it would need JS,
+    which this change does not add.
   - **Steppers print every step**, following the reveal-gate precedent (`app.css` ~:1524
     prints every gated block and hides only the gate button). Otherwise a stepper the
     student has not fully stepped through would print truncated with no sign that steps
@@ -255,6 +261,21 @@ overrides; where a screen rule is a state-gated reveal (like the TOC pin's
 `html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin`), the print rule matches
 that weight.
 
+Source-order pairs (each new print rule must come after **every** listed screen rule;
+test 3 checks each pair; line numbers are approximate, from master `17b734da`):
+
+| New print selector | Screen rule(s) it must follow |
+|---|---|
+| `.app-main` | `app.css` ~:34 (base) and ~:304 (`@media (max-width: 640px)`) |
+| `.app-header` | `app.css` ~:22 (base) and ~:303 (`max-width: 640px`) |
+| `[data-unit-shell]`, `[data-unit-shell] > .unit-shell__main` | `courses.css` ~:1072 (base) and ~:1393 (`max-width: 640px`) |
+| `.unit-drawer`, `.unit-drawer:not([hidden])` | `courses.css` ~:1405 |
+| `.dragimage__img` cap | `courses.css` ~:901 |
+| stepper step reveal | `courses.css` ~:2932 |
+| gallery `--js` reset + frame cap | `courses.css` ~:2366–2378 and ~:2402–2404 |
+
+The test anchors each pair on selector text, not line numbers.
+
 **Open question resolved by the spec:** the unit strip's tag chips (`.unit-tags`) are the
 student's own tags on the unit, which is personal metadata, not unit content. They are
 hidden in print with the rest of the strip: `@media print { .unit-strip { display: none; } }`. (Reviewer: if you disagree, the D1
@@ -295,7 +316,11 @@ D6 noun → selector map (the source for the coverage test):
   `display: inline-block; max-width: 100%` (shrink-to-fit) and `.dragimage__img` is
   `display: block; height: auto`, so a max-height scales the image's width proportionally,
   the stage follows, and the percent-placed badges stay on their spots. An e2e test pins
-  this (Testing #8). The gallery frame needs no new cap (see "Current state").
+  this (Testing #8).
+- **Gallery cap (D6):** `.el--gallery .gallery__frame { max-height: 170mm; }` in print,
+  placed after the gallery screen rules (~:2366–2378), consistent with the other print
+  caps. The screen `70vh` bound is not trusted on paper (landscape A4 has only ~180 mm of
+  content height, and how `vh` resolves in print is engine-dependent).
 - **Gallery carousel in print:** once `gallery.js` enhances a gallery
   (`.el--gallery.gallery--js`), every `.gallery__item` is `position: absolute; opacity: 0`
   except `.is-active`, and `gallery.js` sets an inline `min-height` on `.gallery__stage`
@@ -461,17 +486,22 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    `img.left + data-x·img.width`, `img.top + data-y·img.height` within 2 px (badges are
    centred with `translate(-50%,-50%)`, so containment would be the wrong check: it
    passes when the stage stays wide and badges drift horizontally). Fixture zones at
-   interior coordinates (x, y in 0.2–0.8), including one with x = 0.8 so horizontal drift
-   shows.
+   interior coordinates (x, y in 0.2–0.8) that are exact multiples of 0.01 (e.g. 0.2,
+   0.5, 0.8) — the badge's inline `left`/`top` come from `{% widthratio z.x 1 100 %}%`,
+   which rounds to a whole percent, so only such values make the inline `%` equal
+   `data-x × 100` exactly — including one with x = 0.8 so horizontal drift shows.
 9. A JS-enhanced gallery with ≥3 images in print media: every `.gallery__item` image is
    visible (non-zero box, opacity 1), the items do not overlap, and `.gallery__bar` is not
    visible.
 10. A lesson with a fill-table, a mark-done element and a stepper in print media:
    `.filltable__confirm`, `.markdone__save`, `.stepper__next` and `.lesson-unit__reset`
    (rendered because the lesson has stateful elements) are not visible (each first
-   asserted attached, count ≥ 1). The stepper has ≥3 steps and is left un-stepped
-   (only the first step shown on screen — asserted first); in print media **every**
-   `[data-stepper-step]` is visible.
+   asserted attached, count ≥ 1). The stepper has ≥3 steps and is left un-stepped.
+   Before switching to print media the test proves `stepper.js` booted — the `.stepper`
+   root has `.is-stepping` **and** `.stepper__next` is visible under screen media (it
+   renders with `hidden` until JS reveals it, so without this precondition its print
+   check would be vacuous) — and that only the first step is shown. Then in print media
+   `.stepper__next` is not visible and **every** `[data-stepper-step]` is visible.
 
 Visual verification (manual, recorded in the PR): `page.pdf()` of a long lesson with images
 (including a gallery, a float-right image positioned near a page boundary, and a unit
