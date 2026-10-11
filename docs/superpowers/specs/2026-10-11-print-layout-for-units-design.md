@@ -112,7 +112,10 @@ template does not inherit its parent's loads). It emits:
   from the existing `"Page"` msgid used by the support issue-report templates
   (`locale/pl/LC_MESSAGES/django.po`). The `pl` catalogue gets the entry
   `msgctxt "print page counter" / msgid "Page" / msgstr "Strona"` and the `.mo` is
-  recompiled.
+  recompiled. `makemessages` will pre-fill this new entry from the existing un-contexted
+  `"Page"` and mark it `#, fuzzy` (possibly with a `#| msgid` previous-line comment);
+  compilemessages skips fuzzy entries, so both the `#, fuzzy` flag and any `#|` line are
+  removed from the new entry before compiling.
 - Breadcrumbs (D3) stay in the content flow above the `<h1>`; they are **not** moved into
   the header (a three-level path plus title does not fit a margin box cleanly).
 
@@ -124,14 +127,14 @@ non-str values are stringified) and never raises — like `strip_math_delimiters
 raising filter takes down the whole page render. It returns the **inside** of a CSS
 double-quoted string, marked safe:
 
-- every character that is not printable-safe in a CSS string inside an HTML `<style>`
-  element is replaced with a CSS hex escape: backslash, the code point in **minimal
+- exactly this closed set of characters is escaped: `\`, `"`, `'`, `<`, `>`, `&`, and
+  every control character U+0000–U+001F and U+007F (incl. newline and carriage return).
+  Each is replaced with a CSS hex escape: backslash, the code point in **minimal
   lowercase hex** (no zero-padding), then exactly one space — e.g. `"` → `\22 `,
   `'` → `\27 `, `\` → `\5c `, `<` → `\3c `, `>` → `\3e `, `&` → `\26 `, newline →
-  `\a `: at minimum `\`, `"`, `'`, `<`, `>`, `&`, and every control character
-  (U+0000–U+001F, U+007F) including newline and carriage return;
-- all other characters (including Polish diacritics and other non-ASCII) pass through
-  unchanged.
+  `\a `;
+- nothing else is escaped: every other character (including `(`, `)`, Polish diacritics
+  and other non-ASCII) passes through unchanged.
 
 Escaping `<` and `>` is what makes `</style>` in an author title inert. The input is first
 passed through `strip_math_delimiters`, which removes only `\(`, `\)`, `\[`, `\]` (an
@@ -201,10 +204,13 @@ New `@media print` rules:
   - Kept: `.answer-switch` ("Your answer / Correct answer") — on paper it acts as a legend
     saying which copy of the answer is shown.
 - In `courses.css` (owns the unit shell): `.unit-foot`, `.unit-tree`, `.unit-drawer`,
-  `.unit-toc-pin` (all states), the **whole** `.unit-strip` (it holds only the tag panel,
+  the **whole** `.unit-strip` (it holds only the tag panel,
   Print and Edit — see "Open question resolved by the spec" below), and the **whole**
   `.draft-banner` (author-only "this unit is unpublished" notice; today only its form is
   hidden in print) → `display: none`.
+- `.unit-toc-pin`: **no new rule.** The pin displays only in the collapsed state, and the
+  existing print rule (`courses.css` ~:1527) already hides it there. Test 4's pin check is
+  pre-existing coverage kept for completeness, not evidence for the new rules.
 - **Scope of the `app.css` rules:** the header, flash-message and `.app-main` print rules
   are global, on purpose, like `@page`: every page that extends `base.html` (course page,
   results, dashboards, manage pages) prints without the nav cluster and flash messages
@@ -219,6 +225,11 @@ New `@media print` rules:
   `.unit-drawer, .unit-drawer:not([hidden]) { display: none; }`, placed after ~:1405.
 - `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
   `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
+  Both are also set to `display: block` in print (`.unit-shell, .unit-shell__main
+  { display: block; }`), so the content is paginated as normal block flow rather than as
+  flex items, whose fragmentation and `break-inside` support has historically been weaker
+  in some engines. Non-Chromium pagination is otherwise not checked (the manual PDF check
+  is Chromium-only).
 - **Not touched:** student notes (`.block-notes`, the unanchored-notes panel). They have a
   deliberate, existing print behaviour (`notes.css` print block, `print.js`) that prints a
   student's own notes beside the content they annotate. Notes are the student's work on the
@@ -324,7 +335,7 @@ This page is the printout of a submitted quiz (see §1). Beyond the running head
 ## Data flow
 
 No server-side data change. The only new server-side output is the inline `<style>` block
-per unit page, built from `unit.title` (already in both templates' context) and a
+per unit page, built from `unit.title` (already in all three templates' context) and a
 translated label. No model, migration, view, or JS change.
 
 ## Error handling
@@ -336,9 +347,10 @@ translated label. No model, migration, view, or JS change.
   tests and a template-render test.
 - **Empty title:** the header reads `libli · ` — acceptable; titles are required in the
   model, so this is theoretical.
-- **Browser's own headers/footers option:** when the student enables "Headers and footers"
-  in Chrome's print dialog, Chrome may print its own header/footer as well. That is user
-  choice and out of scope.
+- **Browser's own headers/footers option:** in browsers without margin-box support, the
+  browser's own header/footer (when the student enables it in the print dialog) may appear
+  in the 15 mm margin. Chromium is expected to suppress its own header/footer where author
+  margin boxes have content; either way this is user choice and out of scope.
 
 ## Testing
 
@@ -354,7 +366,9 @@ Unit / template tests (fast, non-e2e):
    `counter(page)` and `counter(pages)`. Fixture title
    `Funkcja \(f(x)\) "x" </style>` → the `@top-left` content is exactly
    `"libli · Funkcja f(x) \22 x\22  \3c /style\3e "`, and the response contains no literal
-   `</style>` between the partial's opening `<style>` and its own closing tag. With the UI
+   `</style>` between the partial's opening tag and its own closing tag. The partial's tag
+   is `<style data-print-page>` so the test can find it unambiguously among the other
+   inline `<style>` blocks in `<head>`. With the UI
    language set to Polish (`translation.override("pl")` around the render, or the
    `set_ui_language` endpoint in a client test), the label is `Strona`. A unit
    with a 200-character title made only of letters and spaces (no character `css_string`
@@ -385,13 +399,20 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    `<html>` (the only state in which the pin displays on screen): assert the pin is
    visible under screen media first, then not visible under print media — otherwise the
    assertion is vacuous.
-5. Quiz unit (multi-slide) in print media: same chrome assertions, **every** question of
+5. Quiz unit (multi-slide) in print media: the quiz chrome set — `.app-header__cluster`,
+   `.unit-foot`, `.unit-tree`, `.unit-strip` and the injected flash message (as in test 4)
+   not visible (each first asserted attached); `.brand`, the crumbs and `.unit-kind-chip`
+   visible. (`.unit-done`, `.lesson-unit__reset` and the draft banner are lesson/author
+   only and not part of this set.) **Every** question of
    every slide is visible, and neither `.slideshow-bar` nor any `.quiz-finish` is visible.
    A single-slide quiz: its in-article `.quiz-finish` is not visible.
    Submitted quiz → `quiz_results.html` in print media: `.unit-strip` and the
    `.quiz-results > .btn` "Back to course" link are not visible (each first asserted
    attached); a non-reveal result row (`li.quiz-results__item` without `.el--question`)
-   computes `break-inside: avoid`.
+   computes `break-inside: avoid`. The fixture quiz includes a **drag-to-image** question
+   — `DragToImageQuestionElement` is the only question type that keeps the base
+   `SUPPORTS_REVEAL = False`, so its row takes the non-reveal branch; the test asserts
+   count ≥ 1 of such rows before the computed-style check.
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
    `.el--question` in print media. This is a **cascade** check only (the rule is not
    overridden by anything later); whether a page break actually avoids the box is covered
