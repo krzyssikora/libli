@@ -635,8 +635,10 @@ def test_page_frame_header_and_flash(page, live_server, theme):
     _shown(page, "#content-alert")
     _shown(page, ".brand")
     style = page.evaluate(
-        """() => { const s = getComputedStyle(document.querySelector('.app-header'));
-                   return [s.backgroundColor, s.backgroundImage, s.borderBottomWidth]; }"""
+        """() => {
+          const s = getComputedStyle(document.querySelector('.app-header'));
+          return [s.backgroundColor, s.backgroundImage, s.borderBottomWidth];
+        }"""
     )
     assert style == ["rgba(0, 0, 0, 0)", "none", "0px"], style
 ```
@@ -1156,7 +1158,10 @@ def test_break_inside_cascade(page, live_server):
     page.wait_for_selector(".el--image img")
     page.emulate_media(media="print")
     for sel in (".el--image", ".el--question"):
-        assert page.evaluate(f"getComputedStyle(document.querySelector('{sel}')).breakInside") == "avoid"
+        value = page.evaluate(
+            "s => getComputedStyle(document.querySelector(s)).breakInside", sel
+        )
+        assert value == "avoid", (sel, value)
 
 
 @pytest.mark.django_db(transaction=True)
