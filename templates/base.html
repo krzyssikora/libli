@@ -158,7 +158,7 @@
   <main class="{% block main_class %}app-main{% endblock %}">
     {% if messages %}
       {% for message in messages %}
-        <div class="alert alert--{{ message.tags }}">{{ message }}</div>
+        <div class="alert alert--flash alert--{{ message.tags }}">{{ message }}</div>
       {% endfor %}
     {% endif %}
     {% block content %}{% endblock %}

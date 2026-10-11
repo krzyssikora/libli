@@ -56,6 +56,7 @@
     html.ba-armed .ba__panels > [data-ba-side="after"] { display: none; }
   </style>
   {% endif %}
+  {% include "courses/_print_page_header.html" %}
 {% endblock %}
 {% block content %}
   {% include "courses/_unit_strip.html" with show_print=True %}

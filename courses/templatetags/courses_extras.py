@@ -729,3 +729,29 @@ def strip_math_delimiters(value):
     if type(text) is not str:  # a str SUBCLASS check, deliberately
         text = str.__str__(text)  # copies a str subclass to an exact str
     return text
+
+
+# Spec 2026-10-11-print-layout-for-units §2. A CLOSED set: escaping anything
+# else (e.g. parentheses) would change the exact header text tests pin.
+_CSS_STRING_SPECIALS = frozenset("\\\"'<>&")
+
+
+@register.filter
+def css_string(value):
+    """Escape a value for the INSIDE of a CSS double-quoted string in <style>.
+
+    Escapes exactly \\ " ' < > & and U+0000-U+001F, U+007F as a CSS hex escape:
+    backslash, minimal lowercase hex, one space. Escaping < and > makes a title
+    containing </style> inert. None -> "" (str(None) would be "None"); anything
+    else -> str(value). Never raises: a raising filter takes down the page.
+    """
+    if value is None:
+        return mark_safe("")  # noqa: S308 — constant empty string
+    out = []
+    for ch in str(value):
+        cp = ord(ch)
+        if ch in _CSS_STRING_SPECIALS or cp < 0x20 or cp == 0x7F:
+            out.append(f"\\{cp:x} ")
+        else:
+            out.append(ch)
+    return mark_safe("".join(out))  # noqa: S308 — specials hex-escaped

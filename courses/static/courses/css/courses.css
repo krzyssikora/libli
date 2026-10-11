@@ -3346,3 +3346,54 @@ dialog.imgzoom:not([open]) { display: none; }
 .unit-strip__print { display: none; }
 html.js .unit-strip__print { display: inline-flex; }
 @media print { html.js .unit-strip__print { display: none; } }
+
+/* == Print layout for units (spec 2026-10-11-print-layout-for-units) == */
+/* ONE print block, appended last, so it follows every screen rule it overrides
+   (`.unit-shell`, `.unit-strip`, `.draft-banner`, the stepper hide, the gallery
+   carousel). Every hide is !important: e.g. app.css's
+   `.guessnumber button[data-guess-check]` outweighs a bare attribute selector
+   wherever it sits. */
+@media print {
+  /* D1: screen chrome and controls. Kept: .unit-kind-chip, .answer-switch, the
+     switch cyclers (their text IS the student's value), .question__feedback,
+     notes, and closed spoilers (they keep their on-screen state). */
+  .unit-foot, .unit-tree, .unit-drawer, .unit-strip, .draft-banner,
+  .unit-done, .lesson-unit__reset,
+  .quiz-finish, .quiz-results > .btn,
+  .el--question .question__form button[type="submit"],
+  .filltable__confirm, .markdone__save, .fillgate__confirm, .stepper__next,
+  .switchgate__confirm, .switchgrid__confirm, [data-guess-check] { display: none !important; }
+
+  /* Block flow, scoped by attribute: manage/review_submission.html reuses the
+     bare `.unit-shell` wrapper for its own two-column layout. */
+  [data-unit-shell], [data-unit-shell] > .unit-shell__main { display: block; }
+
+  /* Steppers print every step (reveal-gate precedent). First selector: after
+     stepper.js boots; second: lesson_unit.html's pre-boot `.stepper-armed` hide. */
+  .stepper.is-stepping [data-stepper-step]:not(.stepper-shown),
+  .stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child) { display: revert !important; }
+
+  /* D6: never split an image (with its caption) or a single question. Long
+     text, callouts and tables flow normally. img.cell-img is an atomic box
+     anyway; listed for coverage. */
+  .el--image, .el--gallery .gallery__item, img.cell-img, .dragimage__stage,
+  .el--question, .quiz-results__item { break-inside: avoid; }
+  .el__qnum { break-after: avoid; }
+
+  /* D6 caps (A4 minus 2 x 15mm = 267mm of content height). The drag stage is
+     shrink-to-fit, so capping the <img> scales its width and the percent-placed
+     badges follow. The gallery's screen `70vh` is not a print bound. */
+  .dragimage__img { max-height: 170mm; }
+  .el--gallery .gallery__frame { max-height: 170mm; }
+
+  /* gallery.js stacks every card absolutely at opacity 0 except the active one
+     and sets inline min-heights; on paper every card prints, stacked. */
+  .el--gallery.gallery--js .gallery__stage { position: static !important; min-height: 0 !important; }
+  .el--gallery.gallery--js .gallery__item { position: static !important; opacity: 1 !important; transition: none !important; }
+  .el--gallery.gallery--js .gallery__item + .gallery__item { margin-top: var(--space-4); }
+  .el--gallery.gallery--js .gallery__desc { min-height: 0 !important; }
+  .el--gallery .gallery__bar, .el--gallery .gallery__status { display: none !important; }
+
+  /* slideshow.js focuses the active .slide; a focus ring is not page content. */
+  :focus, :focus-visible { outline: none !important; }
+}
