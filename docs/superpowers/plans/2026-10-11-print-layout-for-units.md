@@ -311,6 +311,7 @@ def test_header_uses_literal_typography(client):
     ) in block
 
 
+@pytest.mark.django_db
 def test_flash_messages_carry_marker_class():
     """RENDER the flash loop: a source grep passes even in a dead branch."""
     from django.contrib.messages import constants
@@ -321,7 +322,7 @@ def test_flash_messages_carry_marker_class():
     assert 'class="alert alert--flash alert--info">Hi</div>' in html
 ```
 
-`test_flash_messages_carry_marker_class` renders `base.html` without a request (no context processors run; anonymous branches render). If that render raises on a context-processor-only variable, instead log in with `make_login`, POST the settings form at `core:user_settings` (it calls `messages.success`), follow the redirect, and assert `'class="alert alert--flash alert--success"'` in the final response. Remove the now-unused `Path` import if ruff flags it.
+`test_flash_messages_carry_marker_class` renders `base.html` without a request (no context processors run; anonymous branches render). It needs `@pytest.mark.django_db`: `base.html`'s `{% brand_vars %}` / `{% favicon_links %}` call `get_site_config()`, which queries the DB on a cold cache — without the mark the test passes or errors depending on test order. If that render raises on a context-processor-only variable, instead log in with `make_login`, POST the settings form at `core:user_settings` (it calls `messages.success`), follow the redirect, and assert `'class="alert alert--flash alert--success"'` in the final response. Remove the now-unused `Path` import if ruff flags it.
 Check `make_login`'s signature in `tests/factories.py` (it takes `(client, username)` and returns the logged-in user). If `quiz_unit` redirects a submitted quiz, the `submitted=True` path deliberately GETs `quiz_results` directly.
 
 - [ ] **Step 2: Run to verify they fail**
@@ -517,7 +518,9 @@ Print media is entered with page.emulate_media(media="print"). emulate_media kee
 the browser viewport, NOT the A4 page area, so page-width layout is covered by the
 manual page.pdf() check (plan Task 6), not here. Every "hidden in print" assertion
 is preceded by an attached (and where possible screen-visible) precondition, so it
-cannot pass vacuously.
+cannot pass vacuously. emulate_media never fires `beforeprint`; that is deliberate
+here: print.js's beforeprint handler only opens notes panels, and no assertion in
+this module depends on notes.
 """
 
 import os
@@ -1038,8 +1041,10 @@ uv run pytest tests/test_print_layout_css.py
 uv run pytest -m e2e tests/test_e2e_print_layout.py
 uv run pytest tests/test_*css*.py courses/tests/test_*css*.py
 uv run pytest -m e2e tests/test_e2e_print_foundations.py tests/test_e2e_print_lesson_notes.py tests/test_e2e_stepper.py
+uv run pytest -m e2e tests/test_e2e_unit_crumbs.py
+uv run pytest courses/tests/test_filltable_gate_print.py courses/tests/test_reveal_scope_agreement.py tests/test_tabs_partial.py
 ```
-Expected: all PASS.
+(one at a time, foreground). The crumbs e2e covers the crumbs now sitting in block-flow `.unit-shell__main`; the three source tests regex-match `@media print` blocks the `*css*` glob misses. Expected: all PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -1343,8 +1348,9 @@ uv run pytest tests/test_print_layout_css.py
 uv run pytest -m e2e tests/test_e2e_print_layout.py
 uv run pytest tests/test_*css*.py courses/tests/test_*css*.py
 uv run pytest -m e2e tests/test_e2e_gallery.py tests/test_e2e_dark_image_plate.py tests/test_e2e_image_float_notes.py
+uv run pytest -m e2e tests/test_e2e_image_size.py tests/test_e2e_image_float_layout.py tests/test_e2e_image_float_containers.py
 ```
-Expected: all PASS. Run e2e files one command at a time in the foreground (never two pytest runs at once — they share the test DB).
+If `test_tall_dragimage_capped_and_badges_aligned` fails on `stageW` > image width (the inline-block stage sized from the uncapped image — a cyclic-percentage case), add `width: auto;` to the print `.dragimage__img` rule and `width: fit-content;` to a print `.dragimage__stage` rule, then re-run. Never loosen the assertion. Expected: all PASS. Run e2e files one command at a time in the foreground (never two pytest runs at once — they share the test DB).
 
 - [ ] **Step 6: Commit**
 
