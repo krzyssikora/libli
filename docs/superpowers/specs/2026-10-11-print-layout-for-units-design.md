@@ -122,8 +122,9 @@ template does not inherit its parent's loads). It emits:
 ### 2. CSS-string escaping filter
 
 A new template filter `css_string` in `courses/templatetags/courses_extras.py`. It
-coerces its input with `str()` (`None` → `""`; lazy translation proxies and other
-non-str values are stringified) and never raises — like `strip_math_delimiters`, since a
+coerces its input — `None` → `""` (special-cased, since `str(None)` is `"None"`),
+anything else → `str(value)` (lazy translation proxies and other non-str values are
+stringified) — and never raises — like `strip_math_delimiters`, since a
 raising filter takes down the whole page render. It returns the **inside** of a CSS
 double-quoted string, marked safe:
 
@@ -160,12 +161,16 @@ New `@media print` rules:
   as well (article padding `1rem`, shell `display: block`); that is acceptable, and no
   test or manual check assumes the 1.5rem inset on every paper size. `.brand` stays (D2) — logo image or text, whichever the site uses. It appears
   once because the header is in normal flow at the top of the document.
-- Also in `app.css`: Django flash messages (`.app-main > .alert`) → `display: none` in
-  print. They are transient UI feedback, not unit content (D1). The selector is the
-  direct-child form on purpose: the quiz **preview** notice
-  (`aside.alert.alert--info[data-quiz-preview-notice]`, inside the article) is also an
-  `.alert` and intentionally **prints**, because it explains what the printout is (an
-  author's preview).
+- Also in `app.css`: Django flash messages → `display: none` in print. They are
+  transient UI feedback, not unit content (D1). They are marked, not matched by position:
+  the flash loop in `base.html` (`{% for message in messages %}`) gets an extra class,
+  `alert alert--flash alert--{{ message.tags }}`, and the print rule is
+  `.alert--flash { display: none; }`. A positional selector such as `.app-main > .alert`
+  is not used because pages also place persistent content alerts as direct children of
+  `.app-main` (e.g. `support/manage/report_detail.html`'s "Not emailed" warning), and
+  those must keep printing. Likewise the quiz **preview** notice
+  (`aside.alert.alert--info[data-quiz-preview-notice]`, inside the article) intentionally
+  **prints**, because it explains what the printout is (an author's preview).
 - Interactive question/quiz controls, in `courses.css` → `display: none` in print:
   - `.quiz-finish` (the "Finish quiz" form). On a multi-slide quiz it now lives in
     `.slideshow-bar` (merged #370), which the existing slideshow print block already
@@ -184,9 +189,13 @@ New `@media print` rules:
     student has not fully stepped through would print truncated with no sign that steps
     are missing, once "Show next" is hidden. A print rule after `courses.css` ~:2932,
     `.stepper.is-stepping [data-stepper-step]:not(.stepper-shown) { display: revert !important; }`
-    (same selector, so equal weight; source order and `!important` beat the screen hide),
-    also beats the `.stepper-armed` pre-hide inline in `lesson_unit.html`, which has no
-    `!important`.
+    (same selector, so equal weight; source order and `!important` beat the screen hide)
+    covers the post-boot state. The pre-boot state is covered by a second selector in the
+    same print rule, the pre-hide's own selector from `lesson_unit.html`:
+    `.stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child)
+    { display: revert !important; }` (the inline pre-hide has no `!important`, so this
+    wins), so steps print even when the page is printed before `stepper.js` boots or
+    while its boot is stalled.
   - Heading-row controls in `_lesson_article.html` (beside the `<h1>`, outside
     `elements/`): the whole `.unit-done` (both states — the "Mark as done" button form
     `.unit-progress` and the "✓ Completed" pill; completion is progress-tracking UI, not
@@ -225,8 +234,12 @@ New `@media print` rules:
   `.unit-drawer, .unit-drawer:not([hidden]) { display: none; }`, placed after ~:1405.
 - `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
   `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
-  Both are also set to `display: block` in print (`.unit-shell, .unit-shell__main
-  { display: block; }`), so the content is paginated as normal block flow rather than as
+  Both are also set to `display: block` in print, **scoped to the unit shell**:
+  `[data-unit-shell], [data-unit-shell] > .unit-shell__main { display: block; }`. Only
+  `_unit_shell.html` carries `data-unit-shell`; the teacher review-submission page
+  (`manage/review_submission.html`) reuses the bare `.unit-shell` wrapper for its own
+  two-column roster layout and must keep it, so a bare `.unit-shell` selector is not
+  allowed here. This makes the content is paginated as normal block flow rather than as
   flex items, whose fragmentation and `break-inside` support has historically been weaker
   in some engines. Non-Chromium pagination is otherwise not checked (the manual PDF check
   is Chromium-only).
@@ -336,7 +349,8 @@ This page is the printout of a submitted quiz (see §1). Beyond the running head
 
 No server-side data change. The only new server-side output is the inline `<style>` block
 per unit page, built from `unit.title` (already in all three templates' context) and a
-translated label. No model, migration, view, or JS change.
+translated label. The only other template change is the `alert--flash` marker class on
+the flash-message loop in `base.html`. No model, migration, view, or JS change.
 
 ## Error handling
 
@@ -365,10 +379,13 @@ Unit / template tests (fast, non-e2e):
    block with `@top-left` holding the stripped, escaped title, and `@top-right` holding
    `counter(page)` and `counter(pages)`. Fixture title
    `Funkcja \(f(x)\) "x" </style>` → the `@top-left` content is exactly
-   `"libli · Funkcja f(x) \22 x\22  \3c /style\3e "`, and the response contains no literal
-   `</style>` between the partial's opening tag and its own closing tag. The partial's tag
-   is `<style data-print-page>` so the test can find it unambiguously among the other
-   inline `<style>` blocks in `<head>`. With the UI
+   `"libli · Funkcja f(x) \22 x\22  \3c /style\3e "`. The partial's tag is
+   `<style data-print-page>` so the test can find it unambiguously among the other inline
+   `<style>` blocks in `<head>`. The test slices the response from
+   `<style data-print-page>` to the **first** following `</style>` and asserts that slice
+   contains the exact expected `@top-left` content **and** the `@top-right` rule with
+   `counter(pages)` — if a title's `</style>` leaked unescaped, the block would end early
+   and those would be missing. With the UI
    language set to Polish (`translation.override("pl")` around the render, or the
    `set_ui_language` endpoint in a client test), the label is `Strona`. A unit
    with a 200-character title made only of letters and spaces (no character `css_string`
@@ -384,7 +401,7 @@ Unit / template tests (fast, non-e2e):
 e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 
 4. Lesson unit in print media: `.app-header__cluster`, `.unit-foot`, `.unit-tree`,
-   `.unit-toc-pin`, `.unit-strip`, a flash message (`.app-main > .alert`), a question's
+   `.unit-toc-pin`, `.unit-strip`, a flash message (`.alert--flash`), a question's
    Check button, `.unit-done` (the lesson is not yet completed, so its "Mark as done"
    button form renders), and (author viewing an unpublished unit) `.draft-banner` are not
    visible (each first asserted attached); `.unit-kind-chip` is visible; `.brand` and the crumbs are visible;
@@ -392,10 +409,13 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    equals `.unit-shell`'s (no tree track reserved). `emulate_media` keeps the browser
    viewport rather than the A4 page area, so the real page-width layout is covered only by
    the `page.pdf()` check below. The flash message is produced by injecting
-   `<div class="alert alert--info">x</div>` as the first child of `.app-main` via
-   `page.evaluate` before emulating print (this test checks a style rule, not a user
-   flow); the test first asserts the injected `.app-main > .alert` count is 1, then that it
-   is not visible. The `.unit-toc-pin` check runs with `unit-tree-collapsed` set on
+   `<div class="alert alert--flash alert--info">x</div>` as the first child of `.app-main`
+   via `page.evaluate` before emulating print (this test checks a style rule, not a user
+   flow), together with a non-flash content alert `<p class="alert alert--warning">y</p>`
+   as a second direct child; the test first asserts each injected element's count is 1,
+   then that the flash one is not visible and the content one **is** visible. A separate
+   fast template test asserts that a rendered page with a Django message emits
+   `class="alert alert--flash alert--…"` from `base.html`. The `.unit-toc-pin` check runs with `unit-tree-collapsed` set on
    `<html>` (the only state in which the pin displays on screen): assert the pin is
    visible under screen media first, then not visible under print media — otherwise the
    assertion is vacuous.
