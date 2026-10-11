@@ -112,8 +112,10 @@ A new template filter `css_string` in `courses/templatetags/courses_extras.py`. 
 plain string and returns the **inside** of a CSS double-quoted string, marked safe:
 
 - every character that is not printable-safe in a CSS string inside an HTML `<style>`
-  element is replaced with a CSS hex escape `\HHHHHH ` (hex code point + one space
-  terminator): at minimum `\`, `"`, `'`, `<`, `>`, `&`, and every control character
+  element is replaced with a CSS hex escape: backslash, the code point in **minimal
+  lowercase hex** (no zero-padding), then exactly one space — e.g. `"` → `\22 `,
+  `'` → `\27 `, `\` → `\5c `, `<` → `\3c `, `>` → `\3e `, `&` → `\26 `, newline →
+  `\a `: at minimum `\`, `"`, `'`, `<`, `>`, `&`, and every control character
   (U+0000–U+001F, U+007F) including newline and carriage return;
 - all other characters (including Polish diacritics and other non-ASCII) pass through
   unchanged.
@@ -153,13 +155,32 @@ New `@media print` rules:
   - `.el--question .question__form button[type="submit"]` — every question's
     Check/Submit button and the reveal button (`_reveal_button.html`, also
     `type="submit"`), in lessons and quizzes alike.
+  - Non-question action buttons (swept from `templates/courses/elements/*.html` and the
+    `render_*` tags in `courses_extras.py`): `.filltable__confirm` (fill-table "Check"),
+    `.markdone__save` (mark-done "Save"), `.fillgate__confirm`, `.stepper__next`
+    ("Show next"), `.switchgate__confirm`, `.switchgrid__confirm`, and
+    `[data-guess-check]` (guess-number check). These are all hidden in one rule.
+  - Already hidden by existing print rules (no change, listed for completeness): the
+    reveal-gate buttons (`[data-reveal-gate]:not([data-filltablegate])`, app.css) and
+    `.ba__toggle` (courses.css before/after print block).
   - Kept: `.question__feedback` (the student's verdict, marks and attempts-left line) —
     that is the student's result, i.e. content of their printout.
+  - Kept: `.switchgate__cycler` / `.switchgrid__cycler` — they are buttons, but their text
+    IS the student's chosen value, so they are content.
+  - Kept: `.answer-switch` ("Your answer / Correct answer") — on paper it acts as a legend
+    saying which copy of the answer is shown.
 - In `courses.css` (owns the unit shell): `.unit-foot`, `.unit-tree`, `.unit-drawer`,
   `.unit-toc-pin` (all states), the **whole** `.unit-strip` (it holds only the tag panel,
   Print and Edit — see "Open question resolved by the spec" below), and the **whole**
   `.draft-banner` (author-only "this unit is unpublished" notice; today only its form is
   hidden in print) → `display: none`.
+- **Scope of the `app.css` rules:** the header, flash-message and `.app-main` print rules
+  are global, on purpose, like `@page`: every page that extends `base.html` (course page,
+  results, dashboards, manage pages) prints without the nav cluster and flash messages
+  and with an unpadded main. None of that chrome is useful on paper on any page, and one
+  global rule is simpler than a per-page opt-in. Standalone print pages
+  (`gradebook_print.html`) do not extend `base.html` and are unaffected except for
+  `@page`'s margin, which they get too.
 - `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
   `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
 - **Not touched:** student notes (`.block-notes`, the unanchored-notes panel). They have a
@@ -201,7 +222,7 @@ D6 noun → selector map (the source for the coverage test):
 |---|---|
 | el--image figure (with caption) | `.el--image` |
 | float images | `.el--image` (`.el--image--float` is also `.el--image`) |
-| table-cell images | `img.cell-img` (`_table_cell.html`, `_filltable_cell.html`) |
+| table-cell images | `img.cell-img` (`_table_cell.html`, `_filltable_cell.html`). An `<img>` is an atomic replaced box and never splits anyway, so this entry is for explicitness/coverage only; tables (and so their rows) flow normally per D6, and no row-level protection is added |
 | gallery frame | `.el--gallery .gallery__item` (frame + description) |
 | dragimage | `.dragimage__stage`; its element root `.el--dragimage` is also `.el--question` |
 | question images / single questions | `.el--question` (covers images in stems and options) |
@@ -299,7 +320,11 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
    `.el--question` in print media.
 7. Light **and** dark stored theme for test 4 (dark theme already maps to the light palette
-   in print; this checks the hidden header did not leave a dark band).
+   in print). In both, under print media `.app-header` computes `background-color`
+   `rgba(0, 0, 0, 0)`, `background-image` `none`, and `border-bottom-width` `0px` — so the
+   hidden header leaves no band.
+10. A lesson with a fill-table, a mark-done element and a stepper in print media:
+   `.filltable__confirm`, `.markdone__save` and `.stepper__next` are not visible.
 8. Drag-to-image question with a tall image (taller than 170 mm at print width) in print
    media: `.dragimage__img` height ≤ 170 mm, and every badge's bounding box lies inside the
    image's bounding box.
