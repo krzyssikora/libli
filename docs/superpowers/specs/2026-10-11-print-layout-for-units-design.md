@@ -401,9 +401,11 @@ Unit / template tests (fast, non-e2e):
    class/attribute names is found in `templates/courses/elements/` or in
    `courses/templatetags/courses_extras.py`. This is the **only** coverage for
    `.fillgate__confirm`, `.switchgate__confirm`, `.switchgrid__confirm` and
-   `[data-guess-check]`: the first three of those (and `[data-guess-check]`) render with the
-   `hidden` attribute until JS reveals them, so an e2e "not visible in print" check on them
-   would pass vacuously; that omission from e2e is deliberate.
+   `[data-guess-check]`. `.fillgate__confirm`, `.switchgate__confirm` and
+   `[data-guess-check]` render with the `hidden` attribute until JS reveals them, so an e2e
+   "not visible in print" check on them would pass vacuously; `.switchgrid__confirm` is
+   simply not exercised by any e2e fixture here. Leaving these four out of e2e is
+   deliberate.
 
 e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
 
