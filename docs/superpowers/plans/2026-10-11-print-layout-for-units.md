@@ -24,6 +24,9 @@
 - Never write `{# … #}` across multiple lines in a template (Django renders it literally); use `{% comment %}`.
 - Never pass `-q` to pytest (`addopts` already has it). e2e needs `-m e2e`. Start the test DB container before any test run (Task 1, Step 1).
 - After ANY CSS edit, run every `tests/test_*css*.py` and `courses/tests/test_*css*.py`.
+- **Lint gate before EVERY commit** (CI runs both on the whole repo), scoped to the task's Python files:
+  `uv run ruff format <files>` then `uv run ruff check --no-cache <files>` then `uv run ruff format --check <files>`.
+  Line length is 88: wrap long string literals / JS snippets in parentheses or split them; never name a variable `l` (E741). Every `mark_safe` needs `# noqa: S308 — <reason>` (repo convention).
 - Commit with explicit paths, never `git add -A`. End every commit message with:
   `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` and
   `Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6`
@@ -164,7 +167,7 @@ def css_string(value):
     else -> str(value). Never raises: a raising filter takes down the page.
     """
     if value is None:
-        return mark_safe("")
+        return mark_safe("")  # noqa: S308 — constant empty string
     out = []
     for ch in str(value):
         cp = ord(ch)
@@ -172,7 +175,7 @@ def css_string(value):
             out.append(f"\\{cp:x} ")
         else:
             out.append(ch)
-    return mark_safe("".join(out))
+    return mark_safe("".join(out))  # noqa: S308 — every special/control char is hex-escaped
 ```
 
 - [ ] **Step 5: Run to verify they pass**
@@ -290,7 +293,7 @@ def test_polish_ui_label(client, kind, submitted):
 def test_long_title_truncated_to_70(client):
     title = ("abcdefghij " * 19)[:200]  # letters and spaces only: nothing escapes
     block = _block(_get(client, "lesson", title))
-    line = next(l for l in block.splitlines() if 'content: "libli · ' in l)
+    line = next(ln for ln in block.splitlines() if 'content: "libli · ' in ln)
     shown = line.split('content: "libli · ', 1)[1].rsplit('";', 1)[0]
     assert len(shown) <= 70
     assert shown.endswith("…")
@@ -301,7 +304,10 @@ def test_header_uses_literal_typography(client):
     block = _block(_get(client, "lesson", "T"))
     assert "var(" not in block
     assert "#5A544A" in block
-    assert '"Inter", "libli-dice", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' in block
+    assert (
+        '"Inter", "libli-dice", -apple-system, BlinkMacSystemFont, '
+        '"Segoe UI", sans-serif'
+    ) in block
 
 
 def test_flash_messages_carry_marker_class():
@@ -393,6 +399,8 @@ Expected: all PASS.
 
 - [ ] **Step 8: Commit**
 
+Lint first: `uv run ruff format tests/test_print_page_header.py`, then `uv run ruff check --no-cache` and `uv run ruff format --check` on it; both must be clean.
+
 ```bash
 git add templates/courses/_print_page_header.html templates/courses/lesson_unit.html templates/courses/quiz_unit.html templates/courses/quiz_results.html templates/base.html locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo tests/test_print_page_header.py
 git commit -m "feat(print): running page header with unit title and page n / N
@@ -433,10 +441,23 @@ APP = (ROOT / "core/static/core/css/app.css").read_text(encoding="utf-8")
 APP_MARK = "/* == Print page frame (spec 2026-10-11-print-layout-for-units) == */"
 
 
+def _strip_comments(css):
+    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+
 def _after(css, marker):
+    """(marker index, comment-free text of everything from the marker on)."""
     i = css.find(marker)
     assert i >= 0, f"marker missing: {marker}"
-    return i, css[i:]
+    return i, _strip_comments(css[i:])
+
+
+def _before(css, anchor, i):
+    """Last occurrence of `anchor` strictly BEFORE index i (the new block itself
+    repeats several screen selectors, so a whole-file rfind would find those)."""
+    j = css.rfind(anchor, 0, i)
+    assert j >= 0, f"screen anchor not found before the print block: {anchor!r}"
+    return j
 
 
 def _hides_are_important(block):
@@ -450,18 +471,27 @@ def test_page_margin():
 
 def test_app_block_after_screen_rules():
     i, _ = _after(APP, APP_MARK)
-    for anchor in (".app-header {", ".app-header__cluster {", ".app-main {",
-                   "  .app-header { flex-wrap: wrap;", "  .app-main { padding: var(--space-5)"):
-        j = APP.rfind(anchor)
-        assert j >= 0, f"anchor not found: {anchor!r}"
-        assert j < i, f"{anchor!r} comes after the print block"
+    for anchor in (
+        ".app-header {",
+        ".app-header__cluster {",
+        ".app-main {",
+        "  .app-header { flex-wrap: wrap;",
+        "  .app-main { padding: var(--space-5)",
+    ):
+        _before(APP, anchor, i)
+    # Nothing after the block may restyle these (the block must be LAST for them).
+    tail = _strip_comments(APP[i:])
+    assert tail.count(".app-main {") == 1 and tail.count(".app-header {") == 1
+
+
+HIDE = r"\s*\{\s*display:\s*none\s*!important"
 
 
 def test_app_block_contents():
     _, block = _after(APP, APP_MARK)
     _hides_are_important(block)
-    assert re.search(r"\.app-header__spacer,\s*\.app-header__cluster\s*\{\s*display:\s*none\s*!important", block)
-    assert re.search(r"\.alert--flash\s*\{\s*display:\s*none\s*!important", block)
+    assert re.search(r"\.app-header__spacer,\s*\.app-header__cluster" + HIDE, block)
+    assert re.search(r"\.alert--flash" + HIDE, block)
     assert re.search(r"\.app-header\s*\{[^}]*background:\s*none[^}]*border:\s*0", block)
     assert re.search(r"\.app-main\s*\{[^}]*padding:\s*0[^}]*max-width:\s*none", block)
 ```
@@ -642,6 +672,8 @@ Expected: all PASS. If the e2e header style assertion fails with a non-transpare
 
 - [ ] **Step 6: Commit**
 
+Lint first: `uv run ruff format tests/test_print_layout_css.py tests/test_e2e_print_layout.py`, then `uv run ruff check --no-cache` and `uv run ruff format --check` on the same two files; both must be clean.
+
 ```bash
 git add core/static/core/css/app.css tests/test_print_layout_css.py tests/test_e2e_print_layout.py
 git commit -m "feat(print): 15mm page margins; hide header nav and flash messages in print
@@ -694,7 +726,11 @@ def _courses_block():
 
 
 def _rule_selectors(block, decl_regex):
-    """Selectors of every rule in `block` whose body matches decl_regex."""
+    """Selectors of every rule in `block` whose body matches decl_regex.
+
+    `block` comes from _after(), which has already stripped /* comments */ — a
+    comment before a rule would otherwise be glued onto its first selector."""
+    block = _strip_comments(block)
     sels = []
     for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", block):
         if re.search(decl_regex, m.group(2)):
@@ -737,14 +773,22 @@ def test_unit_shell_block_is_scoped():
     assert ".unit-shell" not in blocks  # review_submission.html reuses .unit-shell
 
 
+STEPPER_SCREEN_HIDE = (
+    ".stepper.is-stepping [data-stepper-step]:not(.stepper-shown)"
+    " { display: none !important; }"
+)
+
+
 def test_courses_block_after_screen_rules():
     i, _ = _courses_block()
-    for anchor in (".unit-shell { display: flex;", "  .unit-shell { display: block; }",
-                   ".stepper.is-stepping [data-stepper-step]:not(.stepper-shown) { display: none !important; }",
-                   ".unit-strip { display: flex;", ".draft-banner {"):
-        j = COURSES.rfind(anchor)
-        assert j >= 0, f"anchor not found: {anchor!r}"
-        assert j < i, f"{anchor!r} comes after the print block"
+    for anchor in (
+        ".unit-shell { display: flex;",
+        "  .unit-shell { display: block; }",
+        STEPPER_SCREEN_HIDE,
+        ".unit-strip { display: flex;",
+        ".draft-banner {",
+    ):
+        _before(COURSES, anchor, i)
 ```
 
 Verify each anchor with grep first (`grep -n "^\.unit-strip {\|^\.draft-banner {\|^\.unit-shell {\|  \.unit-shell { display: block" courses/static/courses/css/courses.css`) and adjust the string to the file's exact text.
@@ -954,6 +998,8 @@ Expected: all PASS.
 
 - [ ] **Step 6: Commit**
 
+Lint first: `uv run ruff format tests/test_print_layout_css.py tests/test_e2e_print_layout.py`, then `uv run ruff check --no-cache` and `uv run ruff format --check` on the same two files; both must be clean.
+
 ```bash
 git add courses/static/courses/css/courses.css tests/test_print_layout_css.py tests/test_e2e_print_layout.py
 git commit -m "feat(print): hide unit chrome and controls; print every stepper step
@@ -973,6 +1019,20 @@ Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6"
 **Interfaces:**
 - Consumes: Task 4's block and helpers.
 - Produces: none for later tasks.
+
+- [ ] **Step 0: Correct the spec's false claim**
+
+In `docs/superpowers/specs/2026-10-11-print-layout-for-units-design.md`, Testing #5,
+replace the sentence beginning "The fixture quiz includes a **drag-to-image** question"
+(through "…before the computed-style check.") with:
+"Every `QuestionElement` subclass sets `SUPPORTS_REVEAL = True` (verified in
+`courses/models.py`), so every results row currently wraps a rendered `.el--question`
+and the non-reveal branch of `quiz_results.html` is unreachable; the test asserts
+`break-inside: avoid` on a `.quiz-results__item` row (count ≥ 1 first). The
+`.quiz-results__item` rule still covers the non-reveal branch should it become reachable."
+Commit it on its own:
+`git add docs/superpowers/specs/2026-10-11-print-layout-for-units-design.md` and
+`git commit -m "docs(print-layout-for-units): correct SUPPORTS_REVEAL claim in spec"` (with the two trailer lines).
 
 - [ ] **Step 1: Write the failing source tests** — append to `tests/test_print_layout_css.py`:
 
@@ -1003,34 +1063,49 @@ def test_d6_caps():
     assert ".el--gallery .gallery__frame" in _rule_selectors(block, r"max-height:\s*170mm")
 
 
+def _decl(block, selector):
+    """Body of the rule whose selector list contains exactly `selector`."""
+    for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", _strip_comments(block)):
+        if selector in [s.strip() for s in m.group(1).split(",")]:
+            return m.group(2)
+    raise AssertionError(f"no rule for {selector}")
+
+
 def test_gallery_carousel_reset():
     _, block = _courses_block()
-    assert re.search(r"\.el--gallery\.gallery--js \.gallery__item\s*\{[^}]*position:\s*static\s*!important[^}]*opacity:\s*1\s*!important", block)
-    assert re.search(r"\.el--gallery\.gallery--js \.gallery__stage\s*\{[^}]*position:\s*static\s*!important[^}]*min-height:\s*0\s*!important", block)
-    assert re.search(r"\.el--gallery\.gallery--js \.gallery__desc\s*\{[^}]*min-height:\s*0\s*!important", block)
+    item = _decl(block, ".el--gallery.gallery--js .gallery__item")
+    assert re.search(r"position:\s*static\s*!important", item)
+    assert re.search(r"opacity:\s*1\s*!important", item)
+    stage = _decl(block, ".el--gallery.gallery--js .gallery__stage")
+    assert re.search(r"position:\s*static\s*!important", stage)
+    assert re.search(r"min-height:\s*0\s*!important", stage)
+    desc = _decl(block, ".el--gallery.gallery--js .gallery__desc")
+    assert re.search(r"min-height:\s*0\s*!important", desc)
     hidden = _rule_selectors(block, r"display:\s*none\s*!important")
-    assert ".el--gallery .gallery__bar" in hidden and ".el--gallery .gallery__status" in hidden
+    assert ".el--gallery .gallery__bar" in hidden
+    assert ".el--gallery .gallery__status" in hidden
 
 
 def test_d6_block_after_screen_rules():
     i, _ = _courses_block()
-    for anchor in (".dragimage__img {", ".el--gallery .gallery__frame {",
-                   ".el--gallery.gallery--js .gallery__item {"):
-        j = COURSES.rfind(anchor)
-        assert j >= 0, f"anchor not found: {anchor!r}"
-        assert j < i
+    for anchor in (
+        ".dragimage__img {",
+        ".el--gallery .gallery__frame {",
+        ".el--gallery.gallery--js .gallery__item {",
+    ):
+        _before(COURSES, anchor, i)
 ```
 
 - [ ] **Step 2: Write the failing e2e tests** — append to `tests/test_e2e_print_layout.py`:
 
 ```python
-def _png(size, name):
+def _png(size, rgb=(90, 120, 200)):
     from io import BytesIO
 
     from PIL import Image
 
     buf = BytesIO()
-    Image.new("RGB", size, (90, 120, 200)).save(buf, "PNG")
+    Image.new("RGB", size, rgb).save(buf, "PNG")
     return buf.getvalue()
 
 
@@ -1046,7 +1121,7 @@ def test_break_inside_cascade(page, live_server):
 
     course = CourseFactory()
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
-    asset = make_image_asset(course, filename="b.png", raw=_png((400, 300), "b"))
+    asset = make_image_asset(course, filename="b.png", raw=_png((400, 300)))
     add_element(unit, ImageElement.objects.create(media=asset, alt="b", size="medium"))
     add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
     user = _student("brk-stu", course)
@@ -1068,7 +1143,7 @@ def test_tall_dragimage_capped_and_badges_aligned(page, live_server):
 
     course = CourseFactory()
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
-    asset = make_image_asset(course, filename="tall.png", raw=_png((600, 1600), "tall"))
+    asset = make_image_asset(course, filename="tall.png", raw=_png((600, 1600)))
     q = DragToImageQuestionElement.objects.create(media=asset, alt="Tall")
     for n, (x, y) in enumerate([(0.2, 0.2), (0.5, 0.5), (0.8, 0.8)]):
         DragZone.objects.create(question=q, correct_label=f"L{n}", x=x, y=y, w=0.1, h=0.1, order=n)
@@ -1113,7 +1188,7 @@ def test_js_gallery_prints_every_image(page, live_server):
 
     course = CourseFactory()
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
-    assets = [make_image_asset(course, filename=f"g{n}.png", raw=_png((400, 300), f"g{n}"))
+    assets = [make_image_asset(course, filename=f"g{n}.png", raw=_png((400, 300), (40 * n, 120, 200)))
               for n in range(3)]
     add_element(unit, GalleryElement.objects.create(
         data={"images": [{"media": a.pk, "desc": ""} for a in assets], "desc_pos": "below"}))
@@ -1143,19 +1218,19 @@ def test_js_gallery_prints_every_image(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_quiz_results_chrome_and_row_break(page, live_server):
-    """Spec test 5, results half. Drag-to-image is the only question type that
-    keeps SUPPORTS_REVEAL = False, so its row takes the non-reveal branch."""
-    from courses.models import DragToImageQuestionElement
-    from courses.models import DragZone
+    """Spec test 5, results half.
+
+    Every QuestionElement subclass sets SUPPORTS_REVEAL = True, so today every
+    results row wraps a rendered .el--question; the "non-reveal row" branch of
+    quiz_results.html is unreachable (the spec's drag-to-image claim was wrong and
+    is corrected in Step 0). The rule is on .quiz-results__item itself, so the
+    row's own computed break-inside is what is asserted."""
     from courses.models import QuizSubmission
-    from tests.factories import make_image_asset
+    from courses.models import ShortTextQuestionElement
 
     course = CourseFactory()
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", title="Done")
-    asset = make_image_asset(course, filename="r.png", raw=_png((400, 300), "r"))
-    q = DragToImageQuestionElement.objects.create(media=asset, alt="R")
-    DragZone.objects.create(question=q, correct_label="A", x=0.5, y=0.5, w=0.1, h=0.1, order=0)
-    add_element(unit, q)
+    add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
     user = _student("res-stu", course)
     QuizSubmission.objects.create(student=user, unit=unit, status=QuizSubmission.Status.SUBMITTED)
     page.set_viewport_size(VIEWPORT)
@@ -1164,15 +1239,15 @@ def test_quiz_results_chrome_and_row_break(page, live_server):
     page.wait_for_selector(".quiz-results")
     _shown(page, ".unit-strip")
     _shown(page, ".quiz-results > .btn")
-    rows = page.locator(".quiz-results__item:not(:has(.el--question))")
-    assert rows.count() >= 1
+    assert page.locator(".quiz-results__item").count() >= 1
 
     page.emulate_media(media="print")
     _hidden(page, ".unit-strip")
     _hidden(page, ".quiz-results > .btn")
-    assert page.evaluate(
-        "getComputedStyle(document.querySelector('.quiz-results__item:not(:has(.el--question))')).breakInside"
-    ) == "avoid"
+    row_break = page.evaluate(
+        "getComputedStyle(document.querySelector('.quiz-results__item')).breakInside"
+    )
+    assert row_break == "avoid"
 ```
 
 - [ ] **Step 3: Run to verify they fail**
@@ -1181,7 +1256,7 @@ def test_quiz_results_chrome_and_row_break(page, live_server):
 uv run pytest tests/test_print_layout_css.py
 uv run pytest -m e2e tests/test_e2e_print_layout.py -k "break_inside or dragimage or gallery or quiz_results"
 ```
-Expected: FAIL (`missing from break-inside`, `h > 642`, overlapping gallery items, `breakInside == "auto"`). `test_quiz_results_chrome_and_row_break`'s `.unit-strip` / `.btn` hides are already green from Task 4 — the row assertion is the new red.
+Expected: FAIL (`missing from break-inside`, `h > 642`, overlapping gallery items, `row_break == "auto"`). `test_quiz_results_chrome_and_row_break`'s `.unit-strip` / `.btn` hides are already green from Task 4 — the `row_break` assertion is the new red.
 
 - [ ] **Step 4: Implement** — insert INSIDE the Task 4 `@media print` block, after the stepper rule, before the closing `}`:
 
@@ -1221,6 +1296,8 @@ Expected: all PASS. Run e2e files one command at a time in the foreground (never
 
 - [ ] **Step 6: Commit**
 
+Lint first: `uv run ruff format tests/test_print_layout_css.py tests/test_e2e_print_layout.py`, then `uv run ruff check --no-cache` and `uv run ruff format --check` on the same two files; both must be clean.
+
 ```bash
 git add courses/static/courses/css/courses.css tests/test_print_layout_css.py tests/test_e2e_print_layout.py
 git commit -m "feat(print): keep images and questions on one page; print every gallery image
@@ -1239,14 +1316,14 @@ Claude-Session: https://claude.ai/code/session_01MZiddHy9T3UgRttXEkkir6"
 
 Edit by hand (never `git checkout` to revert — it destroys uncommitted work; restore with the inverse hand edit), one at a time, run the named test, confirm FAIL, restore, confirm PASS:
 1. In courses.css's print block delete `!important` from the hide rule → `test_courses_block_hides_are_important` FAILS.
-2. Remove `.quiz-results__item` from the break-inside list → `test_quiz_results_chrome_and_row_break` FAILS.
+2. Remove `.quiz-results__item` from the break-inside list → `test_quiz_results_chrome_and_row_break` FAILS at the `row_break == "avoid"` assertion (check the failure line — a failure anywhere else means the mutant was not what turned it red).
 3. Change `.dragimage__img { max-height: 170mm; }` to `400mm` → `test_tall_dragimage_capped_and_badges_aligned` FAILS.
 4. In `_print_page_header.html` drop `|css_string` from the title → `test_hostile_title_is_escaped_and_block_is_intact` FAILS.
 Run `git diff` after each restore: it must be empty for the touched file.
 
 - [ ] **Step 2: Generate PDFs**
 
-Write a throwaway Playwright test in the scratchpad dir (or a temporary `tests/test_zz_print_pdfs.py` that is deleted before commit — confirm with `git status`) that builds, logs in and calls `page.pdf(path=…, format="A4", print_background=False)` for:
+Write a TEMPORARY `tests/test_zz_print_pdfs.py` (it must live under `tests/` to get the repo conftest, `live_server` and DB setup; run it with `uv run pytest -m e2e tests/test_zz_print_pdfs.py`; write PDFs into the scratchpad `print-pdfs/` dir; delete the file before any commit and confirm with `git status`) that builds, logs in and calls `page.pdf(path=…, format="A4", print_background=False)` for:
 - a long lesson: 15 paragraphs, a `full` image, a `medium` float-right image placed after ~6 paragraphs (near a page boundary), a 3-image gallery, a tall drag-to-image question, a stepper, a 200-character title;
 - the same lesson as `format="A5"`;
 - a 3-slide quiz;
