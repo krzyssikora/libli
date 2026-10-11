@@ -38,13 +38,16 @@ def _login(page, live_server, username):
     form.locator("button[type='submit']").click()
 
 
-def _course_with_two_chapters(username="outliner"):
+def _course_with_two_chapters(username="outliner", *, started=False):
     """part > (chapter A > unit A1) + (chapter B > unit B1), plus a depth-0 unit.
 
     Every container holds a visible unit, or build_outline's pruning drops it
     before the template ever sees it. The depth-0 unit pins the mixed shape:
     units and containers coexist at the same depth, so "top level open" cannot
     mean "show only containers".
+
+    started=True saves practice work in unit A1, which is what makes the part,
+    chapter A and course-level "Start fresh" links render at all.
     """
     from courses.models import Enrollment
     from tests.factories import ContentNodeFactory
@@ -73,6 +76,12 @@ def _course_with_two_chapters(username="outliner"):
     root_unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=None, title="Root Unit"
     )
+    if started:
+        from courses.models import UnitProgress
+
+        UnitProgress.objects.create(
+            student=user, unit=unit_a, element_state={"1": {"items": []}}
+        )
     return {
         "user": user,
         "course": course,
@@ -137,7 +146,7 @@ def _wait_for_write(page):
 @pytest.mark.django_db(transaction=True)
 def test_first_visit_opens_depth0_only(page, live_server):
     """T6 + T7. Mutant: render every <details> open."""
-    f = _course_with_two_chapters("t7")
+    f = _course_with_two_chapters("t7", started=True)
     _login(page, live_server, "t7")
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
 
@@ -603,7 +612,7 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
     `not_to_have_accessible_name(re.compile("Start fresh"))` assertion, which
     DOES redden under this exact mutant).
     """
-    f = _course_with_two_chapters("t16")
+    f = _course_with_two_chapters("t16", started=True)
     _login(page, live_server, "t16")
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
 
@@ -786,7 +795,7 @@ def test_head_buttons_share_one_vertical_level(page, live_server):
     baseline from the svg's bottom edge, so "My results" and "My notes" rode ~2px
     above "Expand all" and "Start fresh". Mutant: drop the align-self: center
     rule on the head's buttons -- the tops differ and this goes red."""
-    f = _course_with_two_chapters("headalign")
+    f = _course_with_two_chapters("headalign", started=True)
     _login(page, live_server, "headalign")
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
