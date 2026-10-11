@@ -482,10 +482,11 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    Submitted quiz → `quiz_results.html` in print media: `.unit-strip` and the
    `.quiz-results > .btn` "Back to course" link are not visible (each first asserted
    attached); a non-reveal result row (`li.quiz-results__item` without `.el--question`)
-   computes `break-inside: avoid`. The fixture quiz includes a **drag-to-image** question
-   — `DragToImageQuestionElement` is the only question type that keeps the base
-   `SUPPORTS_REVEAL = False`, so its row takes the non-reveal branch; the test asserts
-   count ≥ 1 of such rows before the computed-style check.
+   computes `break-inside: avoid`. Every `QuestionElement` subclass sets `SUPPORTS_REVEAL = True` (verified in
+   `courses/models.py`), so every results row currently wraps a rendered `.el--question`
+   and the non-reveal branch of `quiz_results.html` is unreachable; the test asserts
+   `break-inside: avoid` on a `.quiz-results__item` row (count ≥ 1 first). The
+   `.quiz-results__item` rule still covers the non-reveal branch should it become reachable.
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
    `.el--question` in print media. This is a **cascade** check only (the rule is not
    overridden by anything later); whether a page break actually avoids the box is covered
