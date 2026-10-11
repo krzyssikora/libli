@@ -69,7 +69,12 @@ wrong elsewhere):
 
 The **running header** is unit-specific, so it is emitted per page, not in a static sheet.
 A new shared partial `templates/courses/_print_page_header.html`, included from the
-`extra_css` block of both `lesson_unit.html` and `quiz_unit.html`, emits:
+`extra_css` block of `lesson_unit.html`, `quiz_unit.html` **and `quiz_results.html`**,
+emits the block below. `quiz_results.html` is in scope because every request for a
+submitted quiz redirects there (`courses/views.py` ~:1487), so a student printing their
+finished quiz prints that page; it extends `base.html`, has `unit` in context and an
+`extra_css` block. The partial starts with `{% load i18n courses_extras %}` (an included
+template does not inherit its parent's loads). It emits:
 
 ```html
 <style>
@@ -162,6 +167,14 @@ New `@media print` rules:
     `.markdone__save` (mark-done "Save"), `.fillgate__confirm`, `.stepper__next`
     ("Show next"), `.switchgate__confirm`, `.switchgrid__confirm`, and
     `[data-guess-check]` (guess-number check). These are all hidden in one rule.
+  - **Steppers print every step**, following the reveal-gate precedent (`app.css` ~:1524
+    prints every gated block and hides only the gate button). Otherwise a stepper the
+    student has not fully stepped through would print truncated with no sign that steps
+    are missing, once "Show next" is hidden. A print rule after `courses.css` ~:2932,
+    `.stepper.is-stepping [data-stepper-step]:not(.stepper-shown) { display: revert !important; }`
+    (same selector, so equal weight; source order and `!important` beat the screen hide),
+    also beats the `.stepper-armed` pre-hide inline in `lesson_unit.html`, which has no
+    `!important`.
   - Already hidden by existing print rules (no change, listed for completeness): the
     reveal-gate buttons (`[data-reveal-gate]:not([data-filltablegate])`, app.css) and
     `.ba__toggle` (courses.css before/after print block).
@@ -183,6 +196,11 @@ New `@media print` rules:
   global rule is simpler than a per-page opt-in. The standalone gradebook print page
   (`gradebook_print.html`) neither extends `base.html` nor loads `app.css`, so it is
   entirely unaffected (including `@page`); no test asserts anything about it.
+- Weight of the `.unit-drawer` hide: `courses.css` ~:1405 has
+  `.unit-drawer:not([hidden]) { display: block; position: fixed; … }` (0,2,0) inside
+  `@media (max-width: 640px)`, which matches in print on small paper (print media is
+  evaluated against the page area). The print rule is therefore
+  `.unit-drawer, .unit-drawer:not([hidden]) { display: none; }`, placed after ~:1405.
 - `.unit-shell` / `.unit-shell__main` must not reserve the tree's column in print: with
   `.unit-tree` hidden, `.unit-shell__main`'s left edge equals `.unit-shell`'s left edge.
 - **Not touched:** student notes (`.block-notes`, the unanchored-notes panel). They have a
@@ -319,8 +337,12 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    `<div class="alert alert--info">x</div>` as the first child of `.app-main` via
    `page.evaluate` before emulating print (this test checks a style rule, not a user
    flow); the test first asserts the injected `.app-main > .alert` count is 1, then that it
-   is not visible.
-5. Quiz unit (multi-slide) in print media: same chrome assertions, **every** question of
+   is not visible. The `.unit-toc-pin` check runs with `unit-tree-collapsed` set on
+   `<html>` (the only state in which the pin displays on screen): assert the pin is
+   visible under screen media first, then not visible under print media — otherwise the
+   assertion is vacuous.
+5. Quiz unit (multi-slide) in print media (and test 2's `@page`-block assertion is also
+   run against the submitted quiz's `quiz_results.html` render): same chrome assertions, **every** question of
    every slide is visible, and neither `.slideshow-bar` nor any `.quiz-finish` is visible.
    A single-slide quiz: its in-article `.quiz-finish` is not visible.
 6. `break-inside` computed value is `avoid` on an `.el--image` figure and an
@@ -329,7 +351,9 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    in print). In both, under print media `.app-header` computes `background-color`
    `rgba(0, 0, 0, 0)`, `background-image` `none`, and `border-bottom-width` `0px` — so the
    hidden header leaves no band.
-8. Drag-to-image question with a tall image (taller than 170 mm at print width) in print
+8. Drag-to-image question with a tall portrait image (fixture ≥ 600×1600 px) at the
+   default test viewport; precondition: its rendered height under screen media is
+   > 643 px (170 mm at 96 dpi), so the cap actually engages. Then in print
    media: `.dragimage__img` height ≤ 170 mm, and every badge's bounding box lies inside the
    image's bounding box.
 9. A JS-enhanced gallery with ≥3 images in print media: every `.gallery__item` image is
@@ -337,7 +361,9 @@ e2e (Playwright, `-m e2e`, `page.emulate_media(media="print")`):
    visible.
 10. A lesson with a fill-table, a mark-done element and a stepper in print media:
    `.filltable__confirm`, `.markdone__save` and `.stepper__next` are not visible (each
-   first asserted attached, count ≥ 1).
+   first asserted attached, count ≥ 1). The stepper has ≥3 steps and is left un-stepped
+   (only the first step shown on screen — asserted first); in print media **every**
+   `[data-stepper-step]` is visible.
 
 Visual verification (manual, recorded in the PR): `page.pdf()` of a long lesson with images
 (including a gallery and a unit with a very long title) and of a multi-slide quiz, A4,
