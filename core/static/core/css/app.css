@@ -2257,6 +2257,9 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 /* A print sheet has no scrolling to signal, and a gradient over the text is noise. */
 @media print {
   .scroll-y::before, .scroll-y::after { display: none; }
+  /* .scroll-x too: is-scroll-end is set from the SCREEN layout and print never
+     re-runs scroll_affordance.js, so a shade could paint over the last column. */
+  .scroll-x::before, .scroll-x::after { display: none; }
 }
 
 

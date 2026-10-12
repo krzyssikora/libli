@@ -661,3 +661,69 @@ def test_focus_ring_and_deck_fill_do_not_print(page, live_server):
     assert focused
     assert outline == "none", outline
     assert page.evaluate(deck_bg) == "rgba(0, 0, 0, 0)"
+
+
+# A4 (210mm) minus the unit page's 2 x 25mm sides = 160mm of content width.
+PRINT_CONTENT_PX = round(160 / 25.4 * 96)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("kind", ["choicegrid", "multigrid"])
+def test_grid_question_fits_print_width(page, live_server, kind):
+    """A grid question's statements wrap on paper instead of pushing the answer
+    columns past the page edge. On screen the grid keeps min-width: max-content
+    and scrolls; a printed scroll box just clips whatever overflows it. The
+    .scroll-x edge shade, lit from the screen layout, must not print either."""
+    from courses.models import ChoiceGridQuestionElement
+    from courses.models import GridColumn
+    from courses.models import GridRow
+    from courses.models import MultiGridColumn
+    from courses.models import MultiGridQuestionElement
+    from courses.models import MultiGridRow
+
+    long = "Proste o rownaniach podanych powyzej sa do siebie rownolegle " * 3
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    if kind == "choicegrid":
+        q = ChoiceGridQuestionElement.objects.create(stem="Grid?")
+        yes = GridColumn.objects.create(question=q, order=0, label="tak")
+        GridColumn.objects.create(question=q, order=1, label="nie")
+        GridRow.objects.create(question=q, order=0, statement=long, correct_column=yes)
+    else:
+        q = MultiGridQuestionElement.objects.create(stem="Tick?")
+        MultiGridColumn.objects.create(question=q, order=0, label="tak")
+        MultiGridColumn.objects.create(question=q, order=1, label="nie")
+        MultiGridRow.objects.create(question=q, order=0, statement=long)
+    add_element(unit, q)
+    user = _student(f"{kind}-print-stu", course)
+    page.set_viewport_size({"width": PRINT_CONTENT_PX, "height": 900})
+    _login(page, live_server, user)
+    page.goto(_url(live_server, "courses:lesson_unit", unit))
+    page.wait_for_selector(f".{kind}")
+    # Precondition: on screen at this width the grid overflows and scrolls, so
+    # the print assertion below cannot pass vacuously.
+    box = f".{kind}-scroll"
+    over = (
+        "(s) => { const e = document.querySelector(s);"
+        " return e.scrollWidth - e.clientWidth; }"
+    )
+    assert page.evaluate(over, box) > 0
+    # ...and scroll_affordance.js has lit the right-edge shade, which print
+    # never re-evaluates: it would paint over the last column on paper.
+    page.wait_for_selector(".scroll-x.is-scroll-end")
+    page.emulate_media(media="print")
+    assert page.evaluate(over, box) <= 0
+    shade = (
+        "() => getComputedStyle(document.querySelector('.scroll-x'), '::after').display"
+    )
+    assert page.evaluate(shade) == "none"
+    # Every answer column ends inside the scroll box, i.e. on the paper.
+    clipped = page.evaluate(
+        """(s) => {
+          const r = document.querySelector(s).getBoundingClientRect().right;
+          return [...document.querySelectorAll(s + ' th, ' + s + ' td')]
+            .filter((c) => c.getBoundingClientRect().right > r + 0.5).length;
+        }""",
+        box,
+    )
+    assert clipped == 0
