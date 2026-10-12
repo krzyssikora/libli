@@ -3424,6 +3424,11 @@ html.js .unit-strip__print { display: inline-flex; }
   .dragimage__img { max-height: 170mm; }
   .el--gallery .gallery__frame { max-height: 170mm; }
 
+  /* Grid questions: the screen `min-width: max-content` keeps every statement
+     on one line and lets the wrapper scroll; paper cannot scroll, so the answer
+     columns past the page edge were clipped. Let the statements wrap instead. */
+  .choicegrid, .multigrid { min-width: 0; }
+
   /* gallery.js stacks every card absolutely at opacity 0 except the active one
      and sets inline min-heights; on paper every card prints, stacked. */
   .el--gallery.gallery--js .gallery__stage { position: static !important; min-height: 0 !important; }
