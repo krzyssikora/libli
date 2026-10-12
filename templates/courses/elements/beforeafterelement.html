@@ -7,7 +7,7 @@ Was `{# ... #}` -- Django's comment tag is single-line only, so spanning
 multiple lines rendered this text literally onto the page (caught during
 Task 5's browser verification). `{% comment %}` supports multiple lines.
 {% endcomment %}
-<div class="el el--beforeafter" data-beforeafter>
+<div class="el el--beforeafter{% if not el.button_label %} el--beforeafter--icon{% endif %}" data-beforeafter>
   <button type="button" class="ba__toggle" aria-pressed="false"
           aria-controls="ba-{{ eid }}-panels"
           {% if not el.button_label %}aria-label="{% trans 'Switch content' %}"{% endif %}>
