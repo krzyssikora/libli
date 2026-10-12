@@ -1,7 +1,10 @@
 import re
 from pathlib import Path
 
+import pytest
+
 from courses.models import BeforeAfterElement
+from courses.models import Element
 from tests.print_css_kit import all_print_css
 
 COURSES_CSS = "courses/static/courses/css/courses.css"
@@ -180,3 +183,42 @@ def test_after_slot_id_matches_every_css_selector():
     ):
         text = _read(path)
         assert selector in text, f"{selector} missing from {path}"
+
+
+def _root_div(html):
+    return re.search(r'<div class="el el--beforeafter[^"]*"', html).group(0)
+
+
+@pytest.mark.django_db
+def test_icon_class_only_without_a_label():
+    """The gutter layout keys on `.el--beforeafter--icon`; a labelled toggle must
+    stay stacked (a long label in a gutter would eat the content's width).
+
+    Mutants: drop the `{% if %}` (class always on) -> the labelled half RED;
+    drop the class -> the bare half RED.
+    """
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    for label, expect_icon in (("", True), ("Show solution", False)):
+        ba = BeforeAfterElement.objects.create(button_label=label)
+        Element.objects.create(unit=unit, content_object=ba)
+        html = ba.render(element=ba.join_row())
+        assert ("el--beforeafter--icon" in _root_div(html)) is expect_icon, label
+
+
+def test_icon_gutter_is_dropped_wherever_the_toggle_is_hidden():
+    """The no-JS, per-instance-dead and print states hide the toggle; a gutter left
+    behind is an empty 42px strip beside both sides. Each state must zero it.
+
+    Mutant: delete either padding-left: 0 rule -> RED.
+    """
+    base, state, printed = _blocks(_read(COURSES_CSS))
+    assert "padding-left: calc(var(--ba-icon-btn)" in base
+    for block, selector in (
+        (state, "html:not(.ba-js) .el--beforeafter--icon"),
+        (state, ".el--beforeafter--icon.ba--dead"),
+        (printed, ".el--beforeafter--icon"),
+    ):
+        m = re.search(re.escape(selector) + r"[^{]*\{([^}]*)\}", block)
+        assert m and "padding-left: 0" in m.group(1), selector

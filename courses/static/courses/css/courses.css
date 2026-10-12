@@ -2853,6 +2853,31 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .ba__toggle:hover { background: var(--primary); color: var(--text-inverse); border-color: transparent; }
 .ba__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* Icon-only toggle (no button_label): a round button in a left gutter, level with
+   the first line of the content, instead of a pill on a row of its own.
+   ABSOLUTE in a padded gutter, NOT a grid or a float. A grid item stops the first
+   child's margin collapsing out (it would push the text below the button), and a
+   float would meet the .el--image--float machinery above. Horizontal padding
+   leaves vertical margin collapsing untouched, so the container's top edge is the
+   first child's border edge and `top` centres the button on its first line --
+   whatever that child is, text or not. Out of flow, so swapping sides never moves
+   it. The degraded/print states hide the toggle and drop the gutter below. */
+.el--beforeafter--icon {
+  --ba-icon-btn: 1.875rem;
+  position: relative;
+  padding-left: calc(var(--ba-icon-btn) + var(--space-3));
+}
+.el--beforeafter--icon > .ba__toggle {
+  position: absolute;
+  top: calc((1lh - var(--ba-icon-btn)) / 2);
+  left: 0;
+  width: var(--ba-icon-btn);
+  height: var(--ba-icon-btn);
+  margin: 0;
+  padding: 0;
+  justify-content: center;
+}
+
 /* The gap lives on the TOGGLE, not on .ba__panels. `.ba__toggle + .ba__panels`
    would select .ba__panels (the adjacent-sibling combinator names the subject on
    its RIGHT), breaking the no-margin invariant below -- and the two are not
@@ -2900,6 +2925,8 @@ html:not(.ba-js) .ba__panel + .ba__panel,
    worse than no button, since both panels are already shown. */
 html:not(.ba-js) .ba__toggle,
 .ba--dead .ba__toggle { display: none; }
+html:not(.ba-js) .el--beforeafter--icon,
+.el--beforeafter--icon.ba--dead { padding-left: 0; }
 
 /* Before / after — print
    Print reveals both sides. `display: block !important`, NOT `revert`: revert
@@ -2917,6 +2944,7 @@ html:not(.ba-js) .ba__toggle,
   html.ba-armed .ba__panels > [data-ba-side="after"] { display: block !important; }
   /* .ba__child[hidden] is NOT un-hidden in print (D8) */
   .ba__toggle { display: none !important; }
+  .el--beforeafter--icon { padding-left: 0; }
   .ba__side-heading {
     position: static !important; width: auto !important; height: auto !important;
     overflow: visible !important; clip: auto !important;
