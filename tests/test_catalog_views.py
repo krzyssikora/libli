@@ -208,3 +208,44 @@ def test_manage_course_list_renders_subject_chip(client):
     CourseFactory(title="Mechanics", subjects=[SubjectFactory(title_en="Physics")])
     resp = client.get(reverse("courses:manage_course_list"))
     assert "Physics" in resp.content.decode()
+
+
+def _lang_switch(body):
+    _, _, rest = body.partition('<form class="lang-switch"')
+    return rest.partition("</form>")[0]
+
+
+def test_catalog_keeps_the_header_language_switch_when_empty(client):
+    # The view's course-language list once shared the `languages` name with the
+    # ui_prefs context processor, replacing the header's EN/PL switch -- with no
+    # eligible course it rendered no buttons at all.
+    make_login(client, "v_lang_empty")
+    body = client.get(reverse("courses:catalog")).content.decode()
+    switch = _lang_switch(body)
+    assert 'value="en"' in switch
+    assert 'value="pl"' in switch
+
+
+def test_catalog_language_filter_still_lists_course_languages(client):
+    make_login(client, "v_lang_filter")
+    _open_course_with_unit(title="Algebra", language="pl")
+    resp = client.get(reverse("courses:catalog"))
+    assert [lang["code"] for lang in resp.context["course_languages"]] == ["pl"]
+    # ...and the header switch still offers both UI languages, not just "pl".
+    assert 'value="en"' in _lang_switch(resp.content.decode())
+
+
+def test_empty_catalog_points_an_enrolled_student_to_my_courses(client):
+    student = make_login(client, "v_empty_enrolled")
+    # An ASSIGNED course: enrolled, but never in the catalog.
+    EnrollmentFactory(student=student, course=CourseFactory(title="Assigned"))
+    body = client.get(reverse("courses:catalog")).content.decode()
+    assert "catalog__empty" in body
+    assert reverse("courses:my_courses") + '">' in body
+
+
+def test_empty_catalog_has_no_my_courses_link_without_enrollments(client):
+    make_login(client, "v_empty_none")
+    body = client.get(reverse("courses:catalog")).content.decode()
+    assert "catalog__empty" in body
+    assert reverse("courses:my_courses") + '">' not in body

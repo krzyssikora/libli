@@ -1974,7 +1974,9 @@ def catalog(request):
         .localized_order()
     )
     lang_labels = dict(COURSE_LANGUAGES)
-    languages = [
+    # NOT `languages`: the ui_prefs context processor owns that name for the
+    # header's EN/PL switch, and a view key of the same name silently replaces it.
+    course_languages = [
         {"code": code, "label": lang_labels.get(code, code)}
         for code in eligible.values_list("language", flat=True).distinct()
     ]
@@ -2005,7 +2007,10 @@ def catalog(request):
             "courses": qs,
             "enrolled_ids": enrolled_ids,
             "subjects": subjects,
-            "languages": languages,
+            "course_languages": course_languages,
+            # An empty catalog is "nothing to JOIN", not "no courses": point an
+            # enrolled student at the courses they already have.
+            "has_enrollments": Enrollment.objects.filter(student=request.user).exists(),
             "sel_subject": sel_subject,
             "sel_language": sel_language,
             "q": q,
