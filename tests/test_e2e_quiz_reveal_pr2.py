@@ -107,9 +107,13 @@ def _select_values(q, scope):
 # inside the row (its earlier siblings, then each ancestor's earlier siblings, up
 # to the row), plus the page state a late layout change would depend on. Taken
 # before and after a view change so a failing "the switch stays" check says WHAT
-# moved. (Added after a one-off CI failure, 3px, that nothing reproduced locally:
-# fonts, scrolling, CPU throttling and CSS motion were all ruled out.)
-_SWITCH_LAYOUT = """row => {
+# moved. Waits for document.fonts.ready first: three CI failures (3px each) all read
+# `fonts: loading` BEFORE the click and `loaded` after -- the "yours" fieldset was
+# measured in a fallback face (37px) and the key copy in Inter (40px; both are 40px
+# once fonts settle, MEASURED). goto's load event waits only for faces used during
+# the load, so a face requested later can still be loading here.
+_SWITCH_LAYOUT = """async row => {
+  await document.fonts.ready;
   const sw = row.querySelector('[data-answer-switch]');
   const name = e => e.tagName.toLowerCase()
     + (e.className && typeof e.className === 'string'
