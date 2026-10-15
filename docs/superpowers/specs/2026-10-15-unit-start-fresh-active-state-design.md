@@ -66,8 +66,12 @@ and non-int keys dropped), whereas `progress_reset` and the outline's `has_state
 ### 2. Styling (`core/static/core/css/app.css`, next to `.lesson-unit__reset` at ~`:763`)
 
 `.lesson-unit__reset[aria-disabled="true"]`: reduced opacity in line with `.btn:disabled`
-(`app.css:63`), `cursor: default`, and a hover override neutralising `.btn--ghost:hover`'s fill (the
-same trap `.outline__toggle-all:disabled:hover` documents at `app.css:777-783`). **Do not** use
+(`app.css:63`), `cursor: default`, and an override on **both** `:hover` and `:active`
+(`background: transparent`, at specificity above `.btn:active`'s (0,2,0)). Without it,
+`.btn--ghost:hover`'s fill and `.btn:active { background: var(--primary-active) }` (`app.css:44`,
+never overridden by `.btn--ghost`) repaint the "inactive" control as live on hover and press. This is
+the trap `.outline__toggle-all:disabled:hover` documents at `app.css:777-783`; native `:disabled`
+blocked `:active` there, but `aria-disabled` on an `<a>` does not. **Do not** use
 `pointer-events: none` — it would suppress the `title` tooltip that explains the state; with no `href`
 the element has nothing to activate anyway. Token colours only; verify light and dark.
 
@@ -159,8 +163,11 @@ Falsify, don't just run: each test must go RED against a named mutant.
    non-empty stored blob → today's active link with `href`; non-capability unit → no control (existing
    test stays). **Parse the `.lesson-unit__reset` element** (e.g. BeautifulSoup) and assert on its
    attributes: `href == <url>` versus `href` absent. A substring check on the reset URL passes in
-   both states, because the URL also appears in `data-reset-href`. Mutants each test must turn RED:
-   "render active unconditionally", and "gate on `has_stateful_elements` only".
+   both states, because the URL also appears in `data-reset-href`. Mutants (one per failure mode):
+   "render active unconditionally", which is today's template and must turn the empty-state test RED;
+   "render inactive unconditionally", which must turn the non-empty-blob test RED; and "branch on
+   `has_stateful_elements and element_state` with the inactive branch dropped", which must turn the
+   presence-when-empty test RED.
    **Existing presence tests** (`test_lesson_page_links_to_the_reset_interstitial`, its
    `_nested_in_a_tab` / `_question_only_unit` variants, `test_views_calls_the_state_helper…`) assert
    `_reset_url(...) in body` with no stored state. They stay green but now pin **D1' presence only**.
@@ -175,7 +182,10 @@ Falsify, don't just run: each test must go RED against a named mutant.
    unconditional on an empty echo. Implement this as a structural check, e.g. the dispatch text
    appears after the `fetch(` and inside the success callback, next to the non-empty guard. A bare
    `"libli:state-saved" in src` check is insufficient. Mutants it must catch: dispatch moved above
-   `fetch`; non-empty guard removed.
+   `fetch`; non-empty guard removed. Also assert that `question.js` reads **exactly** the header
+   name the server sets: define it once as a Python constant (e.g. `STATE_SAVED_HEADER` in
+   `courses/views.py`), have the guard import it, and check that the literal appears in
+   `question.js`'s comment-stripped source. Mutant: a typo on either side.
    (b) **Writer set:** detect JS files under `courses/static/courses/js/` by **code shapes** only
    (`dataset.stateUrl`, `getAttribute("data-state-url")`, `getAttribute("data-markdone-url")`,
    matched after stripping comments, so `stepper.js:61`'s comment does not count). Assert the
@@ -194,7 +204,11 @@ Falsify, don't just run: each test must go RED against a named mutant.
    for that save's response (not the attribute), see active, untick everything, and it **stays
    active** (D6); after a reload it is inactive. Do not assert "tick + untick → inactive" live: it
    races the first echo against the seq guard and flakes on a correct build.
-5. **Layout**: `tests/test_e2e_unit_head_layout.py` stays green; add an inactive-vs-active bounding-box
-   equality assertion for the control.
+5. **Layout**: `tests/test_e2e_unit_head_layout.py` stays green. Add a **same-page** inactive-vs-active
+   bounding-box equality assertion: measure the inactive control, trigger a real save, wait for
+   `href` to appear, then measure again (no second page load). Mutant: an inactive-only `padding` or
+   `border-width` change. Also check the **pressed** state: with `mouse.down()` and no `up()` on the
+   inactive control, the computed background is transparent. Mutant: drop the `:active` selector
+   from the override.
 6. **i18n**: `makemessages` + Polish msgstr "Nie ma jeszcze czego wyczyścić" for "Nothing to clear yet" (clear any fuzzy pre-fill); recompile `.mo`.
 7. **Screenshots**: inactive and active control, light and dark.
