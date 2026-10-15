@@ -40,14 +40,28 @@ passes as `element_state` (`courses/views.py:580`, the int-keyed, read-side-filt
 - **empty** → the same element, same classes (so the head row's box is identical — D2), but:
   - no `href`;
   - `aria-disabled="true"` and `role="link"` (an `<a>` without `href` has no implicit role; the
-    explicit role makes assistive tech announce a dimmed link rather than plain text);
-  - `title="{% trans 'Nothing to clear yet' %}"`;
+    explicit role makes assistive tech that reaches it in browse mode announce a dimmed link rather
+    than plain text);
+  - **deliberately unfocusable** (no `tabindex`): an `<a>` without `href` is out of the tab order, the
+    same as a native disabled button. The `title` is a mouse affordance only; the greyed styling
+    carries the meaning. On activation the restored `href` puts it back in the tab order.
+  - `title="{% trans 'Nothing to clear yet' %}"`; Polish msgstr **"Nie ma jeszcze czego
+    wyczyścić"** (owner to confirm). Clear any `#, fuzzy` pre-fill `makemessages` proposes (it is
+    likely to derive one from "Nothing to clear here.").
   - `data-reset-href="…"` carrying the URL the active control would have, so the listener can
     restore it without the client constructing URLs;
   - a hook attribute for the listener, e.g. `data-reset-control`.
 
 No new query: `element_state` is computed already. The `has_stateful_elements` computation and its
 query shape are untouched (D1').
+
+**Boundaries of the predicate (accepted).** `element_state` is read-side filtered (non-dict values
+and non-int keys dropped), whereas `progress_reset` and the outline's `has_state` test the raw column
+(`~Q(element_state={})`). So:
+- a row holding **only** a drifted blob renders INACTIVE although a reset would clear it. Accepted,
+  like D6; the outline's reset still offers it.
+- an orphaned blob (its element deleted) on a **capability** unit renders ACTIVE. Correct, because the
+  reset really clears it.
 
 ### 2. Styling (`core/static/core/css/app.css`, next to `.lesson-unit__reset` at ~`:763`)
 
@@ -73,7 +87,7 @@ nine: six widgets save through one shared helper.
 | `window.libliState.saveFlag` (`courses/static/courses/js/state.js:20-31`) | fillgate, filltable, guessnumber, stepper, switchgate, switchgrid | `element_state_save` (JSON) | `{"element", "state"}` echo, **ignored** (`.catch` only) | add `.then`: if `r.ok`, parse JSON; if `state` is a non-empty object → dispatch |
 | `save()` in `reveal.js:27-38` | reveal gate | `element_state_save` (JSON) | echo, ignored | same as above |
 | `markdone.js:57-80` | mark-done checklist | `element_state_save` (JSON) | echo, already adopted | in the existing success `.then`, after the sequence guard: if adopted blob is non-empty → dispatch |
-| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: set response header `X-Libli-State-Saved: 1` when `check_answer` stored a **non-empty** answer (`views.py:1140-1146`, the non-`answer_is_empty` branch); client: if `r.ok` and the header is present → dispatch |
+| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1140-1146`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: if `r.ok` and the header is present → dispatch |
 
 Notes:
 
@@ -93,9 +107,8 @@ Notes:
 
 ### 5. Listener
 
-A small script loaded on the lesson page iff `has_stateful_elements` (new
-`courses/static/courses/js/reset_control.js`, or folded into an existing always-present lesson
-script if the plan finds a better home). On `libli:state-saved`: for each `[data-reset-control]`
+A new file `courses/static/courses/js/reset_control.js`, included from `lesson_unit.html`'s script
+block under `{% if has_stateful_elements %}` (the same condition as the control itself). On `libli:state-saved`: for each `[data-reset-control]`
 still `aria-disabled="true"`, set `href` from `data-reset-href`, remove `aria-disabled`, `role`
 and `title`. Idempotent; removes nothing else, so the result matches the server-rendered active
 markup. Deferred loading is safe: every dispatch follows a user interaction.
@@ -128,6 +141,8 @@ markup. Deferred loading is safe: every dispatch follows a user interaction.
 - Listener absent (script missing) → the control simply stays inactive until reload; never broken.
 - Editor preview: `saveFlag`/`reveal` already return before fetching when `data-state-url` is `""`, so
   nothing dispatches; the preview has no reset control anyway.
+- bfcache restore, or a second tab left open after a reset elsewhere, still shows an ACTIVE control
+  that leads to "Nothing to clear here.". Same class as D6; accepted, no `pageshow` handling.
 - Previewers (non-enrolled staff) save and read their own state (`views.py:536-543`, `:1100-1107`), so
   the same rule applies to them unchanged.
 
@@ -138,19 +153,41 @@ Falsify, don't just run: each test must go RED against a named mutant.
 1. **Server render** (`courses/tests/test_reset_controls.py`): capability unit + enrolled student with
    no stored state → control present, no `href`, `aria-disabled="true"`, title text; same unit with a
    non-empty stored blob → today's active link with `href`; non-capability unit → no control (existing
-   test stays). Mutants: render active unconditionally; gate on `has_stateful_elements` only.
-2. **`check_answer` header** (unit test): non-empty answer on a restorable question → header present;
-   empty answer → absent; non-restorable question → absent.
-3. **Drift guard (D5)** (`tests/`): a source test that (a) asserts the four write sites dispatch
-   `libli:state-saved`, and (b) finds every JS file under `courses/static/courses/js/` that reads a
-   state-save URL (`stateUrl` / `data-state-url` / `data-markdone-url`) or is `question.js`, and asserts
-   that set equals the expected writer set — so a fifth writer cannot ship silently. State its blind
-   spots honestly, as `test_element_state_write_routes.py` does.
+   test stays). **Parse the `.lesson-unit__reset` element** (e.g. BeautifulSoup) and assert on its
+   attributes: `href == <url>` versus `href` absent. A substring check on the reset URL passes in
+   both states, because the URL also appears in `data-reset-href`. Mutants each test must turn RED:
+   "render active unconditionally", and "gate on `has_stateful_elements` only".
+   **Existing presence tests** (`test_lesson_page_links_to_the_reset_interstitial`, its
+   `_nested_in_a_tab` / `_question_only_unit` variants, `test_views_calls_the_state_helper…`) assert
+   `_reset_url(...) in body` with no stored state. They stay green but now pin **D1' presence only**.
+   Update their names or docstrings to say so, so nobody reads them as active-ness coverage.
+2. **`check_answer` header** (unit test): non-empty answer on a restorable question → header present,
+   for **one inline type** (e.g. choice / fill-blank) **and one non-inline restorable type** (e.g.
+   extended response), covering both fragment return points; empty answer → absent; non-restorable
+   question → absent. Mutant: header on only one return branch.
+3. **Drift guard (D5)** (`tests/`): a source test over comment-stripped JS.
+   (a) **Placement, not presence:** in each of the four write sites the dispatch must sit inside the
+   response-handling `.then` (after the `r.ok` / header check), never before `fetch` and never
+   unconditional on an empty echo. Implement this as a structural check, e.g. the dispatch text
+   appears after the `fetch(` and inside the success callback, next to the non-empty guard. A bare
+   `"libli:state-saved" in src` check is insufficient. Mutants it must catch: dispatch moved above
+   `fetch`; non-empty guard removed.
+   (b) **Writer set:** detect JS files under `courses/static/courses/js/` by **code shapes** only
+   (`dataset.stateUrl`, `getAttribute("data-state-url")`, `getAttribute("data-markdone-url")`,
+   matched after stripping comments, so `stepper.js:61`'s comment does not count). Assert the
+   detected set equals literally `{state.js, reveal.js, markdone.js}`, with `question.js` named
+   explicitly as the `check_answer` writer. **Blind spots, stated:** a widget posting to
+   `element_state_save` through a differently named attribute, a template-injected URL, or a new
+   server route that writes state from a different endpoint is not caught. A tripwire, not a proof.
 4. **e2e** (`tests/`, `-m e2e`, driving real UI): open a unit with a reveal gate → control inactive;
    open the gate → control becomes active **without reload** (wait on the attribute change, not a
-   sleep); click it → interstitial loads. Also one `saveFlag` widget path and one question path
-   (submitting a non-empty answer activates). An empty-answer submit must leave it inactive.
+   sleep); click it → the interstitial shows a **non-zero** count, i.e. NOT "Nothing to clear here."
+   (this proves the activation tracked real stored state; "interstitial loads" alone passes on the
+   broken build). Also one `saveFlag` widget path, one question path (a non-empty answer activates;
+   an empty-answer submit on a fresh page leaves it inactive), and the **mark-done** path (tick →
+   active; on a fresh page, tick then untick everything → still inactive, since the echo is `{}`
+   after the last save).
 5. **Layout**: `tests/test_e2e_unit_head_layout.py` stays green; add an inactive-vs-active bounding-box
    equality assertion for the control.
-6. **i18n**: `makemessages` + Polish translation for "Nothing to clear yet"; recompile `.mo`.
+6. **i18n**: `makemessages` + Polish msgstr "Nie ma jeszcze czego wyczyścić" for "Nothing to clear yet" (clear any fuzzy pre-fill); recompile `.mo`.
 7. **Screenshots**: inactive and active control, light and dark.
