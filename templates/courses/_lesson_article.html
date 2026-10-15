@@ -29,10 +29,22 @@
       {% endif %}
     </div>
     {% if has_stateful_elements %}
+      {% comment %}Presence keys on CAPABILITY (spec D1'); enabled-ness on THIS viewer's
+         stored state (D2). The inactive branch keeps the same element and classes so the
+         head row never shifts; reset_control.js flips it live on `libli:state-saved`.
+         The active branch is today's link, unchanged (D3).{% endcomment %}
+      {% if element_state %}
       <a class="btn btn--ghost btn--small lesson-unit__reset"
          href="{% url 'courses:progress_reset' slug=course.slug node_pk=unit.pk %}?next={% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">
         {% trans "Start fresh" %}
       </a>
+      {% else %}
+      <a class="btn btn--ghost btn--small lesson-unit__reset" role="link" aria-disabled="true"
+         title="{% trans 'Nothing to clear yet' %}" data-reset-control
+         data-reset-href="{% url 'courses:progress_reset' slug=course.slug node_pk=unit.pk %}?next={% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">
+        {% trans "Start fresh" %}
+      </a>
+      {% endif %}
     {% endif %}
   </div>
   {% for slide in slides %}

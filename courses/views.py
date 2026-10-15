@@ -522,6 +522,9 @@ def build_lesson_context(node, user):
     # in both arms. See test_filltable_gate_query_shape.py for why that shape
     # needs a source assertion instead.
     # Called through the module attribute so test 6's monkeypatch can bind.
+    # That rule now governs PRESENCE only: the template ALSO reads `element_state`
+    # (below) to render the control inactive until this viewer has stored something
+    # (spec 2026-10-15-unit-start-fresh-active-state, D2).
     has_stateful_elements = node.elements.filter(
         content_type__app_label="courses",
         content_type__model__in=state_svc.stateful_element_model_names(),
