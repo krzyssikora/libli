@@ -28,6 +28,8 @@ ALLOWED_TAGS = {
     "em",
     "i",
     "u",
+    # Strikethrough. The toolbar renames execCommand's <strike> to <s> before save.
+    "s",
     "h2",
     "h3",
     "h4",

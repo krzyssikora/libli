@@ -57,6 +57,13 @@
         if (!el.getAttribute("style")) el.removeAttribute("style");
       }
     });
+    // execCommand("strikeThrough") emits the obsolete <strike> on Chrome and Firefox;
+    // the sanitizer keeps only <s>, so rename it here or the strike is lost on save.
+    box.querySelectorAll("strike").forEach(function (el) {
+      var s = document.createElement("s");
+      while (el.firstChild) s.appendChild(el.firstChild);
+      el.parentNode.replaceChild(s, el);
+    });
     return box.innerHTML;
   }
 
@@ -76,11 +83,12 @@
   function applyCmd(cmd, surface) {
     surface.focus();
     switch (cmd) {
-      // Reset styleWithCSS so these emit <b>/<i>/<u> (sanitizer-kept), never
+      // Reset styleWithCSS so these emit <b>/<i>/<u>/<strike> (sanitizer-kept), never
       // <span style> (stripped) — in case a prior align click left the flag true.
       case "bold": styleWithCss(false); exec("bold"); break;
       case "italic": styleWithCss(false); exec("italic"); break;
       case "underline": styleWithCss(false); exec("underline"); break;
+      case "strikethrough": styleWithCss(false); exec("strikeThrough"); break;
       case "alignleft": case "aligncenter": case "alignright": {
         var JUSTIFY = { alignleft: "justifyLeft", aligncenter: "justifyCenter", alignright: "justifyRight" };
         styleWithCss(true);   // force inline text-align (not FF's align attr)
@@ -241,7 +249,7 @@
 
     function refreshActive() {
       if (!toolbar) return;
-      var map = { bold: "bold", italic: "italic", underline: "underline" };
+      var map = { bold: "bold", italic: "italic", underline: "underline", strikethrough: "strikeThrough" };
       toolbar.querySelectorAll("[data-cmd]").forEach(function (btn) {
         var cmd = btn.getAttribute("data-cmd");
         if (map[cmd]) {
