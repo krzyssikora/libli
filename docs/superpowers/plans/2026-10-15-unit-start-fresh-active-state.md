@@ -339,9 +339,10 @@ def test_orphaned_blob_on_capability_unit_is_active(client):
 
 def test_previewer_without_state_sees_inactive_control(client):
     # Review Focus 1: a non-enrolled viewer who can access the course (the owner).
-    course, unit = make_course_with_unit()
+    owner = make_verified_user()
+    course, unit = make_course_with_unit(owner=owner)
     add_element(unit, MarkDoneElement.objects.create(prompt="P"))
-    client.force_login(course.owner)
+    client.force_login(owner)
     a = _control(_lesson(client, course, unit))
     assert a["aria-disabled"] == "true"
     assert not a.has_attr("href")
@@ -350,16 +351,17 @@ def test_previewer_without_state_sees_inactive_control(client):
 def test_previewer_with_state_sees_active_control(client):
     # Review Focus 1, other half: the non-enrolled `.filter().first()` read branch
     # (views.py build_lesson_context) feeds element_state for a previewer too.
-    course, unit = make_course_with_unit()
+    owner = make_verified_user()
+    course, unit = make_course_with_unit(owner=owner)
     md = MarkDoneElement.objects.create(prompt="P")
     row = add_element(unit, md)
     item = MarkDoneItem.objects.create(element=md, content="a")
     UnitProgress.objects.create(
-        student=course.owner,
+        student=owner,
         unit=unit,
         element_state={str(row.pk): {"items": [item.pk]}},
     )
-    client.force_login(course.owner)
+    client.force_login(owner)
     a = _control(_lesson(client, course, unit))
     assert a["href"] == _expected_href(course, unit)
     assert not a.has_attr("aria-disabled")
@@ -421,7 +423,7 @@ def test_inactive_title_renders_in_polish(client):
     assert _control(r.content.decode())["title"] == "Nie ma nic do wyczyszczenia"
 ```
 
-Before relying on `course.owner` (Review Focus 1), check that `make_course_with_unit` (`tests/factories.py`) gives the course an owner who can access it. If it doesn't, build the previewer the way `courses/tests/test_reset_controls.py` or another test in the repo already makes a non-enrolled staff viewer. Grep `force_login(` in `courses/tests/` for an existing teacher/owner helper and reuse it. Also check whether the no-JS markdone POST shape matches what `element_state_save`'s form branch expects (`views.py:1030-1080`: field names `element` and `item`). Adjust to the real field names if they differ.
+The previewer tests build the owner with `make_verified_user()` and pass it in via `make_course_with_unit(owner=owner)`. Do NOT use the default `course.owner`: it comes from `UserFactory` (`tests/factories.py:143`), whose password is never saved and whose email is unverified, so `force_login` leaves the client silently anonymous (302 to login). That 302 would look like the expected Step 2 RED. If the owner of a course does not pass `can_access_course` in this repo, report it rather than changing the product. Also check whether the no-JS markdone POST shape matches what `element_state_save`'s form branch expects (`views.py:1030-1080`: field names `element` and `item`). Adjust to the real field names if they differ.
 
 - [ ] **Step 2: Run to verify they fail**
 
