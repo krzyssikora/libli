@@ -45,9 +45,10 @@ passes as `element_state` (`courses/views.py:580`, the int-keyed, read-side-filt
   - **deliberately unfocusable** (no `tabindex`): an `<a>` without `href` is out of the tab order, the
     same as a native disabled button. The `title` is a mouse affordance only; the greyed styling
     carries the meaning. On activation the restored `href` puts it back in the tab order.
-  - `title="{% trans 'Nothing to clear yet' %}"`; Polish msgstr **"Nie ma jeszcze czego
-    wyczyścić"** (owner to confirm). Clear any `#, fuzzy` pre-fill `makemessages` proposes (it is
-    likely to derive one from "Nothing to clear here.").
+  - `title="{% trans 'Nothing to clear yet' %}"`; Polish msgstr **"Nie ma nic do
+    wyczyszczenia"** (owner-confirmed 2026-10-15; no trailing period, it is a tooltip). Clear any
+    `#, fuzzy` pre-fill `makemessages` proposes (it is likely to derive one from "Nothing to clear
+    here." → "Nie ma tu nic do wyczyszczenia.").
   - `data-reset-href="…"` carrying the URL the active control would have, so the listener can
     restore it without the client constructing URLs;
   - a hook attribute for the listener, e.g. `data-reset-control`.
@@ -228,5 +229,5 @@ sites contains exactly `new CustomEvent("libli:state-saved"` and that `reset_con
    `border-width` change. Also check the **pressed** state: with `mouse.down()` and no `up()` on the
    inactive control, the computed background is transparent. Mutant: drop the `:active` selector
    from the override.
-6. **i18n**: `makemessages` + Polish msgstr "Nie ma jeszcze czego wyczyścić" for "Nothing to clear yet" (clear any fuzzy pre-fill); recompile `.mo`.
+6. **i18n**: `makemessages` + Polish msgstr "Nie ma nic do wyczyszczenia" for "Nothing to clear yet" (clear any fuzzy pre-fill); recompile `.mo`.
 7. **Screenshots**: inactive and active control, light and dark.
