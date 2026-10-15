@@ -89,6 +89,15 @@ def test_non_restorable_question_sets_no_header(client, monkeypatch):
     _s, _c, unit = _enrolled(client)
     q = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
     row = Element.objects.create(unit=unit, content_object=q)
+    # anti-vacuity: the SAME answer, same question, with the real (restorable) flag
+    # DOES set the header, so the assertion below cannot pass because the answer was
+    # treated as empty.
+    assert ShortTextQuestionElement.RESTORABLE_IN_LESSON
+    ok = client.post(
+        _check_url(unit, row.pk), {"answer": "paris"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert ok.status_code == 200
+    assert ok.headers.get(H) == "1"
     monkeypatch.setattr(ShortTextQuestionElement, "RESTORABLE_IN_LESSON", False)
     r = client.post(
         _check_url(unit, row.pk), {"answer": "paris"}, HTTP_X_REQUESTED_WITH="fetch"

@@ -97,6 +97,7 @@ def test_listener_listens_for_the_same_name_and_restores_the_contract():
     assert f'addEventListener("{EVENT}"' in src
     assert '[data-reset-control][aria-disabled="true"]' in src
     assert 'getAttribute("data-reset-href")' in src
+    assert 'setAttribute("href", a.getAttribute("data-reset-href"))' in src
     for attr in ("aria-disabled", "role", "title"):
         assert f'removeAttribute("{attr}")' in src, attr
 

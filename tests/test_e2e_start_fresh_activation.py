@@ -101,6 +101,9 @@ def test_reveal_gate_activates_live_with_full_contract(page, live_server):
     inactive_opacity = page.locator(CONTROL).evaluate(
         "el => getComputedStyle(el).opacity"
     )
+    assert (
+        page.locator(CONTROL).evaluate("el => getComputedStyle(el).cursor") == "default"
+    )
 
     page.get_by_role("button", name="Show more").click()
     _wait_active(page)
