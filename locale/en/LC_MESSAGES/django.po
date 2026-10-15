@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-15 13:14+0200\n"
+"POT-Creation-Date: 2026-10-15 23:08+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -1514,6 +1514,11 @@ msgstr[1] ""
 msgid "Step-by-step"
 msgstr ""
 
+#: .\courses\tests\test_reset_controls.py:487
+#: .\templates\courses\_lesson_article.html:45
+msgid "Nothing to clear yet"
+msgstr ""
+
 #: .\courses\transfer\importer.py:101
 #, python-format
 msgid "The archive's %(name)s is not a valid JSON object."
@@ -2554,15 +2559,15 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:1514
+#: .\courses\views.py:1530
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:1523
+#: .\courses\views.py:1539
 msgid "Show answer is not available for this question."
 msgstr ""
 
-#: .\courses\views.py:2055
+#: .\courses\views.py:2071
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
@@ -5102,7 +5107,8 @@ msgstr ""
 msgid "Mark as done"
 msgstr ""
 
-#: .\templates\courses\_lesson_article.html:35
+#: .\templates\courses\_lesson_article.html:41
+#: .\templates\courses\_lesson_article.html:47
 #: .\templates\courses\_outline_node.html:52
 #: .\templates\courses\_outline_node.html:53
 #: .\templates\courses\_outline_node.html:59

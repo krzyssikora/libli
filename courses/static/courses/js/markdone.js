@@ -75,6 +75,9 @@
             arr.forEach(function (pk) { next[String(pk)] = true; });
             last = next;
             paint(root, last);
+            if (Object.keys(blob).length) {
+              document.dispatchEvent(new CustomEvent("libli:state-saved"));
+            }
           })
           .catch(function () {
             if (mine !== seq) return;

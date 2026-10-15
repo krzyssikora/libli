@@ -38,6 +38,12 @@ silently reverse the decision in either direction.
 **D1 — Gate on capability, not on stored state.** Show the link iff the unit *contains an element type
 that can persist practice state*, not iff *this student currently has a stored blob for this unit*.
 
+> **Superseded in part (2026-10-15).** See
+> `docs/superpowers/specs/2026-10-15-unit-start-fresh-active-state-design.md`. PRESENCE still keys
+> on capability, as below. ENABLED-NESS now keys on this viewer's stored state: the control renders
+> inactive (greyed, no `href`) until something is stored, and is activated live by a
+> `libli:state-saved` event, which removes the flicker objection argued below.
+
 The state-based rule was considered and is in some ways stronger: `element_state` is already in the
 lesson context (`courses/views.py:421`), so it costs zero queries, cannot drift, and would also cover
 the orphaned-blob case above. It was rejected on UX grounds: it makes the control **flicker between

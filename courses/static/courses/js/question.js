@@ -50,7 +50,15 @@
         headers: { "X-Requested-With": "fetch", "X-CSRFToken": csrf() },
         body: new FormData(form),
       })
-        .then(function (r) { return r.text(); })
+        .then(function (r) {
+          // FIRST .then, where `r` is in scope: the second .then returns early on the
+          // inline branch, so a dispatch there would skip choice / fill-blank. Only the
+          // dispatch is guarded; the text is always returned, exactly as before.
+          if (r.ok && r.headers.get("X-Libli-State-Saved")) {
+            document.dispatchEvent(new CustomEvent("libli:state-saved"));
+          }
+          return r.text();
+        })
         .then(function (html) {
           if (form.hasAttribute("data-question-inline")) {
             // Choice: response is the full element; swap the LIVE form's body so the

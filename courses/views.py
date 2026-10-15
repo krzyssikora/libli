@@ -98,6 +98,12 @@ from courses.scoring import outcome
 from courses.scoring import to_stored_fraction
 from courses.slideshow import partition_into_slides
 
+# Set on a check_answer FRAGMENT response iff it stored practice state, so question.js
+# (whose body is HTML, not a JSON echo) can announce `libli:state-saved` and activate
+# the unit page's "Start fresh" control. tests/test_state_saved_event_guard.py checks
+# question.js reads exactly this name.
+STATE_SAVED_HEADER = "X-Libli-State-Saved"
+
 
 def _wants_fragment(request):
     return request.headers.get("X-Requested-With") == "fetch"
@@ -516,6 +522,9 @@ def build_lesson_context(node, user):
     # in both arms. See test_filltable_gate_query_shape.py for why that shape
     # needs a source assertion instead.
     # Called through the module attribute so test 6's monkeypatch can bind.
+    # That rule now governs PRESENCE only: the template ALSO reads `element_state`
+    # (below) to render the control inactive until this viewer has stored something
+    # (spec 2026-10-15-unit-start-fresh-active-state, D2).
     has_stateful_elements = node.elements.filter(
         content_type__app_label="courses",
         content_type__model__in=state_svc.stateful_element_model_names(),
@@ -1134,6 +1143,7 @@ def check_answer(request, slug, node_pk, element_pk):
     answer = question.build_answer(request.POST)
     result = question.mark(answer)
 
+    stored_answer = False
     if getattr(question, "RESTORABLE_IN_LESSON", False):
         # Practice-state (slice 3): persist the answer only — never the verdict; it
         # is re-marked on restore. Empty answer clears any prior stored answer.
@@ -1143,6 +1153,7 @@ def check_answer(request, slug, node_pk, element_pk):
             save_element_state(
                 request.user, node, element.pk, {"answer": answer_to_json(answer)}
             )
+            stored_answer = True
 
     if _wants_fragment(request):
         if question.INLINE_LESSON_FEEDBACK:
@@ -1150,7 +1161,7 @@ def check_answer(request, slug, node_pk, element_pk):
             # feedback lands on the options / blanks (question.js swaps the form
             # body). render() sets reveal_template=None for lesson mode -> no bottom
             # reveal list.
-            return HttpResponse(
+            response = HttpResponse(
                 question.render(
                     element=element,
                     mode="lesson",
@@ -1162,11 +1173,16 @@ def check_answer(request, slug, node_pk, element_pk):
                     feedback_for_pk=element.pk,
                 )
             )
-        return render(
-            request,
-            "courses/elements/_question_feedback.html",
-            question.feedback_context(result),
-        )
+        else:
+            response = render(
+                request,
+                "courses/elements/_question_feedback.html",
+                question.feedback_context(result),
+            )
+        # BOTH fragment return points, from ONE flag (spec §4).
+        if stored_answer:
+            response[STATE_SAVED_HEADER] = "1"
+        return response
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
     from courses.builder import ancestor_pks
 
