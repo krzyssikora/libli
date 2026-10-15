@@ -97,7 +97,7 @@ nine: six widgets save through one shared helper.
 
 Notes:
 
-- `element_state_save`'s REJECT path echoes what is **stored** (`views.py:1095-1098`), so "echo is
+- `element_state_save`'s REJECT path echoes what is **stored** (`views.py:1105-1108`), so "echo is
   non-empty" means "something is stored" on both the accept and reject paths — exactly D2's condition.
 - An EMPTY save (stepper below 2 shown steps per `courses/state.py:104`, every checkbox unticked, emptied answer) echoes `{}` / sets no
   header → no dispatch. The control never flips back to inactive live (D6).
@@ -157,7 +157,7 @@ document order, so the listener is attached before any writer can dispatch.
   quickly back below 2) can activate the control while nothing is stored. Accepted, same class as D6.
 - bfcache restore, or a second tab left open after a reset elsewhere, still shows an ACTIVE control
   that leads to "Nothing to clear here.". Same class as D6; accepted, no `pageshow` handling.
-- Previewers (non-enrolled staff) save and read their own state (`views.py:545-552`, `:1100-1107`), so
+- Previewers (non-enrolled staff) save and read their own state (`views.py:545-552`, `:1110-1117`), so
   the same rule applies to them unchanged.
 
 ## Testing
