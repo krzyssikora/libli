@@ -190,7 +190,10 @@ Falsify, don't just run: each test must go RED against a named mutant.
    `fetch`; non-empty guard removed. Also assert that `question.js` reads **exactly** the header
    name the server sets: define it once as a Python constant (e.g. `STATE_SAVED_HEADER` in
    `courses/views.py`), have the guard import it, and check that the literal appears in
-   `question.js`'s comment-stripped source. Mutant: a typo on either side.
+   `question.js`'s comment-stripped source. Mutant: a typo on either side. Do the same for the
+**event name**: keep it as one Python constant in the guard, and assert that each of the four write
+sites contains exactly `new CustomEvent("libli:state-saved"` and that `reset_control.js` contains
+`addEventListener("libli:state-saved"` (comment-stripped). Mutant: event-name typo in one writer.
    (b) **Writer set:** detect JS files under `courses/static/courses/js/` by **code shapes** only
    (`dataset.stateUrl`, `getAttribute("data-state-url")`, `getAttribute("data-markdone-url")`,
    matched after stripping comments, so `stepper.js:61`'s comment does not count). Assert the
