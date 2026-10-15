@@ -3,7 +3,7 @@
 ## Purpose
 
 The unit page offers "Start fresh" on every unit that *contains* a state-bearing element
-(`has_stateful_elements`, `courses/views.py:519`; decision D1 of
+(`has_stateful_elements`, `courses/views.py:528`; decision D1 of
 `docs/superpowers/specs/2026-07-25-start-fresh-only-on-stateful-units-design.md`). A student who has
 touched nothing still sees a live control and, on clicking it, lands on "Nothing to clear here.". The
 course outline already gates its reset on stored state (`has_state`, `courses/rollups.py:229`). The
@@ -32,8 +32,8 @@ without a reload, the first time a save stores something.
 ### 1. Server render (`templates/courses/_lesson_article.html:31-36`)
 
 Inside the existing `{% if has_stateful_elements %}` block, branch on the stored state the view already
-passes as `element_state` (`courses/views.py:580`, the int-keyed, read-side-filtered dict built at
-`views.py:549-559`):
+passes as `element_state` (`courses/views.py:589`, the int-keyed, read-side-filtered dict built at
+`views.py:558-568`):
 
 - **non-empty** → today's `<a class="btn btn--ghost btn--small lesson-unit__reset" href="…">` exactly
   as now (D3: active markup unchanged).
@@ -92,7 +92,7 @@ nine: six widgets save through one shared helper.
 | `window.libliState.saveFlag` (`courses/static/courses/js/state.js:20-31`) | fillgate, filltable, guessnumber, stepper, switchgate, switchgrid | `element_state_save` (JSON) | `{"element", "state"}` echo, **ignored** (`.catch` only) | add `.then`: if `r.ok`, parse JSON; if `state` is a non-empty object → dispatch |
 | `save()` in `reveal.js:27-38` | reveal gate | `element_state_save` (JSON) | echo, ignored | same as above |
 | `markdone.js:57-80` | mark-done checklist | `element_state_save` (JSON) | echo, already adopted | in the existing success `.then`, after the sequence guard: if adopted blob is non-empty → dispatch |
-| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1140-1146`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: dispatch in the **first** `.then`, where `r` is in scope: only the dispatch is guarded, and `return r.text()` stays **unconditional**, exactly as today:
+| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1129`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1147-1156`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: dispatch in the **first** `.then`, where `r` is in scope: only the dispatch is guarded, and `return r.text()` stays **unconditional**, exactly as today:
 `if (r.ok && r.headers.get(H)) document.dispatchEvent(...); return r.text();`. It must not go at the bottom of the second `.then`, because the inline branch's early `return` (`question.js:~73`) would skip it |
 
 Notes:
@@ -129,7 +129,7 @@ document order, so the listener is attached before any writer can dispatch.
 
 - July spec: under its D1, add a dated **"Superseded in part (2026-10-15)"** note pointing to this
   spec: presence still keys on capability; enabled-ness now keys on stored state, activated live.
-- `courses/views.py:509-519` comment: keep "capability, NOT stored state" as the rule for
+- `courses/views.py:509-528` comment: keep "capability, NOT stored state" as the rule for
   **presence**, and add that the template now also reads `element_state` for **enabled-ness**.
 - `courses/tests/test_reset_controls.py::test_an_orphaned_blob_does_not_bring_the_reset_link_back`:
   its assertion (no control on a non-capability unit with an orphaned blob) still holds under D1';
@@ -157,7 +157,7 @@ document order, so the listener is attached before any writer can dispatch.
   quickly back below 2) can activate the control while nothing is stored. Accepted, same class as D6.
 - bfcache restore, or a second tab left open after a reset elsewhere, still shows an ACTIVE control
   that leads to "Nothing to clear here.". Same class as D6; accepted, no `pageshow` handling.
-- Previewers (non-enrolled staff) save and read their own state (`views.py:536-543`, `:1100-1107`), so
+- Previewers (non-enrolled staff) save and read their own state (`views.py:545-552`, `:1100-1107`), so
   the same rule applies to them unchanged.
 
 ## Testing
