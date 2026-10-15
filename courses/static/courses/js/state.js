@@ -17,7 +17,7 @@
         return false;
       }
     },
-    saveFlag: function (container, stateObj) {  // fire-and-forget, keepalive, swallow errors
+    saveFlag: function (container, stateObj) {  // keepalive, swallow errors; announces a stored save
       var url = container.dataset.stateUrl;
       if (!url) return;                          // editor preview "" -> no-op
       var eid = parseInt(container.dataset.elementPk, 10);
@@ -27,7 +27,16 @@
         headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
         body: JSON.stringify({ element: eid, state: stateObj }),
         keepalive: true,
-      }).catch(function () {});
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          // The echo is what is STORED (REJECT echoes the stored blob too), so a
+          // non-empty echo means there is now something "Start fresh" can clear.
+          if (data && data.state && Object.keys(data.state).length) {
+            document.dispatchEvent(new CustomEvent("libli:state-saved"));
+          }
+        })
+        .catch(function () {});
     },
   };
 })();

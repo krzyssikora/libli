@@ -34,7 +34,16 @@
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
       body: JSON.stringify({ element: eid, state: { open: true } }),
       keepalive: true, // survives unload
-    }).catch(function () {}); // monotone: keep the DOM, ignore the body
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        // Monotone: the DOM is never adopted from the echo. It is read only to
+        // announce a stored save to the "Start fresh" control.
+        if (data && data.state && Object.keys(data.state).length) {
+          document.dispatchEvent(new CustomEvent("libli:state-saved"));
+        }
+      })
+      .catch(function () {});
   }
 
   // The nearest ancestor that defines a reveal cascade's boundary: a slide in

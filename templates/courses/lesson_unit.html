@@ -69,6 +69,7 @@
 {% block extra_js %}
   <script src="{% static 'courses/js/unit_done.js' %}" defer></script>
   <script src="{% static 'courses/js/progress.js' %}" defer></script>
+  {% if has_stateful_elements %}<script src="{% static 'courses/js/reset_control.js' %}" defer></script>{% endif %}
   {% if has_math %}
     {% include "courses/_katex_js.html" %}
   {% endif %}
