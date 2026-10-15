@@ -91,7 +91,8 @@ nine: six widgets save through one shared helper.
 | `window.libliState.saveFlag` (`courses/static/courses/js/state.js:20-31`) | fillgate, filltable, guessnumber, stepper, switchgate, switchgrid | `element_state_save` (JSON) | `{"element", "state"}` echo, **ignored** (`.catch` only) | add `.then`: if `r.ok`, parse JSON; if `state` is a non-empty object → dispatch |
 | `save()` in `reveal.js:27-38` | reveal gate | `element_state_save` (JSON) | echo, ignored | same as above |
 | `markdone.js:57-80` | mark-done checklist | `element_state_save` (JSON) | echo, already adopted | in the existing success `.then`, after the sequence guard: if adopted blob is non-empty → dispatch |
-| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1140-1146`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: dispatch in the **first** `.then`, where `r` is in scope: if `r.ok` and the header is present, dispatch, then `return r.text()`. It must not go at the bottom of the second `.then`, because the inline branch's early `return` (`question.js:~73`) would skip it |
+| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1140-1146`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: dispatch in the **first** `.then`, where `r` is in scope: only the dispatch is guarded, and `return r.text()` stays **unconditional**, exactly as today:
+`if (r.ok && r.headers.get(H)) document.dispatchEvent(...); return r.text();`. It must not go at the bottom of the second `.then`, because the inline branch's early `return` (`question.js:~73`) would skip it |
 
 Notes:
 
@@ -207,11 +208,16 @@ Falsify, don't just run: each test must go RED against a named mutant.
    `removeAttribute('aria-disabled')`; the listener omits `removeAttribute('title')`. Also: one `saveFlag` path, namely a **fill gate answered correctly** (the check
    passes, then `saveFlag({open: true})` stores a non-empty blob; wrong answers store nothing); one
    question path using an **inline** type such as choice (a non-empty answer activates; an
-   empty-answer submit on a fresh page leaves it inactive). This path is the **only** guard against
+   empty-answer submit on a fresh page leaves it inactive). Assert that only **after** a
+   post-response signal: the second `.then`'s fragment/form-body swap, which runs after the
+   first-`.then` dispatch line. Asserting right after the click reads the pre-response DOM. Mutant:
+   "header set when `answer_is_empty`" must turn this RED. This path is the **only** guard against
    the mutant "question.js dispatch moved to the end of the second `.then`", which drift guard (a)
    cannot see; do not trim it; and the **mark-done** path: tick, wait
-   for that save's response (not the attribute), see active, untick everything, and it **stays
-   active** (D6); after a reload it is inactive. Do not assert "tick + untick → inactive" live: it
+   for that save's response (not the attribute), see active, untick everything, **wait for the response
+   of the final untick save** (the one whose echo is `{}`, e.g. `expect_response` on that
+   `element_state_save` POST), and only then assert it **stays active** (D6) and reload; after the
+   reload it is inactive. Do not assert "tick + untick → inactive" live: it
    races the first echo against the seq guard and flakes on a correct build.
 5. **Layout**: `tests/test_e2e_unit_head_layout.py` stays green. Add a **same-page** inactive-vs-active
    bounding-box equality assertion: measure the inactive control, trigger a real save, wait for
