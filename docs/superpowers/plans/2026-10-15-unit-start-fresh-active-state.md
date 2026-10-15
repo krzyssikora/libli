@@ -21,14 +21,14 @@
 - Header name: `X-Libli-State-Saved`, value `"1"`, as Python constant `STATE_SAVED_HEADER` in `courses/views.py`.
 - No live reverse transition (D6). Outline untouched. Unit page only.
 - Run tools via `uv run` (bare `pytest`/`ruff`/`python` are not on PATH). **Never pass `-q`** to pytest (`addopts` already has it; doubling it hides the summary). Start the test DB first: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. One pytest run at a time. e2e needs `-m e2e`.
-- Before each commit: `uv run ruff check .` AND `uv run ruff format --check .` (separate CI gates).
+- Before each commit: `uv run ruff format <files>`, then `uv run ruff check .` AND `uv run ruff format --check .` (separate CI gates). `ruff format` will NOT split a long comment or string literal; wrap those by hand to 88 columns (E501).
 - Django `{# #}` comments are single-line only; multi-line comments use `{% comment %}…{% endcomment %}`.
 - Never use `git checkout -- <file>` to revert a mutant; revert by hand-editing, then confirm with `git diff`.
 - Falsify: each new test must be seen RED against the named mutant, then GREEN. Read the actual `git diff` of every mutant before running.
 
 ## Review Focus
 
-1. **A non-enrolled previewer (teacher) with no stored state** sees the inactive control, and their own saves activate it. Previewers persist and read their own state (`views.py:536-543`). Covered by Task 2 Step 1 (`test_previewer_without_state_sees_inactive_control`).
+1. **A non-enrolled previewer (teacher) with no stored state** sees the inactive control, and their own saves activate it. Previewers persist and read their own state (`views.py:536-543`). Covered by Task 2 Step 1 (`test_previewer_without_state_sees_inactive_control`, `test_previewer_with_state_sees_active_control`); the live half by the same writers as for students (no previewer-specific JS).
 2. **A no-JS mark-done POST redirects back to the unit page**, where the server render must show ACTIVE. Covered by Task 2 Step 1 (`test_active_after_no_js_markdone_post`).
 3. **The no-JS `check_answer` full-page branch** re-renders `lesson_unit.html` via `full_lesson_render_context`, which must still show the right state after a non-empty answer. Covered by Task 2 Step 1 (`test_no_js_check_answer_rerender_shows_active_control`), header half by Task 1 (`test_no_js_branch_sets_no_header`).
 4. **A unit with BOTH a capability element and an orphaned blob** for a deleted element renders ACTIVE (reset really clears it). Covered by Task 2 Step 1 (`test_orphaned_blob_on_capability_unit_is_active`).
@@ -236,6 +236,7 @@ Apply each mutant by hand, confirm with `git diff courses/views.py`, run the fil
 - [ ] **Step 6: Lint + commit**
 
 ```bash
+uv run ruff format courses/views.py courses/tests/test_state_saved_header.py
 uv run ruff check courses/views.py courses/tests/test_state_saved_header.py
 uv run ruff format --check courses/views.py courses/tests/test_state_saved_header.py
 git add courses/views.py courses/tests/test_state_saved_header.py
@@ -312,7 +313,13 @@ def test_capability_unit_with_state_renders_todays_active_link(client):
     )
     a = _control(_lesson(client, course, unit))
     assert a["href"] == _expected_href(course, unit)
-    for attr in ("aria-disabled", "role", "title", "data-reset-control", "data-reset-href"):
+    for attr in (
+        "aria-disabled",
+        "role",
+        "title",
+        "data-reset-control",
+        "data-reset-href",
+    ):
         assert not a.has_attr(attr), attr
     assert a["class"] == ["btn", "btn--ghost", "btn--small", "lesson-unit__reset"]
 
@@ -338,6 +345,24 @@ def test_previewer_without_state_sees_inactive_control(client):
     a = _control(_lesson(client, course, unit))
     assert a["aria-disabled"] == "true"
     assert not a.has_attr("href")
+
+
+def test_previewer_with_state_sees_active_control(client):
+    # Review Focus 1, other half: the non-enrolled `.filter().first()` read branch
+    # (views.py build_lesson_context) feeds element_state for a previewer too.
+    course, unit = make_course_with_unit()
+    md = MarkDoneElement.objects.create(prompt="P")
+    row = add_element(unit, md)
+    item = MarkDoneItem.objects.create(element=md, content="a")
+    UnitProgress.objects.create(
+        student=course.owner,
+        unit=unit,
+        element_state={str(row.pk): {"items": [item.pk]}},
+    )
+    client.force_login(course.owner)
+    a = _control(_lesson(client, course, unit))
+    assert a["href"] == _expected_href(course, unit)
+    assert not a.has_attr("aria-disabled")
 
 
 def test_active_after_no_js_markdone_post(client):
@@ -378,7 +403,22 @@ def test_inactive_title_is_translated_in_polish(client):
     from django.utils import translation
 
     with translation.override("pl"):
-        assert translation.gettext("Nothing to clear yet") == "Nie ma nic do wyczyszczenia"
+        got = translation.gettext("Nothing to clear yet")
+    assert got == "Nie ma nic do wyczyszczenia"
+
+
+def test_inactive_title_renders_in_polish(client):
+    # The catalog test above cannot see a template msgid typo; this renders it.
+    from django.utils import translation
+
+    course, unit = make_course_with_unit()
+    add_element(unit, MarkDoneElement.objects.create(prompt="P"))
+    _login(client, course)
+    with translation.override("pl"):
+        url = reverse("courses:lesson_unit", args=[course.slug, unit.pk])
+    r = client.get(url, HTTP_ACCEPT_LANGUAGE="pl")
+    assert r.status_code == 200
+    assert _control(r.content.decode())["title"] == "Nie ma nic do wyczyszczenia"
 ```
 
 Before relying on `course.owner` (Review Focus 1), check that `make_course_with_unit` (`tests/factories.py`) gives the course an owner who can access it. If it doesn't, build the previewer the way `courses/tests/test_reset_controls.py` or another test in the repo already makes a non-enrolled staff viewer. Grep `force_login(` in `courses/tests/` for an existing teacher/owner helper and reuse it. Also check whether the no-JS markdone POST shape matches what `element_state_save`'s form branch expects (`views.py:1030-1080`: field names `element` and `item`). Adjust to the real field names if they differ.
@@ -426,8 +466,20 @@ In `courses/views.py`, the comment above `has_stateful_elements` (`:509-518`): k
 - [ ] **Step 5: Update existing tests' docstrings / comments**
 
 In `courses/tests/test_reset_controls.py`:
-- In `test_lesson_page_links_to_the_reset_interstitial`, `test_lesson_page_shows_the_reset_link_for_an_element_nested_in_a_tab`, `test_lesson_page_shows_the_reset_link_on_a_question_only_unit` and `test_views_calls_the_state_helper…`, add as the first comment line: `# PRESENCE only (spec 2026-10-15 D1'): with no stored state the URL appears in data-reset-href of the INACTIVE control. Active-ness is pinned by the _control() tests below.`
-- In `test_an_orphaned_blob_does_not_bring_the_reset_link_back`, edit its docstring: replace the sentence beginning "The union rule…" through "…rather than an accident." with: `Presence is still capability-only under the 2026-10-15 revision (D1'); enabled-ness now reads stored state (D2), but only INSIDE the capability gate, so an orphaned blob on a non-capability unit still renders no control. This test pins that.` Leave the assertions unchanged.
+- In `test_lesson_page_links_to_the_reset_interstitial`, `test_lesson_page_shows_the_reset_link_for_an_element_nested_in_a_tab`, `test_lesson_page_shows_the_reset_link_on_a_question_only_unit` and `test_views_calls_the_state_helper…`, add these first comment lines (pre-wrapped for E501):
+  ```python
+      # PRESENCE only (spec 2026-10-15 D1'): with no stored state the URL appears
+      # in data-reset-href of the INACTIVE control. Active-ness is pinned by the
+      # _control() tests below.
+  ```
+- In `test_an_orphaned_blob_does_not_bring_the_reset_link_back`, edit its docstring: replace the sentence beginning "The union rule…" through "…rather than an accident." with (pre-wrapped, keep the docstring's existing indentation):
+  ```
+      Presence is still capability-only under the 2026-10-15 revision (D1');
+      enabled-ness now reads stored state (D2), but only INSIDE the capability
+      gate, so an orphaned blob on a non-capability unit still renders no
+      control. This test pins that.
+  ```
+  Leave the assertions unchanged.
 
 - [ ] **Step 6: Supersede the July D1 record**
 
@@ -467,7 +519,7 @@ Expected: all PASS.
 - [ ] **Step 10: Lint + commit**
 
 ```bash
-uv run ruff check courses/ && uv run ruff format --check courses/
+uv run ruff format courses/ && uv run ruff check courses/ && uv run ruff format --check courses/
 git add templates/courses/_lesson_article.html courses/views.py courses/tests/test_reset_controls.py docs/superpowers/specs/2026-07-25-start-fresh-only-on-stateful-units-design.md locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo
 git commit -m "feat(lesson): Start fresh renders inactive until this viewer has saved work"
 ```
@@ -546,7 +598,9 @@ GUARDED = {
 }
 
 STATE_URL_SHAPES = re.compile(
-    r'dataset\.stateUrl|getAttribute\("data-state-url"\)|getAttribute\("data-markdone-url"\)'
+    r"dataset\.stateUrl"
+    r'|getAttribute\("data-state-url"\)'
+    r'|getAttribute\("data-markdone-url"\)'
 )
 
 
@@ -576,8 +630,8 @@ def test_writer_set_is_exactly_the_known_files():
     }
     assert found == {"state.js", "reveal.js", "markdone.js"}, found
     # question.js writes through check_answer's form.action, so no URL shape names it:
-    # it is listed explicitly, and its dispatch is pinned in GUARDED above.
-    assert "question.js" in GUARDED
+    # pin it to that write shape instead (its dispatch is pinned in GUARDED above).
+    assert "fetch(form.action" in _src("question.js")
 
 
 def test_listener_listens_for_the_same_name_and_restores_the_contract():
@@ -727,7 +781,7 @@ Then check whether a static-manifest or script-inventory test enumerates JS file
 - [ ] **Step 7: Lint + commit**
 
 ```bash
-uv run ruff check tests/test_state_saved_event_guard.py && uv run ruff format --check tests/test_state_saved_event_guard.py
+uv run ruff format tests/test_state_saved_event_guard.py && uv run ruff check tests/test_state_saved_event_guard.py && uv run ruff format --check tests/test_state_saved_event_guard.py
 git add courses/static/courses/js/reset_control.js courses/static/courses/js/state.js courses/static/courses/js/reveal.js courses/static/courses/js/markdone.js courses/static/courses/js/question.js templates/courses/lesson_unit.html tests/test_state_saved_event_guard.py
 git commit -m "feat(lesson): state writers announce stored saves; Start fresh activates live"
 ```
@@ -854,6 +908,10 @@ def test_reveal_gate_activates_live_with_full_contract(page, live_server):
 
     c.click()
     page.wait_for_url(re.compile(r"/reset/"))
+    # Positive anchor: the POPULATED branch of progress_reset_confirm.html. The
+    # count-0 check alone also passes on a 403/500 page.
+    expect(page.locator(".reset-confirm__blast")).to_contain_text("1 lesson")
+    expect(page.locator(".reset-confirm button[type='submit']")).to_be_visible()
     expect(page.get_by_text("Nothing to clear here.")).to_have_count(0)
 
 
@@ -923,7 +981,9 @@ def test_inline_choice_empty_answer_stays_inactive(page, live_server):
     _assert_inactive(page)
 
 
-def test_markdone_stays_active_after_untick_then_inactive_after_reload(page, live_server):
+def test_markdone_stays_active_after_untick_then_inactive_after_reload(
+    page, live_server
+):
     from courses.models import MarkDoneElement
     from courses.models import MarkDoneItem
 
@@ -945,7 +1005,8 @@ def test_markdone_stays_active_after_untick_then_inactive_after_reload(page, liv
         box.uncheck()
     assert r2.value.ok
     assert r2.value.json()["state"] == {}  # the final save stored nothing
-    expect(page.locator(CONTROL)).to_have_attribute("href", _expected_href(unit))  # D6
+    # D6: the control stays active although nothing is stored any more
+    expect(page.locator(CONTROL)).to_have_attribute("href", _expected_href(unit))
 
     page.reload()
     _assert_inactive(page)
@@ -961,7 +1022,9 @@ def test_pressed_inactive_control_paints_no_fill(page, live_server):
     _assert_inactive(page)
     box = page.locator(CONTROL).bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-    hover_bg = page.locator(CONTROL).evaluate("el => getComputedStyle(el).backgroundColor")
+    hover_bg = page.locator(CONTROL).evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    )
     page.mouse.down()
     pressed_bg = page.locator(CONTROL).evaluate(
         "el => getComputedStyle(el).backgroundColor"
@@ -995,7 +1058,8 @@ def test_live_activation_does_not_move_the_control(page, live_server):
     assert before == after
 ```
 
-`_seed` creates a `MarkDoneElement` with **no items**, so this test needs one checkbox. In the new test only, add a `MarkDoneItem` for that element after `_seed` returns (look it up via `unit.elements`). Do not change `_seed` itself; other tests depend on its traffic-free shape. Replace the `# ...` line with the module's real login/goto calls.
+`_seed` creates a `MarkDoneElement` with **no items**, so this test needs one checkbox. In the new test only, add an item after `_seed` returns. `unit.elements` holds `Element` JOIN rows, and `MarkDoneItem.element` needs the concrete object:
+`md = unit.elements.get(content_type__model="markdoneelement").content_object; MarkDoneItem.objects.create(element=md, content="a")`. Do not change `_seed` itself; other tests depend on its traffic-free shape. Replace the `# ...` line with the module's real login/goto calls.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1045,7 +1109,7 @@ Write a throwaway capture script in the session scratchpad (NOT under `tests/`; 
 - [ ] **Step 7: Lint + commit**
 
 ```bash
-uv run ruff check tests/ && uv run ruff format --check tests/
+uv run ruff format tests/ && uv run ruff check tests/ && uv run ruff format --check tests/
 git add core/static/core/css/app.css tests/test_e2e_start_fresh_activation.py tests/test_e2e_unit_head_layout.py
 git commit -m "feat(lesson): inactive Start fresh styling + live-activation e2e"
 ```
@@ -1053,6 +1117,10 @@ git commit -m "feat(lesson): inactive Start fresh styling + live-activation e2e"
 ---
 
 ## Branch gate (after Task 4, before the PR)
+
+**Citation rot first.** Tasks 1–2 insert lines into `courses/views.py` (above `_wants_fragment` ~`:102`, in `check_answer`, and at `:509`). Run
+`git grep -n "views\.py:[0-9]" -- tests courses templates docs/superpowers/specs/2026-10-15-unit-start-fresh-active-state-design.md`
+and, for every citation pointing below ~line 102, check whether it still points at the code it names (compare against `git show origin/master:courses/views.py`). Update the shifted ones in a separate commit (`docs: re-point views.py line citations`). Do not touch citations inside other, older plan/spec documents.
 
 Run the unit suite in chunks (the full suite in one go is OOM-killed). Grep each run's summary line; don't rely on the exit code.
 
