@@ -3440,3 +3440,17 @@ html.js .unit-strip__print { display: inline-flex; }
   /* slideshow.js focuses the active .slide; a focus ring is not page content. */
   :focus, :focus-visible { outline: none !important; }
 }
+
+/* Strikethrough across inline math. text-decoration never propagates into atomic
+   inline descendants, and KaTeX lays a formula out as inline-blocks, so <s> left
+   every formula unstruck. The line is a background on the inline .katex box
+   instead: backgrounds paint per line fragment, so a formula KaTeX wraps is struck
+   on both lines (an ::after overlay spans the fragments' bounding box and draws
+   the line BETWEEN them). 50% of the box sits within ~1px of Inter's own strike,
+   MEASURED at 16/18/22px. print-color-adjust because print drops backgrounds by
+   default, which would unstrike the maths on paper only. */
+s .katex {
+  background: linear-gradient(currentColor, currentColor) 0 50% / 100% max(1px, .055em) no-repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
