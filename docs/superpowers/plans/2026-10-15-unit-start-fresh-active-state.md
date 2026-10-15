@@ -468,7 +468,7 @@ In `courses/views.py`, the comment above `has_stateful_elements` (`:509-518`): k
 - [ ] **Step 5: Update existing tests' docstrings / comments**
 
 In `courses/tests/test_reset_controls.py`:
-- In `test_lesson_page_links_to_the_reset_interstitial`, `test_lesson_page_shows_the_reset_link_for_an_element_nested_in_a_tab`, `test_lesson_page_shows_the_reset_link_on_a_question_only_unit` and `test_views_calls_the_state_helper…`, add these first comment lines (pre-wrapped for E501):
+- In `test_lesson_page_links_to_the_reset_interstitial`, `test_lesson_page_shows_the_reset_link_for_an_element_nested_in_a_tab`, `test_lesson_page_shows_the_reset_link_on_a_question_only_unit`, `test_views_calls_the_state_helper…` and `test_reset_link_survives_the_no_js_check_answer_rerender` (its active-state twin is `test_no_js_check_answer_rerender_shows_active_control`), add these first comment lines (pre-wrapped for E501):
   ```python
       # PRESENCE only (spec 2026-10-15 D1'): with no stored state the URL appears
       # in data-reset-href of the INACTIVE control. Active-ness is pinned by the
@@ -893,7 +893,11 @@ def _settle_completion(page):
     """progress.js POSTs /seen/ ~500 ms after load and, when every element is
     visible, auto-completes the unit and swaps the "Mark as done" pill for
     "Completed" (unit_done.js adds .is-complete). That pill sits BEFORE the control
-    in the head row, so any geometry/hover measurement must wait for it first."""
+    in the head row, so any geometry/hover measurement must wait for it first.
+
+    If .is-complete never appears for a unit (auto-complete did not fire), replace
+    this body with page.expect_response on the /seen/ POST plus a wait for the pill
+    text to settle. NEVER delete the settling step itself."""
     page.wait_for_selector(".unit-done.is-complete")
 
 
@@ -1071,6 +1075,8 @@ Append to `tests/test_e2e_unit_head_layout.py` (reuse its `_seed`, `_login`, `ME
 def test_live_activation_does_not_move_the_control(page, live_server):
     """Same page, both states: measure INACTIVE, trigger a real save, wait for href,
     measure ACTIVE. A second page load could hide a live-only shift."""
+    from courses.models import MarkDoneItem  # this module imports models lazily
+
     course, unit = _seed("headlive", "head-layout-live")
     # ... log in and open the unit exactly as the existing tests in this module do ...
     # progress.js auto-completes this all-visible unit ~500 ms after load and swaps
@@ -1124,7 +1130,14 @@ uv run pytest $(ls tests/test_*css*.py courses/tests/test_*css*.py) -n 4
 Expected: all PASS. CSS marker tests partition on block text; if one fails, the new rule hijacked its marker, so fix the marker the way that test's own comments describe, not by moving the rule.
 
 - [ ] **Step 5: Falsify** (hand-applied, `git diff` read, RED seen, hand-reverted)
-1. `app.css`: delete the `:active` selector line from the override → `test_pressed_inactive_control_paints_no_fill` RED on `pressed_bg` (read with the pointer moved off, so `:hover` cannot mask it). Also delete the `:hover` line on its own → same test RED on `hover_bg`.
+1. `app.css`, mutant A (drop `:active`): replace the two-line override with
+   `.lesson-unit__reset[aria-disabled="true"]:hover { background: transparent; }` →
+   `test_pressed_inactive_control_paints_no_fill` RED on `pressed_bg` (read with the pointer
+   moved off, so `:hover` cannot mask it). Mutant B (drop `:hover`): replace it with
+   `.lesson-unit__reset[aria-disabled="true"]:active { background: transparent; }` → same test RED
+   on `hover_bg`. Do NOT just delete a line: the `:hover` line ends in a comma, and a dangling
+   selector list swallows the next rule. Check in `git diff` that each mutant is a complete,
+   parseable rule.
 2. `reset_control.js`: delete `a.removeAttribute("aria-disabled");` → `test_reveal_gate_activates_live_with_full_contract` RED (the attribute is still present).
 3. `question.js`: move the guarded dispatch from the first `.then` to the end of the second `.then` (after its inline early `return`) → `test_inline_choice_nonempty_answer_activates` RED (times out on `[href]`).
 4. `courses/views.py`: set `stored_answer = True` in the `answer_is_empty` branch too → `test_inline_choice_empty_answer_stays_inactive` RED.
