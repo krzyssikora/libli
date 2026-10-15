@@ -143,3 +143,32 @@ def test_desktop_keeps_the_actions_beside_the_title(page, live_server):
     assert m["reset_top"] < m["title_bottom"], (
         "on desktop the reset link should still sit on the title's line"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_live_activation_does_not_move_the_control(page, live_server):
+    """Same page, both states: measure INACTIVE, trigger a real save, wait for href,
+    measure ACTIVE. A second page load could hide a live-only shift."""
+    from courses.models import MarkDoneItem  # this module imports models lazily
+
+    course, unit = _seed("headlive", "head-layout-live")
+    # _seed's MarkDone has no items (its traffic-free shape is load-bearing for the
+    # other tests): add the one checkbox this test needs here, not in _seed.
+    md = unit.elements.get(content_type__model="markdoneelement").content_object
+    MarkDoneItem.objects.create(element=md, content="a")
+    _login(page, live_server, "headlive")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    # progress.js auto-completes this all-visible unit ~500 ms after load and swaps
+    # the completion pill, which sits BEFORE the control: settle it first, or a pill
+    # width change between the two measurements moves the control.
+    page.wait_for_selector(".unit-done.is-complete")
+    page.wait_for_selector(".lesson-unit__reset[aria-disabled='true']")
+    before = page.locator(".lesson-unit__reset").bounding_box()
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ):
+        page.locator(".markdone__item input[type='checkbox']").first.check()
+    page.wait_for_selector(".lesson-unit__reset[href]")
+    after = page.locator(".lesson-unit__reset").bounding_box()
+    assert before == after

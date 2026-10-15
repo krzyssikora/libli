@@ -773,6 +773,15 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
   text-decoration: underline;
 }
 .outline-node__reset:hover { color: var(--danger); }
+/* Unit page: rendered INACTIVE until this viewer has stored practice state (an <a>
+   with aria-disabled and no href). NOT pointer-events:none -- that would suppress the
+   title tooltip. So the two fills that would repaint it as live must be neutralised
+   here: .btn--ghost:hover's, and .btn:active's primary fill, which .btn--ghost never
+   overrides and which native :disabled blocks only on real buttons. Specificity
+   (0,3,0) beats .btn:active (0,2,0). */
+.lesson-unit__reset[aria-disabled="true"] { opacity: .45; cursor: default; }
+.lesson-unit__reset[aria-disabled="true"]:hover,
+.lesson-unit__reset[aria-disabled="true"]:active { background: transparent; }
 
 /* Disabled while a tag filter is active (§5): Collapse all would hide every
    match. .btn sets cursor:pointer and .btn--ghost:hover sets a fill, neither
