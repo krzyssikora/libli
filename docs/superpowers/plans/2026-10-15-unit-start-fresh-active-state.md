@@ -32,7 +32,7 @@
 2. **A no-JS mark-done POST redirects back to the unit page**, where the server render must show ACTIVE. Covered by Task 2 Step 1 (`test_active_after_no_js_markdone_post`).
 3. **The no-JS `check_answer` full-page branch** re-renders `lesson_unit.html` via `full_lesson_render_context`, which must still show the right state after a non-empty answer. Covered by Task 2 Step 1 (`test_no_js_check_answer_rerender_shows_active_control`), header half by Task 1 (`test_no_js_branch_sets_no_header`).
 4. **A unit with BOTH a capability element and an orphaned blob** for a deleted element renders ACTIVE (reset really clears it). Covered by Task 2 Step 1 (`test_orphaned_blob_on_capability_unit_is_active`).
-5. **The quiz-results page loads `question.js`** with no reset control. The dispatch and listener must be inert there, not throw. Covered by Task 3: the listener is null-safe by construction (`querySelectorAll`), and `reset_control.js` is not loaded on `quiz_results.html` (asserted in Task 3 Step 1, `test_reset_control_script_only_on_lesson_page`).
+5. **The quiz-results page loads `question.js`** with no reset control. The dispatch and listener must be inert there, not throw. Covered by Task 3: the listener is null-safe by construction (`querySelectorAll`), and `reset_control.js` is not loaded on `quiz_results.html` (asserted in Task 3 Step 1, `test_reset_control_script_only_on_lesson_page_and_before_the_writers`).
 
 ---
 
@@ -261,7 +261,7 @@ git commit -m "feat(check_answer): X-Libli-State-Saved header when an answer is 
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `courses/tests/test_reset_controls.py`. Add the imports at the top, in sorted position: `from bs4 import BeautifulSoup`, `from courses.models import Choice`, `from courses.models import ChoiceQuestionElement`.
+Append to `courses/tests/test_reset_controls.py`. Add the imports at the top: `from bs4 import BeautifulSoup` goes in the THIRD-PARTY block (after `import pytest`, before `from django.urls import reverse`); `from courses.models import Choice` and `from courses.models import ChoiceQuestionElement` go in sorted position among the `courses.models` imports. The lint step runs `ruff check --fix --select I` to settle any ordering slip.
 
 ```python
 def _control(body):
@@ -521,7 +521,8 @@ Expected: all PASS.
 - [ ] **Step 10: Lint + commit**
 
 ```bash
-uv run ruff format courses/ && uv run ruff check courses/ && uv run ruff format --check courses/
+F="courses/views.py courses/tests/test_reset_controls.py"
+uv run ruff check --fix --select I $F && uv run ruff format $F && uv run ruff check $F && uv run ruff format --check $F
 git add templates/courses/_lesson_article.html courses/views.py courses/tests/test_reset_controls.py docs/superpowers/specs/2026-07-25-start-fresh-only-on-stateful-units-design.md locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo
 git commit -m "feat(lesson): Start fresh renders inactive until this viewer has saved work"
 ```
@@ -657,7 +658,9 @@ def test_reset_control_script_only_on_lesson_page_and_before_the_writers():
     # gated on the same condition as the control itself
     line_start = lesson.rfind("\n", 0, at)
     assert "{% if has_stateful_elements %}" in lesson[line_start:at]
-    # deferred scripts run in document order: listener first
+    # Belt-and-braces, not a hard correctness need: every dispatch fires in a fetch
+    # .then, i.e. after all deferred scripts in practice. Listener-first (spec §5)
+    # closes the theoretical gap of a save resolving between two deferred scripts.
     for writer in ("question.js", "state.js", "reveal.js", "markdone.js"):
         assert at < lesson.find(f"courses/js/{writer}"), writer
     results = (ROOT / "templates/courses/quiz_results.html").read_text(encoding="utf-8")
@@ -1134,7 +1137,8 @@ Write a throwaway capture script in the session scratchpad (NOT under `tests/`; 
 - [ ] **Step 7: Lint + commit**
 
 ```bash
-uv run ruff format tests/ && uv run ruff check tests/ && uv run ruff format --check tests/
+F="tests/test_e2e_start_fresh_activation.py tests/test_e2e_unit_head_layout.py"
+uv run ruff format $F && uv run ruff check $F && uv run ruff format --check $F
 git add core/static/core/css/app.css tests/test_e2e_start_fresh_activation.py tests/test_e2e_unit_head_layout.py
 git commit -m "feat(lesson): inactive Start fresh styling + live-activation e2e"
 ```
