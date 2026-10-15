@@ -117,7 +117,11 @@ still `aria-disabled="true"`, set `href` from `data-reset-href`, remove `aria-di
 and `title`. Idempotent; removes nothing else. The result equals the server-rendered active control
 in `class`, `href`, text, and the absence of `aria-disabled`/`role`/`title`. The `data-reset-control`
 / `data-reset-href` hooks deliberately **remain** (they make the listener idempotent), so tests must
-compare those properties, not `outerHTML`. Deferred loading is safe: every dispatch follows a user interaction.
+compare those properties, not `outerHTML`. The server-rendered active control carries **no**
+`data-reset-*` attributes (D3: unchanged); the hooks exist only on the inactive render and survive
+activation. **Script order:** include `reset_control.js` in `lesson_unit.html`'s script block
+**before** `question.js`, `state.js`, `reveal.js` and `markdone.js`. Deferred scripts run in
+document order, so the listener is attached before any writer can dispatch.
 
 ### 6. Decision-record updates (D7)
 
@@ -197,10 +201,15 @@ Falsify, don't just run: each test must go RED against a named mutant.
    open the gate → control becomes active **without reload** (wait on the attribute change, not a
    sleep); click it → the interstitial shows a **non-zero** count, i.e. NOT "Nothing to clear here."
    (this proves the activation tracked real stored state; "interstitial loads" alone passes on the
-   broken build). Also: one `saveFlag` path, namely a **fill gate answered correctly** (the check
+   broken build). In this reveal-gate test, also assert the full activation contract (§5): after
+   activation `aria-disabled`, `role` and `title` are absent, `href` equals the server-rendered
+   active URL, and the computed opacity equals an active control's. Mutants: the listener omits
+   `removeAttribute('aria-disabled')`; the listener omits `removeAttribute('title')`. Also: one `saveFlag` path, namely a **fill gate answered correctly** (the check
    passes, then `saveFlag({open: true})` stores a non-empty blob; wrong answers store nothing); one
    question path using an **inline** type such as choice (a non-empty answer activates; an
-   empty-answer submit on a fresh page leaves it inactive); and the **mark-done** path: tick, wait
+   empty-answer submit on a fresh page leaves it inactive). This path is the **only** guard against
+   the mutant "question.js dispatch moved to the end of the second `.then`", which drift guard (a)
+   cannot see; do not trim it; and the **mark-done** path: tick, wait
    for that save's response (not the attribute), see active, untick everything, and it **stays
    active** (D6); after a reload it is inactive. Do not assert "tick + untick → inactive" live: it
    races the first echo against the seq guard and flakes on a correct build.
