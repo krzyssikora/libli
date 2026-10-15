@@ -87,13 +87,13 @@ nine: six widgets save through one shared helper.
 | `window.libliState.saveFlag` (`courses/static/courses/js/state.js:20-31`) | fillgate, filltable, guessnumber, stepper, switchgate, switchgrid | `element_state_save` (JSON) | `{"element", "state"}` echo, **ignored** (`.catch` only) | add `.then`: if `r.ok`, parse JSON; if `state` is a non-empty object → dispatch |
 | `save()` in `reveal.js:27-38` | reveal gate | `element_state_save` (JSON) | echo, ignored | same as above |
 | `markdone.js:57-80` | mark-done checklist | `element_state_save` (JSON) | echo, already adopted | in the existing success `.then`, after the sequence guard: if adopted blob is non-empty → dispatch |
-| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1140-1146`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: if `r.ok` and the header is present → dispatch |
+| `question.js:48-79` | lesson questions with `RESTORABLE_IN_LESSON` | `check_answer` (`views.py:1120`) | HTML fragment | server: compute ONE local flag `stored_answer` in the `RESTORABLE_IN_LESSON` block (`views.py:1140-1146`; true only on the non-`answer_is_empty` branch), and set response header `X-Libli-State-Saved: 1` on **every** fragment response when it is true. There are two: the `INLINE_LESSON_FEEDBACK` full-element render (~`:1150`) and the `_question_feedback.html` render (~`:1165`, used by non-inline restorable types such as extended response). The no-JS full-page branch does not set it (no client reads it there). Client: dispatch in the **first** `.then`, where `r` is in scope: if `r.ok` and the header is present, dispatch, then `return r.text()`. It must not go at the bottom of the second `.then`, because the inline branch's early `return` (`question.js:~73`) would skip it |
 
 Notes:
 
 - `element_state_save`'s REJECT path echoes what is **stored** (`views.py:1095-1098`), so "echo is
   non-empty" means "something is stored" on both the accept and reject paths — exactly D2's condition.
-- An EMPTY save (stepper back to 0, every checkbox unticked, emptied answer) echoes `{}` / sets no
+- An EMPTY save (stepper below 2 shown steps per `courses/state.py:104`, every checkbox unticked, emptied answer) echoes `{}` / sets no
   header → no dispatch. The control never flips back to inactive live (D6).
 - Each writer dispatches the event **itself** with a one-line `document.dispatchEvent(...)`. A shared
   helper in `state.js` is not usable: `markdone.js` and `question.js` load without `state.js`
@@ -110,8 +110,10 @@ Notes:
 A new file `courses/static/courses/js/reset_control.js`, included from `lesson_unit.html`'s script
 block under `{% if has_stateful_elements %}` (the same condition as the control itself). On `libli:state-saved`: for each `[data-reset-control]`
 still `aria-disabled="true"`, set `href` from `data-reset-href`, remove `aria-disabled`, `role`
-and `title`. Idempotent; removes nothing else, so the result matches the server-rendered active
-markup. Deferred loading is safe: every dispatch follows a user interaction.
+and `title`. Idempotent; removes nothing else. The result equals the server-rendered active control
+in `class`, `href`, text, and the absence of `aria-disabled`/`role`/`title`. The `data-reset-control`
+/ `data-reset-href` hooks deliberately **remain** (they make the listener idempotent), so tests must
+compare those properties, not `outerHTML`. Deferred loading is safe: every dispatch follows a user interaction.
 
 ### 6. Decision-record updates (D7)
 
@@ -141,6 +143,8 @@ markup. Deferred loading is safe: every dispatch follows a user interaction.
 - Listener absent (script missing) → the control simply stays inactive until reload; never broken.
 - Editor preview: `saveFlag`/`reveal` already return before fetching when `data-state-url` is `""`, so
   nothing dispatches; the preview has no reset control anyway.
+- `saveFlag` has no sequence guard, so out-of-order echoes (e.g. a stepper going to 2 shown steps and
+  quickly back below 2) can activate the control while nothing is stored. Accepted, same class as D6.
 - bfcache restore, or a second tab left open after a reset elsewhere, still shows an ACTIVE control
   that leads to "Nothing to clear here.". Same class as D6; accepted, no `pageshow` handling.
 - Previewers (non-enrolled staff) save and read their own state (`views.py:536-543`, `:1100-1107`), so
@@ -183,10 +187,13 @@ Falsify, don't just run: each test must go RED against a named mutant.
    open the gate → control becomes active **without reload** (wait on the attribute change, not a
    sleep); click it → the interstitial shows a **non-zero** count, i.e. NOT "Nothing to clear here."
    (this proves the activation tracked real stored state; "interstitial loads" alone passes on the
-   broken build). Also one `saveFlag` widget path, one question path (a non-empty answer activates;
-   an empty-answer submit on a fresh page leaves it inactive), and the **mark-done** path (tick →
-   active; on a fresh page, tick then untick everything → still inactive, since the echo is `{}`
-   after the last save).
+   broken build). Also: one `saveFlag` path, namely a **fill gate answered correctly** (the check
+   passes, then `saveFlag({open: true})` stores a non-empty blob; wrong answers store nothing); one
+   question path using an **inline** type such as choice (a non-empty answer activates; an
+   empty-answer submit on a fresh page leaves it inactive); and the **mark-done** path: tick, wait
+   for that save's response (not the attribute), see active, untick everything, and it **stays
+   active** (D6); after a reload it is inactive. Do not assert "tick + untick → inactive" live: it
+   races the first echo against the seq guard and flakes on a correct build.
 5. **Layout**: `tests/test_e2e_unit_head_layout.py` stays green; add an inactive-vs-active bounding-box
    equality assertion for the control.
 6. **i18n**: `makemessages` + Polish msgstr "Nie ma jeszcze czego wyczyścić" for "Nothing to clear yet" (clear any fuzzy pre-fill); recompile `.mo`.
