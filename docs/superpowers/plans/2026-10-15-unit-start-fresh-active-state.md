@@ -455,7 +455,7 @@ Replace `templates/courses/_lesson_article.html:31-36` (the `{% if has_stateful_
 
 - [ ] **Step 4: Update the views comment**
 
-In `courses/views.py`, the comment above `has_stateful_elements` (`:509-518`): keep it, and append these lines after its first sentence (`… (spec D1).`):
+In `courses/views.py`, the comment above `has_stateful_elements` (`:509-518`): keep it unchanged, and insert these three lines after its LAST comment line, directly above `has_stateful_elements = node.elements.filter(`:
 
 ```python
     # That rule now governs PRESENCE only: the template ALSO reads `element_state`
@@ -556,9 +556,11 @@ guard, and must come after that file's fetch(.
 BLIND SPOTS, stated honestly: a widget posting to element_state_save through a
 differently named attribute, a template-injected URL, or a new server route writing
 state from a different endpoint is not caught. The dispatch's placement INSIDE the
-correct callback is approximated by "after fetch( + adjacent to its guard". The
-question.js mutant "dispatch at the end of the second .then" is caught ONLY by the
-inline-choice e2e in tests/test_e2e_start_fresh_activation.py. A tripwire, not a proof.
+correct callback is approximated by "after fetch( + adjacent to its guard". For
+question.js, a VERBATIM move of the guarded dispatch below `return r.text()` is caught
+here; a relocation that rewrites the guard (e.g. threading a flag into the second
+.then) is caught ONLY by the inline-choice e2e in
+tests/test_e2e_start_fresh_activation.py. A tripwire, not a proof.
 """
 
 import re
@@ -585,11 +587,13 @@ def _src(name):
 
 # The guarded dispatch, per write site: the guard must sit IMMEDIATELY before the
 # dispatch, so deleting the guard (unconditional dispatch) fails the match.
+ECHO_GUARD = (
+    r"if \(data && data\.state && "
+    r"Object\.keys\(data\.state\)\.length\) \{\s*"
+)
 GUARDED = {
-    "state.js": r"if \(data && data\.state && Object\.keys\(data\.state\)\.length\) \{\s*"
-    + DISPATCH,
-    "reveal.js": r"if \(data && data\.state && Object\.keys\(data\.state\)\.length\) \{\s*"
-    + DISPATCH,
+    "state.js": ECHO_GUARD + DISPATCH,
+    "reveal.js": ECHO_GUARD + DISPATCH,
     "markdone.js": r"if \(Object\.keys\(blob\)\.length\) \{\s*" + DISPATCH,
     "question.js": r"if \(r\.ok && r\.headers\.get\("
     + re.escape(f'"{STATE_SAVED_HEADER}"')
@@ -880,6 +884,14 @@ def _wait_active(page):
     page.wait_for_selector(f"{CONTROL}[href]")
 
 
+def _settle_completion(page):
+    """progress.js POSTs /seen/ ~500 ms after load and, when every element is
+    visible, auto-completes the unit and swaps the "Mark as done" pill for
+    "Completed" (unit_done.js adds .is-complete). That pill sits BEFORE the control
+    in the head row, so any geometry/hover measurement must wait for it first."""
+    page.wait_for_selector(".unit-done.is-complete")
+
+
 def test_reveal_gate_activates_live_with_full_contract(page, live_server):
     from courses.models import RevealGateElement
     from courses.models import TextElement
@@ -1019,6 +1031,7 @@ def test_pressed_inactive_control_paints_no_fill(page, live_server):
     add_element(unit, MarkDoneElement.objects.create(prompt="P"))
     _login(page, live_server, "sf_pressed")
     page.goto(_url(live_server, unit))
+    _settle_completion(page)
     _assert_inactive(page)
     box = page.locator(CONTROL).bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
@@ -1026,10 +1039,16 @@ def test_pressed_inactive_control_paints_no_fill(page, live_server):
         "el => getComputedStyle(el).backgroundColor"
     )
     page.mouse.down()
+    # Move OFF the control with the button held: Chrome keeps :active but drops
+    # :hover, so this reading isolates the :active override. Read while hovered,
+    # the :hover rule (0,3,0) would mask a missing :active rule.
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] + 40)
     pressed_bg = page.locator(CONTROL).evaluate(
         "el => getComputedStyle(el).backgroundColor"
     )
+    still_active = page.locator(CONTROL).evaluate("el => el.matches(':active')")
     page.mouse.up()
+    assert still_active, "anti-vacuity: the control must still be :active"
     assert hover_bg == "rgba(0, 0, 0, 0)", hover_bg
     assert pressed_bg == "rgba(0, 0, 0, 0)", pressed_bg
 ```
@@ -1049,6 +1068,10 @@ def test_live_activation_does_not_move_the_control(page, live_server):
     measure ACTIVE. A second page load could hide a live-only shift."""
     course, unit = _seed("headlive", "head-layout-live")
     # ... log in and open the unit exactly as the existing tests in this module do ...
+    # progress.js auto-completes this all-visible unit ~500 ms after load and swaps
+    # the completion pill, which sits BEFORE the control: settle it first, or a pill
+    # width change between the two measurements moves the control.
+    page.wait_for_selector(".unit-done.is-complete")
     page.wait_for_selector(".lesson-unit__reset[aria-disabled='true']")
     before = page.locator(".lesson-unit__reset").bounding_box()
     with page.expect_response(lambda r: "/state/" in r.url and r.request.method == "POST"):
@@ -1059,7 +1082,7 @@ def test_live_activation_does_not_move_the_control(page, live_server):
 ```
 
 `_seed` creates a `MarkDoneElement` with **no items**, so this test needs one checkbox. In the new test only, add an item after `_seed` returns. `unit.elements` holds `Element` JOIN rows, and `MarkDoneItem.element` needs the concrete object:
-`md = unit.elements.get(content_type__model="markdoneelement").content_object; MarkDoneItem.objects.create(element=md, content="a")`. Do not change `_seed` itself; other tests depend on its traffic-free shape. Replace the `# ...` line with the module's real login/goto calls.
+`md = unit.elements.get(content_type__model="markdoneelement").content_object; MarkDoneItem.objects.create(element=md, content="a")`. Do not change `_seed` itself; other tests depend on its traffic-free shape. Replace the `# ...` line with the module's real login/goto calls. If `.unit-done.is-complete` never appears (e.g. the unit is not auto-completable in this layout), say so in your report and replace that wait with `page.expect_response` on the `/seen/` POST plus a wait for the pill text to settle. Do not delete the settling step.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1090,13 +1113,13 @@ In `core/static/core/css/app.css`, directly after the `.outline-node__reset:hove
 
 ```bash
 uv run pytest tests/test_e2e_start_fresh_activation.py tests/test_e2e_unit_head_layout.py tests/test_e2e_practice_state.py -m e2e -n 2 -v
-uv run pytest $(ls tests/test_*css*.py) -n 4
+uv run pytest $(ls tests/test_*css*.py courses/tests/test_*css*.py) -n 4
 ```
 
 Expected: all PASS. CSS marker tests partition on block text; if one fails, the new rule hijacked its marker, so fix the marker the way that test's own comments describe, not by moving the rule.
 
 - [ ] **Step 5: Falsify** (hand-applied, `git diff` read, RED seen, hand-reverted)
-1. `app.css`: delete the `:active` selector line from the override → `test_pressed_inactive_control_paints_no_fill` RED.
+1. `app.css`: delete the `:active` selector line from the override → `test_pressed_inactive_control_paints_no_fill` RED on `pressed_bg` (read with the pointer moved off, so `:hover` cannot mask it). Also delete the `:hover` line on its own → same test RED on `hover_bg`.
 2. `reset_control.js`: delete `a.removeAttribute("aria-disabled");` → `test_reveal_gate_activates_live_with_full_contract` RED (the attribute is still present).
 3. `question.js`: move the guarded dispatch from the first `.then` to the end of the second `.then` (after its inline early `return`) → `test_inline_choice_nonempty_answer_activates` RED (times out on `[href]`).
 4. `courses/views.py`: set `stored_answer = True` in the `answer_is_empty` branch too → `test_inline_choice_empty_answer_stays_inactive` RED.
