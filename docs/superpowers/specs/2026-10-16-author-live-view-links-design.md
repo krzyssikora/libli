@@ -126,6 +126,9 @@ card links to the unit's live page (URL rule below).
 - Structure: the visible "Last edited" label sits **outside** the `<a>`. The
   link contains the unit title and the course title, so its accessible name
   reads "unit title, course title" and not a run-on including the label.
+  The two titles need a separator a screen reader announces (block-level
+  children or a visually hidden ", "). The builder picks which, but one must
+  exist.
 - Styling: within the existing dashboard visual language (tokens from
   `app.css`), light and dark mode, phone width with no horizontal scroll. The
   exact markup and CSS are the builder's.
@@ -209,7 +212,10 @@ e2e check for the property only a browser can see.
   both rows to the same value.
 - **Studio "View":** the owner's dashboard row has a link to that course's
   `course_outline`; following it returns 200; the title still links to the
-  builder.
+  builder. Check each anchor of the row separately, not substrings anywhere in
+  the body: parse the `data-section="manage"` `li.dash-row` and assert that
+  the title `<a>` → `manage_builder` and the `.dash-row__action` `<a>` →
+  `course_outline`. A swap or a duplicate must fail.
 - **Last edited:**
   - With two owned units, the one with the later `updated` is shown, and its
     link is that unit's `lesson_unit` URL.
@@ -229,7 +235,9 @@ e2e check for the property only a browser can see.
   - The owner sees, for a lesson unit, the link to its `lesson_unit` URL, with
     `target="_blank"`; following it returns 200 (a draft included).
   - A non-staff, non-owner Platform Admin can open the editor (200) but gets
-    **no** "View live" link.
+    **no** "View live" link. On the same response, assert an editor marker
+    is present (e.g. the crumb's "Media library" link) and that both the
+    unit's live URL and the "View live" text are absent.
   - The link is still present on a 422 error re-render of the editor page:
     a `node_rename` POST with `ctx=editor` whose value fails validation (the
     builder picks a concrete failing value from `node_rename`'s
