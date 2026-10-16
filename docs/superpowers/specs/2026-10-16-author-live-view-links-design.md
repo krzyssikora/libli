@@ -146,7 +146,15 @@ card links to the unit's live page (URL rule below).
   only the two titles, and its `::after` (`position: absolute; inset: 0` on a
   `position: relative` card) covers the card. So tapping anywhere, the label
   included, follows the link, while the label stays outside the anchor in the
-  DOM. The e2e taps the **label area** to prove it. Keyboard focus is shown
+  DOM. The e2e taps the **label area** to prove it, using coordinates (the
+  label's bounding-box centre via `page.mouse.click(x, y)`). It must not use
+  a locator click on the label: the overlay intercepts it and the click times
+  out. The label must **not** be lifted above the overlay to make a locator
+  click pass, because tapping it would then do nothing. The e2e also asserts
+  `document.elementFromPoint(<label centre>)` is the card's `<a>` (or is inside
+  it). The card carries a fixed hook, `data-last-edited`, and the view tests
+  parse that element: its single `<a>`'s `href`, the absence of `target`, and
+  its text. Keyboard focus is shown
   on the whole card (e.g. `:focus-within` on the card, or the outline on the
   `::after`), and the card must not clip it (no `overflow: hidden` that cuts
   the ring).
@@ -243,7 +251,9 @@ e2e check for the property only a browser can see.
   builder. Check each anchor of the row separately, not substrings anywhere in
   the body: parse the `data-section="manage"` `li.dash-row` and assert that
   the title `<a>` → `manage_builder` and the `.dash-row__action` `<a>` →
-  `course_outline`. A swap or a duplicate must fail.
+  `course_outline`. A swap or a duplicate must fail. A Teaching row's title
+  anchor also carries `dash-row__title` (template assertion on a teacher's
+  dashboard).
 - **Last edited:**
   - With two owned units, the one with the later `updated` is shown, and its
     link is that unit's `lesson_unit` URL.
