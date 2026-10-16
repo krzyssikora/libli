@@ -275,12 +275,18 @@ simply left), after which no signal fires.
   so a password changed elsewhere ends delivery even though Django flushes that session only on
   its next request; `user.is_active`; and `remembered_from_data(decoded)` is True (D8: a
   browser-close login is never sent to, even if it somehow holds a row). Rows failing any test are
-  deleted, not sent. Cost: one select plus at most one delete per notification, and decoding at
+  deleted, not sent — conditionally on the stale key, `filter(pk__in=…, session_key__in=<the
+  keys just judged dead>)`, so a row that a concurrent `claim` or subscribe re-keyed to a live
+  session between the read and the delete survives. Cost: one select plus at most one delete per notification, and decoding at
   most 5 sessions (the device cap) — negligible beside the push calls themselves. (`Session` rows linger after expiry because no `clearsessions` cron runs,
   hence the `expire_date` filter, never mere existence.)
 - This relies on database-backed sessions (`SESSION_ENGINE` is Django's default
   `django.contrib.sessions.backends.db` in every settings module today); a test pins that, so a
   later switch to cache or signed-cookie sessions fails loudly instead of silently disabling push.
+  D8 likewise depends on `ACCOUNT_SESSION_REMEMBER` staying unset (allauth shows and reads the
+  checkbox only when it is `None`; `False` would make every password login non-remembered and
+  remove the checkbox the D8 line points at); a test pins
+  `allauth.account.app_settings.SESSION_REMEMBER is None`, so changing it forces a review of D8.
 - Session key rotation: Django cycles the session key on login and on password change
   (`update_session_auth_hash`), keeping the session data, so `push_endpoint` survives while the
   row's `session_key` goes stale. Hence the page's `data-session-endpoint` (§6) is rendered
@@ -411,7 +417,11 @@ With push:
   again while a request is in flight. For the
   states where it cannot work, the switch is replaced by one line: `unsupported` → "This browser can't show push notifications.";
   `not-remembered` → "To get push notifications on this device, tick 'Remember me' when you log
-  in." (D8);
+  in." (D8; the Polish msgstr quotes the project's own login label EXACTLY — „Zapamiętaj mnie”
+  from `templates/account/login.html` — not allauth's „Pamiętaj mnie”; it is client-driven on
+  purpose, like the other state lines, so the table's order holds — `ios-not-installed` and
+  `unsupported` win over it — at the cost that a page whose push.js failed to load shows only the
+  disabled switch);
   `ios-not-installed` → "On iPhone and iPad, add libli to your Home Screen first." + a link to the
   C1 install guide (`{% url 'core:install_app' %}`); `blocked` → "Notifications are blocked for libli in this browser's settings."
 - Then one row per kind with **two switches, Email and Push**, column headers above them. The
@@ -452,15 +462,16 @@ server-rendered `{% trans %}` text (e.g. `data-msg-*` attributes in
 
 - Every device-state line (§7: unsupported, not-remembered, iOS-not-installed with its link,
   blocked), the
-  shared-computer help line (§4; visible exactly when the device switch is, i.e. in `off` and
-  `on`), and the whole bell invite row (§8) are server-rendered with
+  shared-computer help line (§4; visible only once push.js reports `off` or `on`; hidden before
+  that and in the other four states), and the whole bell invite row (§8) are server-rendered with
   `{% trans %}` inside elements that start `hidden`; push.js only toggles `hidden`.
 - The one dynamic string, the error line ("Couldn't change push notifications. Try again."), is
   carried as `data-msg-error` on the `libli-push` meta and placed with `textContent`.
 - Push payload text is localized server-side (§3 step 4), so the worker builds no text either.
 
 All of these, plus the §7 section heading, column headers, lede and neutral help texts, are new
-msgids with Polish filled by hand (0 fuzzy).
+msgids with Polish filled by hand (0 fuzzy). The `pl` e2e asserts that the label quoted in the
+not-remembered line appears verbatim on the Polish login page.
 
 ## 9. Operations
 
@@ -527,6 +538,9 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   user's endpoint deletes nothing; the `push_endpoint` session entry set and cleared.
 - Claim: own row → `mine: true`, the `push_endpoint` session entry set and the row re-keyed; another user's row → deleted, `mine:
   false`; no row → `mine: false`, nothing created.
+- Send-path delete is conditional on the stale key: a row re-keyed to a live session inside the
+  mocked `Session` lookup survives the delete (mutant: delete by pk alone).
+- `allauth.account.app_settings.SESSION_REMEMBER is None` (pinned, D8).
 - Live-session decoding (I1 of the second review pass): a row whose session belongs to ANOTHER
   user id, whose `_auth_user_hash` no longer matches (password changed elsewhere), or whose user
   is inactive is deleted and not sent — each with a mutant dropping that one check; a session
