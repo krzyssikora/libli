@@ -34,7 +34,7 @@
 ## Review Focus
 
 1. **Error re-render of the editor.** After a failed rename (422), the "View live" link must still be there. Pinned in Task 3.
-2. **Maths in titles.** A unit or course title with `\(…\)` must not show raw delimiters on the dashboard, including in the screen-reader-only course name. Pinned in Tasks 1 and 2.
+2. **Maths in titles.** The card's two titles and the Studio action's screen-reader-only course name must not show raw `\(…\)` delimiters. The existing Studio and Teaching row titles stay as they are (out of scope). Pinned in Tasks 1 and 2.
 3. **Long unbroken titles at 360px.** No horizontal page scroll. Pinned in Task 5 (e2e).
 4. **Polish UI.** The Studio action must not render "Widok" (the noun already in the catalogue). Pinned in Task 1, translated in Task 4.
 5. **Platform Admin who is not the owner.** Their "Last edited" card shows nothing of another author's, and the editor shows no link that would 403. Pinned in Tasks 2 and 3.
@@ -94,6 +94,8 @@ def test_teaching_row_title_carries_dash_row_title(client):
     assert title["href"] == reverse("courses:course_outline", kwargs={"slug": course.slug})
 ```
 
+Setup for this file: add `from bs4 import BeautifulSoup`, and copy the `_polish(client)` helper verbatim from `tests/test_analytics_student_page.py:42-46`. The file already has module-level `pytestmark = pytest.mark.django_db`.
+
 - [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "studio_row_title or studio_view or teaching_row_title"`. Expected: 4 FAIL (no `dash-row__title` / `dash-row__action` in Studio).
 
 - [ ] **Step 3: Implement the markup.** In `home.html`, add `{% load courses_extras %}` next to `i18n`. Add `class="dash-row__title"` to the Teaching title anchor. Change each Studio `<li>` to `<li class="dash-row">`, with the title `<a class="dash-row__title" href="{% url 'courses:manage_builder' … %}">` (unchanged target) and a new `<a class="dash-row__action" href="{% url 'courses:course_outline' slug=course.slug %}">{% translate "View" context "dashboard row action: open the course as students see it" %}<span class="visually-hidden"> {{ course.title|strip_math_delimiters }}</span></a>`.
@@ -142,7 +144,7 @@ def test_last_edited_tie_breaks_on_higher_pk(client): ...      # both pinned to 
 def test_last_edited_draft_unit_is_shown_and_opens(client): ... # published=False; client.get(href) == 200
 def test_last_edited_quiz_links_to_quiz_unit(client): ...       # make_quiz_unit(course); href == quiz_unit URL
 def test_last_edited_strips_math_from_both_titles(client): ...  # unit r"Pole \(x^2\)", course r"Kurs \(y\)"; "Pole x^2" and "Kurs y" in card text; r"\(" not in card text
-def test_last_edited_skips_containers(client): ...              # owned kind="section" node pinned later than the owned unit; href is the unit's
+def test_last_edited_skips_containers(client): ...              # owned ContentNodeFactory(kind="section", unit_type=None, parent=None) pinned later than the owned unit; href is the unit's
 def test_last_edited_ignores_other_authors_for_platform_admin(client):
     pa = make_pa(client, "le_pa"); mark_onboarded()
     own = _unit(CourseFactory(title="PA course", owner=pa), title="Mine")
@@ -167,6 +169,17 @@ def test_last_edited_query_skipped_for_students(client):
 
 Write each `...` body in the style of the two full ones. Every test asserts 200 and pairs its negatives with a positive.
 
+Imports to add to `tests/test_dashboard_panels.py` (beyond Task 1's):
+- `from datetime import timedelta`
+- `from django.db import connection`
+- `from django.test.utils import CaptureQueriesContext`
+- `from django.utils import timezone`
+- `from core.services import mark_onboarded`
+- `from courses.models import ContentNode`
+- `from tests.factories import ContentNodeFactory, make_quiz_unit, make_student`
+
+`base = timezone.now()` is computed inside each test, not at module scope.
+
 - [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "last_edited or no_card"`. Expected: all FAIL (no card).
 
 - [ ] **Step 3: Implement the query in `home`.** When `can_manage_courses`, set `last_edited_unit = ContentNode.objects.filter(kind=ContentNode.Kind.UNIT, course__owner=request.user).select_related("course").order_by("-updated", "-pk").first()`, otherwise `None`. Pass it in the context. The comment names D3's approximation in one line and points to the spec.
@@ -177,7 +190,20 @@ Write each `...` body in the style of the two full ones. Every test asserts 200 
 
 - [ ] **Step 6: Run the tests and confirm they pass.** Run the Step 2 command (all PASS), then the whole of `tests/test_dashboard_panels.py` and `uv run pytest tests/ -k "css"`.
 
-- [ ] **Step 7: Falsify.** Each of these mutants must go RED, then be reverted by hand: drop `course__owner` (PA test), drop `kind=UNIT` (containers test), change `-updated` to `updated` (latest test), change `-pk` to `pk` (tie-break test), always use `lesson_unit` (quiz test), drop `|strip_math_delimiters` on the course title (maths test), and move the label inside the `<a>` (latest test).
+- [ ] **Step 7: Falsify.** Each of these mutants must go RED, then be reverted by hand:
+  - drop `course__owner` → PA test;
+  - drop `kind=UNIT` → containers test;
+  - `-updated` → `updated` → latest test;
+  - `-pk` → `pk` → tie-break test;
+  - always `lesson_unit` → quiz test;
+  - drop `|strip_math_delimiters` on `dash-recent__course` → maths test;
+  - drop it on `dash-recent__unit` → maths test, as a separate run;
+  - move the label inside the `<a>` → latest test;
+  - add `published=True` to the query → draft test;
+  - drop the `{% if last_edited_unit %}` guard (an empty card shell with its label renders) → no-card test;
+  - compute the query unconditionally, outside the `can_manage_courses` branch → student test.
+
+  The last mutant also proves that the `'"updated" DESC'` substring matches the real SQL. If it stays GREEN, print the captured SQL and fix the substring.
 
 - [ ] **Step 8: Commit.** `git add core/views.py templates/core/home.html core/static/core/css/app.css tests/test_dashboard_panels.py`, message `feat(dashboard): "Last edited" card opens the unit's live page`.
 
@@ -232,7 +258,9 @@ def test_editor_view_live_survives_422_rerender(client):
     assert "editor-crumb__live" in resp.content.decode()
 ```
 
-- [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_unit_edit_link.py -k "view_live"`. Expected: the owner, quiz and 422 tests FAIL. The PA test passes vacuously today (no link yet). It goes RED under the Step 6 mutant.
+Every one of these four carries its own `@pytest.mark.django_db` (the file has no module `pytestmark`). Add `from bs4 import BeautifulSoup`.
+
+- [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_unit_edit_link.py -k "view_live"`. Expected: the owner, quiz and 422 tests FAIL on the missing `a.editor-crumb__live` (`TypeError` / `AssertionError`), **not** a "Database access not allowed" error. The PA test passes vacuously today (no link yet). It goes RED under the Step 6 mutant.
 
 - [ ] **Step 3: Implement the flag.** Import `can_access_course` from `courses.access`. In `_editor_page`'s context dict, next to `"course": unit.course`, add `"can_view_live": can_access_course(request.user, unit.course)`. The comment says why it lives here (three callers, including two 422 re-renders) and not in `editor()`.
 
@@ -240,7 +268,11 @@ def test_editor_view_live_survives_422_rerender(client):
 
 - [ ] **Step 5: Run the tests and confirm they pass.** Run the Step 2 command (all 4 PASS), then `uv run pytest tests/test_unit_edit_link.py` and `uv run pytest tests/ -k "css"`.
 
-- [ ] **Step 6: Falsify.** Each must go RED, then be reverted by hand: replace the flag with `True` (PA test), move the flag out of `_editor_page` into `editor()`'s call (422 test, by passing it as a kwarg; simulate it by computing the flag only when `status == 200`), and drop the `unit_is_quiz` branch (quiz test).
+- [ ] **Step 6: Falsify.** Each must go RED, then be reverted by hand:
+  - replace the flag with `True` → PA test;
+  - `"can_view_live": status == 200 and can_access_course(request.user, unit.course)` (what a GET-only flag does) → 422 test;
+  - drop the `unit_is_quiz` branch → quiz test;
+  - drop `target="_blank"` → owner test.
 
 - [ ] **Step 7: Commit.** `git add courses/views_manage.py templates/courses/manage/editor/editor.html courses/static/courses/css/editor.css tests/test_unit_edit_link.py`, message `feat(editor): "View live" link to the unit's student-facing page`.
 
@@ -257,7 +289,7 @@ def test_editor_view_live_survives_422_rerender(client):
 
 - [ ] **Step 3: Compile.** Run `uv run python manage.py compilemessages -l pl`.
 
-- [ ] **Step 4: Verify.** Run `uv run pytest tests/test_dashboard_panels.py -k "polish"`: PASS, and the action now reads "Zobacz". Falsify: drop the `context` from the template tag, re-run makemessages and compilemessages. The test must be RED ("Widok"). Then revert the template by hand, re-run both commands, and confirm GREEN.
+- [ ] **Step 4: Verify.** First, in Task 1's PL test, add `assert visible == "Zobacz"` (this task owns that assertion). Run `uv run pytest tests/test_dashboard_panels.py -k "polish"`: PASS. Falsify by editing the **template only**: drop the `context` from the `translate` tag, and do not run makemessages or compilemessages. The test must be RED ("Widok", from the existing catalogue entry). Revert the template by hand and confirm GREEN. Then check that `git diff locale/` shows only this task's intended changes.
 
 - [ ] **Step 5: Commit.** `git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo`, message `i18n(pl): author live-view link strings`.
 
@@ -267,6 +299,7 @@ def test_editor_view_live_survives_422_rerender(client):
 
 **Files:**
 - Create: `tests/test_e2e_author_live_view.py`
+- Possibly modify (Step 4 fixes only): `core/static/core/css/app.css`, `courses/static/courses/css/editor.css`
 
 **Interfaces:**
 - Consumes: `[data-last-edited]`, `.dash-recent__label`, `a.dash-row__title` (Tasks 1–2); `.lesson-unit__title` and `.draft-banner` on the live page.
@@ -286,7 +319,13 @@ page.locator(".lesson-unit__title").wait_for()
 page.locator(".draft-banner").wait_for()
 ```
 
-- [ ] **Step 2: Run it and confirm it fails without the CSS.** Comment out the `.dash-list .dash-row__title` rule and the `overflow-wrap` on `.dash-recent__unit` / `.dash-recent__course` by hand. Run `uv run pytest tests/test_e2e_author_live_view.py -m e2e`. Expected: RED on `scrollWidth`. Then remove the `::after` overlay instead. Expected: RED on `elementFromPoint`. Restore both by hand and confirm with `git diff`.
+- [ ] **Step 2: Run it and confirm it fails without the CSS.** Four separate mutants, one at a time, each reverted by hand (confirm with `git diff`) before the next. Run `uv run pytest tests/test_e2e_author_live_view.py -m e2e` for each:
+  1. comment out only the `.dash-list .dash-row__title` rule → RED on `scrollWidth`;
+  2. remove only the wrap on `.dash-recent__unit` → RED on `scrollWidth`;
+  3. remove only the wrap on `.dash-recent__course` → RED on `scrollWidth`;
+  4. remove only the `::after` overlay → RED on `elementFromPoint`.
+
+  If one of 1–3 stays GREEN, that rule is not doing its job at 360px. Investigate and fix it, rather than drop the mutant.
 
 - [ ] **Step 3: Run it and confirm it passes.** Same command: PASS.
 
@@ -298,8 +337,18 @@ page.locator(".draft-banner").wait_for()
 
 ### Task 6: Branch verification
 
-- [ ] **Step 1: Find the affected tests.** Run `uv run python scripts/affected_tests.py` if it exists. If it names a full run, do a full run.
-- [ ] **Step 2: Unit suite.** Run it in the ~4 chunks the repo's OOM note describes (`--ignore-glob` patterns, static args), in the foreground. Grep each summary line. Do not trust the exit code alone.
-- [ ] **Step 3: e2e.** Run `-m e2e` over the dashboard, editor and new files at least (`-k "dashboard or editor or author_live_view or smoke"`), or the full arm if Step 1 says so.
+- [ ] **Step 1: Find the affected tests.** Run `uv run python scripts/affected_tests.py` (base `origin/master` by default). It prints a unit command and an e2e command, or says "full run" for an arm.
+- [ ] **Step 2: Unit arm.** If the script prints a unit command, run exactly that. If it says "full run" for unit, run these five chunks instead (a single whole-repo run is OOM-killed on this machine), each in the foreground with a 600000 ms tool timeout:
+
+```
+uv run pytest courses/tests -n 4
+uv run pytest tests --ignore-glob="*test_e2e_*" --ignore-glob="*/test_[m-z]*" -n 2
+uv run pytest tests --ignore-glob="*test_e2e_*" --ignore-glob="*/test_[a-l]*" --ignore-glob="*/test_[s-z]*" -n 2
+uv run pytest tests --ignore-glob="*test_e2e_*" --ignore-glob="*/test_[a-r]*" -n 2
+uv run pytest integrations notifications -n 2
+```
+
+Grep each run's summary line (`passed` / `failed` / `error`). Do not trust the exit code alone. If a run dies with `DuplicateDatabase`, drop the orphaned `test_libli*` DBs with one `docker exec libli-test-db psql -U libli -d postgres -c "DROP DATABASE IF EXISTS <name>;"` per database, then re-run.
+- [ ] **Step 3: e2e arm.** If the script prints an e2e command, run exactly that, with `-m e2e`. If it says "full run", run `uv run pytest tests -m e2e -n 2` in the foreground. If that exceeds the timeout, split it by the same `--ignore-glob` letter ranges, restricted to `test_e2e_*`. Always include `tests/test_e2e_author_live_view.py`.
 - [ ] **Step 4: Lint.** `uv run ruff check .` and `uv run ruff format --check .`.
 - [ ] **Step 5:** If anything fails, fix it in a commit scoped to the owning task's files, and report what failed and why.
