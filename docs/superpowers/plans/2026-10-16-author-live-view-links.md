@@ -128,6 +128,7 @@ Setup for this file: add `from bs4 import BeautifulSoup`, and copy the `_polish(
 
 ```python
 def test_last_edited_shows_latest_updated_owned_unit(client):
+    base = timezone.now()
     owner = make_login(client, "le_latest")
     course = CourseFactory(title="Geo", owner=owner)
     older_pk_unit = _unit(course, title="First")   # lower pk
@@ -148,6 +149,7 @@ def test_last_edited_quiz_links_to_quiz_unit(client): ...       # make_quiz_unit
 def test_last_edited_strips_math_from_both_titles(client): ...  # unit r"Pole \(x^2\)", course r"Kurs \(y\)"; "Pole x^2" and "Kurs y" in card text; r"\(" not in card text
 def test_last_edited_skips_containers(client): ...              # owned ContentNodeFactory(kind="section", unit_type=None, parent=None) pinned later than the owned unit; href is the unit's
 def test_last_edited_ignores_other_authors_for_platform_admin(client):
+    base = timezone.now()
     pa = make_pa(client, "le_pa"); mark_onboarded()
     own = _unit(CourseFactory(title="PA course", owner=pa), title="Mine")
     other = _unit(CourseFactory(title="Other course"), title="Theirs")
@@ -182,7 +184,7 @@ Imports to add to `tests/test_dashboard_panels.py` (beyond Task 1's):
 
 `base = timezone.now()` is computed inside each test, not at module scope.
 
-- [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "last_edited or no_card"`. Expected: all FAIL (no card).
+- [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "last_edited or no_card"`. Expected: every test FAILS on an assertion or a None-card error, **except** `test_no_card_when_studio_shows_but_nothing_owned` and `test_last_edited_query_skipped_for_students`. Those two pass vacuously now. They are proven by their Step 7 mutants.
 
 - [ ] **Step 3: Implement the query in `home`.** Extend the existing local import to `from courses.models import ContentNode, Course` (keep it local, to avoid a core↔courses import cycle). When `can_manage_courses`, set `last_edited_unit = ContentNode.objects.filter(kind=ContentNode.Kind.UNIT, course__owner=request.user).select_related("course").order_by("-updated", "-pk").first()`, otherwise `None`. Pass it in the context. The comment names D3's approximation in one line and points to the spec.
 
@@ -202,7 +204,7 @@ Imports to add to `tests/test_dashboard_panels.py` (beyond Task 1's):
   - drop it on `dash-recent__unit` → maths test, as a separate run;
   - move the label inside the `<a>` → latest test;
   - add `published=True` to the query → draft test;
-  - drop the `{% if last_edited_unit %}` guard (an empty card shell with its label renders) → no-card test;
+  - drop the `{% if last_edited_unit %}` guard → no-card test. It goes RED as a `NoReverseMatch` template error (the card's `{% url %}` gets empty args), not as an assertion failure;
   - compute the query unconditionally, outside the `can_manage_courses` branch → student test.
 
   The last mutant also proves that the `'"updated" DESC'` substring matches the real SQL. If it stays GREEN, print the captured SQL and fix the substring.
@@ -284,6 +286,7 @@ Every one of these four carries its own `@pytest.mark.django_db` (the file has n
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.mo`
+- Modify (tests): `tests/test_dashboard_panels.py`, `tests/test_unit_edit_link.py`
 
 - [ ] **Step 1: Extract.** Run `uv run python manage.py makemessages -l pl`. Then grep the `.po` for the three new entries. `msgctxt "dashboard row action: open the course as students see it"` + `msgid "View"`, and `msgid "Last edited"` and `msgid "View live"`. Use a grep without a `$` anchor, because the `.po` is CRLF.
 
@@ -291,9 +294,9 @@ Every one of these four carries its own `@pytest.mark.django_db` (the file has n
 
 - [ ] **Step 3: Compile.** Run `uv run python manage.py compilemessages -l pl`.
 
-- [ ] **Step 4: Verify.** First, in Task 1's PL test, add `assert visible == "Zobacz"` (this task owns that assertion). Run `uv run pytest tests/test_dashboard_panels.py -k "polish"`: PASS. Falsify by editing the **template only**: drop the `context` from the `translate` tag, and do not run makemessages or compilemessages. The test must be RED ("Widok", from the existing catalogue entry). Revert the template by hand and confirm GREEN. Then check `git diff locale/`. Expected noise is `#:` location comments moving and the `POT-Creation-Date` header; leave both alone. What must not appear: a changed `msgstr` or a new `fuzzy` flag on any unrelated entry. Also add two Polish checks, `test_polish_last_edited_label` in `tests/test_dashboard_panels.py` (card label text == "Ostatnio edytowane", owner with one unit, `_polish`) and `test_polish_view_live_label` in `tests/test_unit_edit_link.py` (link text starts with "Zobacz na żywo"), and run them: PASS.
+- [ ] **Step 4: Verify.** First, in Task 1's PL test, add `assert visible == "Zobacz"` (this task owns that assertion). Run `uv run pytest tests/test_dashboard_panels.py -k "polish"`: PASS. Falsify by editing the **template only**: drop the `context` from the `translate` tag, and do not run makemessages or compilemessages. The test must be RED ("Widok", from the existing catalogue entry). Revert the template by hand and confirm GREEN. Then check `git diff locale/`. Expected noise is `#:` location comments moving and the `POT-Creation-Date` header; leave both alone. What must not appear: a changed `msgstr` or a new `fuzzy` flag on any unrelated entry. Also add two Polish checks, `test_polish_last_edited_label` in `tests/test_dashboard_panels.py` (card label text == "Ostatnio edytowane", owner with one unit, `_polish`) and `test_polish_view_live_label` in `tests/test_unit_edit_link.py` (link text starts with "Zobacz na żywo"). The latter gets `@pytest.mark.django_db`, an owner (`make_student` + `_lesson_unit`), and copies the Polish activation recipe from that file's `test_edit_link_label_renders_in_polish` (session key + `translation.override("pl")` + `HTTP_ACCEPT_LANGUAGE`). Run both: PASS. Falsify each with a template-only msgid edit (`"Last edited"` → `"Last edited."`, `"View live"` → `"View live."`, no compilemessages): RED. Revert each by hand.
 
-- [ ] **Step 5: Commit.** `git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo`, message `i18n(pl): author live-view link strings`.
+- [ ] **Step 5: Commit.** `git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_dashboard_panels.py tests/test_unit_edit_link.py`, message `i18n(pl): author live-view link strings`.
 
 ---
 
@@ -332,7 +335,7 @@ page.locator(".draft-banner").wait_for()
 
 - [ ] **Step 3: Run it and confirm it passes.** Same command: PASS.
 
-- [ ] **Step 4: Screenshots (not committed).** With a scratch script under the session scratchpad (not `tests/`, never a `capture_*` file), take light and dark screenshots at 360px of the Studio panel, with the card keyboard-focused (`page.keyboard.press("Tab")` until the card link is focused), and of the editor crumb at desktop width. Judge dark mode separately: contrast of the label, the course title and the focus ring. Fix anything wrong in `app.css` / `editor.css` and re-run the Task 1–3 CSS tests.
+- [ ] **Step 4: Screenshots (not committed).** With a scratch script under the session scratchpad (not `tests/`, never a `capture_*` file), take light and dark screenshots at 360px of the Studio panel, with the card keyboard-focused (`page.keyboard.press("Tab")` until the card link is focused), and of the editor crumb at desktop width **and at 360px**. At 360px, check that the crumb (now two nowrap links) does not push the editor page into horizontal scroll (`scrollWidth <= clientWidth`). If it does, let the crumb wrap (`flex-wrap: wrap` on `.editor-crumb`), and re-check. Judge dark mode separately: contrast of the label, the course title and the focus ring. Fix anything wrong in `app.css` / `editor.css` and re-run the Task 1–3 CSS tests.
 
 - [ ] **Step 5: Commit.** `git add tests/test_e2e_author_live_view.py` (plus any CSS fixed in Step 4, by path), message `test(e2e): author live-view card works at phone width`.
 
