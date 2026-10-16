@@ -41,7 +41,22 @@ ALLOWED_TAGS = {
     "code",
     "pre",
 }
-ALLOWED_ATTRIBUTES = {"a": {"href", "title", "rel"}}
+# `ol start` continues a numbered list that an image (or the author) split in two;
+# _attribute_filter keeps it only as a plain positive integer.
+ALLOWED_ATTRIBUTES = {"a": {"href", "title", "rel"}, "ol": {"start"}}
+# The map before `ol start`, frozen for the recolour replay for the same reason as
+# LEGACY_ALLOWED_CLASSES below: LAL source carries `<ol start="2">`, so the live map
+# would move those keys off the value the loader actually stored.
+LEGACY_ALLOWED_ATTRIBUTES = {"a": {"href", "title", "rel"}}
+_OL_START = re.compile(r"[1-9][0-9]{0,3}")
+
+
+def _attribute_filter(tag, attr, value):
+    if tag == "ol" and attr == "start":
+        return value if _OL_START.fullmatch(value.strip()) else None
+    return value
+
+
 # Lock scheme allowlist; drop ftp/data/javascript/etc. that nh3 permits by default.
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
@@ -50,7 +65,9 @@ ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 # NOT added to ALLOWED_ATTRIBUTES (that would allow arbitrary class values). Mirrors
 # the global .ta-* utilities in courses.css (also used by table cells).
 ALIGN_CLASS_VALUES = {"ta-left", "ta-center", "ta-right"}
-ALIGN_CLASS_TAGS = {"p", "div", "h2", "h3", "h4", "blockquote", "li"}
+# `pre` because the RTE's align buttons act on a code block exactly as on a <p>:
+# without it the class showed in the editor and was stripped on save.
+ALIGN_CLASS_TAGS = {"p", "div", "h2", "h3", "h4", "blockquote", "li", "pre"}
 
 # The pre-colour allowlist, frozen. Slice 2's backfill builds its lookup keys by
 # replaying the sanitiser AS IT BEHAVED AT IMPORT TIME: nh3 deletes the class
@@ -84,18 +101,20 @@ ALLOWED_CLASSES = {tag: set(ALIGN_CLASS_VALUES) for tag in ALIGN_CLASS_TAGS}
 ALLOWED_CLASSES.update({tag: set(TC_CLASS_VALUES) for tag in TC_CLASS_TAGS})
 
 
-def sanitize_html(value, *, allowed_classes=None):
+def sanitize_html(value, *, allowed_classes=None, attributes=None):
     """Strip everything outside the safe subset. Idempotent on already-clean input.
 
-    `allowed_classes` is keyword-only and defaults to the live allowlist. The one
-    caller that passes it is slice 2's backfill, which replays this sanitiser AS
-    IT BEHAVED BEFORE the colour classes existed in order to reconstruct the keys
-    the loader actually stored (see LEGACY_ALLOWED_CLASSES above).
+    `allowed_classes` and `attributes` are keyword-only and default to the live
+    allowlists. The one caller that passes them is slice 2's backfill, which
+    replays this sanitiser AS IT BEHAVED BEFORE the colour classes existed in order
+    to reconstruct the keys the loader actually stored (see LEGACY_ALLOWED_CLASSES
+    and LEGACY_ALLOWED_ATTRIBUTES above).
     """
     return nh3.clean(
         value or "",
         tags=ALLOWED_TAGS,
-        attributes=ALLOWED_ATTRIBUTES,
+        attributes=ALLOWED_ATTRIBUTES if attributes is None else attributes,
+        attribute_filter=_attribute_filter,
         allowed_classes=ALLOWED_CLASSES if allowed_classes is None else allowed_classes,
         link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
         url_schemes=ALLOWED_URL_SCHEMES,
@@ -123,7 +142,104 @@ def normalize_body(value, *, allowed_classes=None):
     table cells, where emptiness is the form layer's business.
     """
     clean = sanitize_html(value, allowed_classes=allowed_classes)
-    return "" if body_is_empty_ish(clean) else clean
+    return "" if body_is_empty_ish(clean) else tidy_structure(clean)
+
+
+# A <p> holding nothing but whitespace. Matched on nh3 OUTPUT only, where a <p>
+# carries at most a class attribute and a literal "<" in text (maths included) is
+# already &lt; -- so this cannot reach inside a maths span.
+_EMPTY_P = re.compile(r'<p(?: class="[^"]*")?>\s*</p>')
+# nh3 output tokens: a tag, or a run of text. Comments are already stripped and
+# attribute values have their ">" escaped, so a tag never contains ">".
+_TOKEN = re.compile(r"<(/?)([a-z0-9]+)[^>]*>|[^<]+")
+_LIST_PARENTS = {"ul", "ol"}
+_VOID = {"br"}
+
+
+class _Run:
+    """An open synthetic list: where its opening tag sits in the output parts."""
+
+    def __init__(self, at):
+        self.at = at
+
+
+def _default_list(_run_html):
+    return "ul", "<ul>"
+
+
+def tidy_structure(clean, *, list_for=None):
+    """Repair the two structural defects the LAL import left in stored bodies.
+
+    The importer wrapped block content in a <p>, which html5ever (inside nh3)
+    re-parses by closing the <p> early: `<p><li>a</li></p>` is stored as
+    `<p></p><li>a</li>`. That leaves
+      * an EMPTY <p> -- zero height, but it still triggers the block-spacing
+        `> p + :is(p, div, ...)` margin, so centring the bare text after it
+        (execCommand wraps it in a <div>) made a blank line appear above it;
+      * an ORPHAN <li> -- its marker hangs outside the content box, and the
+        list buttons cannot toggle it (Chromium turns it into `text<br>`).
+    Each run of orphan <li> siblings is wrapped in ONE list. Whitespace between
+    items stays inside; whitespace after the last one goes after the close tag.
+
+    `list_for(run_html) -> (name, opening_tag)` picks the list for a run, given
+    the run's own items. The default is a bare <ul>: on save there is no way to
+    know the source's list. fix_orphan_list_items passes one that looks the run up
+    in the LAL source, where most of these lists were in fact numbered.
+
+    Takes sanitize_html output. A byte-for-byte token pass rather than a parse +
+    re-serialise, so a body with neither defect comes back IDENTICAL -- entities,
+    maths and whitespace included.
+    """
+    list_for = list_for or _default_list
+    out = _EMPTY_P.sub("", clean)
+    if "<li" not in out:
+        return out
+    parts = []
+    stack = []
+    pending = ""  # whitespace seen inside a synthetic list, after an item
+
+    def close_synthetic():
+        nonlocal pending
+        run = stack.pop()
+        name, opening = list_for("".join(parts[run.at + 1 :]))
+        parts[run.at] = opening
+        parts.append(f"</{name}>")
+        parts.append(pending)
+        pending = ""
+
+    for m in _TOKEN.finditer(out):
+        tok = m.group(0)
+        name = m.group(2)
+        in_synthetic = bool(stack) and isinstance(stack[-1], _Run)
+        if name is None:  # text
+            if in_synthetic:
+                if not tok.strip():
+                    pending += tok
+                    continue
+                close_synthetic()
+            parts.append(tok)
+        elif m.group(1):  # end tag
+            if in_synthetic:
+                close_synthetic()
+            parts.append(tok)
+            if stack:
+                stack.pop()
+        else:  # start tag
+            if name == "li":
+                if in_synthetic:
+                    parts.append(pending)
+                    pending = ""
+                elif not stack or stack[-1] not in _LIST_PARENTS:
+                    stack.append(_Run(len(parts)))
+                    parts.append("")  # the opening tag, chosen at close
+            elif in_synthetic:
+                close_synthetic()
+            parts.append(tok)
+            if name not in _VOID:
+                stack.append(name)
+    if stack and isinstance(stack[-1], _Run):
+        close_synthetic()
+    return "".join(parts)
 
 
 # Cells allow only inline emphasis + line break + the colour carrier. Includes b/i

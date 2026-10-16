@@ -963,8 +963,11 @@ button.asset-cell:hover { border-color: var(--primary); }
 .table-editor__grid td, .table-editor__grid th {
   min-width: 4rem; padding: var(--space-2);
   border: 1px solid var(--border-default);
-  vertical-align: top;
 }
+/* The default only: zero specificity, so a cell's own `.va-middle`/`.va-bottom`
+   (0,1,0, courses.css) wins. Inside the rule above, at (0,1,1), it outranked
+   them -- the valign buttons saved but the editor grid never moved. */
+:where(.table-editor__grid) :where(td, th) { vertical-align: top; }
 .table-editor__grid td:focus, .table-editor__grid th:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 /* Selected merge range. A TINT ONLY, deliberately with no per-cell outline: a

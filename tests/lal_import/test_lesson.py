@@ -1,3 +1,5 @@
+import pytest
+
 from scripts.lal_import.lesson import parse_lesson
 
 VIDEO_LESSON = """
@@ -1919,3 +1921,56 @@ def test_reveal_table_without_rows_is_flagged_not_dropped():
     raw = " ".join(e.get("raw", "") for e in elements)
     assert "x^{3}-5x^{2}+7x-3=0" in raw
     assert "question_solution" in raw
+
+
+# --- A list holding an <img> is split around the image (nh3 would strip it). Each
+# text run must keep the list's own tag: wrapping it in <p> stored
+# `<p><li>..</li></p>`, which html5ever re-parses as `<p></p><li>..</li>` -- an
+# orphan item whose marker hangs outside the column and which the RTE's list
+# buttons cannot toggle.
+@pytest.mark.parametrize(
+    ("src_open", "expected"),
+    [
+        (
+            "<ul>",
+            [
+                "<ul><li>jeden</li>\n<li>dwa</li></ul>",
+                "<ul><li>trzy</li></ul>",
+                "IMG",
+                "<p>dalej</p>",
+                "<ul><li>cztery</li></ul>",
+            ],
+        ),
+        (
+            "<ol>",
+            [
+                "<ol><li>jeden</li>\n<li>dwa</li></ol>",
+                '<ol start="3"><li>trzy</li></ol>',
+                "IMG",
+                "<p>dalej</p>",
+                '<ol start="4"><li>cztery</li></ol>',
+            ],
+        ),
+        (
+            # The LAL author's own continuation: numbering starts from `start`.
+            '<ol class="bold" start="5">',
+            [
+                '<ol start="5"><li>jeden</li>\n<li>dwa</li></ol>',
+                '<ol start="7"><li>trzy</li></ol>',
+                "IMG",
+                "<p>dalej</p>",
+                '<ol start="8"><li>cztery</li></ol>',
+            ],
+        ),
+    ],
+)
+def test_list_split_around_an_image_keeps_its_list_and_numbering(src_open, expected):
+    tag = src_open[1:3]
+    src = (
+        f"{src_open}\n<li>jeden</li>\n<li>dwa</li>\n"
+        '<li>trzy <img src="static/a.png" alt=""/> dalej</li>\n'
+        f"<li>cztery</li>\n</{tag}>"
+    )
+    elements, _ = parse_lesson(src, "x.html")
+    got = ["IMG" if e["type"] == "image" else e["body"] for e in elements]
+    assert got == expected
