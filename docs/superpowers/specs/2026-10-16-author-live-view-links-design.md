@@ -262,7 +262,13 @@ e2e check for the property only a browser can see.
   - The tie-break: equal `updated`, so the higher pk wins.
   - A unit in a course owned by someone else, updated later, is **not** shown,
     including for a Platform Admin (`make_pa`) who owns a course of their own.
-  - A user with no owned units sees no card.
+  - A user with no owned units sees no card. The fixture must still render
+    Studio: a `make_pa` user who owns nothing (with another author's unit in
+    the DB), or the owner of a course with no units, or only containers.
+    Assert that `data-section="manage"` is present, that `data-last-edited`
+    is absent, and that no "Last edited" text appears. Studio is hidden behind
+    `{% if can_manage_courses %}` (`home.html:45`), so a user with no Studio
+    would pass vacuously.
   - Containers are never shown: an owned section/chapter whose `updated` is
     pinned later than the owned unit's leaves the card on the unit (catches a
     dropped `kind=UNIT` filter, whose card would link to a 404).
@@ -283,9 +289,11 @@ e2e check for the property only a browser can see.
     a `node_rename` POST with `node`, `ctx=editor`, the **current** token
     (`token=<unit.updated.isoformat()>` read from the DB row, since a stale or
     missing token raises `ConflictError` and 302s before validation runs) and
-    a value that fails validation (the
-    builder picks a concrete failing value from `node_rename`'s
-    `ValidationError` sources). Assert status 422 **and** the link.
+    a blank title. Payload: `node=<unit.pk>`, `ctx=editor`,
+    `token=<DB unit.updated.isoformat()>`, `title=""` (or `"   "`), with no
+    `type_only` and no `unit_type`, so `full_clean()` raises `ValidationError`
+    and `_editor_page(..., status=422)` renders. Assert status 422 **and** the
+    link.
   - A quiz unit's link targets `quiz_unit`.
 - **e2e (one test):** at a 360px-wide viewport, the owner's dashboard with a
   long unbroken unit title on the "Last edited" card and a long course title in
