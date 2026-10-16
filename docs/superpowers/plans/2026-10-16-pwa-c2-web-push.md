@@ -702,10 +702,14 @@ def logged_in_user(client, **attrs):
 
 
 def live_session_for(user, *, remembered=True):
-    """A real DB session authenticated as `user`, like a login would leave. The hash
-    is computed from the PERSISTED user -- delivery reloads the recipient from the
-    database, and a UserFactory user's in-memory password was never saved."""
-    user = type(user).objects.get(pk=user.pk)
+    """A real DB session authenticated as `user`, like a login would leave.
+
+    Saves the user's password FIRST: UserFactory skips the post-generation save, so
+    its in-memory password (which Notification.recipient and live_subscriptions see --
+    nothing reloads it) differs from the persisted one. Persisting it makes both agree,
+    so a later user.save() (is_active, language) no longer changes the hash on its own
+    and each session test fails only through the check it targets."""
+    user.save(update_fields=["password"])
     store = SessionStore()
     store[SESSION_KEY] = str(user.pk)
     store[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
@@ -1471,6 +1475,9 @@ Expected: PASS. Then the existing suite for the touched module: `uv run pytest n
 7. hoist `claims = {"sub": ...}` above the loop in `deliver_notification_push` and pass it into `_send_one` → `test_each_call_gets_its_own_claims_dict` FAILS.
 8. move `if not push_kind_enabled(...)` above the `try:` → `test_first_teachers_push_failure_does_not_stop_the_second_teacher` FAILS.
 9. comment out the `@receiver(request_started)` decorator → `test_request_started_resets_the_budget` FAILS.
+10. make `live_subscriptions` `return subs` right after loading them (no filtering) → `test_missing_session_is_dropped_and_deleted` FAILS.
+
+Mutant 4 (`is_active`) must go RED on its own: `live_session_for` persists the password first, so `user.save()` in that test changes only `is_active`. If it stays green, the hash is still dropping the row — fix the helper, not the test.
 
 - [ ] **Step 9: Commit**
 
@@ -2184,13 +2191,15 @@ pytestmark = pytest.mark.django_db
 KINDS = ("quiz_needs_review", "quiz_graded", "enrolled")
 
 
-def _settings_post(client, *, email=(), push=()):
-    data = {"display_name": "X", "email": "", "language": "en", "theme": "auto"}
+def _settings_post(client, user, *, email=(), push=()):
+    data = {"display_name": "X", "email": user.email, "language": "en", "theme": "auto"}
     for k in email:
         data[k] = "on"
     for k in push:
         data[f"push-{k}"] = "on"
-    return client.post(reverse("core:user_settings"), data)
+    r = client.post(reverse("core:user_settings"), data)
+    assert r.status_code == 302, "settings POST was invalid -- the test would prove nothing"
+    return r
 
 
 @pytest.fixture
@@ -2260,7 +2269,7 @@ def test_columns_save_independently(logged_in, settings):
     # mutant: prefix="push" removed from NotificationPushForm
     push_settings(settings)
     user, client = logged_in
-    _settings_post(client, email=("quiz_graded",), push=("enrolled",))
+    _settings_post(client, user, email=("quiz_graded",), push=("enrolled",))
     e = NotificationEmailPreference.objects.get(user=user)
     p = NotificationPushPreference.objects.get(user=user)
     assert (e.quiz_graded, e.enrolled) == (True, False)
@@ -2277,21 +2286,21 @@ def test_get_does_not_create_a_push_row(logged_in, settings):
 def test_dark_box_post_leaves_the_push_row_alone(logged_in):
     user, client = logged_in
     NotificationPushPreference.objects.create(user=user, quiz_graded=False, enrolled=False)
-    _settings_post(client, email=KINDS)
+    _settings_post(client, user, email=KINDS)
     p = NotificationPushPreference.objects.get(user=user)
     assert (p.quiz_graded, p.enrolled, p.quiz_needs_review) == (False, False, True)
 
 
 def test_dark_box_post_creates_no_push_row(logged_in):
     user, client = logged_in
-    _settings_post(client, email=KINDS)
+    _settings_post(client, user, email=KINDS)
     assert not NotificationPushPreference.objects.filter(user=user).exists()
 
 
 def test_post_without_push_fields_turns_push_off_but_leaves_email(logged_in, settings):
     push_settings(settings)
     user, client = logged_in
-    _settings_post(client, email=KINDS)  # a page rendered before push existed
+    _settings_post(client, user, email=KINDS)  # a page rendered before push existed
     p = NotificationPushPreference.objects.get(user=user)
     e = NotificationEmailPreference.objects.get(user=user)
     assert not any(getattr(p, k) for k in KINDS)
@@ -2324,7 +2333,7 @@ def test_anonymous_pages_carry_no_push_meta(client, settings):
     assert "libli-push" not in html
 ```
 
-Before running, confirm the exact POST field names the settings form requires by reading `core/forms.py`'s `UserSettingsForm.Meta.fields`; adjust `_settings_post`'s base `data` dict to supply every required field with a valid value (the test must exercise a VALID post — assert `r.status_code == 302` in a quick sanity line if unsure).
+`UserSettingsForm.Meta.fields` is `["theme", "language", "display_name", "email"]` (`core/forms.py`); `_settings_post` supplies all four with valid values and asserts the 302, so an invalid POST can never pass silently.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -3623,8 +3632,8 @@ bash manage.sh generate_vapid_keys
 # prints two lines: LIBLI_VAPID_PUBLIC_KEY=... and LIBLI_VAPID_PRIVATE_KEY=...
 ```
 
-Add both lines, plus `LIBLI_VAPID_SUBJECT=mailto:<contact address>` (the `mailto:` prefix is
-required — push services refuse anything else), to `.env.production`, using the same guarded
+Add both lines, plus `LIBLI_VAPID_SUBJECT=mailto:<contact address>` (libli's convention; an
+`https:` URL also works, and any other value turns push off), to `.env.production`, using the same guarded
 append as the kill switch below (end the last line first, then `grep -x` each line before
 recreating). Then recreate the app container (never `restart`; ~24 s maintenance page):
 
