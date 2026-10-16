@@ -205,7 +205,10 @@ malformed body → 400. `push.js` treats any non-200 as a failure and shows its 
   host (an IP literal, an internal name, a server the caller controls) → 400. Without this, any
   logged-in user could make the server POST to an arbitrary host on every notification for them,
   and a host that trickles bytes would hold the triggering request past the timeout. A host the
-  device checklist finds missing is added to the constant in a follow-up release; both keys present, base64url, within
+  device checklist finds missing is added to the constant in a follow-up release; both keys
+  present and base64url-decodable to the sizes the protocol requires — `p256dh` 65 bytes
+  starting `0x04` (an uncompressed P-256 point), `auth` 16 bytes (a key that only looks right
+  would make every send raise locally, never be pruned, and hold a cap slot) — and within
   the field lengths. Invalid → 400. `update_or_create(endpoint=…)` setting user, keys and UA,
   so an endpoint already owned by another user MOVES to the current one (a shared computer).
   The upsert's defaults also set `subscribed_at = now()` (a non-auto `DateTimeField` on the
@@ -233,7 +236,8 @@ malformed body → 400. `push.js` treats any non-200 as a failure and shows its 
 A new `user_logged_out` receiver in a new `notifications/signals.py`, connected by a new
 `NotificationsConfig.ready()` that imports it (today `notifications/apps.py` has no `ready()`,
 and `core`'s receivers connect only because `CoreConfig.ready()` imports `core.signals`). It is a
-no-op when `user` is None or the session lacks `push_endpoint`; otherwise
+no-op when `user` is None, `request` is None or has no `session` (matching
+`core/signals.py:clear_theme_cookie_on_logout`'s guard), or the session lacks `push_endpoint`; otherwise
 delete the subscription with that endpoint **and** that user. Django sends the signal before it
 flushes the session, so the key is still readable. Because `claim` (above) writes the key on the
 first page load of every session in which the browser is subscribed, the key is present even
@@ -283,17 +287,25 @@ It exposes the device state, evaluated **in this order, first match wins**:
 | # | State | Condition |
 |---|---|---|
 | 1 | `ios-not-installed` | iOS/iPadOS (UA matches `iPhone\|iPad\|iPod`, OR `navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` for iPadOS's desktop UA) AND not standalone (`display-mode: standalone` false and `navigator.standalone !== true`). First because iOS Safari outside the installed app has no `PushManager` and would otherwise read as `unsupported`. |
-| 2 | `unsupported` | no `serviceWorker`, `PushManager` or `Notification` |
+| 2 | `unsupported` | no `serviceWorker`, `PushManager` or `Notification`, OR `navigator.serviceWorker.getRegistration()` resolves `undefined` or rejects (registration refused, e.g. a private window or blocked site data) |
 | 3 | `blocked` | `Notification.permission === "denied"` (wins over a leftover subscription) |
 | 4 | `on` | `registration.pushManager.getSubscription()` is non-null (after the claim step below) |
+
+`registration` for the on-load evaluation always comes from
+`navigator.serviceWorker.getRegistration()` (resolves immediately), NEVER
+`navigator.serviceWorker.ready`, which never settles when `pwa.js`'s `register()` failed and would
+leave the switch disabled forever. Only `subscribe()` awaits `ready` (a first visit may click
+before the C1 worker activates), bounded by a 10 s timeout that fails as an ordinary error.
 | 5 | `off` | otherwise |
 
 **Claim step (on load).** It runs BEFORE the state table, in every state where a
 subscription can be read (including `blocked`: a denied permission still leaves
 `getSubscription()` readable, and a leftover row must still be claimed or deleted). When a browser subscription exists and its endpoint differs from
-`data-session-endpoint`, `push.js` POSTs it to `push/claim/` (§4) before reporting a state:
-`{"mine": true}` → `on`; `{"mine": false}` → `subscription.unsubscribe()` and `off`. A failed
-claim request reports `on` and retries on the next page load. This is what makes the session
+`data-session-endpoint`, `push.js` POSTs it to `push/claim/` (§4). The claim step never reports
+a state itself; it only acts: `{"mine": true}` → nothing more (the session now knows it);
+`{"mine": false}` → `subscription.unsubscribe()`; a failed request → nothing (retried on the next
+page load). The state table is THEN evaluated, so `blocked` still wins, a kept subscription reads
+`on`, and an unsubscribed one reads `off`. This is what makes the session
 know the endpoint for logout, and what turns a previous user's leftover subscription off for the
 next user.
 
@@ -336,7 +348,10 @@ With push:
   `ios-not-installed` → "On iPhone and iPad, add libli to your Home Screen first." + a link to the
   C1 install guide (`{% url 'core:install_app' %}`); `blocked` → "Notifications are blocked for libli in this browser's settings."
 - Then one row per kind with **two switches, Email and Push**, column headers above them. The
-  push switches are a `NotificationPushForm` (three booleans, `instance=pref`, unsaved instance
+  push switches are a `NotificationPushForm` constructed with **`prefix="push"`** on both GET and
+  POST — its booleans share their names with the email form's, which has no prefix, so without
+  it both rows would render `name="quiz_needs_review"` and ticking either box would set both
+  (three booleans, `instance=pref`, unsaved instance
   on GET exactly like the email form) saved in the same atomic block. It is built, validated and
   saved ONLY when `push_configured()` is True; otherwise it is not bound to `request.POST` at all
   and an existing preference row is left untouched (the missing checkboxes would otherwise read
@@ -365,7 +380,8 @@ server-rendered `{% trans %}` text (e.g. `data-msg-*` attributes in
 `templates/courses/manage/builder.html`). So:
 
 - Every device-state line (§7: unsupported, iOS-not-installed with its link, blocked), the
-  shared-computer help line (§4), and the whole bell invite row (§8) are server-rendered with
+  shared-computer help line (§4; visible exactly when the device switch is, i.e. in `off` and
+  `on`), and the whole bell invite row (§8) are server-rendered with
   `{% trans %}` inside elements that start `hidden`; push.js only toggles `hidden`.
 - The one dynamic string, the error line ("Couldn't change push notifications. Try again."), is
   carried as `data-msg-error` on the `libli-push` meta and placed with `textContent`.
@@ -431,7 +447,8 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
 - Endpoints (the 404 and anonymous cases send a valid CSRF token — the default test client, or
   `enforce_csrf_checks=True` with a token — else they would see the middleware's 403): 404 when
   not configured (checked before auth); anonymous → 403 JSON, not 302;
-  CSRF required; validation 400s; upsert moves an endpoint between users; unsubscribe of another
+  CSRF required; validation 400s (incl. a `p256dh` of the wrong decoded length or not starting
+  `0x04`, and an `auth` that is not 16 bytes); upsert moves an endpoint between users; unsubscribe of another
   user's endpoint deletes nothing; session key set and cleared.
 - Claim: own row → `mine: true` and session key set; another user's row → deleted, `mine:
   false`; no row → `mine: false`, nothing created.
@@ -454,6 +471,8 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
 - Not gated: with push NOT configured, `notifications:open` still marks read and redirects (a
   tray notification outlives blanked keys) and the logout receiver still deletes the session's row
   (else it would deliver again once push is back on).
+- Settings, independence of the two columns (mutant: `prefix="push"` removed): POST email OFF +
+  push ON for one kind → email row False, push row True; and the reverse.
 - Settings: push switches saved with the form, unsaved pref on GET, section unchanged (no push
   markup) when not configured; with push NOT configured, a settings POST leaves an existing push
   preference row with `False` values unchanged and creates none; bell invite absent when not configured.
@@ -478,6 +497,12 @@ switch that stays off.
 - Every state line and the bell row render in Polish under `pl` (server-rendered, not JS).
 - `notificationclick` with only an uncontrolled window open falls back to `openWindow` (or the
   helper test, if the CDP route is unworkable).
+- `blocked` with a leftover subscription whose endpoint the server reports `mine: true`: the
+  state still reads blocked (the claim step reports nothing).
+- Registration refused (`getRegistration()` resolves `undefined`): the page reaches
+  `unsupported` with its line shown, the switch does not stay disabled-without-a-line, and the bell
+  invite stays hidden.
+- The shared-computer help line is visible in `off` and `on`, hidden in the other three states.
 - `blocked` with a leftover subscription whose endpoint the server reports `mine: false`: the
   claim still runs and the row is deleted; the state reads blocked.
 - Claim on load: a stubbed subscription whose endpoint the server reports `mine: false` is
