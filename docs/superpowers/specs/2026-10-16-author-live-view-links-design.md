@@ -88,7 +88,13 @@ unit title and the course title, Component 2) need
 (app.css ~647) already has. Prefer `anywhere` over `break-word`. Do not change
 the `.dash-grid` tracks. The 360px e2e is the RED test and the authority on
 whether the fix works. The fix also helps the Teaching rows, which share the
-class, and that is intended.
+class, and that is intended. Hook: add a `dash-row__title` class to the title
+anchor in **both** the Studio and Teaching rows and target that class. Do not
+use a broad `.dash-row a`, which would give the `flex: none`
+`.dash-row__action` `min-width: 0`.
+Each "View" link carries a visually hidden course title inside the anchor
+(`View<span class="visually-hidden"> {course title}</span>`), so the links can
+be told apart in a screen reader's links list.
 
 Access: `owned_courses` is `Course.objects.filter(owner=request.user)`, and the
 owner always passes `can_access_course` (the owner disjunct of
