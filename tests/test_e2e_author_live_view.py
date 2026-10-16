@@ -63,3 +63,47 @@ def test_last_edited_card_at_phone_width_with_long_unbroken_titles(page, live_se
     page.mouse.click(cx, cy)
     page.locator(".lesson-unit__title").wait_for()
     page.locator(".draft-banner").wait_for()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_last_edited_focus_ring_shows_for_keyboard_not_pointer(page, live_server):
+    """The card's ring belongs to keyboard focus only. A pointer press focuses
+    the link too (Chromium focuses links on mousedown), so a `:focus-within`
+    ring would linger on the card after a tap -- e.g. when the PWA restores the
+    dashboard from bfcache on Back."""
+    owner = make_verified_user(
+        username="e2e_focus", email="e2e_focus@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(title="Algebra", owner=owner)
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Macierze"
+    )
+    ring = (
+        "() => getComputedStyle(document.querySelector('[data-last-edited]'))"
+        ".outlineStyle"
+    )
+    focused_card_link = (
+        "() => document.activeElement === "
+        "document.querySelector('[data-last-edited] a')"
+    )
+
+    _login(page, live_server, "e2e_focus")
+    page.locator("[data-last-edited]").wait_for()
+
+    # Pointer: press on the card, then release elsewhere, so no click navigates.
+    box = page.locator("[data-last-edited]").bounding_box()
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    page.mouse.down()
+    assert page.evaluate(focused_card_link)  # the press really focused the link
+    assert page.evaluate(ring) == "none"
+    page.mouse.move(0, 0)
+    page.mouse.up()
+
+    # Keyboard: Tab onto the card link from a cleared focus.
+    page.evaluate("() => document.activeElement && document.activeElement.blur()")
+    for _ in range(40):
+        page.keyboard.press("Tab")
+        if page.evaluate(focused_card_link):
+            break
+    assert page.evaluate(focused_card_link)
+    assert page.evaluate(ring) == "solid"
