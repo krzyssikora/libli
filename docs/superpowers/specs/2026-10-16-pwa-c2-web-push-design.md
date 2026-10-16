@@ -1,0 +1,300 @@
+# PWA C2 — web push notifications
+
+Sub-project **C2** of the school hosting model's part C (per-school PWA). It builds on the
+C1 service worker (`docs/superpowers/specs/2026-09-29-pwa-c1-installable-app-design.md`,
+deployed and device-checked on libli.pl 2026-10-16).
+
+## Intent
+
+Students and teachers can get libli's existing notifications as push notifications on their
+phones and computers — the same three kinds the bell and the emails already carry. Nothing new
+is authored and no new event triggers a notification. Push is a third delivery channel beside
+the in-app row and the email, opted into per device and tunable per kind.
+
+Success: a teacher who turned push on gets "A quiz needs your review" on their phone within
+seconds of a student submitting; tapping it opens the review page and the bell no longer shows
+it unread. A box without push keys looks and behaves exactly as it does today.
+
+## Owner decisions (VERBATIM — do not reverse in review)
+
+Recorded from the 2026-10-16 brainstorming session; each row is the option Krzysztof chose.
+
+| # | Decision |
+|---|---|
+| D1 | Scope = option A: push is a third channel for the EXISTING notifications (quiz needs review, quiz graded, enrolled). No new notification reasons; those are separate later projects. Audience: both students and teachers. |
+| D2 | Opt-in = option B: a "Push notifications on this device" switch in the user's settings, PLUS a one-line invite in the bell dropdown, shown only where push can work and this device is not subscribed; dismissing it hides it for good on that device. No prompt after install. |
+| D3 | Per-kind choice = option A: separate per-kind push switches (Email \| Push columns), independent of the email ones, stored per USER (not per device), default on. |
+| D4 | Content = option A: the same wording as the email — headline as title, the email's body line as text, including the student's name for "needs review". Tapping opens the same page the email links to and marks the notification read. |
+| D5 | Approach 1: `pywebpush`, sent synchronously in a post-commit callback like the email; no thread, no task queue. Per-box VAPID keys in the env file; without them push is entirely hidden. |
+| D6 | Design sections 1–3 (data and sending; browser side; ops, testing, out of scope) approved as presented. |
+
+## Current state (verified 2026-10-16)
+
+- `notifications.services.notify()` creates a `Notification` row and registers
+  `transaction.on_commit(lambda: deliver_notification_email(n))`. It returns early when
+  `_MUTED` is set (demo provisioning) or recipient == actor.
+- `notifications.emails.deliver_notification_email` wraps its whole body in log-and-swallow
+  because Django stops running on_commit callbacks at the first one that raises
+  (`notify_needs_review` queues one per teacher).
+- `notifications.emails.email_content(notification)` returns `(subject, headline, body_line)`
+  under the active language; `notification_url(notification)` reverses the target path.
+- `NotificationEmailPreference`: OneToOne to user, three booleans named exactly like the
+  `Notification.Kind` values; no row = all on.
+- `core/views.py:user_settings` validates `UserSettingsForm` and `NotificationEmailForm`
+  together and saves both in one atomic block; `templates/core/user_settings.html` renders an
+  "Email notifications" section with one switch per kind.
+- C1: `/sw.js` is `core.views.service_worker` rendering `templates/core/sw.js`;
+  `core/static/core/js/pwa.js` registers it; the `pwa_enabled` context flag is
+  `core.pwa.serve_normal()` (`PWA_ENABLED` and not `PWA_KILL_SWITCH`).
+- `core/signals.py` already has a `user_logged_out` receiver.
+- No task queue exists. No push library is installed.
+
+## 1. Configuration
+
+New settings in `config/settings/base.py`, read from the environment:
+
+| Setting | Env var | Default |
+|---|---|---|
+| `PUSH_VAPID_PUBLIC_KEY` | `LIBLI_VAPID_PUBLIC_KEY` | `""` |
+| `PUSH_VAPID_PRIVATE_KEY` | `LIBLI_VAPID_PRIVATE_KEY` | `""` |
+| `PUSH_VAPID_SUBJECT` | `LIBLI_VAPID_SUBJECT` | `""` (a `mailto:` URI) |
+
+`notifications.push.push_configured()` is True only when all three are non-blank **and**
+`core.pwa.serve_normal()` is True. Without the C1 worker (flag off or kill switch on) no device
+can display a push, so sending would only spend time. Everything below — sending, endpoints,
+template UI, `push.js` — is gated on this single function; when it is False the product is
+byte-for-byte today's.
+
+The public key is the base64url-encoded uncompressed P-256 point (the form
+`PushManager.subscribe({applicationServerKey})` takes); the private key is its base64url raw
+scalar, the form `pywebpush` accepts.
+
+A management command `generate_vapid_keys` prints a fresh pair in exactly those two forms as
+`LIBLI_VAPID_PUBLIC_KEY=…` / `LIBLI_VAPID_PRIVATE_KEY=…` lines. It writes nothing.
+
+## 2. Data (one migration, `notifications`)
+
+**`PushSubscription`** — one row per subscribed browser.
+
+| Field | Type | Notes |
+|---|---|---|
+| `user` | FK → user, `CASCADE`, `related_name="push_subscriptions"` | |
+| `endpoint` | `URLField(max_length=1024, unique=True)` | push-service URL; unique across users |
+| `p256dh` | `CharField(max_length=128)` | client public key |
+| `auth` | `CharField(max_length=64)` | client auth secret |
+| `user_agent` | `CharField(max_length=200, blank=True)` | truncated request UA, for diagnostics |
+| `created_at` | `DateTimeField(auto_now_add=True)` | |
+| `last_success_at` | `DateTimeField(null=True, blank=True)` | set after a 2xx from the push service |
+
+**`NotificationPushPreference`** — mirrors `NotificationEmailPreference`: OneToOne to user
+(`related_name="notification_push_pref"`), booleans `quiz_needs_review`, `quiz_graded`,
+`enrolled`, all `default=True`; no row = all on. A separate model rather than widening the email
+one: the email model's name and docstring are email-specific and a rename migration buys
+nothing.
+
+Both get a `__str__` like their neighbours. Neither is exported by course transfer (they are
+user data, not course content); no FORMAT_VERSION bump.
+
+## 3. Sending
+
+`notify()` registers a second, independent on_commit callback after the email one:
+
+```python
+transaction.on_commit(lambda: deliver_notification_email(n))
+transaction.on_commit(lambda: deliver_notification_push(n))
+```
+
+Both callbacks are individually log-and-swallow, so a failure in either never skips the other
+or a later recipient's callbacks. The existing `_MUTED` early return covers push automatically.
+
+`notifications.push.deliver_notification_push(notification)`:
+
+1. Return if not `push_configured()`.
+2. Inside a `try/except Exception` that logs and swallows (same reasoning as email):
+3. Return if the recipient's push preference for `notification.kind` is off
+   (`push_enabled(user, kind)`, same shape as `email_enabled`).
+4. Load the recipient's `PushSubscription` rows; return if none.
+5. Build the payload under `translation.override(recipient.language or LANGUAGE_CODE)`:
+   `subject, headline, body_line = email_content(notification)` →
+   `{"title": headline, "body": body_line, "url": reverse("notifications:open", pk), "tag": f"libli-{pk}"}`
+   as JSON. The URL is a path; the worker resolves it against its own origin.
+6. For each subscription, its own `try`: `pywebpush.webpush(subscription_info, data,
+   vapid_private_key, vapid_claims={"sub": PUSH_VAPID_SUBJECT}, ttl=86400, timeout=5)`.
+   - 2xx → update `last_success_at`.
+   - `WebPushException` whose response status is 404 or 410 → delete that subscription row
+     (the browser unsubscribed or the subscription expired).
+   - Any other exception → log with the subscription pk and notification pk; continue with
+     the next subscription.
+
+No retry. A push that fails is lost; the bell row and the email are unaffected.
+
+### The tap target: `notifications/<pk>/open/`
+
+New GET view `notifications:open`, login required. `get_object_or_404(Notification, pk=pk,
+recipient=request.user)` — another user's pk is a 404, never a redirect. Sets `read_at` if
+unset, then redirects to `notification_url(n)` or, when that is None, `notifications:list`.
+A GET with a side effect is deliberate: the worker cannot send the CSRF token a POST needs, and
+the only effect is marking the viewer's own notification read. A logged-out device gets the
+normal login redirect with `next` back to this URL.
+
+## 4. Subscription endpoints
+
+Both login-required, POST, CSRF-protected (called by `push.js` with the cookie token),
+JSON body, JSON response, and 404 when `push_configured()` is False.
+
+- `notifications/push/subscribe/` — body `{"endpoint", "keys": {"p256dh", "auth"}}`.
+  Validate: endpoint is an `https://` URL ≤ 1024 chars; both keys present, base64url, within
+  the field lengths. Invalid → 400. `update_or_create(endpoint=…)` setting user, keys and UA,
+  so an endpoint already owned by another user MOVES to the current one (a shared computer).
+  Store the endpoint in `request.session["push_endpoint"]`. → `{"ok": true}`.
+- `notifications/push/unsubscribe/` — body `{"endpoint"}`. Delete the row only if it belongs to
+  the current user (another user's endpoint: no-op, still 200 — no oracle). Remove the session
+  key if it matches. → `{"ok": true}`.
+
+### Logout
+
+A new `user_logged_out` receiver (in `notifications`, or added beside the existing one in
+`core/signals.py`): if the session holds `push_endpoint`, delete the subscription with that
+endpoint **and** that user. Django sends the signal before it flushes the session, so the key is
+still readable. The browser side also unsubscribes (§6). Net effect: after logout nothing of that
+user's arrives on that device, and the next person to log in starts with push off on it.
+
+## 5. Service worker additions (`templates/core/sw.js`)
+
+Inside the existing `{% verbatim %}` block:
+
+- `push` — parse `event.data.json()` (a payload that fails to parse: show nothing, return).
+  `event.waitUntil(self.registration.showNotification(title, {body, tag, icon, badge, data:
+  {url}}))`. `icon` is the manifest's 192px icon URL, passed into the template as one more JSON
+  value slot from `core.views.service_worker` (the same source `_manifest_icons` uses, so a
+  school's favicon override shows on its pushes).
+- `notificationclick` — close the notification; resolve `data.url` against
+  `self.location.origin`, refusing anything off-origin; then
+  `clients.matchAll({type: "window", includeUncontrolled: true})`: focus the first same-origin
+  window and `navigate()` it to the URL, else `clients.openWindow(url)`.
+
+The kill worker (C1) gains no push handlers: killing the worker silences push on that device,
+which is the intended effect. `pushsubscriptionchange` is not handled (out of scope; a lost
+subscription is fixed by turning the switch on again).
+
+## 6. Push client (`core/static/core/js/push.js`)
+
+Loaded on every page only when `push_configured()` (a context flag `push_enabled` and the public
+key emitted as `data-vapid-key` on `<body>` or a `<meta>`). It exposes the device state:
+
+| State | Condition |
+|---|---|
+| `unsupported` | no `serviceWorker`, `PushManager` or `Notification` |
+| `ios-not-installed` | iOS/iPadOS Safari not in standalone mode (push exists only in the installed app) |
+| `blocked` | `Notification.permission === "denied"` |
+| `off` | supported, not blocked, no current subscription |
+| `on` | `registration.pushManager.getSubscription()` is non-null |
+
+`subscribe()` (from a click only): `Notification.requestPermission()` → on `"granted"`,
+`pushManager.subscribe({userVisibleOnly: true, applicationServerKey})` → POST to the subscribe
+endpoint. `unsubscribe()`: POST to the unsubscribe endpoint, then `subscription.unsubscribe()`.
+Any failure leaves the UI in the state it re-reads afterwards, with a short error line.
+
+On submit of the logout form, `push.js` calls `subscription.unsubscribe()` best-effort (it does
+not delay or block the logout).
+
+The "on" state is the browser's own subscription. The server row may be missing (deleted after
+a 410, or by another user's logout on a shared computer); turning the switch off then on fixes
+it. No background re-sync (YAGNI).
+
+## 7. Settings page
+
+The "Email notifications" section becomes **"Notifications"** when `push_enabled`; otherwise it
+is unchanged (same heading, same copy, email switches only).
+
+With push:
+
+- First row: **"Push notifications on this device"** with a switch driven by `push.js`, acting
+  immediately (not part of the form, no "Save changes"). For the states where it cannot work, the
+  switch is replaced by one line: `unsupported` → "This browser can't show push notifications.";
+  `ios-not-installed` → "On iPhone and iPad, add libli to your Home Screen first." + a link to the
+  C1 install guide; `blocked` → "Notifications are blocked for libli in this browser's settings."
+- Then one row per kind with **two switches, Email and Push**, column headers above them. The
+  push switches are a `NotificationPushForm` (three booleans, `instance=pref`, unsaved instance
+  on GET exactly like the email form) saved in the same atomic block. Help texts become neutral
+  ("When a quiz I submitted is graded.", "When I'm enrolled in a course.", "When a student's quiz
+  needs my review.") — new msgids, Polish filled by hand.
+- The per-kind Push switches show whatever the user's preference is even when this device is off
+  (they are per user, D3).
+
+The lede is reworded to say email and push are chosen separately and the bell always shows
+everything.
+
+## 8. Bell invite (`notifications/_bell_panel.html`)
+
+A `hidden` row at the top of the panel, rendered only when `push_enabled`:
+"Get notifications on this device — **Turn on** · ×". `push.js` unhides it only when the state
+is `off` and the localStorage flag `libli:push-invite-dismissed` is not set (every storage access
+in try/catch; storage failing = show it). On iOS this means it appears only inside the installed
+app. **Turn on** runs `subscribe()`; on success the row hides. **×** sets the flag and hides it.
+The row is the same for empty and non-empty panels.
+
+## 9. Operations
+
+- **Dependency:** `pywebpush` (brings `cryptography`, `http-ece`, `requests`, `py-vapid`).
+  `uv.lock` changes and a migration ships: this is a migration release, eligible for B2
+  rehearsal step 7 (`docs/deployment.md` §9).
+- **Ships dark:** a box without the three env vars behaves as today.
+- **Runbook:** a new `docs/deployment.md` §9 subsection "Push notifications":
+  1. `manage.sh generate_vapid_keys` on the box (or anywhere) → two lines.
+  2. Add both lines plus `LIBLI_VAPID_SUBJECT=mailto:<contact>` to `.env.production` (same
+     guarded append pattern as the PWA kill switch).
+  3. Recreate the app container (never `restart`; ~24 s maintenance page).
+  4. Smoke test: turn push on on a phone; have a teacher account grade one of that account's
+     submissions; the push arrives, tapping opens the results page, the bell shows it read.
+- **Key rules (in the runbook):** keys are per box — never copy them between schools; never
+  rotate a key in use (every existing subscription silently stops working; users must turn push
+  on again). The restore runbook gains a line: the VAPID keys come back with `.env.production`,
+  not with the database.
+- **Device checklist on libli.pl** after merge (in the PR body): Android Chrome, iPhone/iPad
+  home-screen app, desktop Chrome/Edge — subscribe from settings, subscribe from the bell
+  invite, receive each kind, tap-through marks read, per-kind push off suppresses, logout stops
+  delivery, kill switch silences.
+
+## 10. Testing
+
+Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the crypto):
+
+- `push_configured()` truth table (each key blank, PWA off, kill switch on).
+- Delivery: not configured / kind off / no subscriptions → no call; muted → no call; each
+  language → payload title/body equal `email_content`'s headline/body_line; URL is
+  `notifications:open`; `tag` is `libli-<pk>`.
+- 404 and 410 delete only that subscription; another error logs and the NEXT subscription is
+  still sent; `last_success_at` set on success.
+- Independence: email raising still pushes; push raising still emails; `notify_needs_review`
+  with two teachers where the first teacher's push raises still reaches the second.
+- Endpoints: 404 when not configured; login and CSRF required; validation 400s; upsert moves an
+  endpoint between users; unsubscribe of another user's endpoint deletes nothing; session key set
+  and cleared.
+- Logout receiver deletes the session's row and only that user's.
+- `notifications:open`: marks read, redirects to the target, falls back to the list, 404 for
+  another user's pk, idempotent on a read notification.
+- Settings: push switches saved with the form, unsaved pref on GET, section unchanged (no push
+  markup) when not configured; bell invite absent when not configured.
+- `generate_vapid_keys` output decodes to a valid P-256 pair (public 65 bytes, private 32).
+- Migration: `makemigrations --check` clean; the new migration depends on the current graph head.
+
+e2e (Playwright Chromium):
+
+- Settings device switch and bell invite against a stubbed `PushManager` /
+  `Notification.permission` (init script): `off → on` POSTs the subscription; `on → off` POSTs
+  unsubscribe; `blocked` and `ios-not-installed` show their lines; dismiss persists across a
+  reload.
+- Worker: dispatch a `push` event in the service worker context and assert `getNotifications()`
+  returns the title/body/tag; drive `notificationclick` where Playwright allows it, else cover
+  the URL-resolution helper (off-origin refusal) directly.
+- Real delivery through FCM / Mozilla / Apple push services is NOT automatable — covered by the
+  device checklist.
+
+Every new guard is falsified against a named mutant (shown RED), as usual.
+
+## Out of scope
+
+New notification reasons (deadlines, announcements, new lesson published); quiet hours; a device
+list with remove buttons; `pushsubscriptionchange` re-sync; a task queue or background thread;
+batching or grouping pushes; push for anonymous users.
