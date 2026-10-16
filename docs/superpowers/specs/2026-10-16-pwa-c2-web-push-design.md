@@ -28,6 +28,7 @@ Recorded from the 2026-10-16 brainstorming session; each row is the option Krzys
 | D5 | Approach 1: `pywebpush`, sent synchronously in a post-commit callback like the email; no thread, no task queue. Per-box VAPID keys in the env file; without them push is entirely hidden. |
 | D6 | Design sections 1–3 (data and sending; browser side; ops, testing, out of scope) approved as presented. |
 | D7 | (2026-10-16, after spec review raised the shared-computer gap) Push follows the login: each subscription is tied to the login session that created or last claimed it, and is sent only while that session is alive; a dead or expired session's subscription is deleted, not sent. Ending sessions at browser close is NOT part of C2 — a separate decision. |
+| D8 | (2026-10-16, after review found that an unticked "Remember me" leaves a live 2-week session row) Option A: push only for remembered logins. A session that ends at browser close cannot turn push on and is never sent to; the device switch is replaced by "To get push notifications on this device, tick 'Remember me' when you log in." SSO logins (always persistent) work as normal. |
 
 ## Current state (verified 2026-10-16)
 
@@ -222,8 +223,8 @@ malformed body → 400. `push.js` treats any non-200 as a failure and shows its 
   The upsert also sets `session_key = request.session.session_key` (D7). Store the endpoint in
   `request.session["push_endpoint"]`. → `{"ok": true}`.
 - `notifications/push/unsubscribe/` — body `{"endpoint"}`. Delete the row only if it belongs to
-  the current user (another user's endpoint: no-op, still 200 — no oracle). Remove the session
-  key if it matches. → `{"ok": true}`.
+  the current user (another user's endpoint: no-op, still 200 — no oracle). Remove the `push_endpoint`
+  session entry if it matches. → `{"ok": true}`.
 - `notifications/push/claim/` — body `{"endpoint"}`. Called by `push.js` on page load when the
   browser is subscribed but the page says the session does not know this endpoint (§6).
   If a row with that endpoint belongs to the current user → set its `session_key` to the current
@@ -258,12 +259,24 @@ simply left), after which no signal fires.
 
 - `PushSubscription.session_key` (§2) records the session that subscribed or last claimed it.
   Subscribe sets it to `request.session.session_key`; a `claim` that answers `mine: true` updates
-  it to the current session's key (this is how a user who logs in again on their own device gets
-  their pushes back without touching the switch).
+  it to the current session's key. This is how a user who logs in again on their own device gets
+  their pushes back without touching the switch — provided no notification reached them while
+  that device was logged out: such a notification deletes the dead-session row (below), the next
+  claim then answers `mine: false`, and the switch reads off and must be turned on again. The same
+  holds for the short window between a `cycle_key()` and the next page load's claim.
 - At send time (§3 step 3), the recipient's rows are filtered to those whose `session_key` names a
-  LIVE session: `django.contrib.sessions.models.Session.objects.filter(session_key__in=keys,
-  expire_date__gt=now())` — one query per notification. Rows whose session is missing or expired
-  are deleted, not sent. (`Session` rows linger after expiry because no `clearsessions` cron runs,
+  LIVE, AUTHENTICATED, REMEMBERED session of this user. First
+  `django.contrib.sessions.models.Session.objects.filter(session_key__in=keys,
+  expire_date__gt=now())`; then each candidate is decoded (`get_decoded()`) and kept only if ALL
+  hold: its `_auth_user_id` (`django.contrib.auth.SESSION_KEY`) equals `str(user.pk)`; its
+  `_auth_user_hash` (`HASH_SESSION_KEY`) matches the user's current session-auth hash, compared
+  with `constant_time_compare` against `user.get_session_auth_hash()` or any of
+  `user.get_session_auth_fallback_hash()` — the same test `django.contrib.auth.get_user` applies,
+  so a password changed elsewhere ends delivery even though Django flushes that session only on
+  its next request; `user.is_active`; and the decoded `_session_expiry` is not `0` (D8: a
+  browser-close login is never sent to, even if it somehow holds a row). Rows failing any test are
+  deleted, not sent. Cost: one select plus at most one delete per notification, and decoding at
+  most 5 sessions (the device cap) — negligible beside the push calls themselves. (`Session` rows linger after expiry because no `clearsessions` cron runs,
   hence the `expire_date` filter, never mere existence.)
 - This relies on database-backed sessions (`SESSION_ENGINE` is Django's default
   `django.contrib.sessions.backends.db` in every settings module today); a test pins that, so a
@@ -275,10 +288,23 @@ simply left), after which no signal fires.
   (one indexed query per authenticated page while push is available); otherwise it is empty and
   the claim step runs and re-keys the row.
 
+- **Remembered logins only (D8).** A login made with "Remember me" unticked calls
+  `request.session.set_expiry(0)` (`allauth/account/forms.py`), so the browser forgets it at
+  close while the database row still says 2 weeks; the server cannot see the browser close. So:
+  `notifications.push.session_remembered(session)` = `not session.get_expire_at_browser_close()`.
+  SSO, signup and invitation logins never call `set_expiry(0)` and are remembered. In a
+  non-remembered session: `subscribe` → 403 `{"ok": false}` (no row created); `claim` → deletes
+  any row with that endpoint and answers `{"mine": false}` (the person said this is not their
+  device, so a leftover subscription is removed rather than re-keyed to a session that would never
+  be sent to); the page's meta carries `data-remembered="0"` and push.js reports the
+  `not-remembered` state (§6), which shows the D8 line instead of the switch and hides the bell
+  invite.
+
 Net effect: a device gets a user's pushes exactly while that browser is still logged in as that
-user — the same exposure the bell already has on that device, never more. What remains is a
-browser closed with its session still valid (up to the session lifetime, 2 weeks by default): that
-computer is still logged in as the user, so anyone opening it sees their bell and pages anyway.
+user with a remembered login — the same exposure the bell already has on that device, never more.
+What remains is a REMEMBERED login left on a computer (up to the session lifetime, 2 weeks by
+default): that computer is still logged in as the user, so anyone opening it sees their bell and
+pages anyway.
 Shortening login lifetimes (e.g. `SESSION_EXPIRE_AT_BROWSER_CLOSE`) is a separate, site-wide
 decision deliberately outside C2. The settings help under the device switch still says: "On a
 shared computer, log out when you finish." — a new msgid.
@@ -309,7 +335,8 @@ subscription is fixed by turning the switch on again).
 
 Loaded on every authenticated page only when `push_configured()` (a context flag
 `push_available`). The page carries `<meta name="libli-push" data-vapid-key="…"
-data-session-endpoint="…">`, the latter being `request.session.get("push_endpoint", "")` ONLY
+data-session-endpoint="…" data-remembered="1|0">` (`data-remembered` from
+`session_remembered(request.session)`, §4), `data-session-endpoint` being `request.session.get("push_endpoint", "")` ONLY
 when a row with that endpoint, this user and this session's current key exists, else empty (§4,
 session key rotation).
 It exposes the device state, evaluated **in this order, first match wins**:
@@ -318,9 +345,10 @@ It exposes the device state, evaluated **in this order, first match wins**:
 |---|---|---|
 | 1 | `ios-not-installed` | iOS/iPadOS (UA matches `iPhone\|iPad\|iPod`, OR `navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` for iPadOS's desktop UA) AND not standalone (`display-mode: standalone` false and `navigator.standalone !== true`). First because iOS Safari outside the installed app has no `PushManager` and would otherwise read as `unsupported`. |
 | 2 | `unsupported` | no `serviceWorker`, `PushManager` or `Notification`, OR `navigator.serviceWorker.getRegistration()` resolves `undefined` or rejects (registration refused, e.g. a private window or blocked site data) |
-| 3 | `blocked` | `Notification.permission === "denied"` (wins over a leftover subscription) |
-| 4 | `on` | `registration.pushManager.getSubscription()` is non-null (after the claim step below) |
-| 5 | `off` | otherwise |
+| 3 | `not-remembered` | the meta's `data-remembered` is `"0"` (D8: this login ends at browser close) |
+| 4 | `blocked` | `Notification.permission === "denied"` (wins over a leftover subscription) |
+| 5 | `on` | `registration.pushManager.getSubscription()` is non-null (after the claim step below) |
+| 6 | `off` | otherwise |
 
 `registration` for the on-load evaluation always comes from
 `navigator.serviceWorker.getRegistration()` (resolves immediately), NEVER
@@ -375,6 +403,8 @@ With push:
   push.js enables it only once it has reported a state (claim step included), and disables it
   again while a request is in flight. For the
   states where it cannot work, the switch is replaced by one line: `unsupported` → "This browser can't show push notifications.";
+  `not-remembered` → "To get push notifications on this device, tick 'Remember me' when you log
+  in." (D8);
   `ios-not-installed` → "On iPhone and iPad, add libli to your Home Screen first." + a link to the
   C1 install guide (`{% url 'core:install_app' %}`); `blocked` → "Notifications are blocked for libli in this browser's settings."
 - Then one row per kind with **two switches, Email and Push**, column headers above them. The
@@ -486,9 +516,19 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   not configured (checked before auth); anonymous → 403 JSON, not 302;
   CSRF required; validation 400s (incl. a `p256dh` of the wrong decoded length or not starting
   `0x04`, and an `auth` that is not 16 bytes); upsert moves an endpoint between users; unsubscribe of another
-  user's endpoint deletes nothing; session key set and cleared.
-- Claim: own row → `mine: true` and session key set; another user's row → deleted, `mine:
+  user's endpoint deletes nothing; the `push_endpoint` session entry set and cleared.
+- Claim: own row → `mine: true`, the `push_endpoint` session entry set and the row re-keyed; another user's row → deleted, `mine:
   false`; no row → `mine: false`, nothing created.
+- Live-session decoding (I1 of the second review pass): a row whose session belongs to ANOTHER
+  user id, whose `_auth_user_hash` no longer matches (password changed elsewhere), or whose user
+  is inactive is deleted and not sent — each with a mutant dropping that one check; a session
+  matching a `get_session_auth_fallback_hash()` value is still sent.
+- Remembered only (D8): a login through the real login form with "Remember me" unticked → the
+  page renders `data-remembered="0"`, `subscribe` → 403 and no row, `claim` deletes the endpoint's
+  row and answers `mine: false`; a row whose session has `_session_expiry == 0` is not sent and is
+  deleted (mutant: the expiry check dropped); with "Remember me" ticked, and for an SSO login, all
+  of these behave as remembered. e2e: `data-remembered="0"` shows the D8 line, no switch, no bell
+  invite.
 - Push follows the login (D7): a row whose session is deleted, or whose `expire_date` is past
   (the row still present), is not sent and is deleted (mutant: existence-only check without
   `expire_date`; mutant: filter removed); a live session's row is sent; subscribe and `claim`
@@ -497,7 +537,7 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   `SESSION_ENGINE` is the database backend (pinned).
 - Logout receiver, driven through a real POST to `account_logout` (not by calling the function,
   so a receiver that is never connected fails the test): deletes the session's row and only that
-  user's; no-op with no session key;
+  user's; no-op with no `push_endpoint` session entry;
   no-op with `user=None`; a subscription made in an EARLIER session is deleted once a claim has
   run in the current one.
 - `notifications:open`: marks read, redirects to the target, falls back to the list when the
@@ -546,7 +586,7 @@ so no e2e test ever reaches a real push service even if it triggers `notify()`.
 - Registration refused (`getRegistration()` resolves `undefined`): the page reaches
   `unsupported` with its line shown, the switch does not stay disabled-without-a-line, and the bell
   invite stays hidden.
-- The shared-computer help line is visible in `off` and `on`, hidden in the other three states.
+- The shared-computer help line is visible in `off` and `on`, hidden in the other four states.
 - Bell Turn on with the subscribe POST returning 500: the error shows inside the panel and the
   invite stays visible; a denied permission prompt hides the invite.
 - `blocked` with a leftover subscription whose endpoint the server reports `mine: false`: the
