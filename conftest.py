@@ -38,6 +38,18 @@ def _reset_active_language():
     translation.deactivate_all()
 
 
+@pytest.fixture(autouse=True)
+def _reset_push_budget():
+    """The per-request push budget (notifications.push) is a ContextVar reset by
+    request_started. Direct notify()/deliver calls in tests never fire that signal,
+    so a deadline left by one test would skip pushes in a later one on the same
+    worker. Reset it before every test."""
+    from notifications.push import reset_push_budget
+
+    reset_push_budget()
+    yield
+
+
 TEST_DB_NOTICE = (
     "tip: e2e teardown TRUNCATEs 89 tables after each test. Running against the "
     "disposable tuned database makes that ~37x cheaper:\n"
