@@ -121,7 +121,8 @@ card links to the unit's live page (URL rule below).
 - Unit titles can contain maths. The dashboard loads no KaTeX and renders no
   node titles today. Render the title as
   `{{ unit.title|strip_math_delimiters }}` (`courses_extras`, as used by the
-  lesson and editor `head_title`), with no KaTeX on the dashboard.
+  lesson and editor `head_title`), with no KaTeX on the dashboard. The card's
+  course title gets `|strip_math_delimiters` too.
   `templates/core/home.html` loads only `i18n` today, so it must add
   `{% load courses_extras %}`. Without it the template raises
   `TemplateSyntaxError` for every user.
