@@ -26,6 +26,7 @@
 - Polish quotes the login label exactly: „Zapamiętaj mnie”.
 - No FORMAT_VERSION bump. One migration: `notifications/0003_push.py`, depending on `0002_notificationemailpreference` (the graph head — verify with `ls notifications/migrations` before writing it).
 - Django `{# #}` comments are single-line ONLY; use `{% comment %}…{% endcomment %}` for anything longer.
+- A test client that must stay logged in uses `push_helpers.logged_in_user(client)` (a verified, persisted user) — NEVER `UserFactory()` + `force_login`, which leaves the client silently anonymous. `UserFactory()` is fine for users never logged in through the client.
 - Never pass `-q` to pytest (addopts already has it). e2e needs `-m e2e`. Run tests with `uv run pytest`.
 - Every new guard is falsified against its named mutant (shown RED, then reverted BY HAND — never `git checkout` a file holding uncommitted work).
 
@@ -649,7 +650,7 @@ git commit -m "feat(push): PushSubscription and NotificationPushPreference model
 
 **Interfaces:**
 - Consumes: Task 1 predicates, Task 2 models.
-- Produces: `live_subscriptions(user) -> list[PushSubscription]`; `build_payload(notification) -> str`; `deliver_notification_push(notification) -> None`; `reset_push_budget() -> None`; `notifications/tests/push_helpers.py` with `push_settings(settings)`, `live_session_for(user, *, remembered=True) -> str` (session key), `make_sub(user, session_key, endpoint=...)`, `FCM`, `MOZ` endpoint constants.
+- Produces: `live_subscriptions(user) -> list[PushSubscription]`; `build_payload(notification) -> str`; `deliver_notification_push(notification) -> None`; `reset_push_budget() -> None`; `notifications/tests/push_helpers.py` with `push_settings(settings)`, `logged_in_user(client, **attrs) -> User`, `live_session_for(user, *, remembered=True) -> str` (session key), `make_sub(user, session_key, endpoint=...)`, `FCM`, `MOZ` endpoint constants.
 
 - [ ] **Step 1: Write the shared test helpers**
 
@@ -657,6 +658,8 @@ Create `notifications/tests/push_helpers.py`:
 
 ```python
 """Shared fixtures-as-functions for the push tests."""
+
+import itertools
 
 from django.contrib.auth import BACKEND_SESSION_KEY
 from django.contrib.auth import HASH_SESSION_KEY
@@ -671,6 +674,7 @@ FCM = "https://fcm.googleapis.com/fcm/send/"
 MOZ = "https://updates.push.services.mozilla.com/wpush/v2/"
 
 _PAIR = generate_vapid_pair()
+_SEQ = itertools.count()
 
 
 def push_settings(settings):
@@ -680,8 +684,28 @@ def push_settings(settings):
     settings.PUSH_VAPID_SUBJECT = "mailto:ops@example.com"
 
 
+def logged_in_user(client, **attrs):
+    """A user the test client STAYS logged in as. Never UserFactory()+force_login:
+    UserFactory skips the post-generation save, so the persisted password differs
+    from the in-memory one, the session hash mismatches on the next request and the
+    client is silently anonymous (see tests/test_notes_views.py:_stranger)."""
+    from tests.factories import make_verified_user
+
+    n = next(_SEQ)
+    user = make_verified_user(username=f"pushuser{n}", email=f"pushuser{n}@example.com")
+    for key, value in attrs.items():
+        setattr(user, key, value)
+    if attrs:
+        user.save()
+    client.force_login(user)
+    return user
+
+
 def live_session_for(user, *, remembered=True):
-    """A real DB session authenticated as `user`, like a login would leave."""
+    """A real DB session authenticated as `user`, like a login would leave. The hash
+    is computed from the PERSISTED user -- delivery reloads the recipient from the
+    database, and a UserFactory user's in-memory password was never saved."""
+    user = type(user).objects.get(pk=user.pk)
     store = SessionStore()
     store[SESSION_KEY] = str(user.pk)
     store[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
@@ -1488,6 +1512,7 @@ from django.utils import timezone
 
 from notifications.models import PushSubscription
 from notifications.tests.push_helpers import FCM
+from notifications.tests.push_helpers import logged_in_user
 from notifications.tests.push_helpers import make_sub
 from notifications.tests.push_helpers import push_settings
 from tests.factories import UserFactory
@@ -1517,8 +1542,7 @@ def on(settings):
 
 @pytest.fixture
 def user_client(client):
-    user = UserFactory()
-    client.force_login(user)  # force_login sets no _session_expiry: remembered
+    user = logged_in_user(client)  # force_login sets no _session_expiry: remembered
     return user, client
 
 
@@ -1544,9 +1568,8 @@ def test_anonymous_gets_403_json_not_a_redirect(client, on, name):
 
 
 def test_csrf_is_required(on):
-    user = UserFactory()
     strict = Client(enforce_csrf_checks=True)
-    strict.force_login(user)
+    logged_in_user(strict)
     assert post(strict, "push_subscribe", body()).status_code == 403
     assert PushSubscription.objects.count() == 0
 
@@ -1620,7 +1643,7 @@ def test_sixth_subscribe_evicts_only_this_users_oldest(user_client, on):
 
 
 def test_resubscribing_an_old_endpoint_keeps_it(user_client, on):
-    # mutant: cap ordered by created_at, or not excluding the current endpoint
+    # mutant: not excluding the current endpoint from the cap
     user, client = user_client
     long_ago = timezone.now() - timedelta(days=100)
     old = make_sub(user, "k" * 32, endpoint=FCM + "dev1", subscribed_at=long_ago)
@@ -1753,6 +1776,7 @@ from django.urls import reverse
 
 from notifications.models import PushSubscription
 from notifications.tests.push_helpers import FCM
+from notifications.tests.push_helpers import logged_in_user
 from notifications.tests.push_helpers import make_sub
 from notifications.tests.push_helpers import push_settings
 from notifications.tests.test_push_endpoints import body
@@ -1771,8 +1795,7 @@ def _subscribe(client):
 
 def test_logout_deletes_the_sessions_row_only(client, settings):
     push_settings(settings)
-    user = UserFactory()
-    client.force_login(user)
+    user = logged_in_user(client)
     _subscribe(client)
     other_device = make_sub(user, "y" * 32, endpoint=FCM + "phone")
     client.post(reverse("account_logout"))
@@ -1781,17 +1804,15 @@ def test_logout_deletes_the_sessions_row_only(client, settings):
 
 def test_logout_without_an_entry_is_a_noop(client, settings):
     push_settings(settings)
-    user = UserFactory()
+    user = logged_in_user(client)
     row = make_sub(user, "y" * 32)
-    client.force_login(user)
     client.post(reverse("account_logout"))
     assert PushSubscription.objects.filter(pk=row.pk).exists()
 
 
 def test_logout_deletes_even_when_push_is_off_now(client, settings):
     push_settings(settings)
-    user = UserFactory()
-    client.force_login(user)
+    logged_in_user(client)
     _subscribe(client)
     settings.PUSH_VAPID_PUBLIC_KEY = ""  # keys blanked after subscribing
     client.post(reverse("account_logout"))
@@ -1800,9 +1821,8 @@ def test_logout_deletes_even_when_push_is_off_now(client, settings):
 
 def test_subscription_from_an_earlier_session_is_deleted_after_a_claim(client, settings):
     push_settings(settings)
-    user = UserFactory()
+    user = logged_in_user(client)  # a new session that has never seen the endpoint
     make_sub(user, "earlier" * 5, endpoint=FCM + "dev1")
-    client.force_login(user)  # a new session that has never seen the endpoint
     client.post(
         reverse("notifications:push_claim"),
         data=json.dumps({"endpoint": FCM + "dev1"}),
@@ -1814,8 +1834,7 @@ def test_subscription_from_an_earlier_session_is_deleted_after_a_claim(client, s
 
 def test_logout_via_confirmation_page_still_deletes(client, settings):
     push_settings(settings)
-    user = UserFactory()
-    client.force_login(user)
+    logged_in_user(client)
     _subscribe(client)
     assert client.get(reverse("account_logout")).status_code == 200  # the confirm page
     client.post(reverse("account_logout"))
@@ -2011,6 +2030,7 @@ from django.urls import reverse
 
 from notifications.models import Notification
 from notifications.services import notification_url
+from notifications.tests.push_helpers import logged_in_user
 from tests.factories import CourseFactory
 from tests.factories import UserFactory
 
@@ -2031,9 +2051,8 @@ def _open(client, pk):
 
 
 def test_marks_read_and_redirects_to_the_target(client):
-    user = UserFactory()
+    user = logged_in_user(client)
     n = _enrolled(user)
-    client.force_login(user)
     r = _open(client, n.pk)
     assert r.status_code == 302 and r["Location"] == notification_url(n)
     n.refresh_from_db()
@@ -2041,9 +2060,8 @@ def test_marks_read_and_redirects_to_the_target(client):
 
 
 def test_idempotent_on_a_read_notification(client):
-    user = UserFactory()
+    user = logged_in_user(client)
     n = _enrolled(user)
-    client.force_login(user)
     _open(client, n.pk)
     n.refresh_from_db()
     first = n.read_at
@@ -2053,16 +2071,14 @@ def test_idempotent_on_a_read_notification(client):
 
 
 def test_unreversible_target_falls_back_to_list(client):
-    user = UserFactory()
+    user = logged_in_user(client)
     n = _enrolled(user, course_slug="")
-    client.force_login(user)
     assert _open(client, n.pk)["Location"] == reverse("notifications:list")
 
 
 def test_foreign_and_missing_pk_look_identical_and_mark_nothing(client):
-    user, other = UserFactory(), UserFactory()
+    user, other = logged_in_user(client), UserFactory()
     theirs = _enrolled(other)
-    client.force_login(user)
     a, b = _open(client, theirs.pk), _open(client, 999999)
     assert (a.status_code, a["Location"]) == (b.status_code, b["Location"])
     assert a["Location"] == reverse("notifications:list")
@@ -2082,9 +2098,8 @@ def test_anonymous_goes_to_login_with_next_and_marks_nothing(client):
 
 
 def test_works_with_push_not_configured(client):
-    user = UserFactory()
+    user = logged_in_user(client)
     n = _enrolled(user)
-    client.force_login(user)
     assert _open(client, n.pk).status_code == 302  # suite default: push not configured
     n.refresh_from_db()
     assert n.read_at is not None
@@ -2160,9 +2175,9 @@ from django.urls import reverse
 
 from notifications.models import NotificationEmailPreference
 from notifications.models import NotificationPushPreference
+from notifications.tests.push_helpers import logged_in_user
 from notifications.tests.push_helpers import make_sub
 from notifications.tests.push_helpers import push_settings
-from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -2180,9 +2195,7 @@ def _settings_post(client, *, email=(), push=()):
 
 @pytest.fixture
 def logged_in(client):
-    user = UserFactory()
-    client.force_login(user)
-    return user, client
+    return logged_in_user(client), client
 
 
 def test_dark_box_page_has_no_push_markup(logged_in):
@@ -2283,6 +2296,26 @@ def test_post_without_push_fields_turns_push_off_but_leaves_email(logged_in, set
     e = NotificationEmailPreference.objects.get(user=user)
     assert not any(getattr(p, k) for k in KINDS)
     assert all(getattr(e, k) for k in KINDS)
+
+
+def test_real_unticked_login_is_not_remembered_and_cannot_subscribe(client, settings):
+    """D8 through allauth's REAL login form: an unticked 'Remember me' must yield
+    data-remembered="0" and a 403 from subscribe."""
+    import json
+
+    from notifications.tests.test_push_endpoints import body
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_verified_user
+
+    push_settings(settings)
+    make_verified_user(username="unticked", email="unticked@example.com")
+    r = client.post(reverse("account_login"), {"login": "unticked", "password": TEST_PASSWORD})
+    assert r.status_code == 302
+    html = client.get(reverse("core:user_settings")).content.decode()
+    assert 'data-remembered="0"' in html
+    r = client.post(reverse("notifications:push_subscribe"), data=json.dumps(body()),
+                    content_type="application/json")
+    assert r.status_code == 403
 
 
 def test_anonymous_pages_carry_no_push_meta(client, settings):
@@ -2535,21 +2568,24 @@ and in the render context:
 Append to `core/static/core/css/settings.css`:
 
 ```css
-/* PWA C2: Email | Push columns in the Notifications section. */
+/* PWA C2: the device switch is hidden in the four can't-work states; .switch's
+   display:inline-flex would otherwise beat the UA [hidden] style. */
+.switch[hidden] { display: none; }
+/* PWA C2: Email | Push columns. row overrides .settings-field-control's column. */
 .settings-cols { flex-direction: row; gap: var(--space-4); align-items: center; }
-.settings-cols > span { width: 40px; text-align: center; font-size: var(--text-sm); color: var(--text-secondary); }
+.settings-cols > span { width: 40px; text-align: center; font-size: .8rem; color: var(--text-secondary); }
 .settings-field--cols { padding-bottom: 0; }
 .settings-field-error { color: var(--danger); }
 ```
 
-(Check `--text-sm` and `--danger` exist in `core/static/core/css/tokens.css` with `grep -n "\-\-text-sm\|\-\-danger" core/static/core/css/*.css`; use the existing names if they differ.)
+(`.8rem` matches `.settings-field-help`; tokens.css has no font-size tokens. Check `--danger` and `--text-secondary` exist with `grep -n "\-\-danger\|\-\-text-secondary" core/static/core/css/tokens.css` and use the existing names if they differ.)
 
 - [ ] **Step 8: Run the tests**
 
 Run: `uv run pytest notifications/tests/test_push_settings.py notifications/tests/test_email_settings.py` and `uv run pytest tests -k css` (marker-based CSS tests can be broken by any new rule), then `uv run pytest -m e2e notifications/tests/test_e2e_email_prefs.py`
 Expected: PASS (the email e2e still finds `input[name='quiz_graded']`).
 
-- [ ] **Step 9: Falsify** — drop `prefix="push"` from the POST construction → `test_columns_save_independently` FAILS. Bind `NotificationPushForm(request.POST, ...)` unconditionally (dark box) → `test_dark_box_post_leaves_the_push_row_alone` FAILS. Revert.
+- [ ] **Step 9: Falsify** — drop `prefix="push"` from the POST construction → `test_columns_save_independently` FAILS. Compute `push_pref` and bind `push_form` regardless of `with_push` (i.e. replace `with_push` by `True` in both conditionals) → `test_dark_box_post_leaves_the_push_row_alone` FAILS because the row turns all-False. Revert.
 
 - [ ] **Step 10: Screenshots** — run the dev server with push configured (export the three `LIBLI_VAPID_*` from `generate_vapid_keys` output and `LIBLI_PWA_ENABLED=true`), open `/settings/` in light AND dark themes at 390 px and 1280 px; check the Email|Push headers sit over their switches and the state lines wrap. Judge dark separately.
 
@@ -2580,14 +2616,14 @@ Create `notifications/tests/test_push_bell.py`:
 import pytest
 from django.urls import reverse
 
+from notifications.tests.push_helpers import logged_in_user
 from notifications.tests.push_helpers import push_settings
-from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
 
 def _html(client):
-    client.force_login(UserFactory())
+    logged_in_user(client)
     return client.get(reverse("core:user_settings")).content.decode()
 
 
@@ -2633,14 +2669,14 @@ Append to `core/static/core/css/app.css` after the `.notif-menu__empty` rule:
 ```css
 /* PWA C2 bell invite: one row above the list; push.js unhides it. */
 .notif-menu__push { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-subtle); }
 .notif-menu__push[hidden] { display: none; }
 .notif-menu__push-text { flex: 1 1 0; min-width: 0; }
 .notif-menu__push-error { flex-basis: 100%; margin: 0; color: var(--danger); }
 .notif-menu__push-error[hidden] { display: none; }
 ```
 
-(The `[hidden]` rules are needed because `display:flex` beats the UA `hidden` style. Run EVERY `tests/test_*css*.py` after this edit: `uv run pytest tests -k css`.)
+(The `[hidden]` rules are needed because `display:flex` beats the UA `hidden` style. Confirm every custom property used exists: `grep -n "\-\-border-subtle\|\-\-danger\|\-\-space-2\|\-\-space-3" core/static/core/css/tokens.css` — an undefined one silently drops the declaration. Run EVERY `tests/test_*css*.py` after this edit: `uv run pytest tests -k css`.)
 
 - [ ] **Step 4: Run** — `uv run pytest notifications/tests/test_push_bell.py notifications/tests/test_bell_render.py` and `uv run pytest tests -k css` → PASS.
 
@@ -2662,7 +2698,7 @@ git commit -m "feat(push): bell invite row markup"
 
 **Interfaces:**
 - Consumes: DOM hooks from Tasks 6–7; endpoints from Task 4; `window.libliSwRegistration` (this task).
-- Produces: `window.libliPush = { state: <string>, refresh(): Promise }` (used by e2e to wait for a reported state); `document.documentElement.dataset.pushState` set to the reported state (e2e waits on `html[data-push-state=...]`).
+- Produces: `window.libliPush = { state: <string>, refresh(): Promise }` (used by e2e to wait for a reported state); `document.documentElement.dataset.pushReported` set to the reported state (e2e waits on `html[data-push-reported=...]`; a DIFFERENT attribute name from the state lines' `data-push-state`, so state-line locators never also match `<html>`).
 
 - [ ] **Step 1: Publish the registration promise in `pwa.js`**
 
@@ -2840,7 +2876,7 @@ def test_dismiss_flag_name():
 
   function render(state) {
     api.state = state;
-    document.documentElement.setAttribute("data-push-state", state);
+    document.documentElement.setAttribute("data-push-reported", state);
     var cannot = CANNOT.indexOf(state) !== -1;
     each("[data-push-device] [data-push-state]", function (el) {
       el.hidden = el.getAttribute("data-push-state") !== state;
@@ -2975,9 +3011,13 @@ def test_sw_bytes_do_not_depend_on_a_favicon_override(client, settings):
 
     settings.PWA_ENABLED = True
     settings.PWA_KILL_SWITCH = False
+    from core.services import get_site_config
+
     plain = client.get("/sw.js").content
-    with mock.patch("core.services.get_site_config",
-                    return_value={"favicon_url": "/media/x.png"}):
+    cfg = {**get_site_config(), "favicon_url": "/media/x.png"}
+    # core.views imports get_site_config BY NAME, so patch it there too.
+    with mock.patch("core.views.get_site_config", return_value=cfg), \
+            mock.patch("core.services.get_site_config", return_value=cfg):
         overridden = client.get("/sw.js").content
     assert plain == overridden
 
@@ -3043,6 +3083,8 @@ self.addEventListener("notificationclick", (event) => {
 
 - [ ] **Step 4: Run** — `uv run pytest tests/test_pwa_worker.py tests/test_pwa_core.py` → PASS.
 
+- [ ] **Step 4b: Falsify** — add `"icon_json": json.dumps(get_site_config()["favicon_url"]),` to `service_worker`'s render context in `core/views.py` and `const ICON = {{ icon_json|safe }};` above `{% verbatim %}` in `sw.js` → `test_sw_bytes_do_not_depend_on_a_favicon_override` FAILS. Revert both by hand.
+
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -3058,7 +3100,7 @@ git commit -m "feat(push): worker shows pushes and opens their target"
 - Create: `notifications/tests/test_e2e_push.py`
 
 **Interfaces:**
-- Consumes: everything above. Waits on `html[data-push-state="…"]` (Task 8).
+- Consumes: everything above. Waits on `html[data-push-reported="…"]` (Task 8).
 
 - [ ] **Step 1: Write the e2e module**
 
@@ -3161,7 +3203,7 @@ def _login(page, live_server, username="pushy", remember=True, language="en"):
 
 def _settings(page, live_server, state):
     page.goto(f"{live_server.url}/settings/")
-    page.wait_for_selector(f'html[data-push-state="{state}"]')
+    page.wait_for_selector(f'html[data-push-reported="{state}"]')
     return page.locator("input[data-push-switch]")
 
 
@@ -3189,8 +3231,8 @@ def test_first_visit_reads_off_not_unsupported(page, context, live_server):
     _configure(context, live_server)
     _cookie_login(context, live_server)
     page.goto(f"{live_server.url}/settings/")  # the origin's first page: nothing registered
-    page.wait_for_selector("html[data-push-state]")
-    assert page.evaluate("() => document.documentElement.dataset.pushState") == "off"
+    page.wait_for_selector("html[data-push-reported]")
+    assert page.evaluate("() => document.documentElement.dataset.pushReported") == "off"
     box = page.locator("input[data-push-switch]")
     expect(box).to_be_enabled()
     expect(box).not_to_be_checked()
@@ -3202,12 +3244,12 @@ def test_off_to_on_to_off_posts_and_persists(page, context, live_server):
     box = _settings(page, live_server, "off")
     with page.expect_request("**/notifications/push/subscribe/"):
         box.check(force=True)
-    page.wait_for_selector('html[data-push-state="on"]')
+    page.wait_for_selector('html[data-push-reported="on"]')
     assert PushSubscription.objects.filter(endpoint=ENDPOINT).exists()
     expect(page.locator("[data-push-help]")).to_be_visible()
     with page.expect_request("**/notifications/push/unsubscribe/"):
         page.locator("input[data-push-switch]").uncheck(force=True)
-    page.wait_for_selector('html[data-push-state="off"]')
+    page.wait_for_selector('html[data-push-reported="off"]')
     assert not PushSubscription.objects.exists()
 
 
@@ -3217,7 +3259,7 @@ def test_subscribe_500_rolls_back_and_shows_the_error(page, context, live_server
     page.route("**/notifications/push/subscribe/", lambda r: r.fulfill(status=500, body="{}"))
     box = _settings(page, live_server, "off")
     box.check(force=True)
-    page.wait_for_selector('html[data-push-state="off"]')
+    page.wait_for_selector('html[data-push-reported="off"]')
     expect(page.locator("[data-push-device] [data-push-error]")).to_be_visible()
     assert page.evaluate("() => !window.__pushStub.sub")
 
@@ -3238,7 +3280,7 @@ def test_switch_disabled_until_a_state_is_reported(page, context, live_server):
     assert page.evaluate("() => window.libliPush.state") == "pending"
     expect(page.locator("input[data-push-switch]")).to_be_disabled()
     held[0].fulfill(status=200, content_type="application/json", body='{"mine": false}')
-    page.wait_for_selector('html[data-push-state="off"]')
+    page.wait_for_selector('html[data-push-reported="off"]')
     expect(page.locator("input[data-push-switch]")).to_be_enabled()
 
 
@@ -3299,7 +3341,7 @@ def test_registration_refused_reads_unsupported(page, context, live_server):
 def test_bell_invite_turn_on_dismiss_and_errors(page, context, live_server):
     _configure(context, live_server)
     _login(page, live_server)
-    page.wait_for_selector('html[data-push-state="off"]')
+    page.wait_for_selector('html[data-push-reported="off"]')
     page.locator(".bell__trigger").click()
     invite = page.locator("[data-push-invite]")
     expect(invite).to_be_visible()
@@ -3310,7 +3352,7 @@ def test_bell_invite_turn_on_dismiss_and_errors(page, context, live_server):
     invite.locator("[data-push-invite-dismiss]").click()
     expect(invite).to_be_hidden()
     page.reload()
-    page.wait_for_selector('html[data-push-state="off"]')
+    page.wait_for_selector('html[data-push-reported="off"]')
     page.locator(".bell__trigger").click()
     expect(page.locator("[data-push-invite]")).to_be_hidden()
 
@@ -3318,10 +3360,10 @@ def test_bell_invite_turn_on_dismiss_and_errors(page, context, live_server):
 def test_denied_prompt_hides_the_invite(page, context, live_server):
     _configure(context, live_server, grant="denied")
     _login(page, live_server)
-    page.wait_for_selector('html[data-push-state="off"]')
+    page.wait_for_selector('html[data-push-reported="off"]')
     page.locator(".bell__trigger").click()
     page.locator("[data-push-invite-on]").click()
-    page.wait_for_selector('html[data-push-state="blocked"]')
+    page.wait_for_selector('html[data-push-reported="blocked"]')
     expect(page.locator("[data-push-invite]")).to_be_hidden()
 
 
@@ -3481,12 +3523,11 @@ def test_settings_and_bell_render_polish(client, settings):
     renders in Polish -- push.js only toggles them, so this is where pl is proven."""
     from django.urls import reverse
 
+    from notifications.tests.push_helpers import logged_in_user
     from notifications.tests.push_helpers import push_settings
-    from tests.factories import UserFactory
 
     push_settings(settings)
-    user = UserFactory(language="pl")
-    client.force_login(user)
+    logged_in_user(client, language="pl")
     html = client.get(reverse("core:user_settings"), HTTP_ACCEPT_LANGUAGE="pl").content.decode()
     for msgid in (
         "This browser can't show push notifications.",
