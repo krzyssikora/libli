@@ -2220,7 +2220,7 @@ git commit -m "feat(push): tap-through view marks the notification read"
 - Modify: `notifications/forms.py`
 - Create: `notifications/context_processors.py`
 - Modify: `config/settings/base.py` (`TEMPLATES[0]["OPTIONS"]["context_processors"]`, append `"notifications.context_processors.push_client"`)
-- Modify: `core/views.py` (`user_settings`, the block at ~lines 129-166)
+- Modify: `core/views.py` (`user_settings`, the block at ~lines 143-180 on master aa4f4e2d)
 - Modify: `templates/core/user_settings.html` (the "Email notifications" section, ~lines 113-160)
 - Modify: `templates/base.html` (head meta, script include, logout form)
 - Modify: `core/static/core/css/settings.css` (append)
@@ -2675,7 +2675,7 @@ git commit -m "feat(push): settings page push column, device switch markup, page
 
 **Files:**
 - Modify: `notifications/templates/notifications/_bell_panel.html` (top of file, before `{% if notifications_recent %}`)
-- Modify: `core/static/core/css/app.css` (after `.notif-menu__empty`, ~line 1389)
+- Modify: `core/static/core/css/app.css` (after `.notif-menu__empty`, ~line 1413 on master aa4f4e2d)
 - Test: `notifications/tests/test_push_bell.py`
 
 **Interfaces:**
