@@ -109,16 +109,24 @@ or a later recipient's callbacks. The existing `_MUTED` early return covers push
 
 `notifications.push.deliver_notification_push(notification)`:
 
+The whole body, steps 1–5, sits inside one `try/except Exception` that logs and swallows (same
+reasoning as email; `push_configured()` is inside it too, so nothing in this function can raise
+into the on_commit chain):
+
 1. Return if not `push_configured()`.
-2. Inside a `try/except Exception` that logs and swallows (same reasoning as email):
-3. Return if the recipient's push preference for `notification.kind` is off
-   (`push_enabled(user, kind)`, same shape as `email_enabled`).
-4. Load the recipient's `PushSubscription` rows; return if none.
-5. Build the payload under `translation.override(recipient.language or LANGUAGE_CODE)`:
+2. Return if the recipient's push preference for `notification.kind` is off
+   (`push_kind_enabled(user, kind)`, same shape as `email_enabled`).
+3. Load the recipient's `PushSubscription` rows; return if none.
+4. Build the payload under `translation.override(recipient.language or LANGUAGE_CODE)`:
    `subject, headline, body_line = email_content(notification)` →
-   `{"title": headline, "body": body_line, "url": reverse("notifications:open", pk), "tag": f"libli-{pk}"}`
-   as JSON. The URL is a path; the worker resolves it against its own origin.
-6. For each subscription, its own `try`: `pywebpush.webpush(subscription_info, data,
+   `{"title": headline, "body": body_line, "url": reverse("notifications:open", args=[notification.pk]), "tag": f"libli-{notification.pk}", "icon": icon_url}`
+   as JSON. The URL is a path; the worker resolves it against its own origin. `icon_url` is
+   `get_site_config()["favicon_url"]` when the institution has a favicon override, else
+   `static("core/img/favicon/icon-192.png")` (the manifest's 192px default). It travels in the
+   PAYLOAD, never in `/sw.js`: the worker's bytes must not depend on the per-process 300 s
+   config cache (`core/pwa.py:offline_branding`'s rule), and a payload read at send time picks
+   up a branding change within that TTL, which is fine for a notification.
+5. For each subscription, its own `try`: `pywebpush.webpush(subscription_info, data,
    vapid_private_key, vapid_claims={"sub": PUSH_VAPID_SUBJECT}, ttl=86400, timeout=5)`.
    - 2xx → update `last_success_at`.
    - `WebPushException` whose response status is 404 or 410 → delete that subscription row
@@ -127,6 +135,16 @@ or a later recipient's callbacks. The existing `_MUTED` early return covers push
      the next subscription.
 
 No retry. A push that fails is lost; the bell row and the email are unaffected.
+
+**Latency bound (accepted under D5).** The callbacks run in the triggering request after
+commit, so a slow push service delays that response by at most
+`recipients × devices-per-recipient × 5 s` on top of email. Two limits keep it bounded:
+the per-request `timeout=5`, and **at most 5 subscriptions per user** — the subscribe endpoint
+(§4) deletes that user's oldest rows (by `created_at`) beyond five. Typical case: a "needs
+review" to 1–3 teachers with 1–2 devices each, each push tens of milliseconds. Worst realistic
+case (push service hanging, 3 teachers × 5 devices) is 75 s and is accepted; the runbook says a
+hung push service slows quiz submissions and that unsetting the VAPID keys + recreate turns
+push off.
 
 ### The tap target: `notifications/<pk>/open/`
 
@@ -139,35 +157,50 @@ normal login redirect with `next` back to this URL.
 
 ## 4. Subscription endpoints
 
-Both login-required, POST, CSRF-protected (called by `push.js` with the cookie token),
-JSON body, JSON response, and 404 when `push_configured()` is False.
+All three are POST, CSRF-protected (called by `push.js` with the cookie token), JSON body,
+JSON response. Checks run in this order: `push_configured()` False → 404; anonymous → 403
+`{"ok": false}` (NOT `login_required`'s 302, which `fetch` would follow to an HTML page);
+malformed body → 400. `push.js` treats any non-200 as a failure and shows its generic error line
+("Couldn't change push notifications. Try again.").
 
 - `notifications/push/subscribe/` — body `{"endpoint", "keys": {"p256dh", "auth"}}`.
   Validate: endpoint is an `https://` URL ≤ 1024 chars; both keys present, base64url, within
   the field lengths. Invalid → 400. `update_or_create(endpoint=…)` setting user, keys and UA,
   so an endpoint already owned by another user MOVES to the current one (a shared computer).
+  Then delete this user's rows beyond the newest five by `created_at` (§3 latency bound).
   Store the endpoint in `request.session["push_endpoint"]`. → `{"ok": true}`.
 - `notifications/push/unsubscribe/` — body `{"endpoint"}`. Delete the row only if it belongs to
   the current user (another user's endpoint: no-op, still 200 — no oracle). Remove the session
   key if it matches. → `{"ok": true}`.
+- `notifications/push/claim/` — body `{"endpoint"}`. Called by `push.js` on page load when the
+  browser is subscribed but the page says the session does not know this endpoint (§6).
+  If a row with that endpoint belongs to the current user → store it in
+  `request.session["push_endpoint"]`, → `{"mine": true}`. Otherwise (no row, or another user's
+  row) → delete any row with that endpoint (the browser is about to unsubscribe it, so it is dead
+  for everyone) and → `{"mine": false}`. It never creates a row: a browser subscription is never
+  silently attached to a user who did not turn push on.
 
 ### Logout
 
-A new `user_logged_out` receiver (in `notifications`, or added beside the existing one in
-`core/signals.py`): if the session holds `push_endpoint`, delete the subscription with that
-endpoint **and** that user. Django sends the signal before it flushes the session, so the key is
-still readable. The browser side also unsubscribes (§6). Net effect: after logout nothing of that
-user's arrives on that device, and the next person to log in starts with push off on it.
+A new `user_logged_out` receiver beside the existing one in `core/signals.py`'s app (placed in
+`notifications`): no-op when `user` is None or the session lacks `push_endpoint`; otherwise
+delete the subscription with that endpoint **and** that user. Django sends the signal before it
+flushes the session, so the key is still readable. Because `claim` (above) writes the key on the
+first page load of every session in which the browser is subscribed, the key is present even
+when the subscription was made in an earlier session. The browser side also unsubscribes (§6).
+Net effect: after logout nothing of that user's arrives on that device, and the next person to
+log in on it sees push off (§6's claim step unsubscribes a leftover browser subscription that is
+not theirs).
 
 ## 5. Service worker additions (`templates/core/sw.js`)
 
 Inside the existing `{% verbatim %}` block:
 
 - `push` — parse `event.data.json()` (a payload that fails to parse: show nothing, return).
-  `event.waitUntil(self.registration.showNotification(title, {body, tag, icon, badge, data:
-  {url}}))`. `icon` is the manifest's 192px icon URL, passed into the template as one more JSON
-  value slot from `core.views.service_worker` (the same source `_manifest_icons` uses, so a
-  school's favicon override shows on its pushes).
+  `event.waitUntil(self.registration.showNotification(title, {body, tag, icon, data:
+  {url}}))`, every value taken from the payload (§3 step 4). No `badge` (no monochrome asset
+  exists; Android falls back to its default glyph). `core.views.service_worker` gains NO new
+  value slot, so `/sw.js` bytes and `worker_version()` are unaffected by branding.
 - `notificationclick` — close the notification; resolve `data.url` against
   `self.location.origin`, refusing anything off-origin; then
   `clients.matchAll({type: "window", includeUncontrolled: true})`: focus the first same-origin
@@ -179,38 +212,50 @@ subscription is fixed by turning the switch on again).
 
 ## 6. Push client (`core/static/core/js/push.js`)
 
-Loaded on every page only when `push_configured()` (a context flag `push_enabled` and the public
-key emitted as `data-vapid-key` on `<body>` or a `<meta>`). It exposes the device state:
+Loaded on every authenticated page only when `push_configured()` (a context flag
+`push_available`). The page carries `<meta name="libli-push" data-vapid-key="…"
+data-session-endpoint="…">`, the latter being `request.session.get("push_endpoint", "")`.
+It exposes the device state, evaluated **in this order, first match wins**:
 
-| State | Condition |
-|---|---|
-| `unsupported` | no `serviceWorker`, `PushManager` or `Notification` |
-| `ios-not-installed` | iOS/iPadOS Safari not in standalone mode (push exists only in the installed app) |
-| `blocked` | `Notification.permission === "denied"` |
-| `off` | supported, not blocked, no current subscription |
-| `on` | `registration.pushManager.getSubscription()` is non-null |
+| # | State | Condition |
+|---|---|---|
+| 1 | `ios-not-installed` | iOS/iPadOS (UA matches `iPhone\|iPad\|iPod`, OR `navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` for iPadOS's desktop UA) AND not standalone (`display-mode: standalone` false and `navigator.standalone !== true`). First because iOS Safari outside the installed app has no `PushManager` and would otherwise read as `unsupported`. |
+| 2 | `unsupported` | no `serviceWorker`, `PushManager` or `Notification` |
+| 3 | `blocked` | `Notification.permission === "denied"` (wins over a leftover subscription) |
+| 4 | `on` | `registration.pushManager.getSubscription()` is non-null (after the claim step below) |
+| 5 | `off` | otherwise |
+
+**Claim step (on load).** When a browser subscription exists and its endpoint differs from
+`data-session-endpoint`, `push.js` POSTs it to `push/claim/` (§4) before reporting a state:
+`{"mine": true}` → `on`; `{"mine": false}` → `subscription.unsubscribe()` and `off`. A failed
+claim request reports `on` and retries on the next page load. This is what makes the session
+know the endpoint for logout, and what turns a previous user's leftover subscription off for the
+next user.
 
 `subscribe()` (from a click only): `Notification.requestPermission()` → on `"granted"`,
 `pushManager.subscribe({userVisibleOnly: true, applicationServerKey})` → POST to the subscribe
 endpoint. `unsubscribe()`: POST to the unsubscribe endpoint, then `subscription.unsubscribe()`.
 Any failure leaves the UI in the state it re-reads afterwards, with a short error line.
 
-On submit of the logout form, `push.js` calls `subscription.unsubscribe()` best-effort (it does
-not delay or block the logout).
+On submit of the logout form (`templates/base.html`'s form gains `data-logout-form`),
+`push.js` calls `subscription.unsubscribe()` best-effort (it does not delay or block the logout;
+the server-side receiver in §4 is the guarantee, this only tidies the browser).
 
-The "on" state is the browser's own subscription. The server row may be missing (deleted after
-a 410, or by another user's logout on a shared computer); turning the switch off then on fixes
-it. No background re-sync (YAGNI).
+The one remaining mismatch: the server row deleted after a 410/404 while the browser still
+believes it is subscribed reads `on`; turning the switch off then on fixes it. No further
+background re-sync (YAGNI).
 
 ## 7. Settings page
 
-The "Email notifications" section becomes **"Notifications"** when `push_enabled`; otherwise it
-is unchanged (same heading, same copy, email switches only).
+The "Email notifications" section becomes **"Notifications"** when `push_available`; otherwise
+it is unchanged (same heading, same copy, email switches only).
 
 With push:
 
 - First row: **"Push notifications on this device"** with a switch driven by `push.js`, acting
-  immediately (not part of the form, no "Save changes"). For the states where it cannot work, the
+  immediately (not part of the form, no "Save changes"). It sits inside the settings `<form>`
+  visually, so it is a checkbox with **no `name`** (never submitted) and no `<button>` is used
+  for it (a button would submit the form); while a request is in flight it is disabled. For the states where it cannot work, the
   switch is replaced by one line: `unsupported` → "This browser can't show push notifications.";
   `ios-not-installed` → "On iPhone and iPad, add libli to your Home Screen first." + a link to the
   C1 install guide; `blocked` → "Notifications are blocked for libli in this browser's settings."
@@ -227,7 +272,7 @@ everything.
 
 ## 8. Bell invite (`notifications/_bell_panel.html`)
 
-A `hidden` row at the top of the panel, rendered only when `push_enabled`:
+A `hidden` row at the top of the panel, rendered only when `push_available`:
 "Get notifications on this device — **Turn on** · ×". `push.js` unhides it only when the state
 is `off` and the localStorage flag `libli:push-invite-dismissed` is not set (every storage access
 in try/catch; storage failing = show it). On iOS this means it appears only inside the installed
@@ -247,6 +292,9 @@ The row is the same for empty and non-empty panels.
   3. Recreate the app container (never `restart`; ~24 s maintenance page).
   4. Smoke test: turn push on on a phone; have a teacher account grade one of that account's
      submissions; the push arrives, tapping opens the results page, the bell shows it read.
+  5. Note: a hung push service slows the requests that trigger notifications (quiz submit,
+     grading, enrolment) by up to the §3 bound; to turn push off, blank the three VAPID vars and
+     recreate the app container.
 - **Key rules (in the runbook):** keys are per box — never copy them between schools; never
   rotate a key in use (every existing subscription silently stops working; users must turn push
   on again). The restore runbook gains a line: the VAPID keys come back with `.env.production`,
@@ -266,12 +314,25 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   `notifications:open`; `tag` is `libli-<pk>`.
 - 404 and 410 delete only that subscription; another error logs and the NEXT subscription is
   still sent; `last_success_at` set on success.
-- Independence: email raising still pushes; push raising still emails; `notify_needs_review`
-  with two teachers where the first teacher's push raises still reaches the second.
-- Endpoints: 404 when not configured; login and CSRF required; validation 400s; upsert moves an
-  endpoint between users; unsubscribe of another user's endpoint deletes nothing; session key set
-  and cleared.
-- Logout receiver deletes the session's row and only that user's.
+- Payload `icon`: the override URL when set, the static 192px icon otherwise; `/sw.js` bytes
+  identical with and without a favicon override (guards §5's no-new-slot rule).
+- Independence — every test runs the callbacks with `captureOnCommitCallbacks(execute=True)`
+  and names its mutant:
+  - email raising still pushes (mutant: email's log-and-swallow removed; email is registered
+    first, so this is the guard that the email failure does not stop the push callback);
+  - push's swallow (mutant: the `try` narrowed so `push_configured()` or the preference lookup
+    sits outside it): `notify_needs_review` to two teachers where the FIRST teacher's push
+    path raises — the SECOND teacher's email and push both still go. ("Push raising still
+    emails" for a single recipient is vacuous — that email already ran — and is not used.)
+- Device cap: a sixth subscribe deletes that user's oldest row and no other user's.
+- Endpoints: 404 when not configured (checked before auth); anonymous → 403 JSON, not 302;
+  CSRF required; validation 400s; upsert moves an endpoint between users; unsubscribe of another
+  user's endpoint deletes nothing; session key set and cleared.
+- Claim: own row → `mine: true` and session key set; another user's row → deleted, `mine:
+  false`; no row → `mine: false`, nothing created.
+- Logout receiver: deletes the session's row and only that user's; no-op with no session key;
+  no-op with `user=None`; a subscription made in an EARLIER session is deleted once a claim has
+  run in the current one.
 - `notifications:open`: marks read, redirects to the target, falls back to the list, 404 for
   another user's pk, idempotent on a read notification.
 - Settings: push switches saved with the form, unsaved pref on GET, section unchanged (no push
@@ -284,7 +345,11 @@ e2e (Playwright Chromium):
 - Settings device switch and bell invite against a stubbed `PushManager` /
   `Notification.permission` (init script): `off → on` POSTs the subscription; `on → off` POSTs
   unsubscribe; `blocked` and `ios-not-installed` show their lines; dismiss persists across a
-  reload.
+  reload. The `ios-not-installed` case stubs an iPhone UA WITH `PushManager` and `Notification`
+  deleted (as real iOS Safari outside the app), and an iPadOS case (`MacIntel` +
+  `maxTouchPoints = 5`); both must show the install line, not "can't show push".
+- Claim on load: a stubbed subscription whose endpoint the server reports `mine: false` is
+  unsubscribed and the switch reads off; `mine: true` reads on.
 - Worker: dispatch a `push` event in the service worker context and assert `getNotifications()`
   returns the title/body/tag; drive `notificationclick` where Playwright allows it, else cover
   the URL-resolution helper (off-origin refusal) directly.
