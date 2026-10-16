@@ -40,6 +40,7 @@ The triggering case was a **draft** unit, so nothing may hide drafts.
 | C2 | "Last edited" covers courses the user **owns** (`Course.owner == user`) only, not `manageable_courses`. |
 | C3 | The editor link opens in a **new tab**, mirroring the "Edit unit" link in `templates/courses/_unit_strip.html`. |
 | C4 | The editor link is rendered only when `can_access_course(user, course)` is true. |
+| C6 | Dashboard panel order is unchanged; the card lives inside Studio even if that puts it below the fold on a phone. |
 | C5 | EN wording: "View" (Studio row action), "Last edited" (card label), "View live" (editor link). PL wording is proposed in the PR for owner review. |
 
 ## Non-goals
@@ -107,7 +108,12 @@ card links to the unit's live page (URL rule below).
   - sibling renumbering on a move (`courses/ordering.py:27`, `:89-93`);
   - a subtree flag toggle (`courses/builder.py:950`);
   - bulk maintenance commands (e.g.
-    `courses/management/commands/fix_space_before_punctuation.py`).
+    `courses/management/commands/fix_space_before_punctuation.py`);
+  - creating a unit (`auto_now` on insert) and importing a course
+    (`import_course` creates every unit with `updated=now`, so after an import
+    the card shows an arbitrary imported unit);
+  - moving or pasting an element into another unit (`courses/builder.py`
+    ~1254 bumps the destination unit).
 
   After one of those the card may show a neighbouring unit. That is accepted.
   **Do NOT stop those bumps** to "fix" it: they keep the concurrency tokens
@@ -129,6 +135,16 @@ card links to the unit's live page (URL rule below).
   The two titles need a separator a screen reader announces (block-level
   children or a visually hidden ", "). The builder picks which, but one must
   exist.
+- **Tap target: the whole card**, through a stretched link. The `<a>` wraps
+  only the two titles, and its `::after` (`position: absolute; inset: 0` on a
+  `position: relative` card) covers the card. So tapping anywhere, the label
+  included, follows the link, while the label stays outside the anchor in the
+  DOM. The e2e taps the **label area** to prove it.
+- **Position:** the card's first child after the Studio panel's
+  `<h2 class="dash-panel__title">`, before the course list. Studio comes after
+  "My learning" and "Teaching" in `home.html`, so on a phone the card can sit
+  below the fold for a user who also has those panels. That is accepted. The
+  panel order does not change (Claude's call C6).
 - Styling: within the existing dashboard visual language (tokens from
   `app.css`), light and dark mode, phone width with no horizontal scroll. The
   exact markup and CSS are the builder's.
@@ -209,7 +225,9 @@ e2e check for the property only a browser can see.
   `ContentNode.objects.filter(pk=...).update(updated=...)`. For the "later
   wins" test, give the **lower-pk** unit the later timestamp, so it fails if
   `-updated` is dropped and only `-pk` remains. For the tie-break test, set
-  both rows to the same value.
+  both rows to the same value. The mutant it must catch is `-pk` flipped to
+  `pk`. A fully dropped tie-break leaves Postgres order undefined, so do not
+  claim the test catches that.
 - **Studio "View":** the owner's dashboard row has a link to that course's
   `course_outline`; following it returns 200; the title still links to the
   builder. Check each anchor of the row separately, not substrings anywhere in
@@ -225,6 +243,9 @@ e2e check for the property only a browser can see.
   - A unit in a course owned by someone else, updated later, is **not** shown,
     including for a Platform Admin (`make_pa`) who owns a course of their own.
   - A user with no owned units sees no card.
+  - Containers are never shown: an owned section/chapter whose `updated` is
+    pinned later than the owned unit's leaves the card on the unit (catches a
+    dropped `kind=UNIT` filter, whose card would link to a 404).
   - A unit titled with inline maths (e.g. `Pole \(x^2\)`) shows on the card
     without the `\(` `\)` delimiters, **and** the stripped text (`Pole x^2`)
     is present inside the card.
@@ -239,7 +260,10 @@ e2e check for the property only a browser can see.
     is present (e.g. the crumb's "Media library" link) and that both the
     unit's live URL and the "View live" text are absent.
   - The link is still present on a 422 error re-render of the editor page:
-    a `node_rename` POST with `ctx=editor` whose value fails validation (the
+    a `node_rename` POST with `node`, `ctx=editor`, the **current** token
+    (`token=<unit.updated.isoformat()>` read from the DB row, since a stale or
+    missing token raises `ConflictError` and 302s before validation runs) and
+    a value that fails validation (the
     builder picks a concrete failing value from `node_rename`'s
     `ValidationError` sources). Assert status 422 **and** the link.
   - A quiz unit's link targets `quiz_unit`.
@@ -255,5 +279,6 @@ e2e check for the property only a browser can see.
   `tests/factories.py`. Never use `UserFactory` + `force_login` (the password
   is never persisted, so the client is silently anonymous).
 - Each new assertion must be shown to fail on a mutant (e.g. drop the
-  `owner` filter, drop the `can_access_course` guard, flip the ordering).
+  `owner` filter, drop the `kind=UNIT` filter, drop the `can_access_course`
+  guard, flip the ordering).
 - Test runs stay narrow per task. One branch-level run at the end.
