@@ -27,6 +27,7 @@ Recorded from the 2026-10-16 brainstorming session; each row is the option Krzys
 | D4 | Content = option A: the same wording as the email — headline as title, the email's body line as text, including the student's name for "needs review". Tapping opens the same page the email links to and marks the notification read. |
 | D5 | Approach 1: `pywebpush`, sent synchronously in a post-commit callback like the email; no thread, no task queue. Per-box VAPID keys in the env file; without them push is entirely hidden. |
 | D6 | Design sections 1–3 (data and sending; browser side; ops, testing, out of scope) approved as presented. |
+| D7 | (2026-10-16, after spec review raised the shared-computer gap) Push follows the login: each subscription is tied to the login session that created or last claimed it, and is sent only while that session is alive; a dead or expired session's subscription is deleted, not sent. Ending sessions at browser close is NOT part of C2 — a separate decision. |
 
 ## Current state (verified 2026-10-16)
 
@@ -89,6 +90,7 @@ A management command `generate_vapid_keys` prints a fresh pair in exactly those 
 | `created_at` | `DateTimeField(auto_now_add=True)` | |
 | `subscribed_at` | `DateTimeField()` | set to `now()` on every subscribe upsert; orders the 5-device cap |
 | `last_success_at` | `DateTimeField(null=True, blank=True)` | set after a 2xx from the push service |
+| `session_key` | `CharField(max_length=40, db_index=True)` | the login session that subscribed or last claimed this row; delivery requires it to be live (D7, §4) |
 
 **`NotificationPushPreference`** — mirrors `NotificationEmailPreference`: OneToOne to user
 (`related_name="notification_push_pref"`), booleans `quiz_needs_review`, `quiz_graded`,
@@ -124,7 +126,8 @@ into the on_commit chain):
 1. Return if not `push_configured()`.
 2. Return if the recipient's push preference for `notification.kind` is off
    (`push_kind_enabled(user, kind)`, same shape as `email_enabled`).
-3. Load the recipient's `PushSubscription` rows; return if none.
+3. Load the recipient's `PushSubscription` rows, keep only those whose `session_key` is a live
+   session and delete the rest (D7, §4 "Push follows the login"); return if none remain.
 4. Build the payload under `translation.override(recipient.language or LANGUAGE_CODE)`:
    `subject, headline, body_line = email_content(notification)` →
    `{"title": headline, "body": body_line, "url": reverse("notifications:open", args=[notification.pk]), "tag": f"libli-{notification.pk}", "icon": icon_url}`
@@ -216,14 +219,15 @@ malformed body → 400. `push.js` treats any non-200 as a failure and shows its 
   Then delete this user's rows beyond the newest five by `subscribed_at`, **always excluding the
   endpoint just written** (§3 latency bound). A concurrent duplicate insert (double click, two
   tabs) that raises `IntegrityError` is caught and the update retried once.
-  Store the endpoint in `request.session["push_endpoint"]`. → `{"ok": true}`.
+  The upsert also sets `session_key = request.session.session_key` (D7). Store the endpoint in
+  `request.session["push_endpoint"]`. → `{"ok": true}`.
 - `notifications/push/unsubscribe/` — body `{"endpoint"}`. Delete the row only if it belongs to
   the current user (another user's endpoint: no-op, still 200 — no oracle). Remove the session
   key if it matches. → `{"ok": true}`.
 - `notifications/push/claim/` — body `{"endpoint"}`. Called by `push.js` on page load when the
   browser is subscribed but the page says the session does not know this endpoint (§6).
-  If a row with that endpoint belongs to the current user → store it in
-  `request.session["push_endpoint"]`, → `{"mine": true}`. Otherwise (no row, or another user's
+  If a row with that endpoint belongs to the current user → set its `session_key` to the current
+  session's (D7) and store the endpoint in `request.session["push_endpoint"]`, → `{"mine": true}`. Otherwise (no row, or another user's
   row) → delete any row with that endpoint (the browser is about to unsubscribe it, so it is dead
   for everyone) and → `{"mine": false}`. It never creates a row: a browser subscription is never
   silently attached to a user who did not turn push on. Deleting another user's row here, while
@@ -246,14 +250,38 @@ Net effect: after an explicit logout nothing of that user's arrives on that devi
 person to log in on it sees push off (§6's claim step unsubscribes a leftover browser
 subscription that is not theirs).
 
-**Accepted gap — a session that ends WITHOUT logout.** When a session expires or the browser is
-closed without logging out (common on shared school computers), no signal fires: the device keeps
-receiving that user's pushes (including student names in "needs review", D4) until that user
-turns push off, or someone else logs in on the same browser profile and loads a page (the claim
-step then deletes the row). No mitigation is built (a server-side session-expiry sweep cannot
-know which browser holds which endpoint beyond the session table, and `ttl` only limits queued
-delivery). The settings help under the device switch says: "On a shared computer, log out when
-you finish, or leave this off." — a new msgid.
+### Push follows the login (D7)
+
+A subscription delivers **only while the login session that owns it is alive**. This closes the
+case logout alone cannot: a session that ends WITHOUT logout (expiry, or a shared school computer
+simply left), after which no signal fires.
+
+- `PushSubscription.session_key` (§2) records the session that subscribed or last claimed it.
+  Subscribe sets it to `request.session.session_key`; a `claim` that answers `mine: true` updates
+  it to the current session's key (this is how a user who logs in again on their own device gets
+  their pushes back without touching the switch).
+- At send time (§3 step 3), the recipient's rows are filtered to those whose `session_key` names a
+  LIVE session: `django.contrib.sessions.models.Session.objects.filter(session_key__in=keys,
+  expire_date__gt=now())` — one query per notification. Rows whose session is missing or expired
+  are deleted, not sent. (`Session` rows linger after expiry because no `clearsessions` cron runs,
+  hence the `expire_date` filter, never mere existence.)
+- This relies on database-backed sessions (`SESSION_ENGINE` is Django's default
+  `django.contrib.sessions.backends.db` in every settings module today); a test pins that, so a
+  later switch to cache or signed-cookie sessions fails loudly instead of silently disabling push.
+- Session key rotation: Django cycles the session key on login and on password change
+  (`update_session_auth_hash`), keeping the session data, so `push_endpoint` survives while the
+  row's `session_key` goes stale. Hence the page's `data-session-endpoint` (§6) is rendered
+  non-empty only when a row exists with that endpoint, this user AND this session's current key
+  (one indexed query per authenticated page while push is available); otherwise it is empty and
+  the claim step runs and re-keys the row.
+
+Net effect: a device gets a user's pushes exactly while that browser is still logged in as that
+user — the same exposure the bell already has on that device, never more. What remains is a
+browser closed with its session still valid (up to the session lifetime, 2 weeks by default): that
+computer is still logged in as the user, so anyone opening it sees their bell and pages anyway.
+Shortening login lifetimes (e.g. `SESSION_EXPIRE_AT_BROWSER_CLOSE`) is a separate, site-wide
+decision deliberately outside C2. The settings help under the device switch still says: "On a
+shared computer, log out when you finish." — a new msgid.
 
 ## 5. Service worker additions (`templates/core/sw.js`)
 
@@ -281,7 +309,9 @@ subscription is fixed by turning the switch on again).
 
 Loaded on every authenticated page only when `push_configured()` (a context flag
 `push_available`). The page carries `<meta name="libli-push" data-vapid-key="…"
-data-session-endpoint="…">`, the latter being `request.session.get("push_endpoint", "")`.
+data-session-endpoint="…">`, the latter being `request.session.get("push_endpoint", "")` ONLY
+when a row with that endpoint, this user and this session's current key exists, else empty (§4,
+session key rotation).
 It exposes the device state, evaluated **in this order, first match wins**:
 
 | # | State | Condition |
@@ -459,6 +489,12 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   user's endpoint deletes nothing; session key set and cleared.
 - Claim: own row → `mine: true` and session key set; another user's row → deleted, `mine:
   false`; no row → `mine: false`, nothing created.
+- Push follows the login (D7): a row whose session is deleted, or whose `expire_date` is past
+  (the row still present), is not sent and is deleted (mutant: existence-only check without
+  `expire_date`; mutant: filter removed); a live session's row is sent; subscribe and `claim`
+  (`mine: true`) write the current session key; after `cycle_key()` the page renders an empty
+  `data-session-endpoint` and a claim re-keys the row, after which it is sent again;
+  `SESSION_ENGINE` is the database backend (pinned).
 - Logout receiver, driven through a real POST to `account_logout` (not by calling the function,
   so a receiver that is never connected fails the test): deletes the session's row and only that
   user's; no-op with no session key;
@@ -531,6 +567,7 @@ Every new guard is falsified against a named mutant (shown RED), as usual.
 
 ## Out of scope
 
-New notification reasons (deadlines, announcements, new lesson published); quiet hours; a device
+New notification reasons (deadlines, announcements, new lesson published); shorter login
+lifetimes such as `SESSION_EXPIRE_AT_BROWSER_CLOSE` (a separate site-wide decision, D7); quiet hours; a device
 list with remove buttons; `pushsubscriptionchange` re-sync; a task queue or background thread;
 batching or grouping pushes; push for anonymous users.
