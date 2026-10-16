@@ -152,6 +152,21 @@ def test_studio_view_action_is_not_the_widok_noun_in_polish(client):
     action = _studio(resp).select_one("a.dash-row__action")
     visible = action.find(string=True, recursive=False).strip()
     assert visible and visible != "Widok"
+    assert visible == "Zobacz"
+
+
+def test_polish_last_edited_label(client):
+    owner = make_login(client, "le_pl")
+    course = CourseFactory(title="Geo", owner=owner)
+    _unit(course, title="First")
+    _polish(client)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    card = _card(resp)
+    assert card is not None
+    assert card.select_one(".dash-recent__label").get_text(strip=True) == (
+        "Ostatnio edytowane"
+    )
 
 
 def test_teaching_row_title_carries_dash_row_title(client):

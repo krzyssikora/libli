@@ -389,6 +389,29 @@ def test_edit_link_label_renders_in_polish(client):
 
 
 @pytest.mark.django_db
+def test_polish_view_live_label(client):
+    owner = make_student(client, "vl_pl")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    with translation.override("pl"):
+        resp = client.get(
+            reverse(
+                "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+            ),
+            HTTP_ACCEPT_LANGUAGE="pl",
+        )
+
+    assert resp.status_code == 200
+    link = BeautifulSoup(resp.content, "html.parser").select_one("a.editor-crumb__live")
+    assert link is not None
+    assert link.get_text(strip=True).startswith("Zobacz na żywo")
+
+
+@pytest.mark.django_db
 def test_editor_view_live_link_for_owner_draft_lesson(client):
     owner = make_student(client, "vl_owner")
     course = CourseFactory(owner=owner)
