@@ -88,7 +88,7 @@ least one unit, render one card: the unit title and the course title. The whole
 card links to `courses:lesson_unit` for that unit.
 
 - **Query (computed in `core.views.home`):** `ContentNode` rows with
-  `kind="unit"`, `course__owner=request.user`, ordered `-updated, -pk`, the
+  `kind=ContentNode.Kind.UNIT`, `course__owner=request.user`, ordered `-updated, -pk`, the
   first one, with `select_related("course")`. Drafts are included.
 - **No owned unit → no card**, and no empty-state text.
 - **Known approximation (D3).** `updated` is `auto_now`. `courses/builder.py`
@@ -119,8 +119,8 @@ card links to `courses:lesson_unit` for that unit.
 
 `templates/courses/manage/editor/editor.html`, the `editor-crumb` row (next to
 the "Media library" link is the natural spot; exact placement is the
-builder's). An `<a>` to `courses:lesson_unit` for the unit (a quiz redirects to
-`quiz_unit`, as today), with `target="_blank" rel="noopener"` and the
+builder's). An `<a>` to the unit's live page (see the URL rule below), with
+`target="_blank" rel="noopener"` and the
 visually hidden "(opens in a new tab)" suffix, mirroring
 `templates/courses/_unit_strip.html`.
 
@@ -131,8 +131,9 @@ visually hidden "(opens in a new tab)" suffix, mirroring
 - The flag (`can_view_live`) is computed **inside `_editor_page`**
   (`courses/views_manage.py`, around line 2178), in its context dict next to
   `"course": unit.course`. It must not go in only one caller. `_editor_page`
-  has three callers: the editor GET (~`:2236`) and two 422 error re-renders
-  (~`:975`, ~`:1343`, the unit-settings / rename save paths). A flag set only
+  has three callers: the editor GET (~`:2236`) and two 422 error re-renders,
+  `node_rename`'s `to_editor` `ValidationError` path (~`:975`) and
+  `_flag_error` reached by `node_flag` with `ctx="editor"` (~`:1343`). A flag set only
   at the GET call site would silently drop the link on every error re-render.
 - The link's URL is chosen by unit type: `courses:quiz_unit` for a quiz,
   `courses:lesson_unit` otherwise. That saves a redirect round trip on a
@@ -145,7 +146,7 @@ visually hidden "(opens in a new tab)" suffix, mirroring
 - Dashboard GET → `home` computes `owned_courses` (existing) plus
   `last_edited_unit` (new, Component 2) → template renders the card and the
   per-course "View" actions → the author taps → existing `lesson_unit` /
-  `course_outline` views apply their existing gates.
+  `quiz_unit` / `course_outline` views apply their existing gates.
 - Editor render (GET or a 422 re-render) → `_editor_page` adds
   `can_view_live` (`can_access_course`) →
   the template renders the link or omits it → the click opens the existing
@@ -167,6 +168,10 @@ translations in `locale/pl/LC_MESSAGES/django.po`, and the `.mo` is
 regenerated. Watch for `makemessages` marking entries `#, fuzzy` with a wrong
 guess. "View" may already exist as a msgid with a different sense, so reuse it
 only if the existing PL fits a link label, otherwise use a `pgettext` context.
+It does exist: `msgid "View"` → `msgstr "Widok"` (a noun, the editor's
+view-toggle caption, `editor.html:137`), which does not fit a row action. The
+Studio action **must** use `{% translate "View" context "…" %}` (or
+`pgettext`) with its own PL verb form.
 
 ## Testing
 
@@ -205,12 +210,14 @@ e2e check for the property only a browser can see.
   - The Platform Admin case shows the PA's own owned unit (positive) and not
     the other author's later-updated unit (negative).
 - **Editor "View live":**
-  - The owner sees the link to `lesson_unit` for the unit, with
+  - The owner sees, for a lesson unit, the link to its `lesson_unit` URL, with
     `target="_blank"`; following it returns 200 (a draft included).
   - A non-staff, non-owner Platform Admin can open the editor (200) but gets
     **no** "View live" link.
-  - The link is still present on a 422 error re-render of the editor page
-    (one of the `_editor_page` error callers).
+  - The link is still present on a 422 error re-render of the editor page:
+    a `node_rename` POST with `ctx=editor` whose value fails validation (the
+    builder picks a concrete failing value from `node_rename`'s
+    `ValidationError` sources). Assert status 422 **and** the link.
   - A quiz unit's link targets `quiz_unit`.
 - **e2e (one test):** at a 360px-wide viewport, the owner's dashboard with a
   long unbroken unit title on the "Last edited" card and a long course title in
