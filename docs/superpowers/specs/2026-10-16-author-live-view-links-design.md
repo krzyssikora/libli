@@ -146,7 +146,8 @@ visually hidden "(opens in a new tab)" suffix, mirroring
   `last_edited_unit` (new, Component 2) → template renders the card and the
   per-course "View" actions → the author taps → existing `lesson_unit` /
   `course_outline` views apply their existing gates.
-- Editor GET → the editor view adds `can_view_live` (`can_access_course`) →
+- Editor render (GET or a 422 re-render) → `_editor_page` adds
+  `can_view_live` (`can_access_course`) →
   the template renders the link or omits it → the click opens the existing
   live page in a new tab.
 
