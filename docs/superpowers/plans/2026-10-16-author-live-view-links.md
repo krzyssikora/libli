@@ -72,6 +72,7 @@ def test_studio_view_link_names_the_course_without_math_delimiters(client):
     owner = make_login(client, "studio_math")
     CourseFactory(title=r"Pole \(x^2\)", owner=owner)
     resp = client.get(reverse("home"))
+    assert resp.status_code == 200
     action = _studio(resp).select_one("a.dash-row__action")
     hidden = action.select_one(".visually-hidden").get_text()
     assert "Pole x^2" in hidden and r"\(" not in hidden
@@ -89,6 +90,7 @@ def test_studio_view_action_is_not_the_widok_noun_in_polish(client):
 def test_teaching_row_title_carries_dash_row_title(client):
     _user, course = _teaching_setup(client, "teach_title")
     resp = client.get(reverse("home"))
+    assert resp.status_code == 200
     title = BeautifulSoup(resp.content, "html.parser").select_one(
         'section[data-section="teaching"] li.dash-row a.dash-row__title')
     assert title["href"] == reverse("courses:course_outline", kwargs={"slug": course.slug})
@@ -104,7 +106,7 @@ Setup for this file: add `from bs4 import BeautifulSoup`, and copy the `_polish(
 
 - [ ] **Step 5: Run the tests and confirm they pass.** Same command as Step 2: 4 PASS. Also run `uv run pytest tests/test_dashboard_panels.py` (the whole file, which includes the existing Studio test) and every CSS test: `uv run pytest tests/ -k "css"`. All green.
 
-- [ ] **Step 6: Falsify.** Swap the two hrefs in the Studio row: RED. Drop the `context` from the `translate` tag: the PL test is RED only after Task 4 adds a PL translation, so note this mutant for Task 4 and do not claim it here. Drop `|strip_math_delimiters` on the hidden span: RED. Revert each by hand.
+- [ ] **Step 6: Falsify.** Swap the two hrefs in the Studio row: RED. Drop the `context` from the `translate` tag: the PL test goes RED, reading "Widok" (the existing compiled entry `django.po:7882`). Drop `|strip_math_delimiters` on the hidden span: RED. Revert each by hand.
 
 - [ ] **Step 7: Commit.** `git add templates/core/home.html core/static/core/css/app.css tests/test_dashboard_panels.py`, message `feat(dashboard): Studio "View" link to the student-facing outline`.
 
@@ -182,11 +184,11 @@ Imports to add to `tests/test_dashboard_panels.py` (beyond Task 1's):
 
 - [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "last_edited or no_card"`. Expected: all FAIL (no card).
 
-- [ ] **Step 3: Implement the query in `home`.** When `can_manage_courses`, set `last_edited_unit = ContentNode.objects.filter(kind=ContentNode.Kind.UNIT, course__owner=request.user).select_related("course").order_by("-updated", "-pk").first()`, otherwise `None`. Pass it in the context. The comment names D3's approximation in one line and points to the spec.
+- [ ] **Step 3: Implement the query in `home`.** Extend the existing local import to `from courses.models import ContentNode, Course` (keep it local, to avoid a core↔courses import cycle). When `can_manage_courses`, set `last_edited_unit = ContentNode.objects.filter(kind=ContentNode.Kind.UNIT, course__owner=request.user).select_related("course").order_by("-updated", "-pk").first()`, otherwise `None`. Pass it in the context. The comment names D3's approximation in one line and points to the spec.
 
 - [ ] **Step 4: Implement the card.** Inside the Studio section, as the first element after the `<h2>`, add `{% if last_edited_unit %}<div class="dash-recent" data-last-edited>`. Inside it, a `<p class="dash-recent__label">{% translate "Last edited" %}</p>` and an `<a class="dash-recent__link" href="{% if last_edited_unit.unit_type == 'quiz' %}{% url 'courses:quiz_unit' … %}{% else %}{% url 'courses:lesson_unit' … %}{% endif %}">` wrapping two block `<span>`s, `dash-recent__unit` and `dash-recent__course`. Both titles go through `|strip_math_delimiters`. The block spans give the screen-reader separator.
 
-- [ ] **Step 5: Implement the CSS.** `.dash-recent` gets `position: relative`, a token border, radius, padding and background, and no `overflow: hidden`. `.dash-recent__link::after` gets `content: ""; position: absolute; inset: 0;`. Add `.dash-recent:focus-within` with `outline: 2px solid var(--primary); outline-offset: 2px;` (as `.resume:focus-visible`), and the default outline on `.dash-recent__link:focus-visible` set to `none`. `.dash-recent__unit` and `.dash-recent__course` get `display: block; min-width: 0; overflow-wrap: anywhere;`, with the course title in `--text-secondary`. Use only existing tokens, so dark mode follows.
+- [ ] **Step 5: Implement the CSS.** `.dash-recent` gets `position: relative`, a token border, radius, padding and background, and no `overflow: hidden`. `.dash-recent__link::after` gets `content: ""; position: absolute; inset: 0;`. Add `.dash-recent:focus-within` with `outline: 2px solid var(--primary); outline-offset: 2px;` (as `.resume:focus-visible`), and the default outline on `.dash-recent__link:focus-visible` set to `none`. `.dash-recent__unit` and `.dash-recent__course` each get `display: block; min-width: 0; overflow-wrap: anywhere;` in **two separate rules**, not one selector list, so Task 5 can falsify each alone, with the course title in `--text-secondary`. Use only existing tokens, so dark mode follows.
 
 - [ ] **Step 6: Run the tests and confirm they pass.** Run the Step 2 command (all PASS), then the whole of `tests/test_dashboard_panels.py` and `uv run pytest tests/ -k "css"`.
 
@@ -285,11 +287,11 @@ Every one of these four carries its own `@pytest.mark.django_db` (the file has n
 
 - [ ] **Step 1: Extract.** Run `uv run python manage.py makemessages -l pl`. Then grep the `.po` for the three new entries. `msgctxt "dashboard row action: open the course as students see it"` + `msgid "View"`, and `msgid "Last edited"` and `msgid "View live"`. Use a grep without a `$` anchor, because the `.po` is CRLF.
 
-- [ ] **Step 2: Fill in the translations.** `View` (context) → `Zobacz`. `Last edited` → `Ostatnio edytowane`. `View live` → `Zobacz na żywo`. Clear any `#, fuzzy` flag on these entries. A fuzzy entry needs two deletions: the flag line and any `#|` previous-msgid lines. Check that no other entry gained a wrong fuzzy guess.
+- [ ] **Step 2: Fill in the translations.** `View` (context) → `Zobacz`. `Last edited` → `Ostatnio edytowane`. `View live` → `Zobacz na żywo`. Clear any `#, fuzzy` flag on these entries. A fuzzy entry needs two deletions: the flag line and any `#|` previous-msgid lines. Check that no other entry gained a wrong fuzzy guess. Then grep the `.po` to confirm that none of the three entries carries `fuzzy`.
 
 - [ ] **Step 3: Compile.** Run `uv run python manage.py compilemessages -l pl`.
 
-- [ ] **Step 4: Verify.** First, in Task 1's PL test, add `assert visible == "Zobacz"` (this task owns that assertion). Run `uv run pytest tests/test_dashboard_panels.py -k "polish"`: PASS. Falsify by editing the **template only**: drop the `context` from the `translate` tag, and do not run makemessages or compilemessages. The test must be RED ("Widok", from the existing catalogue entry). Revert the template by hand and confirm GREEN. Then check that `git diff locale/` shows only this task's intended changes.
+- [ ] **Step 4: Verify.** First, in Task 1's PL test, add `assert visible == "Zobacz"` (this task owns that assertion). Run `uv run pytest tests/test_dashboard_panels.py -k "polish"`: PASS. Falsify by editing the **template only**: drop the `context` from the `translate` tag, and do not run makemessages or compilemessages. The test must be RED ("Widok", from the existing catalogue entry). Revert the template by hand and confirm GREEN. Then check `git diff locale/`. Expected noise is `#:` location comments moving and the `POT-Creation-Date` header; leave both alone. What must not appear: a changed `msgstr` or a new `fuzzy` flag on any unrelated entry. Also add two Polish checks, `test_polish_last_edited_label` in `tests/test_dashboard_panels.py` (card label text == "Ostatnio edytowane", owner with one unit, `_polish`) and `test_polish_view_live_label` in `tests/test_unit_edit_link.py` (link text starts with "Zobacz na żywo"), and run them: PASS.
 
 - [ ] **Step 5: Commit.** `git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo`, message `i18n(pl): author live-view link strings`.
 
@@ -304,11 +306,12 @@ Every one of these four carries its own `@pytest.mark.django_db` (the file has n
 **Interfaces:**
 - Consumes: `[data-last-edited]`, `.dash-recent__label`, `a.dash-row__title` (Tasks 1–2); `.lesson-unit__title` and `.draft-banner` on the live page.
 
-- [ ] **Step 1: Write the test.** Use the module conventions of `tests/test_e2e_settings.py`: `pytestmark = pytest.mark.e2e`, the `DJANGO_ALLOW_ASYNC_UNSAFE` session fixture, `_login`, and `@pytest.mark.django_db(transaction=True)`. Fixture: a verified owner, a course titled `"Kurs" + "x" * 80` (unbroken), and one **draft** lesson unit in it titled `"Lekcja" + "y" * 80`, with an element added so the page renders content. Then:
+- [ ] **Step 1: Write the test.** Use the module conventions of `tests/test_e2e_settings.py`: `pytestmark = pytest.mark.e2e`, the `DJANGO_ALLOW_ASYNC_UNSAFE` session fixture, `_login`, and `@pytest.mark.django_db(transaction=True)`. Fixture: `make_verified_user(username="e2e_author", email="e2e_author@t.example.com", password=TEST_PASSWORD)` as the owner, an element added with `add_element(unit, TextElementFactory-or-equivalent)` from `tests/factories.py` (use whatever text-element factory that module offers), a course titled `"Kurs" + "x" * 80` (unbroken), and one **draft** lesson unit in it titled `"Lekcja" + "y" * 80`, with an element added so the page renders content. Then:
 
 ```python
 page.set_viewport_size({"width": 360, "height": 800})
-_login(page, live_server, "e2e_author"); page.goto(f"{live_server.url}/")
+_login(page, live_server, "e2e_author")
+page.locator('[data-section="manage"]').wait_for()  # login redirects to home; wait for it to land
 card = page.locator("[data-last-edited]"); card.wait_for()
 assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
 box = page.locator("[data-last-edited] .dash-recent__label").bounding_box()
