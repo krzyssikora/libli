@@ -28,6 +28,7 @@
 - Django `{# #}` comments are single-line ONLY; use `{% comment %}…{% endcomment %}` for anything longer.
 - No new password or secret literals anywhere (GitGuardian scans code AND markdown): passwords are `tests.factories.TEST_PASSWORD`; a different secret is DERIVED (e.g. `settings.SECRET_KEY[::-1] + "x"`).
 - A test client that must stay logged in uses `push_helpers.logged_in_user(client)` (a verified, persisted user) — NEVER `UserFactory()` + `force_login`, which leaves the client silently anonymous. `UserFactory()` is fine for users never logged in through the client.
+- Before EVERY commit: `uv run ruff format <touched .py files>` then `uv run ruff check --no-cache <touched .py files>`. The line limit is 88 (`E501`); `ruff format` cannot shorten comments or long string literals, so wrap comments and split long strings by implicit concatenation (e.g. Task 3's mutant comments, the budget warning text, the e2e `KEYS` literal, Task 11's `NEW` entries). Code blocks in this plan may exceed 88 where a sentence reads better unbroken — the implementer wraps them.
 - Never pass `-q` to pytest (addopts already has it). e2e needs `-m e2e`. Run tests with `uv run pytest`.
 - Every new guard is falsified against its named mutant (shown RED, then reverted BY HAND — never `git checkout` a file holding uncommitted work).
 
@@ -2643,7 +2644,7 @@ Expected: PASS (the email e2e still finds `input[name='quiz_graded']`).
 
 - [ ] **Step 9: Falsify** — drop `prefix="push"` from the POST construction → `test_columns_save_independently` FAILS. Compute `push_pref` and bind `push_form` regardless of `with_push` (i.e. replace `with_push` by `True` in both conditionals) → `test_dark_box_post_leaves_the_push_row_alone` FAILS because the row turns all-False. Revert.
 
-- [ ] **Step 10: Screenshots** — run the dev server with push configured (export the three `LIBLI_VAPID_*` from `generate_vapid_keys` output and `LIBLI_PWA_ENABLED=true`), open `/settings/` in light AND dark themes at 390 px and 1280 px; check the Email|Push headers sit over their switches and the state lines wrap. Judge dark separately.
+- [ ] **Step 10: Screenshots** — run the dev server with push configured (export the TWO lines `generate_vapid_keys` prints, plus `LIBLI_VAPID_SUBJECT=mailto:dev@example.com` and `LIBLI_PWA_ENABLED=true`; first confirm `/settings/` shows the "Notifications" heading — if it shows "Email notifications", push is not configured and the screenshots would show the dark page), open `/settings/` in light AND dark themes at 390 px and 1280 px; check the Email|Push headers sit over their switches and the state lines wrap. Judge dark separately.
 
 - [ ] **Step 11: Commit**
 
@@ -3139,7 +3140,7 @@ self.addEventListener("notificationclick", (event) => {
 
 - [ ] **Step 4: Run** — `uv run pytest tests/test_pwa_worker.py tests/test_pwa_core.py` → PASS.
 
-- [ ] **Step 4b: Falsify** — add `"icon_json": json.dumps(get_site_config()["favicon_url"]),` to `service_worker`'s render context in `core/views.py` and `const ICON = {{ icon_json|safe }};` above `{% verbatim %}` in `sw.js` → `test_sw_bytes_do_not_depend_on_a_favicon_override` FAILS. Revert both by hand.
+- [ ] **Step 4b: Falsify** — add `"icon_json": json.dumps(get_site_config()["favicon_url"]),` to `service_worker`'s render context in `core/views.py` and `const ICON = {{ icon_json|safe }};` above `{% verbatim %}` in `sw.js` → `test_sw_bytes_do_not_depend_on_a_favicon_override` FAILS. Revert both by hand. Then paste `self.addEventListener("push", () => {});` inside `templates/core/sw_kill.js`'s verbatim block → `test_kill_worker_has_no_push_handlers` FAILS (it was green before any change); revert by hand.
 
 - [ ] **Step 5: Commit**
 
@@ -3518,9 +3519,9 @@ Two notes for the implementer, recorded here so they are not rediscovered:
 - Polish rendering of EVERY state line and the bell row is pinned server-side in Task 11 (`test_settings_and_bell_render_polish`), since push.js only toggles server-rendered text; the e2e Polish test here covers the quoted login label end to end.
 
 - [ ] **Step 2: Run** — `uv run pytest -m e2e notifications/tests/test_e2e_push.py -n 2`
-Expected: PASS. Any test passing on the FIRST run must still be falsified (Step 3).
+Expected: PASS, EXCEPT `test_polish_lines_and_the_quoted_login_label`, which FAILS until Task 11 writes the Polish catalog (the not-remembered line still renders in English). That failure is expected here — do not touch the test, template or push.js for it; Task 11 Step 4 re-runs it. Any test passing on the FIRST run must still be falsified (Step 3).
 
-- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) change the `[data-push-help]` toggle in `render()` to `el.hidden = false` (help shown in every state) → all four `test_help_line_hidden_in_every_cannot_state` cases FAIL. (Removing the toggle instead leaves the server-rendered `hidden` in place — that mutant is caught only by `test_off_to_on_to_off_posts_and_persists`'s `to_be_visible`, run it there.) (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. Revert each by hand.
+- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) change the `[data-push-help]` toggle in `render()` to `el.hidden = false` (help shown in every state) → all four `test_help_line_hidden_in_every_cannot_state` cases FAIL. (Removing the toggle instead leaves the server-rendered `hidden` in place — that mutant is caught only by `test_off_to_on_to_off_posts_and_persists`'s `to_be_visible`, run it there.) (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. (g) drop `disabled` from the server-rendered `input[data-push-switch]` in `user_settings.html` → `test_switch_disabled_until_a_state_is_reported` FAILS. (h) in `claim()`, skip `sub.unsubscribe()` on `mine: false` → the `("default", "false", "off")` case of `test_claim_on_load` FAILS. (i) make the dismiss handler skip `storageSet(DISMISS_KEY, "1")` → the after-reload half of `test_bell_invite_turn_on_dismiss_and_errors` FAILS. (j) in `render()`, set the invite's `el.hidden = storageGet(DISMISS_KEY) === "1"` (ignoring the state) → `test_denied_prompt_hides_the_invite` and the invite assertion in `test_not_remembered_login_shows_the_d8_line` FAIL. (k) make `registration()`'s `.catch` return `{}` instead of `undefined` → `test_registration_refused_reads_unsupported` FAILS. Revert each by hand.
 
 - [ ] **Step 4: Commit**
 
@@ -3627,7 +3628,7 @@ Before writing the Polish, check the existing catalog for msgids that already ex
 
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`. In `locale/pl/LC_MESSAGES/django.po` fill each new `msgstr` from the table; for any entry marked `#, fuzzy`, delete the `#, fuzzy` line, any `#| msgid "…"` previous-msgid line beside it, AND replace the pre-filled msgstr (fuzzy matches are wrong translations). Then `uv run python manage.py compilemessages`.
 
-- [ ] **Step 4: Run** — `uv run pytest notifications/tests/test_push_i18n.py notifications/tests/test_i18n.py tests -k "i18n"` → PASS (the existing no-fuzzy / no-obsolete guards included).
+- [ ] **Step 4: Run** — `uv run pytest notifications/tests/test_push_i18n.py notifications/tests/test_i18n.py tests -k "i18n"` → PASS (the existing no-fuzzy / no-obsolete guards included), then `uv run pytest -m e2e notifications/tests/test_e2e_push.py::test_polish_lines_and_the_quoted_login_label` → PASS now (it was expected RED at Task 10).
 
 - [ ] **Step 5: Commit**
 
