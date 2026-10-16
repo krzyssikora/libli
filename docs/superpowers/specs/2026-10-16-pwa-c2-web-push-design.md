@@ -291,11 +291,11 @@ simply left), after which no signal fires.
 - **Remembered logins only (D8).** A login made with "Remember me" unticked calls
   `request.session.set_expiry(0)` (`allauth/account/forms.py`), so the browser forgets it at
   close while the database row still says 2 weeks; the server cannot see the browser close. So:
-  ONE predicate decides it everywhere: `notifications.push.remembered_from_data(data)` over a
-  session's data dict — `_session_expiry` absent → `not settings.SESSION_EXPIRE_AT_BROWSER_CLOSE`,
+  ONE predicate decides it everywhere: `notifications.push.remembered_from_data(data)` over any
+  mapping with `.get()` — `_session_expiry` absent → `not settings.SESSION_EXPIRE_AT_BROWSER_CLOSE`,
   else `_session_expiry != 0` (the same fallback `SessionBase.get_expire_at_browser_close()`
-  applies). The page and the endpoints call it on `request.session`'s data, the send path on the
-  decoded session row, so the two can never disagree.
+  applies). The page and the endpoints pass `request.session` itself (never its private
+  `_session`), the send path passes `Session.get_decoded()`, so the two can never disagree.
   SSO, signup and invitation logins never call `set_expiry(0)` and are remembered. In a
   non-remembered session: `subscribe` → 403 `{"ok": false}` (no row created); `claim` → deletes
   any row with that endpoint and answers `{"mine": false}` (the person said this is not their
@@ -309,7 +309,9 @@ alive on the server — in practice, while that browser is still logged in as th
 exposure the bell already has there. Residual exposure, both bounded by the session lifetime
 (2 weeks by default): a REMEMBERED login left open on a computer (anyone opening it sees the bell
 and pages anyway); and a browser whose cookies were cleared or lost without logging out (the
-session row stays live on the server; the next login's claim on that browser removes the row).
+session row stays live on the server; the next login's claim on that browser either re-keys the row to the new session — same user —
+or deletes it — another user, or a non-remembered login — so the orphaned session stops receiving
+pushes either way).
 Shortening login lifetimes (e.g. `SESSION_EXPIRE_AT_BROWSER_CLOSE`) is a separate, site-wide
 decision deliberately outside C2. The settings help under the device switch still says: "On a
 shared computer, log out when you finish." — a new msgid.
@@ -340,7 +342,7 @@ subscription is fixed by turning the switch on again).
 
 Loaded on every authenticated page only when `push_configured()` (a context flag
 `push_available`). The page carries `<meta name="libli-push" data-vapid-key="…"
-data-session-endpoint="…" data-remembered="1|0">` (`data-remembered` from
+data-session-endpoint="…" data-remembered="1|0" data-msg-error="{% trans … %}">` (`data-remembered` from
 `remembered_from_data(request.session)`, §4), `data-session-endpoint` being `request.session.get("push_endpoint", "")` ONLY
 when a row with that endpoint, this user and this session's current key exists, else empty (§4,
 session key rotation).
@@ -530,7 +532,8 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   is inactive is deleted and not sent — each with a mutant dropping that one check; a session
   matching a `get_session_auth_fallback_hash()` value is still sent.
 - Remembered only (D8): a login through the real login form with "Remember me" unticked → the
-  page renders `data-remembered="0"`, `subscribe` → 403 and no row, `claim` deletes the endpoint's
+  page renders `data-remembered="0"`, `subscribe` → 403 and no row (also 403, not 400, with a malformed body — mutant: the
+  remembered check moved after body validation), `claim` deletes the endpoint's
   row and answers `mine: false`; a row whose session has `_session_expiry == 0` is not sent and is
   deleted (mutant: the expiry check dropped); with "Remember me" ticked, and for an SSO login, all
   of these behave as remembered; the SSO/signup/invitation path is covered as "no
