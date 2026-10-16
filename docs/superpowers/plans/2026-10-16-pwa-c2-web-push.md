@@ -786,9 +786,17 @@ def test_expired_session_row_still_present_is_dropped():
 
 
 def test_session_of_another_user_is_dropped():
-    # mutant: drop the _auth_user_id check
+    # mutant: drop the _auth_user_id check. ONLY the id is wrong -- the stored hash is
+    # still user's own, so the hash check cannot drop the row on this test's behalf.
+    from django.contrib.auth import SESSION_KEY
+    from django.contrib.sessions.backends.db import SessionStore
+
     user, other = UserFactory(), UserFactory()
-    make_sub(user, live_session_for(other))
+    key = live_session_for(user)
+    store = SessionStore(session_key=key)
+    store[SESSION_KEY] = str(other.pk)
+    store.save()
+    make_sub(user, key)
     assert live_subscriptions(user) == []
 
 
@@ -1889,10 +1897,12 @@ def test_logout_via_confirmation_page_still_deletes(client, settings):
 
 
 def test_receiver_ignores_a_none_user_and_a_missing_request():
-    from notifications.signals import delete_push_subscription_on_logout
+    # Through the signal, not a direct import, so this test cannot connect the
+    # receivers for later tests and mask the "ready() import removed" mutant.
+    from django.contrib.auth.signals import user_logged_out
 
-    delete_push_subscription_on_logout(sender=None, request=None, user=UserFactory())
-    delete_push_subscription_on_logout(sender=None, request=object(), user=None)
+    user_logged_out.send(sender=None, request=None, user=UserFactory())
+    user_logged_out.send(sender=None, request=object(), user=None)
 ```
 
 - [ ] **Step 3: Run to verify failure**
@@ -2043,7 +2053,7 @@ Expected: PASS.
 
 1. Move the remembered check in `_gate` after body parsing (check `cleaned` first in `push_subscribe`) → `test_not_remembered_subscribe_is_403_even_with_a_bad_body` FAILS.
 2. In the cap, `order_by("-created_at", "-pk")` → `test_cap_evicts_by_subscribed_at_not_created_at` FAILS. Separately, drop `.exclude(endpoint=endpoint)` from both cap queries → `test_resubscribing_an_old_endpoint_keeps_it` FAILS.
-3. Remove `from notifications import signals` from `NotificationsConfig.ready` → `test_logout_deletes_the_sessions_row_only` FAILS.
+3. Remove `from notifications import signals` from `NotificationsConfig.ready` → `test_logout_deletes_the_sessions_row_only` FAILS. Run this mutant with `uv run pytest notifications/tests/test_push_logout.py::test_logout_deletes_the_sessions_row_only -p no:xdist` ALONE: any earlier test in the same process that imports `notifications.signals` directly would connect the receivers and hide the mutant (no test does — the receiver test goes through `user_logged_out.send` — and `push.py` does not import it).
 4. In `push_claim`, drop `and remembered_from_data(...)` → `test_claim_in_a_not_remembered_session_deletes_own_row` FAILS.
 Revert each by hand.
 
@@ -3018,7 +3028,7 @@ def test_dismiss_flag_name():
 })();
 ```
 
-- [ ] **Step 5: Run** — `uv run pytest notifications/tests/test_push_js_source.py` → PASS. Also `node --check core/static/core/js/push.js` if Node is on PATH (syntax only).
+- [ ] **Step 5: Run** — `uv run pytest notifications/tests/test_push_js_source.py tests/test_pwa_shell.py` → PASS, then `uv run pytest -m e2e tests/test_e2e_pwa.py -n 2` (the `pwa.js` registration block changed; C1's e2e must stay green). Also `node --check core/static/core/js/push.js` if Node is on PATH (syntax only).
 
 - [ ] **Step 6: Commit**
 
@@ -3300,9 +3310,14 @@ def test_off_to_on_to_off_posts_and_persists(page, context, live_server):
 
 
 def test_subscribe_500_rolls_back_and_shows_the_error(page, context, live_server):
+    # mutant: the rollback sub.unsubscribe() removed. The claim endpoint answers
+    # mine:true here, so the post-action claim step cannot tidy a leftover on the
+    # rollback's behalf -- only the rollback itself can leave the stub empty.
     _configure(context, live_server)
     _login(page, live_server)
     page.route("**/notifications/push/subscribe/", lambda r: r.fulfill(status=500, body="{}"))
+    page.route("**/notifications/push/claim/", lambda r: r.fulfill(
+        status=200, content_type="application/json", body='{"mine": true}'))
     box = _settings(page, live_server, "off")
     box.check(force=True)
     page.wait_for_selector('html[data-push-reported="off"]')
@@ -3505,7 +3520,7 @@ Two notes for the implementer, recorded here so they are not rediscovered:
 - [ ] **Step 2: Run** — `uv run pytest -m e2e notifications/tests/test_e2e_push.py -n 2`
 Expected: PASS. Any test passing on the FIRST run must still be falsified (Step 3).
 
-- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) drop the `[data-push-help]` toggle from `render()` → `test_help_line_hidden_in_every_cannot_state` FAILS. (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. Revert each by hand.
+- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) change the `[data-push-help]` toggle in `render()` to `el.hidden = false` (help shown in every state) → all four `test_help_line_hidden_in_every_cannot_state` cases FAIL. (Removing the toggle instead leaves the server-rendered `hidden` in place — that mutant is caught only by `test_off_to_on_to_off_posts_and_persists`'s `to_be_visible`, run it there.) (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. Revert each by hand.
 
 - [ ] **Step 4: Commit**
 
@@ -3610,7 +3625,7 @@ Before writing the Polish, check the existing catalog for msgids that already ex
 
 - [ ] **Step 3: Extract and translate**
 
-Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`. In `locale/pl/LC_MESSAGES/django.po` fill each new `msgstr` from the table; for any entry marked `#, fuzzy`, DELETE the flag AND replace the pre-filled msgstr (fuzzy matches are wrong translations). Then `uv run python manage.py compilemessages`.
+Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`. In `locale/pl/LC_MESSAGES/django.po` fill each new `msgstr` from the table; for any entry marked `#, fuzzy`, delete the `#, fuzzy` line, any `#| msgid "…"` previous-msgid line beside it, AND replace the pre-filled msgstr (fuzzy matches are wrong translations). Then `uv run python manage.py compilemessages`.
 
 - [ ] **Step 4: Run** — `uv run pytest notifications/tests/test_push_i18n.py notifications/tests/test_i18n.py tests -k "i18n"` → PASS (the existing no-fuzzy / no-obsolete guards included).
 
