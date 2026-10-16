@@ -1413,6 +1413,13 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   color: var(--primary); text-decoration: none; font-weight: 600; }
 .notif-menu__seeall:hover { text-decoration: underline; }
 .notif-menu__empty { color: var(--text-secondary); padding: var(--space-3); margin: 0; }
+/* PWA C2 bell invite: one row above the list; push.js unhides it. */
+.notif-menu__push { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-subtle); }
+.notif-menu__push[hidden] { display: none; }
+.notif-menu__push-text { flex: 1 1 0; min-width: 0; }
+.notif-menu__push-error { flex-basis: 100%; margin: 0; color: var(--danger); }
+.notif-menu__push-error[hidden] { display: none; }
 
 /* Tags & notes hub tab bar (shared by the overview + my_tags pages) */
 .tnhub__tabs {

@@ -86,4 +86,50 @@ self.addEventListener("fetch", (event) => {
   }
   // rule 3: everything else passes.
 });
+
+// --- push (PWA C2 spec §5). Every value comes from the payload; this file gains no
+// value slot, so /sw.js bytes and VERSION are unaffected by branding.
+function targetUrl(raw) {
+  try {
+    const url = new URL(raw, self.location.origin);
+    return url.origin === self.location.origin ? url.href : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function showPush(payload) {
+  return self.registration.showNotification(payload.title, {
+    body: payload.body,
+    tag: payload.tag,
+    icon: payload.icon,
+    data: { url: payload.url },
+  });
+}
+
+self.addEventListener("push", (event) => {
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    return; // the browser may show its own generic notice; our payloads always parse
+  }
+  event.waitUntil(showPush(payload));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = targetUrl((event.notification.data || {}).url || "/");
+  if (!url) return;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((list) => {
+      const client = list[0];
+      if (!client) return self.clients.openWindow(url);
+      return client.focus()
+        .then(() => client.navigate(url))
+        .then((navigated) => navigated || self.clients.openWindow(url))
+        .catch(() => self.clients.openWindow(url));
+    })
+  );
+});
 {% endverbatim %}

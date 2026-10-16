@@ -52,10 +52,13 @@ def notify(*, recipient, kind, target, actor=None, data=None):
         data=data or {},
     )
     # Function-local import: emails.py top-level-imports this module, so a top-level
-    # import here would cycle at load. Deferring to call time breaks the cycle.
+    # import here would cycle at load (push.py imports emails.py function-locally for
+    # the same reason). Deferring to call time breaks the cycle.
     from notifications.emails import deliver_notification_email
+    from notifications.push import deliver_notification_push
 
     transaction.on_commit(lambda: deliver_notification_email(n))
+    transaction.on_commit(lambda: deliver_notification_push(n))
     return n
 
 

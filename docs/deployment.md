@@ -982,6 +982,9 @@ No `deploy.sh` and no *Deploy release* is involved. `restore.sh` writes the rest
 into `LIBLI_IMAGE_TAG`, and the backup's `.env.production` keeps the channel line, so the
 next *Deploy release* treats the restored version as current.
 
+The VAPID push keys come back with `.env.production`, not with the database: restore that file
+too, or every device's push subscription stops working.
+
 ### By hand on a box
 
 `LIBLI_DEPLOY_REF=vX.Y.Z bash /opt/libli/deploy.sh` — tags only. It runs the migration
@@ -997,6 +1000,63 @@ guard (both the current and the target copy) but **not** the canary guard. Plain
 3. Flip the repo to private. GHCR is already private and every box already logs in.
 
 ---
+
+### Push notifications
+
+Push ships dark: a box without the three `LIBLI_VAPID_*` values shows no push UI and sends
+nothing. To turn it on for one box:
+
+```bash
+# on the box, in /opt/libli
+bash manage.sh generate_vapid_keys
+# prints two lines: LIBLI_VAPID_PUBLIC_KEY=... and LIBLI_VAPID_PRIVATE_KEY=...
+```
+
+Put both values, plus `LIBLI_VAPID_SUBJECT=mailto:<contact address>` (libli's convention; an
+`https:` URL also works, any other value turns push off), into `.env.production`. A box
+provisioned after this release already has the three lines, blank; an older box has none — so
+each line is REPLACED if present and appended if not (never a blind append, which would leave
+duplicate keys):
+
+```bash
+# on the box, in /opt/libli -- paste the two values the command printed
+set_env() {
+  if grep -q "^$1=" .env.production; then
+    sed -i "s|^$1=.*|$1=$2|" .env.production
+  else
+    [ -n "$(tail -c1 .env.production)" ] && echo >> .env.production   # end the last line first
+    echo "$1=$2" >> .env.production
+  fi
+}
+set_env LIBLI_VAPID_PUBLIC_KEY '<public key>'
+set_env LIBLI_VAPID_PRIVATE_KEY '<private key>'
+set_env LIBLI_VAPID_SUBJECT 'mailto:<contact address>'
+grep -c '^LIBLI_VAPID_' .env.production   # must print 3
+grep -x "LIBLI_VAPID_SUBJECT=mailto:<contact address>" .env.production \
+  && docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
+
+Never `docker compose restart` (it keeps the old environment); recreating shows the usual ~24 s
+maintenance page.
+
+Smoke test: on a phone, log in with "Remember me" ticked, turn on Settings → Notifications →
+"Push notifications on this device"; have a teacher account grade one of that account's quiz
+submissions. The push arrives; tapping it opens the results page; the bell shows it read.
+
+Rules:
+- Keys are **per box** — never copy them between schools.
+- Never rotate a key in use: every existing subscription silently stops working and users must
+  turn push on again.
+- A hung push service slows the requests that send notifications (quiz submit, grading,
+  enrolment) by up to ~15–20 s per request (a hung DNS resolver is not bounded by that timeout).
+
+To turn push off, blank the three values and recreate the same way:
+
+```bash
+sed -i 's/^LIBLI_VAPID_\(PUBLIC_KEY\|PRIVATE_KEY\|SUBJECT\)=.*/LIBLI_VAPID_\1=/' .env.production
+grep '^LIBLI_VAPID_' .env.production   # three lines, all ending in =
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
 
 ### PWA kill switch
 
