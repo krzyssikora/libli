@@ -106,7 +106,7 @@ Setup for this file: add `from bs4 import BeautifulSoup`, and copy the `_polish(
 
 - [ ] **Step 5: Run the tests and confirm they pass.** Same command as Step 2: 4 PASS. Also run `uv run pytest tests/test_dashboard_panels.py` (the whole file, which includes the existing Studio test) and every CSS test: `uv run pytest tests/ -k "css"`. All green.
 
-- [ ] **Step 6: Falsify.** Swap the two hrefs in the Studio row: RED. Drop the `context` from the `translate` tag: the PL test goes RED, reading "Widok" (the existing compiled entry `django.po:7882`). Drop `|strip_math_delimiters` on the hidden span: RED. Revert each by hand.
+- [ ] **Step 6: Falsify.** Swap the two hrefs in the Studio row: RED. Drop the `context` from the `translate` tag: the PL test goes RED, reading "Widok" (the existing compiled entry `django.po:7882`). Drop `|strip_math_delimiters` on the hidden span: RED. Remove `class="dash-row__title"` from the Teaching anchor only: the Teaching test goes RED. Revert each by hand.
 
 - [ ] **Step 7: Commit.** `git add templates/core/home.html core/static/core/css/app.css tests/test_dashboard_panels.py`, message `feat(dashboard): Studio "View" link to the student-facing outline`.
 
@@ -184,7 +184,7 @@ Imports to add to `tests/test_dashboard_panels.py` (beyond Task 1's):
 
 `base = timezone.now()` is computed inside each test, not at module scope.
 
-- [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "last_edited or no_card"`. Expected: every test FAILS on an assertion or a None-card error, **except** `test_no_card_when_studio_shows_but_nothing_owned` and `test_last_edited_query_skipped_for_students`. Those two pass vacuously now. They are proven by their Step 7 mutants.
+- [ ] **Step 2: Run them and confirm they fail.** Run `uv run pytest tests/test_dashboard_panels.py -k "last_edited or no_card"`. Expected: every test FAILS on an assertion or a None-card error, **except** `test_no_card_when_studio_shows_but_nothing_owned` and `test_last_edited_query_skipped_for_students`. Those two pass vacuously now. They are proven by their Step 7 mutants. If the student test instead **fails** here, an existing student-dashboard query already matches the substring. Print `ctx.captured_queries` and tighten the match to the new query (`"courses_contentnode"."updated" DESC` together with the `kind` filter). Then re-check it with the Step 7 mutant.
 
 - [ ] **Step 3: Implement the query in `home`.** Extend the existing local import to `from courses.models import ContentNode, Course` (keep it local, to avoid a core↔courses import cycle). When `can_manage_courses`, set `last_edited_unit = ContentNode.objects.filter(kind=ContentNode.Kind.UNIT, course__owner=request.user).select_related("course").order_by("-updated", "-pk").first()`, otherwise `None`. Pass it in the context. The comment names D3's approximation in one line and points to the spec.
 
