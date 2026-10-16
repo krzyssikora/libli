@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n courses_extras %}
 {% block head_title %}{% trans "Dashboard" %} · libli{% endblock %}
 {% block content %}
 <h1>
@@ -31,7 +31,7 @@
   <ul class="dash-list">
     {% for course in taught_courses %}
     <li class="dash-row">
-      <a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+      <a class="dash-row__title" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
       <a class="dash-row__action" href="{% url 'courses:manage_analytics' slug=course.slug %}">{% trans "Analytics" %}</a>
     </li>
     {% endfor %}
@@ -45,10 +45,22 @@
 {% if can_manage_courses %}
 <section class="dash-panel" data-section="manage">
   <h2 class="dash-panel__title">{% trans "Studio" %}</h2>
+  {% if last_edited_unit %}
+  <div class="dash-recent" data-last-edited>
+    <p class="dash-recent__label">{% translate "Last edited" %}</p>
+    <a class="dash-recent__link" href="{% if last_edited_unit.unit_type == 'quiz' %}{% url 'courses:quiz_unit' slug=last_edited_unit.course.slug node_pk=last_edited_unit.pk %}{% else %}{% url 'courses:lesson_unit' slug=last_edited_unit.course.slug node_pk=last_edited_unit.pk %}{% endif %}">
+      <span class="dash-recent__unit">{{ last_edited_unit.title|strip_math_delimiters }}</span>
+      <span class="dash-recent__course">{{ last_edited_unit.course.title|strip_math_delimiters }}</span>
+    </a>
+  </div>
+  {% endif %}
   {% if owned_courses %}
   <ul class="dash-list">
     {% for course in owned_courses %}
-    <li><a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a></li>
+    <li class="dash-row">
+      <a class="dash-row__title" href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a>
+      <a class="dash-row__action" href="{% url 'courses:course_outline' slug=course.slug %}">{% translate "View" context "dashboard row action: open the course as students see it" %}<span class="visually-hidden"> {{ course.title|strip_math_delimiters }}</span></a>
+    </li>
     {% endfor %}
   </ul>
   {% endif %}

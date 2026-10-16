@@ -420,6 +420,8 @@ button.asset-cell:hover { border-color: var(--primary); }
 .editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
 .editor-crumb__sep { color: var(--text-tertiary); }
 .editor-crumb__media { margin-left: auto; font-size: .85rem; white-space: nowrap; }
+.editor-crumb__live { margin-left: auto; font-size: .85rem; white-space: nowrap; }
+.editor-crumb__live + .editor-crumb__media { margin-left: 0; }
 .editor-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: var(--space-2) 0; }
 .editor-head__title { font-size: 1.1rem; margin: 0; }
 .type-toggle { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; }

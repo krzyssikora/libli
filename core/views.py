@@ -46,6 +46,7 @@ def home(request):
         return redirect("institution:setup")
 
     from courses.glance import enrolled_course_glances
+    from courses.models import ContentNode
     from courses.models import Course
 
     enrolled_courses = enrolled_course_glances(request.user)
@@ -59,10 +60,23 @@ def home(request):
         request.user.has_perm("courses.change_course")
         or Course.objects.filter(owner=request.user).exists()
     )
+    # "Last edited" = the owned unit with the newest `updated`; an approximation
+    # of the author's last edit (spec D3), not an audit trail.
+    last_edited_unit = (
+        ContentNode.objects.filter(
+            kind=ContentNode.Kind.UNIT, course__owner=request.user
+        )
+        .select_related("course")
+        .order_by("-updated", "-pk")
+        .first()
+        if can_manage_courses
+        else None
+    )
     return render(
         request,
         "core/home.html",
         {
+            "last_edited_unit": last_edited_unit,
             "enrolled_courses": enrolled_courses,
             "taught_courses": taught_courses,
             "owned_courses": owned_courses,

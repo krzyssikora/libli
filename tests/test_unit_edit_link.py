@@ -1,4 +1,5 @@
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 from django.utils import translation
 
@@ -385,3 +386,98 @@ def test_edit_link_label_renders_in_polish(client):
 
     assert resp.status_code == 200
     assert "Edytuj jednostkę" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_polish_view_live_label(client):
+    owner = make_student(client, "vl_pl")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    with translation.override("pl"):
+        resp = client.get(
+            reverse(
+                "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+            ),
+            HTTP_ACCEPT_LANGUAGE="pl",
+        )
+
+    assert resp.status_code == 200
+    link = BeautifulSoup(resp.content, "html.parser").select_one("a.editor-crumb__live")
+    assert link is not None
+    assert link.get_text(strip=True).startswith("Zobacz na żywo")
+
+
+@pytest.mark.django_db
+def test_editor_view_live_link_for_owner_draft_lesson(client):
+    owner = make_student(client, "vl_owner")
+    course = CourseFactory(owner=owner)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson", published=False
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    link = BeautifulSoup(resp.content, "html.parser").select_one("a.editor-crumb__live")
+    assert link["href"] == reverse(
+        "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+    )
+    assert link["target"] == "_blank" and "noopener" in link["rel"]
+    assert client.get(link["href"]).status_code == 200
+
+
+@pytest.mark.django_db
+def test_editor_view_live_link_for_quiz_targets_quiz_unit(client):
+    owner = make_student(client, "vl_quiz")
+    course = CourseFactory(owner=owner)
+    unit = make_quiz_unit(course, parent=None)
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    link = BeautifulSoup(resp.content, "html.parser").select_one("a.editor-crumb__live")
+    assert link["href"] == reverse(
+        "courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+    )
+
+
+@pytest.mark.django_db
+def test_editor_no_view_live_for_non_owner_platform_admin(client):
+    make_pa(client, "vl_pa")  # not is_staff, not owner
+    course = CourseFactory()
+    unit = _lesson_unit(course)
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert reverse("courses:manage_media", kwargs={"slug": course.slug}) in body
+    assert "editor-crumb__live" not in body
+    assert (
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+        not in body
+    )
+    assert "View live" not in body
+
+
+@pytest.mark.django_db
+def test_editor_view_live_survives_422_rerender(client):
+    owner = make_student(client, "vl_422")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+    unit.refresh_from_db()
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": course.slug}),
+        {
+            "node": unit.pk,
+            "ctx": "editor",
+            "token": unit.updated.isoformat(),
+            "title": "",
+        },
+    )
+    assert resp.status_code == 422
+    assert "editor-crumb__live" in resp.content.decode()

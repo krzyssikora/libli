@@ -25,6 +25,7 @@ from courses import builder_filter
 from courses import builder_open  # for builder_open.CEILING -- see below
 from courses import ordering as ordering_svc
 from courses import quiz_warnings
+from courses.access import can_access_course
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.builder_open import LAST_NODE_KEY
@@ -2196,6 +2197,9 @@ def _editor_page(
         "courses/manage/editor/editor.html",
         {
             "course": unit.course,
+            # Gates the crumb's "View live" link. Computed HERE (not in editor())
+            # because three callers render this page, two of them 422 re-renders.
+            "can_view_live": can_access_course(request.user, unit.course),
             "unit": unit,
             "rows": rows,
             "ancestors": _unit_ancestors(unit),
