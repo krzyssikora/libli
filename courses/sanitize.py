@@ -156,18 +156,10 @@ _LIST_PARENTS = {"ul", "ol"}
 _VOID = {"br"}
 
 
-class _Run:
-    """An open synthetic list: where its opening tag sits in the output parts."""
-
-    def __init__(self, at):
-        self.at = at
+_SYNTHETIC_UL = object()
 
 
-def _default_list(_run_html):
-    return "ul", "<ul>"
-
-
-def tidy_structure(clean, *, list_for=None):
+def tidy_structure(clean):
     """Repair the two structural defects the LAL import left in stored bodies.
 
     The importer wrapped block content in a <p>, which html5ever (inside nh3)
@@ -178,39 +170,33 @@ def tidy_structure(clean, *, list_for=None):
         (execCommand wraps it in a <div>) made a blank line appear above it;
       * an ORPHAN <li> -- its marker hangs outside the content box, and the
         list buttons cannot toggle it (Chromium turns it into `text<br>`).
-    Each run of orphan <li> siblings is wrapped in ONE list. Whitespace between
-    items stays inside; whitespace after the last one goes after the close tag.
-
-    `list_for(run_html) -> (name, opening_tag)` picks the list for a run, given
-    the run's own items. The default is a bare <ul>: on save there is no way to
-    know the source's list. fix_orphan_list_items passes one that looks the run up
-    in the LAL source, where most of these lists were in fact numbered.
+    Each run of orphan <li> siblings is wrapped in ONE <ul>: on save there is no
+    way to know the source's list (in the LAL corpus most were in fact <ol>, but
+    the importer no longer produces orphans). Whitespace between items stays
+    inside; whitespace after the last one goes after the </ul>.
 
     Takes sanitize_html output. A byte-for-byte token pass rather than a parse +
     re-serialise, so a body with neither defect comes back IDENTICAL -- entities,
     maths and whitespace included.
     """
-    list_for = list_for or _default_list
     out = _EMPTY_P.sub("", clean)
     if "<li" not in out:
         return out
     parts = []
     stack = []
-    pending = ""  # whitespace seen inside a synthetic list, after an item
+    pending = ""  # whitespace seen inside a synthetic <ul>, after an item
 
     def close_synthetic():
         nonlocal pending
-        run = stack.pop()
-        name, opening = list_for("".join(parts[run.at + 1 :]))
-        parts[run.at] = opening
-        parts.append(f"</{name}>")
+        parts.append("</ul>")
+        stack.pop()
         parts.append(pending)
         pending = ""
 
     for m in _TOKEN.finditer(out):
         tok = m.group(0)
         name = m.group(2)
-        in_synthetic = bool(stack) and isinstance(stack[-1], _Run)
+        in_synthetic = bool(stack) and stack[-1] is _SYNTHETIC_UL
         if name is None:  # text
             if in_synthetic:
                 if not tok.strip():
@@ -230,14 +216,14 @@ def tidy_structure(clean, *, list_for=None):
                     parts.append(pending)
                     pending = ""
                 elif not stack or stack[-1] not in _LIST_PARENTS:
-                    stack.append(_Run(len(parts)))
-                    parts.append("")  # the opening tag, chosen at close
+                    parts.append("<ul>")
+                    stack.append(_SYNTHETIC_UL)
             elif in_synthetic:
                 close_synthetic()
             parts.append(tok)
             if name not in _VOID:
                 stack.append(name)
-    if stack and isinstance(stack[-1], _Run):
+    if stack and stack[-1] is _SYNTHETIC_UL:
         close_synthetic()
     return "".join(parts)
 

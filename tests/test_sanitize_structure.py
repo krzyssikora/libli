@@ -99,17 +99,3 @@ def test_ol_start_must_be_a_small_positive_integer(bad):
 
 def test_start_is_only_kept_on_ol():
     assert normalize_body('<ul start="2"><li>c</li></ul>') == "<ul><li>c</li></ul>"
-
-
-def test_list_for_chooses_each_runs_list():
-    from courses.sanitize import tidy_structure
-
-    seen = []
-
-    def list_for(run_html):
-        seen.append(run_html)
-        return ("ol", '<ol start="2">') if "b" in run_html else ("ul", "<ul>")
-
-    out = tidy_structure("<li>a</li><p>x</p><li>b</li>\n", list_for=list_for)
-    assert out == '<ul><li>a</li></ul><p>x</p><ol start="2"><li>b</li></ol>\n'
-    assert seen == ["<li>a</li>", "<li>b</li>"]
