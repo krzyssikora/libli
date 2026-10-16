@@ -606,7 +606,8 @@ Append to `notifications/push.py`:
 ```python
 def push_kind_enabled(user, kind):
     """True when the user has no push preference row (default-on), else the per-kind
-    boolean. An unknown kind raises AttributeError, which delivery swallows."""
+    boolean. An unknown kind raises later -- AttributeError here when a row exists, else
+    ValueError in email_content -- and delivery swallows both."""
     from notifications.models import NotificationPushPreference
 
     pref = NotificationPushPreference.objects.filter(user=user).first()
@@ -641,6 +642,8 @@ git commit -m "feat(push): PushSubscription and NotificationPushPreference model
 - Modify: `notifications/services.py:38-63` (`notify`)
 - Create: `notifications/signals.py`
 - Modify: `notifications/apps.py`
+- Create: `notifications/push_views.py` (the open view only; Task 4 adds the endpoints)
+- Modify: `notifications/urls.py` (the `open` route)
 - Modify: `conftest.py` (root; add an autouse fixture after `_reset_active_language`)
 - Test: `notifications/tests/test_push_delivery.py`, `notifications/tests/test_push_sessions.py`, `notifications/tests/test_push_budget.py`, `notifications/tests/push_helpers.py` (new helper module)
 
@@ -1073,6 +1076,7 @@ from unittest import mock
 
 import pytest
 from django.core.signals import request_started
+from django.db import close_old_connections
 
 from notifications.models import Notification
 from notifications.push import deliver_notification_push
@@ -1097,7 +1101,7 @@ class Clock:
 @pytest.fixture
 def clock():
     c = Clock()
-    with mock.patch("notifications.push.time.monotonic", c):
+    with mock.patch("notifications.push.monotonic", c):
         yield c
 
 
@@ -1138,7 +1142,13 @@ def test_request_started_resets_the_budget(three_subs, clock):
     with mock.patch("pywebpush.webpush") as webpush:
         deliver_notification_push(_n(three_subs))
         clock.now += 60
-        request_started.send(sender=None)
+        # Django's test client does the same: close_old_connections (also on
+        # request_started) would close the test transaction's connection.
+        request_started.disconnect(close_old_connections)
+        try:
+            request_started.send(sender=None)
+        finally:
+            request_started.connect(close_old_connections)
         deliver_notification_push(_n(three_subs))
     assert webpush.call_count == 6
 
@@ -1168,7 +1178,7 @@ Expected: FAIL — `ImportError: cannot import name 'live_subscriptions'` (and `
 
 - [ ] **Step 6a: Append delivery to `notifications/push.py`**
 
-Add `import contextvars`, `import json`, `import time` to the imports, then append:
+Add `import contextvars`, `import json` and `from time import monotonic` to the imports (a bare name, so the budget tests patch `notifications.push.monotonic` without freezing the shared `time` module for the whole process), then append:
 
 ```python
 # --- per-request budget (spec §3, latency bound 3) ---------------------------------
@@ -1182,7 +1192,7 @@ def reset_push_budget():
 
 def _budget_allows():
     state = _BUDGET.get()
-    now = time.monotonic()
+    now = monotonic()
     if state is None:
         _BUDGET.set({"deadline": now + PUSH_BUDGET_SECONDS, "warned": False})
         return True
@@ -1622,6 +1632,22 @@ def test_resubscribing_an_old_endpoint_keeps_it(user_client, on):
     assert PushSubscription.objects.filter(user=user).count() == 5
 
 
+def test_cap_evicts_by_subscribed_at_not_created_at(user_client, on):
+    # mutant: cap ordered by created_at. A was CREATED first but RE-SUBSCRIBED last;
+    # B is the oldest by subscribed_at. Only B may go.
+    user, client = user_client
+    now = timezone.now()
+    a = make_sub(user, "k" * 32, endpoint=FCM + "A", subscribed_at=now - timedelta(hours=1))
+    PushSubscription.objects.filter(pk=a.pk).update(created_at=now - timedelta(days=99))
+    make_sub(user, "k" * 32, endpoint=FCM + "B", subscribed_at=now - timedelta(days=50))
+    for i in range(3):
+        make_sub(user, "k" * 32, endpoint=f"{FCM}mid{i}",
+                 subscribed_at=now - timedelta(days=10 - i))
+    post(client, "push_subscribe", body(FCM + "sixth"))
+    left = set(PushSubscription.objects.filter(user=user).values_list("endpoint", flat=True))
+    assert FCM + "A" in left and FCM + "B" not in left and len(left) == 5
+
+
 def test_concurrent_insert_integrity_error_retries_as_update(user_client, on):
     user, client = user_client
     make_sub(UserFactory(), "x" * 32, endpoint=FCM + "dev1")
@@ -1686,6 +1712,25 @@ def test_claim_in_a_not_remembered_session_deletes_own_row(user_client, on):
     forget_me(client)
     assert post(client, "push_claim", {"endpoint": FCM + "dev1"}).json() == {"mine": False}
     assert PushSubscription.objects.count() == 0
+
+
+def test_claim_after_rotation_rekeys_and_delivers_again(user_client, on):
+    from notifications.models import Notification
+    from notifications.push import deliver_notification_push
+
+    user, client = user_client
+    post(client, "push_subscribe", body())
+    session = client.session
+    session.cycle_key()  # as login / password change do; the row's key goes stale
+    session.save()
+    client.cookies["sessionid"] = session.session_key
+    assert post(client, "push_claim", {"endpoint": FCM + "dev1"}).json() == {"mine": True}
+    assert PushSubscription.objects.get().session_key == client.session.session_key
+    n = Notification.objects.create(recipient=user, kind="enrolled", target_type="course",
+                                    target_id=1, data={"course_title": "C", "course_slug": "c"})
+    with mock.patch("pywebpush.webpush") as webpush:
+        deliver_notification_push(n)
+    webpush.assert_called_once()
 
 
 def test_claim_with_a_non_string_endpoint_is_400(user_client, on):
@@ -1931,7 +1976,7 @@ Expected: PASS.
 - [ ] **Step 6: Falsify**
 
 1. Move the remembered check in `_gate` after body parsing (check `cleaned` first in `push_subscribe`) → `test_not_remembered_subscribe_is_403_even_with_a_bad_body` FAILS.
-2. In the cap, `order_by("-created_at")` → `test_resubscribing_an_old_endpoint_keeps_it` FAILS.
+2. In the cap, `order_by("-created_at", "-pk")` → `test_cap_evicts_by_subscribed_at_not_created_at` FAILS. Separately, drop `.exclude(endpoint=endpoint)` from both cap queries → `test_resubscribing_an_old_endpoint_keeps_it` FAILS.
 3. Remove `from notifications import signals` from `NotificationsConfig.ready` → `test_logout_deletes_the_sessions_row_only` FAILS.
 4. In `push_claim`, drop `and remembered_from_data(...)` → `test_claim_in_a_not_remembered_session_deletes_own_row` FAILS.
 Revert each by hand.
@@ -2501,7 +2546,7 @@ Append to `core/static/core/css/settings.css`:
 
 - [ ] **Step 8: Run the tests**
 
-Run: `uv run pytest notifications/tests/test_push_settings.py notifications/tests/test_email_settings.py notifications/tests/test_e2e_email_prefs.py -m "not e2e"` then `uv run pytest -m e2e notifications/tests/test_e2e_email_prefs.py`
+Run: `uv run pytest notifications/tests/test_push_settings.py notifications/tests/test_email_settings.py` and `uv run pytest tests -k css` (marker-based CSS tests can be broken by any new rule), then `uv run pytest -m e2e notifications/tests/test_e2e_email_prefs.py`
 Expected: PASS (the email e2e still finds `input[name='quiz_graded']`).
 
 - [ ] **Step 9: Falsify** — drop `prefix="push"` from the POST construction → `test_columns_save_independently` FAILS. Bind `NotificationPushForm(request.POST, ...)` unconditionally (dark box) → `test_dark_box_post_leaves_the_push_row_alone` FAILS. Revert.
@@ -2662,8 +2707,9 @@ def test_pwa_publishes_its_registration_promise():
 
 def test_builds_no_user_facing_text():
     assert "textContent = msg" in JS  # the one dynamic string comes from data-msg-error
-    for english in ("Turn on", "blocked", "Remember me"):
-        assert f'"{english}' not in JS
+    for english in ("Turn on", "Notifications are blocked", "can't show", "Home Screen",
+                    "Try again", "Remember me"):
+        assert english not in JS
 
 
 def test_dismiss_flag_name():
@@ -2802,7 +2848,9 @@ def test_dismiss_flag_name():
     each("[data-push-switch-wrap]", function (el) { el.hidden = cannot; });
     each("[data-push-help]", function (el) { el.hidden = cannot; });
     each("input[data-push-switch]", function (el) {
-      el.checked = state === "on";
+      // While a request is in flight keep the user's click visible (Playwright's
+      // check() also requires the box to stay as clicked); refresh() settles it.
+      if (!busy) el.checked = state === "on";
       el.disabled = cannot || busy;
     });
     each("[data-push-invite]", function (el) {
@@ -3117,10 +3165,33 @@ def _settings(page, live_server, state):
     return page.locator("input[data-push-switch]")
 
 
+def _cookie_login(context, live_server, username="pushy"):
+    """Log in WITHOUT visiting any page of the origin first: a force_login session
+    cookie (no _session_expiry, i.e. remembered). The next page load is then the
+    origin's very first, with no worker registered yet -- the race push.js must win."""
+    from django.conf import settings as dj_settings
+    from django.test import Client
+
+    user = make_verified_user(username=username, email=f"{username}@example.com")
+    client = Client()
+    client.force_login(user)
+    context.add_cookies([{
+        "name": dj_settings.SESSION_COOKIE_NAME,
+        "value": client.cookies[dj_settings.SESSION_COOKIE_NAME].value,
+        "url": live_server.url,
+    }])
+    return user
+
+
 def test_first_visit_reads_off_not_unsupported(page, context, live_server):
+    # Review Focus 1. Must go RED with push.js's registration() reading
+    # navigator.serviceWorker.getRegistration() instead of window.libliSwRegistration.
     _configure(context, live_server)
-    _login(page, live_server)
-    box = _settings(page, live_server, "off")
+    _cookie_login(context, live_server)
+    page.goto(f"{live_server.url}/settings/")  # the origin's first page: nothing registered
+    page.wait_for_selector("html[data-push-state]")
+    assert page.evaluate("() => document.documentElement.dataset.pushState") == "off"
+    box = page.locator("input[data-push-switch]")
     expect(box).to_be_enabled()
     expect(box).not_to_be_checked()
 
@@ -3265,6 +3336,48 @@ def test_polish_lines_and_the_quoted_login_label(page, context, live_server):
     assert "Zapamiętaj mnie" in line
 
 
+@pytest.mark.parametrize("case", ["ios", "unsupported", "not-remembered", "blocked"])
+def test_help_line_hidden_in_every_cannot_state(page, context, live_server, case):
+    if case == "unsupported":
+        context.add_init_script("Object.defineProperty(window, 'libliSwRegistration', "
+                                "{ get: () => Promise.reject(new Error('refused')), set: () => {} });")
+    _configure(context, live_server,
+               **({"ios": "iphone"} if case == "ios" else {}),
+               **({"permission": "denied"} if case == "blocked" else {}))
+    _login(page, live_server, remember=case != "not-remembered")
+    state = {"ios": "ios-not-installed"}.get(case, case)
+    _settings(page, live_server, state)
+    expect(page.locator("[data-push-help]")).to_be_hidden()
+
+
+def test_blocked_with_a_foreign_leftover_deletes_the_server_row(page, context, live_server):
+    # The REAL claim endpoint (no page.route): another user's row for this browser's
+    # endpoint is deleted, the browser unsubscribes, and the state still reads blocked.
+    from notifications.tests.push_helpers import make_sub
+    from tests.factories import UserFactory
+
+    _configure(context, live_server, permission="denied")
+    _login(page, live_server)
+    make_sub(UserFactory(), "x" * 32, endpoint=ENDPOINT)
+    page.evaluate("() => { const s = JSON.parse(localStorage.__pushStub || '{}');"
+                  f" s.sub = '{ENDPOINT}'; localStorage.__pushStub = JSON.stringify(s); }}")
+    _settings(page, live_server, "blocked")
+    assert not PushSubscription.objects.filter(endpoint=ENDPOINT).exists()
+    assert page.evaluate("() => !window.__pushStub.sub")
+
+
+def test_worker_refuses_off_origin_targets(page, context, live_server):
+    # notificationclick itself cannot be driven: Playwright cannot click an OS
+    # notification, and dispatching a synthetic NotificationEvent needs a real
+    # Notification object. So its two decisions are tested through the named
+    # helper, and the openWindow fallback is on the device checklist (PR body).
+    _login(page, live_server)
+    page.evaluate("async () => { await navigator.serviceWorker.ready; }")
+    worker = context.service_workers[0] if context.service_workers else context.wait_for_event("serviceworker")
+    assert worker.evaluate("targetUrl('https://evil.example/x')") is None
+    assert worker.evaluate("targetUrl('/notifications/5/open/')") == f"{live_server.url}/notifications/5/open/"
+
+
 def test_worker_shows_a_delivered_push(page, context, live_server):
     context.grant_permissions(["notifications"], origin=live_server.url)
     _login(page, live_server)
@@ -3298,12 +3411,13 @@ def test_worker_shows_a_delivered_push(page, context, live_server):
 
 Two notes for the implementer, recorded here so they are not rediscovered:
 - `page.wait_for_function` with an ASYNC predicate is vacuous (a Promise is truthy) — the worker test polls `page.evaluate` instead; do the same for any other async check you add.
-- If CDP `deliverPushMessage` proves unworkable (no `workerRegistrationUpdated` event, or it needs a real subscription), switch the last test to the fallback named in the spec: evaluate `showPush({...})` inside the worker via `context.service_workers[0].evaluate("showPush({...})")` and assert `getNotifications()`; add a second check `context.service_workers[0].evaluate("targetUrl('https://evil.example/x')")` is `None`. Record which route was used in the PR body.
+- If CDP `deliverPushMessage` proves unworkable (no `workerRegistrationUpdated` event, or it needs a real subscription), switch `test_worker_shows_a_delivered_push` to the fallback named in the spec: evaluate `showPush({...})` inside the worker via `context.service_workers[0].evaluate(...)` and assert `getNotifications()`. Record which route was used in the PR body. `test_worker_refuses_off_origin_targets` runs either way.
+- Polish rendering of EVERY state line and the bell row is pinned server-side in Task 11 (`test_settings_and_bell_render_polish`), since push.js only toggles server-rendered text; the e2e Polish test here covers the quoted login label end to end.
 
 - [ ] **Step 2: Run** — `uv run pytest -m e2e notifications/tests/test_e2e_push.py -n 2`
 Expected: PASS. Any test passing on the FIRST run must still be falsified (Step 3).
 
-- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` FAILS (if it does not, the review-focus item 1 premise is wrong: record that and keep the test). (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) move the `not-remembered` check above `isIos()` → `test_ios_outside...` still passes but swap `ios-not-installed` and `unsupported` order → `test_ios_outside_the_app_shows_the_install_line` FAILS. Revert each by hand.
+- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) drop the `[data-push-help]` toggle from `render()` → `test_help_line_hidden_in_every_cannot_state` FAILS. (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. Revert each by hand.
 
 - [ ] **Step 4: Commit**
 
@@ -3359,6 +3473,33 @@ NEW = {
 def test_polish_translation(msgid):
     with translation.override("pl"):
         assert translation.gettext(msgid) == NEW[msgid]
+
+
+@pytest.mark.django_db
+def test_settings_and_bell_render_polish(client, settings):
+    """Every server-rendered push line (state lines, help, bell row, error string)
+    renders in Polish -- push.js only toggles them, so this is where pl is proven."""
+    from django.urls import reverse
+
+    from notifications.tests.push_helpers import push_settings
+    from tests.factories import UserFactory
+
+    push_settings(settings)
+    user = UserFactory(language="pl")
+    client.force_login(user)
+    html = client.get(reverse("core:user_settings"), HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    for msgid in (
+        "This browser can't show push notifications.",
+        "To get push notifications on this device, tick 'Remember me' when you log in.",
+        "On iPhone and iPad, add libli to your Home Screen first.",
+        "Notifications are blocked for libli in this browser's settings.",
+        "On a shared computer, log out when you finish.",
+        "Get notifications on this device",
+        "Push notifications on this device",
+    ):
+        assert NEW[msgid] in html, msgid
+    # the error string travels in an attribute, HTML-escaped
+    assert "Nie udało się zmienić powiadomień push" in html
 ```
 
 Before writing the Polish, check the existing catalog for msgids that already exist (`Email`, `Notifications`, `Dismiss`, `Turn on` may already be translated — `grep -n 'msgid "Email"' locale/pl/LC_MESSAGES/django.po`). Where one exists, keep ITS translation and change the test's expected value to match it (never retranslate an existing msgid). Also add the two `blocktrans` strings `"Email: %(label)s"` → `"E-mail: %(label)s"` and `"Push: %(label)s"` → `"Push: %(label)s"`.
