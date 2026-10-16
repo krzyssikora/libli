@@ -2194,6 +2194,10 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
 }
+/* Editor twin of `.el--filltable .filltable__input { text-align: inherit }`: a form
+   control computes `text-align: start` from the UA sheet, so the answer cell's
+   `.ta-*` never reached the typed answer and halign looked like a dead button. */
+.filltable-editor__answer { text-align: inherit; }
 .filltable-editor__answer:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .filltable-editor__answer::placeholder { color: var(--text-tertiary); }
 

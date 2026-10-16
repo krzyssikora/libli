@@ -50,7 +50,9 @@ ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 # NOT added to ALLOWED_ATTRIBUTES (that would allow arbitrary class values). Mirrors
 # the global .ta-* utilities in courses.css (also used by table cells).
 ALIGN_CLASS_VALUES = {"ta-left", "ta-center", "ta-right"}
-ALIGN_CLASS_TAGS = {"p", "div", "h2", "h3", "h4", "blockquote", "li"}
+# `pre` because the RTE's align buttons act on a code block exactly as on a <p>:
+# without it the class showed in the editor and was stripped on save.
+ALIGN_CLASS_TAGS = {"p", "div", "h2", "h3", "h4", "blockquote", "li", "pre"}
 
 # The pre-colour allowlist, frozen. Slice 2's backfill builds its lookup keys by
 # replaying the sanitiser AS IT BEHAVED AT IMPORT TIME: nh3 deletes the class
@@ -123,7 +125,87 @@ def normalize_body(value, *, allowed_classes=None):
     table cells, where emptiness is the form layer's business.
     """
     clean = sanitize_html(value, allowed_classes=allowed_classes)
-    return "" if body_is_empty_ish(clean) else clean
+    return "" if body_is_empty_ish(clean) else tidy_structure(clean)
+
+
+# A <p> holding nothing but whitespace. Matched on nh3 OUTPUT only, where a <p>
+# carries at most a class attribute and a literal "<" in text (maths included) is
+# already &lt; -- so this cannot reach inside a maths span.
+_EMPTY_P = re.compile(r'<p(?: class="[^"]*")?>\s*</p>')
+# nh3 output tokens: a tag, or a run of text. Comments are already stripped and
+# attribute values have their ">" escaped, so a tag never contains ">".
+_TOKEN = re.compile(r"<(/?)([a-z0-9]+)[^>]*>|[^<]+")
+_LIST_PARENTS = {"ul", "ol"}
+_VOID = {"br"}
+_SYNTHETIC_UL = object()
+
+
+def tidy_structure(clean):
+    """Repair the two structural defects the LAL import left in stored bodies.
+
+    The importer wrapped block content in a <p>, which html5ever (inside nh3)
+    re-parses by closing the <p> early: `<p><li>a</li></p>` is stored as
+    `<p></p><li>a</li>`. That leaves
+      * an EMPTY <p> -- zero height, but it still triggers the block-spacing
+        `> p + :is(p, div, ...)` margin, so centring the bare text after it
+        (execCommand wraps it in a <div>) made a blank line appear above it;
+      * an ORPHAN <li> -- its marker hangs outside the content box, and the
+        list buttons cannot toggle it (Chromium turns it into `text<br>`).
+    Each run of orphan <li> siblings is wrapped in ONE <ul> (the source's ul/ol
+    is lost; ul is the 2:1 majority in the corpus). Whitespace between items
+    stays inside; whitespace after the last one goes after the </ul>.
+
+    Takes sanitize_html output. A byte-for-byte token pass rather than a parse +
+    re-serialise, so a body with neither defect comes back IDENTICAL -- entities,
+    maths and whitespace included.
+    """
+    out = _EMPTY_P.sub("", clean)
+    if "<li" not in out:
+        return out
+    parts = []
+    stack = []
+    pending = ""  # whitespace seen inside a synthetic <ul>, after an item
+
+    def close_synthetic():
+        nonlocal pending
+        parts.append("</ul>")
+        stack.pop()
+        parts.append(pending)
+        pending = ""
+
+    for m in _TOKEN.finditer(out):
+        tok = m.group(0)
+        name = m.group(2)
+        in_synthetic = bool(stack) and stack[-1] is _SYNTHETIC_UL
+        if name is None:  # text
+            if in_synthetic:
+                if not tok.strip():
+                    pending += tok
+                    continue
+                close_synthetic()
+            parts.append(tok)
+        elif m.group(1):  # end tag
+            if in_synthetic:
+                close_synthetic()
+            parts.append(tok)
+            if stack:
+                stack.pop()
+        else:  # start tag
+            if name == "li":
+                if in_synthetic:
+                    parts.append(pending)
+                    pending = ""
+                elif not stack or stack[-1] not in _LIST_PARENTS:
+                    parts.append("<ul>")
+                    stack.append(_SYNTHETIC_UL)
+            elif in_synthetic:
+                close_synthetic()
+            parts.append(tok)
+            if name not in _VOID:
+                stack.append(name)
+    if stack and stack[-1] is _SYNTHETIC_UL:
+        close_synthetic()
+    return "".join(parts)
 
 
 # Cells allow only inline emphasis + line break + the colour carrier. Includes b/i

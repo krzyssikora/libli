@@ -1,3 +1,5 @@
+import pytest
+
 from scripts.lal_import.lesson import parse_lesson
 
 VIDEO_LESSON = """
@@ -1919,3 +1921,27 @@ def test_reveal_table_without_rows_is_flagged_not_dropped():
     raw = " ".join(e.get("raw", "") for e in elements)
     assert "x^{3}-5x^{2}+7x-3=0" in raw
     assert "question_solution" in raw
+
+
+# --- A list holding an <img> is split around the image (nh3 would strip it). Each
+# text run must keep the list's own tag: wrapping it in <p> stored
+# `<p><li>..</li></p>`, which html5ever re-parses as `<p></p><li>..</li>` -- an
+# orphan item whose marker hangs outside the column and which the RTE's list
+# buttons cannot toggle.
+@pytest.mark.parametrize("tag", ["ul", "ol"])
+def test_list_split_around_an_image_keeps_its_list_tag(tag):
+    from bs4 import BeautifulSoup
+
+    src = (
+        f"<{tag}><li>jeden</li><li>dwa</li>"
+        '<li>trzy <img src="static/a.png" alt=""/> dalej</li>'
+        f"<li>cztery</li></{tag}>"
+    )
+    elements, _ = parse_lesson(src, "x.html")
+    assert [e["type"] for e in elements].count("image") == 1
+    texts = [e["body"] for e in elements if e["type"] == "text"]
+    items = [
+        li for body in texts for li in BeautifulSoup(body, "html.parser").find_all("li")
+    ]
+    assert [li.get_text(strip=True) for li in items] == ["jeden", "dwa", "cztery"]
+    assert all(li.parent.name == tag for li in items), texts

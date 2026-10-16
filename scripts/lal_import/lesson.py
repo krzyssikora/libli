@@ -1419,14 +1419,18 @@ def _emit_text_with_images(node, elements, flags):
     sanitized TextElement.body, so pull each image out as its own ImageElement and
     coalesce the surrounding content into TextElements, preserving reading order.
     NavigableStrings are math-escaped like the F2 bare-text rule; child tags are
-    already re-escaped by str()."""
+    already re-escaped by str().
+
+    A list's runs keep the list's own tag: a <p> around its <li>s re-parses (in
+    nh3) as `<p></p><li>..`, an orphan item the RTE cannot toggle."""
     buf = []
+    wrap = node.name if node.name in ("ul", "ol") else "p"
 
     def flush():
         html = "".join(buf).strip()
         buf.clear()
         if html and BeautifulSoup(html, "html.parser").get_text(strip=True):
-            elements.append({"type": "text", "body": f"<p>{html}</p>"})
+            elements.append({"type": "text", "body": f"<{wrap}>{html}</{wrap}>"})
 
     for child in list(node.children):
         if isinstance(child, NavigableString):
