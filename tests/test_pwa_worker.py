@@ -129,3 +129,39 @@ def test_kill_worker_source_guards():
     source = get_template("core/sw_kill.js").template.source
     assert "LIBLI_SW_KILL" in source
     assert 'addEventListener("fetch"' not in source
+
+
+def test_worker_has_push_handlers_and_no_new_value_slot(client, settings):
+    settings.PWA_ENABLED = True
+    settings.PWA_KILL_SWITCH = False
+    body = client.get("/sw.js").content.decode()
+    assert 'addEventListener("push"' in body
+    assert 'addEventListener("notificationclick"' in body
+    assert "function targetUrl(" in body and "function showPush(" in body
+    assert "includeUncontrolled" not in body  # navigate() rejects if uncontrolled
+    assert "badge" not in body
+
+
+def test_sw_bytes_do_not_depend_on_a_favicon_override(client, settings):
+    from unittest import mock
+
+    settings.PWA_ENABLED = True
+    settings.PWA_KILL_SWITCH = False
+    from core.services import get_site_config
+
+    plain = client.get("/sw.js").content
+    cfg = {**get_site_config(), "favicon_url": "/media/x.png"}
+    # core.views imports get_site_config BY NAME, so patch it there too.
+    with (
+        mock.patch("core.views.get_site_config", return_value=cfg),
+        mock.patch("core.services.get_site_config", return_value=cfg),
+    ):
+        overridden = client.get("/sw.js").content
+    assert plain == overridden
+
+
+def test_kill_worker_has_no_push_handlers(client, settings):
+    settings.PWA_ENABLED = True
+    settings.PWA_KILL_SWITCH = True
+    body = client.get("/sw.js").content.decode()
+    assert '"push"' not in body
