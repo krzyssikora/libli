@@ -304,11 +304,12 @@ simply left), after which no signal fires.
   `not-remembered` state (§6), which shows the D8 line instead of the switch and hides the bell
   invite.
 
-Net effect: a device gets a user's pushes exactly while that browser is still logged in as that
-user with a remembered login — the same exposure the bell already has on that device, never more.
-What remains is a REMEMBERED login left on a computer (up to the session lifetime, 2 weeks by
-default): that computer is still logged in as the user, so anyone opening it sees their bell and
-pages anyway.
+Net effect: a device gets a user's pushes while the remembered login session that subscribed is
+alive on the server — in practice, while that browser is still logged in as that user, the same
+exposure the bell already has there. Residual exposure, both bounded by the session lifetime
+(2 weeks by default): a REMEMBERED login left open on a computer (anyone opening it sees the bell
+and pages anyway); and a browser whose cookies were cleared or lost without logging out (the
+session row stays live on the server; the next login's claim on that browser removes the row).
 Shortening login lifetimes (e.g. `SESSION_EXPIRE_AT_BROWSER_CLOSE`) is a separate, site-wide
 decision deliberately outside C2. The settings help under the device switch still says: "On a
 shared computer, log out when you finish." — a new msgid.
@@ -532,7 +533,11 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   page renders `data-remembered="0"`, `subscribe` → 403 and no row, `claim` deletes the endpoint's
   row and answers `mine: false`; a row whose session has `_session_expiry == 0` is not sent and is
   deleted (mutant: the expiry check dropped); with "Remember me" ticked, and for an SSO login, all
-  of these behave as remembered. e2e: `data-remembered="0"` shows the D8 line, no switch, no bell
+  of these behave as remembered; the SSO/signup/invitation path is covered as "no
+  `_session_expiry` in the session" via `force_login` (no end-to-end SSO login exists in the test
+  suite), which is the property those flows share. `remembered_from_data({})` → True by default and
+  False under `override_settings(SESSION_EXPIRE_AT_BROWSER_CLOSE=True)` (mutant: fallback dropped,
+  i.e. `data.get("_session_expiry") != 0`). e2e: `data-remembered="0"` shows the D8 line, no switch, no bell
   invite.
 - Push follows the login (D7): a row whose session is deleted, or whose `expire_date` is past
   (the row still present), is not sent and is deleted (mutant: existence-only check without
