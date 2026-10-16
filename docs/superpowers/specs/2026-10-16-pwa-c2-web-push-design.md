@@ -64,7 +64,9 @@ starts with `mailto:` or `https:` (push services reject any other JWT `sub`), **
 `core.pwa.serve_normal()` is True. Without the C1 worker (flag off or kill switch on) no device
 can display a push, so sending would only spend time. Everything below — sending, endpoints,
 template UI, `push.js` — is gated on this single function; when it is False the product is
-byte-for-byte today's.
+byte-for-byte today's. Two things are deliberately NOT gated: `notifications:open` (§3; a
+notification can sit in the tray after the keys are blanked or the kill switch set) and the
+logout receiver (§4; a row must not outlive a logout made while push was off).
 
 The public key is the base64url-encoded uncompressed P-256 point (the form
 `PushManager.subscribe({applicationServerKey})` takes); the private key is its base64url raw
@@ -105,6 +107,10 @@ user data, not course content); no FORMAT_VERSION bump.
 transaction.on_commit(lambda: deliver_notification_email(n))
 transaction.on_commit(lambda: deliver_notification_push(n))
 ```
+
+`deliver_notification_push` is imported inside `notify()` next to the existing function-local
+email import, for the same reason: `notifications/push.py` imports `email_content` from
+`emails.py`, which top-level-imports `services.py`.
 
 Both callbacks are individually log-and-swallow, so a failure in either never skips the other
 or a later recipient's callbacks. The existing `_MUTED` early return covers push automatically.
@@ -150,8 +156,14 @@ request after commit, so push time adds to that response. Three limits bound it:
 3. **A per-request push budget of 10 s.** `notifications.push` keeps a `ContextVar` holding the
    monotonic deadline of the current request's push work; a `request_started` receiver (in
    `notifications/signals.py`, §4) resets it to unset. The first push in a request sets the
-   deadline to now + 10 s; before each `webpush` call, if the deadline has passed, every remaining
-   push in that request is skipped with ONE warning log line naming how many were skipped. A
+   deadline to now + 10 s; before each `webpush` call, if the deadline has passed, that push and
+   every later one in the request is skipped. The FIRST skip logs one warning ("push budget
+   exhausted; skipping remaining pushes in this request") and sets a flag in the same ContextVar
+   state; later skips log nothing. No count is logged (each notification is its own on_commit
+   callback, so no point knows the total). The state is reset by the `request_started` receiver
+   and by a public `reset_push_budget()`, which an autouse fixture in the root `conftest.py`
+   calls before every test — direct `notify()` calls in tests never fire `request_started`, and a
+   deadline left by one test would otherwise skip pushes in a later one. A
    skipped push is lost; the bell row and email are unaffected. Outside a request (management
    commands, shell) the budget is never reset, so a long-running command stops pushing 10 s into
    its push work — accepted: no command today sends notifications in bulk.
@@ -302,8 +314,9 @@ server receiver still runs there),
 `push.js` calls `subscription.unsubscribe()` best-effort (it does not delay or block the logout;
 the server-side receiver in §4 is the guarantee, this only tidies the browser).
 
-The one remaining mismatch: the server row deleted after a 410/404 while the browser still
-believes it is subscribed reads `on`; turning the switch off then on fixes it. No further
+The remaining mismatches: a server row deleted after a 410/404, or evicted by the 5-device cap
+(§4) from another device whose session still holds the endpoint, while that browser still
+believes it is subscribed, reads `on`; turning the switch off then on fixes it. No further
 background re-sync (YAGNI).
 
 ## 7. Settings page
@@ -434,15 +447,24 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   dropped).
 - Endpoint host allowlist: each listed host and a subdomain of it accepted; an IP literal,
   `localhost`, `fcm.googleapis.com.evil.example` and `evilfcm.googleapis.com` → 400.
-- Push budget: with a mocked clock, pushes after the deadline are skipped with one warning and
-  not sent; a `request_started` resets it so the next request pushes again (mutant: no reset).
+- Push budget: with a mocked clock, pushes after the deadline are not sent and exactly one
+  warning is logged however many are skipped; a `request_started` resets it so the next request
+  pushes again (mutant: no reset); two direct-call deliveries separated by more than 10 s of
+  mocked time both push when `reset_push_budget()` runs between them (guards the fixture).
+- Not gated: with push NOT configured, `notifications:open` still marks read and redirects (a
+  tray notification outlives blanked keys) and the logout receiver still deletes the session's row
+  (else it would deliver again once push is back on).
 - Settings: push switches saved with the form, unsaved pref on GET, section unchanged (no push
   markup) when not configured; with push NOT configured, a settings POST leaves an existing push
   preference row with `False` values unchanged and creates none; bell invite absent when not configured.
 - `generate_vapid_keys` output decodes to a valid P-256 pair (public 65 bytes, private 32).
 - Migration: `makemigrations --check` clean; the new migration depends on the current graph head.
 
-e2e (Playwright Chromium):
+e2e (Playwright Chromium). The live-server process runs with push configured: a fixture
+overrides `PUSH_VAPID_*` with a pair from `generate_vapid_keys`' key helper, a `mailto:` subject,
+and `PWA_ENABLED=True`. Every stub subscription uses an allowlisted endpoint
+(`https://fcm.googleapis.com/fcm/send/<token>`), or the subscribe POST is a 400 that reads as a
+switch that stays off.
 
 - Settings device switch and bell invite against a stubbed `PushManager` /
   `Notification.permission` (init script): `off → on` POSTs the subscription; `on → off` POSTs
