@@ -45,6 +45,15 @@
 {% if can_manage_courses %}
 <section class="dash-panel" data-section="manage">
   <h2 class="dash-panel__title">{% trans "Studio" %}</h2>
+  {% if last_edited_unit %}
+  <div class="dash-recent" data-last-edited>
+    <p class="dash-recent__label">{% translate "Last edited" %}</p>
+    <a class="dash-recent__link" href="{% if last_edited_unit.unit_type == 'quiz' %}{% url 'courses:quiz_unit' slug=last_edited_unit.course.slug node_pk=last_edited_unit.pk %}{% else %}{% url 'courses:lesson_unit' slug=last_edited_unit.course.slug node_pk=last_edited_unit.pk %}{% endif %}">
+      <span class="dash-recent__unit">{{ last_edited_unit.title|strip_math_delimiters }}</span>
+      <span class="dash-recent__course">{{ last_edited_unit.course.title|strip_math_delimiters }}</span>
+    </a>
+  </div>
+  {% endif %}
   {% if owned_courses %}
   <ul class="dash-list">
     {% for course in owned_courses %}
