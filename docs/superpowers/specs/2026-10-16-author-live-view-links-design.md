@@ -50,6 +50,10 @@ The triggering case was a **draft** unit, so nothing may hide drafts.
 - No QR code or "send to phone".
 - No change to the builder page.
 - No tracking of *who* last edited a unit.
+- No live refresh of the "Last edited" card. Navigations are network-first
+  (`templates/core/sw.js`), but an installed PWA resumed from memory or
+  bfcache shows the dashboard as it was. Reopening or pulling to refresh
+  updates it. That is accepted.
 
 ## Anti-goals
 
@@ -98,10 +102,15 @@ card links to `courses:lesson_unit` for that unit.
   After one of those the card may show a neighbouring unit. That is accepted.
   **Do NOT stop those bumps** to "fix" it: they keep the concurrency tokens
   valid. The `-pk` tie-break makes equal timestamps deterministic.
-- Unit titles can contain maths. Render the title the way the dashboard
-  renders other node titles, and if a `data-math-title` / KaTeX hook is needed
-  for titles elsewhere on the dashboard, follow it. If the dashboard has none,
-  plain escaped text is acceptable.
+- Unit titles can contain maths. The dashboard loads no KaTeX and renders no
+  node titles today. Render the title as
+  `{{ unit.title|strip_math_delimiters }}` (`courses_extras`, as used by the
+  lesson and editor `head_title`), with no KaTeX on the dashboard.
+- The link URL is chosen by unit type: `courses:quiz_unit` for a quiz,
+  `courses:lesson_unit` otherwise (no redirect round trip).
+- Structure: the visible "Last edited" label sits **outside** the `<a>`. The
+  link contains the unit title and the course title, so its accessible name
+  reads "unit title, course title" and not a run-on including the label.
 - Styling: within the existing dashboard visual language (tokens from
   `app.css`), light and dark mode, phone width with no horizontal scroll. The
   exact markup and CSS are the builder's.
@@ -117,10 +126,17 @@ visually hidden "(opens in a new tab)" suffix, mirroring
 
 - Rendered only when `can_access_course(request.user, course)` is true (C4).
   A Platform Admin holding `courses.change_course` who is neither `is_staff`
-  nor the owner can open the editor, but `lesson_unit` would 403 them. The
-  flag is computed in the editor view (`courses/views_manage.py`) and passed
-  in the context. **Do not widen the read gate** to make the link work for
-  them.
+  nor the owner can open the editor, but `lesson_unit` would 403 them. **Do
+  not widen the read gate** to make the link work for them.
+- The flag (`can_view_live`) is computed **inside `_editor_page`**
+  (`courses/views_manage.py`, around line 2178), in its context dict next to
+  `"course": unit.course`. It must not go in only one caller. `_editor_page`
+  has three callers: the editor GET (~`:2236`) and two 422 error re-renders
+  (~`:975`, ~`:1343`, the unit-settings / rename save paths). A flag set only
+  at the GET call site would silently drop the link on every error re-render.
+- The link's URL is chosen by unit type: `courses:quiz_unit` for a quiz,
+  `courses:lesson_unit` otherwise. That saves a redirect round trip on a
+  phone.
 - An icon is optional; if used, a monochrome inline SVG with `currentColor`,
   never an emoji.
 
@@ -153,9 +169,23 @@ only if the existing PL fits a link label, otherwise use a `pgettext` context.
 
 ## Testing
 
-Server-rendered; Django view and template tests are the main layer, plus an e2e
-check that the links work on a narrow viewport.
+Server-rendered; Django view and template tests are the main layer, plus one
+e2e check for the property only a browser can see.
 
+- **Where:** extend `tests/test_dashboard_panels.py` for the Studio and card
+  tests, so they sit with the existing Studio assertions (`:70-72`). Editor
+  tests sit with the existing editor or `test_unit_edit_link.py` tests.
+- **Dashboard GETs by a `make_pa` user** must call
+  `core.services.mark_onboarded()` first, as `test_dashboard_panels.py:85-88`
+  does. Otherwise `home` 302s to `institution:setup` and a "not in content"
+  assertion passes vacuously. Every dashboard test asserts status 200, and
+  every negative assertion is paired with a positive one on the same response.
+- **Timestamps:** `ContentNode.updated` is `auto_now`, so `save()` overwrites
+  any value set by a test. Pin timestamps with
+  `ContentNode.objects.filter(pk=...).update(updated=...)`. For the "later
+  wins" test, give the **lower-pk** unit the later timestamp, so it fails if
+  `-updated` is dropped and only `-pk` remains. For the tie-break test, set
+  both rows to the same value.
 - **Studio "View":** the owner's dashboard row has a link to that course's
   `course_outline`; following it returns 200; the title still links to the
   builder.
@@ -168,11 +198,24 @@ check that the links work on a narrow viewport.
   - A unit in a course owned by someone else, updated later, is **not** shown,
     including for a Platform Admin (`make_pa`) who owns a course of their own.
   - A user with no owned units sees no card.
+  - A unit titled with inline maths (e.g. `Pole \(x^2\)`) shows on the card
+    without the `\(` `\)` delimiters.
+  - A quiz unit's card links to `quiz_unit`, a lesson's to `lesson_unit`.
+  - The Platform Admin case shows the PA's own owned unit (positive) and not
+    the other author's later-updated unit (negative).
 - **Editor "View live":**
   - The owner sees the link to `lesson_unit` for the unit, with
     `target="_blank"`; following it returns 200 (a draft included).
   - A non-staff, non-owner Platform Admin can open the editor (200) but gets
     **no** "View live" link.
+  - The link is still present on a 422 error re-render of the editor page
+    (one of the `_editor_page` error callers).
+  - A quiz unit's link targets `quiz_unit`.
+- **e2e (one test):** at a 360px-wide viewport, the owner's dashboard with a
+  long unbroken unit title on the "Last edited" card and a long course title in
+  a Studio row has `document.documentElement.scrollWidth <= clientWidth`.
+  Tapping the card lands on the unit's live page. Also take light and dark
+  screenshots of the Studio panel and the editor crumb and check them by eye.
 - Test fixtures: use `make_pa` / `make_verified_user` / `make_login` from
   `tests/factories.py`. Never use `UserFactory` + `force_login` (the password
   is never persisted, so the client is silently anonymous).
