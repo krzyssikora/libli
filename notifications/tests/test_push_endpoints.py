@@ -80,6 +80,16 @@ def test_get_is_refused(user_client, on):
     assert client.get(reverse("notifications:push_subscribe")).status_code == 405
 
 
+def test_deeply_nested_body_is_400_not_500(user_client, on):
+    _, client = user_client
+    r = client.post(
+        reverse("notifications:push_subscribe"),
+        data="[" * 100000,
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+
+
 def test_not_remembered_subscribe_is_403_even_with_a_bad_body(user_client, on):
     # mutant: remembered check moved after body validation
     _, client = user_client

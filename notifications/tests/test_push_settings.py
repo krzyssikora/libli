@@ -55,6 +55,24 @@ def test_configured_page_carries_meta_switch_and_columns(logged_in, settings):
     assert "data-logout-form" in html
 
 
+def _input_tag(html, name):
+    import re
+
+    for tag in re.findall(r"<input[^>]*>", html):
+        if f'name="{name}"' in tag:
+            return tag
+    raise AssertionError(f"no input named {name}")
+
+
+def test_push_checkbox_reflects_push_prefs_not_email_prefs(logged_in, settings):
+    push_settings(settings)
+    user, client = logged_in
+    NotificationPushPreference.objects.create(user=user, quiz_graded=False)
+    html = client.get(reverse("core:user_settings")).content.decode()
+    assert "checked" not in _input_tag(html, "push-quiz_graded")
+    assert "checked" in _input_tag(html, "quiz_graded")
+
+
 def test_not_remembered_session_renders_remembered_0(logged_in, settings):
     push_settings(settings)
     _, client = logged_in

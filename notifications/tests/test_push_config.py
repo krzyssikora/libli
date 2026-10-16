@@ -167,6 +167,11 @@ def test_padded_base64_is_accepted():
         {"endpoint": FCM, "keys": {"p256dh": GOOD_P256DH, "auth": GOOD_P256DH}},
         # not base64url
         {"endpoint": FCM, "keys": {"p256dh": "!!!", "auth": GOOD_AUTH}},
+        # trailing newline must not slip past a $-anchored match
+        {
+            "endpoint": FCM,
+            "keys": {"p256dh": GOOD_P256DH, "auth": GOOD_AUTH + "==" + chr(10)},
+        },
     ],
 )
 def test_clean_subscription_refuses_bad_bodies(body):

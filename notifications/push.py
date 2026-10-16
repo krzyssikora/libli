@@ -71,7 +71,7 @@ def endpoint_host_allowed(endpoint):
 
 
 def decode_b64url(value):
-    if not isinstance(value, str) or not _B64URL.match(value):
+    if not isinstance(value, str) or not _B64URL.fullmatch(value):
         return None
     try:
         return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))

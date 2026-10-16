@@ -1048,7 +1048,7 @@ Rules:
 - Never rotate a key in use: every existing subscription silently stops working and users must
   turn push on again.
 - A hung push service slows the requests that send notifications (quiz submit, grading,
-  enrolment) by up to ~15–20 s per request.
+  enrolment) by up to ~15–20 s per request (a hung DNS resolver is not bounded by that timeout).
 
 To turn push off, blank the three values and recreate the same way:
 

@@ -53,7 +53,7 @@ def _gate(request, *, subscribe=False):
 def _json(request):
     try:
         return json.loads(request.body or b"null")
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         return None
 
 

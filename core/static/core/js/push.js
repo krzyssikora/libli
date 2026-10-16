@@ -67,11 +67,11 @@
     return out;
   }
 
-  function storageGet(key) {
-    try { return window.localStorage.getItem(key); } catch (e) { return null; }
+  function dismissed() {
+    try { return window.localStorage.getItem(DISMISS_KEY) === "1"; } catch (e) { return false; }
   }
-  function storageSet(key, value) {
-    try { window.localStorage.setItem(key, value); } catch (e) { /* storage off: fine */ }
+  function dismiss() {
+    try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch (e) { /* storage off: fine */ }
   }
 
   // The claim step (spec §6): acts, never reports a state.
@@ -131,7 +131,7 @@
       el.disabled = cannot || busy;
     });
     each("[data-push-invite]", function (el) {
-      el.hidden = !(state === "off" && storageGet(DISMISS_KEY) !== "1");
+      el.hidden = !(state === "off" && !dismissed());
     });
   }
 
@@ -206,7 +206,7 @@
     if (e.target.closest("[data-push-invite-on]")) {
       act("[data-push-invite]", subscribe);
     } else if (e.target.closest("[data-push-invite-dismiss]")) {
-      storageSet(DISMISS_KEY, "1");
+      dismiss();
       each("[data-push-invite]", function (el) { el.hidden = true; });
     }
   });
