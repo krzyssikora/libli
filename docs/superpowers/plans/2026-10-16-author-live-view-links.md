@@ -306,7 +306,7 @@ Every one of these four carries its own `@pytest.mark.django_db` (the file has n
 **Interfaces:**
 - Consumes: `[data-last-edited]`, `.dash-recent__label`, `a.dash-row__title` (Tasks 1–2); `.lesson-unit__title` and `.draft-banner` on the live page.
 
-- [ ] **Step 1: Write the test.** Use the module conventions of `tests/test_e2e_settings.py`: `pytestmark = pytest.mark.e2e`, the `DJANGO_ALLOW_ASYNC_UNSAFE` session fixture, `_login`, and `@pytest.mark.django_db(transaction=True)`. Fixture: `make_verified_user(username="e2e_author", email="e2e_author@t.example.com", password=TEST_PASSWORD)` as the owner, an element added with `add_element(unit, TextElementFactory-or-equivalent)` from `tests/factories.py` (use whatever text-element factory that module offers), a course titled `"Kurs" + "x" * 80` (unbroken), and one **draft** lesson unit in it titled `"Lekcja" + "y" * 80`, with an element added so the page renders content. Then:
+- [ ] **Step 1: Write the test.** Use the module conventions of `tests/test_e2e_settings.py`: `pytestmark = pytest.mark.e2e`, the `DJANGO_ALLOW_ASYNC_UNSAFE` session fixture, `_login`, and `@pytest.mark.django_db(transaction=True)`. Fixture: `make_verified_user(username="e2e_author", email="e2e_author@t.example.com", password=TEST_PASSWORD)` as the owner, an element added with `ElementFactory(unit=unit)` from `tests/factories.py` (it backs the row with a fresh `TextElement`), a course titled `"Kurs" + "x" * 80` (unbroken), and one **draft** lesson unit in it titled `"Lekcja" + "y" * 80`, with an element added so the page renders content. Then:
 
 ```python
 page.set_viewport_size({"width": 360, "height": 800})
