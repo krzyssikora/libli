@@ -2220,6 +2220,7 @@ git commit -m "feat(push): tap-through view marks the notification read"
 - Modify: `templates/core/user_settings.html` (the "Email notifications" section, ~lines 113-160)
 - Modify: `templates/base.html` (head meta, script include, logout form)
 - Modify: `core/static/core/css/settings.css` (append)
+- Create: `core/static/core/js/push.js` (a one-line placeholder; Task 8 writes it — `tests/test_static_tag_targets_are_files.py` requires every literal `{% static %}` target to exist)
 - Test: `notifications/tests/test_push_settings.py`
 
 **Interfaces:**
@@ -2532,7 +2533,11 @@ After the `pwa.js` script line:
   {% if push_available %}<script src="{% static 'core/js/push.js' %}" defer></script>{% endif %}
 ```
 
-(`push.js` arrives in Task 8; until then the 404 for the script is harmless in tests, which only assert the tag.)
+Create the placeholder now so the existing guard `tests/test_static_tag_targets_are_files.py` (every literal `{% static '...' %}` must resolve to a file — a missing manifest entry 500s in production) stays green:
+
+```js
+/* PWA C2 push client -- placeholder; written in Task 8. */
+```
 
 - [ ] **Step 7: The settings template**
 
@@ -2644,7 +2649,7 @@ Append to `core/static/core/css/settings.css`:
 
 - [ ] **Step 8: Run the tests**
 
-Run: `uv run pytest notifications/tests/test_push_settings.py notifications/tests/test_email_settings.py` and `uv run pytest tests -k css` (marker-based CSS tests can be broken by any new rule), then `uv run pytest -m e2e notifications/tests/test_e2e_email_prefs.py`
+Run: `uv run pytest notifications/tests/test_push_settings.py notifications/tests/test_email_settings.py tests/test_static_tag_targets_are_files.py` and `uv run pytest tests courses/tests -k css` (marker-based CSS tests can be broken by any new rule), then `uv run pytest -m e2e notifications/tests/test_e2e_email_prefs.py`
 Expected: PASS (the email e2e still finds `input[name='quiz_graded']`).
 
 - [ ] **Step 9: Falsify** — drop `prefix="push"` from the POST construction → `test_columns_save_independently` FAILS. Compute `push_pref` and bind `push_form` regardless of `with_push` (i.e. replace `with_push` by `True` in both conditionals) → `test_dark_box_post_leaves_the_push_row_alone` FAILS because the row turns all-False. Revert.
@@ -2654,7 +2659,7 @@ Expected: PASS (the email e2e still finds `input[name='quiz_graded']`).
 - [ ] **Step 11: Commit**
 
 ```bash
-git add notifications/forms.py notifications/context_processors.py config/settings/base.py core/views.py templates/core/user_settings.html templates/base.html core/static/core/css/settings.css notifications/tests/test_push_settings.py
+git add notifications/forms.py notifications/context_processors.py config/settings/base.py core/views.py templates/core/user_settings.html templates/base.html core/static/core/css/settings.css core/static/core/js/push.js notifications/tests/test_push_settings.py
 git commit -m "feat(push): settings page push column, device switch markup, page meta"
 ```
 
@@ -2738,9 +2743,9 @@ Append to `core/static/core/css/app.css` after the `.notif-menu__empty` rule:
 .notif-menu__push-error[hidden] { display: none; }
 ```
 
-(The `[hidden]` rules are needed because `display:flex` beats the UA `hidden` style. Confirm every custom property used exists: `grep -n "\-\-border-subtle\|\-\-danger\|\-\-space-2\|\-\-space-3" core/static/core/css/tokens.css` — an undefined one silently drops the declaration. Run EVERY `tests/test_*css*.py` after this edit: `uv run pytest tests -k css`.)
+(The `[hidden]` rules are needed because `display:flex` beats the UA `hidden` style. Confirm every custom property used exists: `grep -n "\-\-border-subtle\|\-\-danger\|\-\-space-2\|\-\-space-3" core/static/core/css/tokens.css` — an undefined one silently drops the declaration. Run EVERY CSS source test after this edit — they live in BOTH `tests/` and `courses/tests/` (e.g. `courses/tests/test_switchgate_css.py` reads `app.css`): `uv run pytest tests courses/tests -k css`.)
 
-- [ ] **Step 4: Run** — `uv run pytest notifications/tests/test_push_bell.py notifications/tests/test_bell_render.py` and `uv run pytest tests -k css` → PASS.
+- [ ] **Step 4: Run** — `uv run pytest notifications/tests/test_push_bell.py notifications/tests/test_bell_render.py` and `uv run pytest tests courses/tests -k css` → PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -2755,7 +2760,7 @@ git commit -m "feat(push): bell invite row markup"
 
 **Files:**
 - Modify: `core/static/core/js/pwa.js` (the `register()` call)
-- Create: `core/static/core/js/push.js`
+- Modify: `core/static/core/js/push.js` (replace Task 6's placeholder)
 - Test: `notifications/tests/test_push_js_source.py` (source guards; behaviour is Task 10's e2e)
 
 **Interfaces:**
@@ -2816,7 +2821,7 @@ def test_dismiss_flag_name():
 
 - [ ] **Step 3: Run** — FAIL (`push.js` missing).
 
-- [ ] **Step 4: Write `core/static/core/js/push.js`**
+- [ ] **Step 4: Write `core/static/core/js/push.js`** (replacing the whole placeholder)
 
 ```js
 /* PWA C2 push client (spec docs/superpowers/specs/2026-10-16-pwa-c2-web-push-design.md §6-§8).
@@ -3673,7 +3678,7 @@ git commit -m "i18n(push): Polish catalog for the push strings"
 ### Task 12: Runbook
 
 **Files:**
-- Modify: `docs/deployment.md` (new `### Push notifications` subsection in §9, directly before `### PWA kill switch`; one line in `### Rolling back across a migration: restore in place`)
+- Modify: `docs/deployment.md` (new `### Push notifications` subsection in §9: AFTER the `---` rule that closes "Going private", immediately above `### PWA kill switch`, so it sits beside the kill switch; one line in `### Rolling back across a migration: restore in place`)
 - Create: `tests/test_push_runbook.py`
 
 - [ ] **Step 1: Failing test**
@@ -3724,7 +3729,7 @@ def test_env_example_lists_the_three_vars():
 
 - [ ] **Step 2: Run** — the two runbook tests FAIL; `test_env_example_lists_the_three_vars` already PASSES (Task 1 added the lines). Falsify it now: delete the `LIBLI_VAPID_SUBJECT=` line from `.env.production.example`, see it RED, restore the line by hand.
 
-- [ ] **Step 3: Write the runbook** — insert before `### PWA kill switch`:
+- [ ] **Step 3: Write the runbook** — insert after the `---` that precedes `### PWA kill switch`, immediately above that heading:
 
 ````markdown
 ### Push notifications
