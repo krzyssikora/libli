@@ -142,8 +142,10 @@ into the on_commit chain):
 No retry. A push that fails is lost; the bell row and the email are unaffected.
 
 **Latency bound (accepted under D5).** The callbacks run in the triggering request after
-commit, so a slow push service delays that response by at most
-`recipients × devices-per-recipient × 5 s` on top of email. Two limits keep it bounded:
+commit, so a hung push service delays that response by roughly
+`recipients × devices-per-recipient × 5 s` on top of email (`requests` applies the timeout to
+the connect and to each read separately, so a service that trickles bytes can exceed 5 s per
+call; the bound assumes a hung service, not a trickling one). Two limits keep it bounded:
 the per-request `timeout=5`, and **at most 5 subscriptions per user** — the subscribe endpoint
 (§4) deletes that user's oldest rows (by `subscribed_at`) beyond five. Typical case: a "needs
 review" to 1–3 teachers with 1–2 devices each, each push tens of milliseconds. Worst realistic
@@ -163,7 +165,8 @@ normal login redirect with `next` back to this URL.
 ## 4. Subscription endpoints
 
 All three are POST, CSRF-protected (called by `push.js` with the cookie token), JSON body,
-JSON response. Checks run in this order: `push_configured()` False → 404; anonymous → 403
+JSON response. Django's `CsrfViewMiddleware` runs first, so a POST without a valid token gets
+its HTML 403 before any of the following; for CSRF-valid requests the checks run in this order: `push_configured()` False → 404; anonymous → 403
 `{"ok": false}` (NOT `login_required`'s 302, which `fetch` would follow to an HTML page);
 malformed body → 400. `push.js` treats any non-200 as a failure and shows its generic error line
 ("Couldn't change push notifications. Try again.").
@@ -202,23 +205,36 @@ delete the subscription with that endpoint **and** that user. Django sends the s
 flushes the session, so the key is still readable. Because `claim` (above) writes the key on the
 first page load of every session in which the browser is subscribed, the key is present even
 when the subscription was made in an earlier session. The browser side also unsubscribes (§6).
-Net effect: after logout nothing of that user's arrives on that device, and the next person to
-log in on it sees push off (§6's claim step unsubscribes a leftover browser subscription that is
-not theirs).
+Net effect: after an explicit logout nothing of that user's arrives on that device, and the next
+person to log in on it sees push off (§6's claim step unsubscribes a leftover browser
+subscription that is not theirs).
+
+**Accepted gap — a session that ends WITHOUT logout.** When a session expires or the browser is
+closed without logging out (common on shared school computers), no signal fires: the device keeps
+receiving that user's pushes (including student names in "needs review", D4) until that user
+turns push off, or someone else logs in on the same browser profile and loads a page (the claim
+step then deletes the row). No mitigation is built (a server-side session-expiry sweep cannot
+know which browser holds which endpoint beyond the session table, and `ttl` only limits queued
+delivery). The settings help under the device switch says: "On a shared computer, log out when
+you finish, or leave this off." — a new msgid.
 
 ## 5. Service worker additions (`templates/core/sw.js`)
 
 Inside the existing `{% verbatim %}` block:
 
-- `push` — parse `event.data.json()` (a payload that fails to parse: show nothing, return).
+- `push` — parse `event.data.json()`. A payload that fails to parse shows nothing and returns;
+  under `userVisibleOnly: true` the browser may then show its own generic "site updated in the
+  background" notice, which is accepted because the server's payloads always parse.
   `event.waitUntil(self.registration.showNotification(title, {body, tag, icon, data:
   {url}}))`, every value taken from the payload (§3 step 4). No `badge` (no monochrome asset
   exists; Android falls back to its default glyph). `core.views.service_worker` gains NO new
   value slot, so `/sw.js` bytes and `worker_version()` are unaffected by branding.
 - `notificationclick` — close the notification; resolve `data.url` against
   `self.location.origin`, refusing anything off-origin; then
-  `clients.matchAll({type: "window", includeUncontrolled: true})`: focus the first same-origin
-  window and `navigate()` it to the URL, else `clients.openWindow(url)`.
+  inside `event.waitUntil`, `clients.matchAll({type: "window"})` (controlled clients only —
+  `WindowClient.navigate()` rejects for a client this worker does not control): focus the first
+  and `navigate()` it to the URL; if there is none, or `focus()`/`navigate()` rejects or
+  `navigate()` resolves null, fall back to `clients.openWindow(url)`.
 
 The kill worker (C1) gains no push handlers: killing the worker silences push on that device,
 which is the intended effect. `pushsubscriptionchange` is not handled (out of scope; a lost
@@ -257,7 +273,9 @@ succeeded, the leftover is handled by the claim step. After any action, success 
 endpoint it updates after each successful subscribe/unsubscribe, and shows a short error line on
 failure.
 
-On submit of the logout form (`templates/base.html`'s form gains `data-logout-form`),
+On submit of the logout form (`templates/base.html`'s form gains `data-logout-form`; allauth's
+own logout confirmation page at a GET of `account_logout` lacks it, which is accepted — the
+server receiver still runs there),
 `push.js` calls `subscription.unsubscribe()` best-effort (it does not delay or block the logout;
 the server-side receiver in §4 is the guarantee, this only tidies the browser).
 
@@ -275,10 +293,12 @@ With push:
 - First row: **"Push notifications on this device"** with a switch driven by `push.js`, acting
   immediately (not part of the form, no "Save changes"). It sits inside the settings `<form>`
   visually, so it is a checkbox with **no `name`** (never submitted) and no `<button>` is used
-  for it (a button would submit the form); while a request is in flight it is disabled. For the
+  for it (a button would submit the form). It is server-rendered **unchecked and disabled**;
+  push.js enables it only once it has reported a state (claim step included), and disables it
+  again while a request is in flight. For the
   states where it cannot work, the switch is replaced by one line: `unsupported` → "This browser can't show push notifications.";
   `ios-not-installed` → "On iPhone and iPad, add libli to your Home Screen first." + a link to the
-  C1 install guide; `blocked` → "Notifications are blocked for libli in this browser's settings."
+  C1 install guide (`{% url 'core:install_app' %}`); `blocked` → "Notifications are blocked for libli in this browser's settings."
 - Then one row per kind with **two switches, Email and Push**, column headers above them. The
   push switches are a `NotificationPushForm` (three booleans, `instance=pref`, unsaved instance
   on GET exactly like the email form) saved in the same atomic block. It is built, validated and
@@ -301,6 +321,22 @@ is `off` and the localStorage flag `libli:push-invite-dismissed` is not set (eve
 in try/catch; storage failing = show it). On iOS this means it appears only inside the installed
 app. **Turn on** runs `subscribe()`; on success the row hides. **×** sets the flag and hides it.
 The row is the same for empty and non-empty panels.
+
+## 8a. Strings and localization
+
+push.js builds NO user-facing text. The repo has no JS gettext catalog; its convention is
+server-rendered `{% trans %}` text (e.g. `data-msg-*` attributes in
+`templates/courses/manage/builder.html`). So:
+
+- Every device-state line (§7: unsupported, iOS-not-installed with its link, blocked), the
+  shared-computer help line (§4), and the whole bell invite row (§8) are server-rendered with
+  `{% trans %}` inside elements that start `hidden`; push.js only toggles `hidden`.
+- The one dynamic string, the error line ("Couldn't change push notifications. Try again."), is
+  carried as `data-msg-error` on the `libli-push` meta and placed with `textContent`.
+- Push payload text is localized server-side (§3 step 4), so the worker builds no text either.
+
+All of these, plus the §7 section heading, column headers, lede and neutral help texts, are new
+msgids with Polish filled by hand (0 fuzzy).
 
 ## 9. Operations
 
@@ -356,7 +392,9 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   five newer rows re-subscribing an OLDER endpoint keeps it (mutant: cap ordered by `created_at`
   or not excluding the current endpoint); a concurrent-insert `IntegrityError` retries as an
   update and returns 200.
-- Endpoints: 404 when not configured (checked before auth); anonymous → 403 JSON, not 302;
+- Endpoints (the 404 and anonymous cases send a valid CSRF token — the default test client, or
+  `enforce_csrf_checks=True` with a token — else they would see the middleware's 403): 404 when
+  not configured (checked before auth); anonymous → 403 JSON, not 302;
   CSRF required; validation 400s; upsert moves an endpoint between users; unsubscribe of another
   user's endpoint deletes nothing; session key set and cleared.
 - Claim: own row → `mine: true` and session key set; another user's row → deleted, `mine:
@@ -383,6 +421,11 @@ e2e (Playwright Chromium):
   deleted (as real iOS Safari outside the app), and an iPadOS case (`MacIntel` +
   `maxTouchPoints = 5`); both must show the install line, not "can't show push".
 - Subscribe POST returning 500: the browser subscription is rolled back and the switch reads off.
+- The device switch is disabled until push.js reports a state (a held claim response keeps it
+  disabled), and enabled after.
+- Every state line and the bell row render in Polish under `pl` (server-rendered, not JS).
+- `notificationclick` with only an uncontrolled window open falls back to `openWindow` (or the
+  helper test, if the CDP route is unworkable).
 - Claim on load: a stubbed subscription whose endpoint the server reports `mine: false` is
   unsubscribed and the switch reads off; `mine: true` reads on.
 - Worker: with `context.grant_permissions(["notifications"])`, deliver a push through CDP
