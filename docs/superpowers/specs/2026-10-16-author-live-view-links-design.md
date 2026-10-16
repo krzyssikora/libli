@@ -38,7 +38,7 @@ The triggering case was a **draft** unit, so nothing may hide drafts.
 |---|------|
 | C1 | The Studio course title keeps linking to the builder; "View" is a secondary action. Desktop habit is unchanged. |
 | C2 | "Last edited" covers courses the user **owns** (`Course.owner == user`) only, not `manageable_courses`. |
-| C3 | The editor link opens in a **new tab**, mirroring the "Edit unit" link in `templates/courses/_unit_strip.html`. |
+| C3 | The editor link opens in a **new tab**, mirroring the "Edit unit" link in `templates/courses/_unit_strip.html`. The dashboard links (card and Studio "View") open in the **same tab**, with no `target`: in a standalone PWA a `_blank` would throw the author out of the app. Tests assert those anchors have no `target`. |
 | C4 | The editor link is rendered only when `can_access_course(user, course)` is true. |
 | C6 | Dashboard panel order is unchanged; the card lives inside Studio even if that puts it below the fold on a phone. |
 | C5 | EN wording: "View" (Studio row action), "Last edited" (card label), "View live" (editor link). PL wording is proposed in the PR for owner review. |
@@ -80,12 +80,14 @@ panel's existing pattern: `<li class="dash-row">` with the title link
 "View" pointing at `courses:course_outline` for that course. The
 `.dash-list li.dash-row` / `.dash-row__action` CSS already exists in
 `core/static/core/css/app.css` (around line 390), but it cannot wrap a long
-unbroken title. The flex row has no `min-width: 0` or `overflow-wrap`, and the
-panels sit in `.dash-grid` (`minmax(18rem, 1fr)`), whose auto track grows to the
-longest word. So the row's title link (and the card's title text, Component 2)
-need `min-width: 0; overflow-wrap: anywhere`, as `.outline-unit__title`
-(app.css ~647) already has. `break-word` is not enough here. The 360px e2e is
-the RED test for this. The fix also helps the Teaching rows, which share the
+unbroken title. The flex row has no `min-width: 0` or `overflow-wrap`, so an
+unbreakable run overflows the row and the panel and pushes out the page's
+`scrollWidth`. So the row's title link and **both** titles on the card (the
+unit title and the course title, Component 2) need
+`min-width: 0; overflow-wrap: anywhere`, as `.outline-unit__title`
+(app.css ~647) already has. Prefer `anywhere` over `break-word`. Do not change
+the `.dash-grid` tracks. The 360px e2e is the RED test and the authority on
+whether the fix works. The fix also helps the Teaching rows, which share the
 class, and that is intended.
 
 Access: `owned_courses` is `Course.objects.filter(owner=request.user)`, and the
@@ -111,9 +113,7 @@ card links to the unit's live page (URL rule below).
     `courses/management/commands/fix_space_before_punctuation.py`);
   - creating a unit (`auto_now` on insert) and importing a course
     (`import_course` creates every unit with `updated=now`, so after an import
-    the card shows an arbitrary imported unit);
-  - moving or pasting an element into another unit (`courses/builder.py`
-    ~1254 bumps the destination unit).
+    the card shows an arbitrary imported unit).
 
   After one of those the card may show a neighbouring unit. That is accepted.
   **Do NOT stop those bumps** to "fix" it: they keep the concurrency tokens
@@ -269,7 +269,9 @@ e2e check for the property only a browser can see.
   - A quiz unit's link targets `quiz_unit`.
 - **e2e (one test):** at a 360px-wide viewport, the owner's dashboard with a
   long unbroken unit title on the "Last edited" card and a long course title in
-  a Studio row has `document.documentElement.scrollWidth <= clientWidth`.
+  a Studio row (the long-titled unit **belongs to** the long-titled course, so
+  one fixture covers the row, the card's unit title and the card's course
+  title) has `document.documentElement.scrollWidth <= clientWidth`.
   Tapping the card lands on the unit's live page. Prove the landing by waiting
   for a live-page element (the unit title heading, and the draft banner for a
   draft unit), never `to_have_url` alone, which passes at navigation start.
