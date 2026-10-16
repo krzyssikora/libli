@@ -403,7 +403,9 @@ input[type=number] {
 .dash-list .dash-row__title { min-width: 0; overflow-wrap: anywhere; }
 /* "Last edited" card (Studio): the whole card is the link via the
    `.dash-recent__link::after` overlay, so no `overflow: hidden` on `.dash-recent`
-   (it would clip the focus ring). Focus is drawn on the card, not the inner link. */
+   (it would clip the focus ring). Focus is drawn on the card, not the inner link,
+   and only for keyboard focus: `:focus-within` would also match the focus a tap
+   gives the link, leaving the ring on after Back. */
 .dash-recent {
   position: relative;
   margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);
@@ -415,7 +417,7 @@ input[type=number] {
 .dash-recent__link { color: inherit; text-decoration: none; }
 .dash-recent__link::after { content: ""; position: absolute; inset: 0; }
 .dash-recent__link:focus-visible { outline: none; }
-.dash-recent:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.dash-recent:has(.dash-recent__link:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 .dash-recent:hover .dash-recent__unit { text-decoration: underline; }
 .dash-recent__unit { display: block; min-width: 0; overflow-wrap: anywhere;
   font-weight: 600; color: var(--text-primary); }

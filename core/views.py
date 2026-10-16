@@ -77,6 +77,10 @@ def home(request):
         "core/home.html",
         {
             "last_edited_unit": last_edited_unit,
+            # One source for the quiz/lesson URL choice, as the editor's
+            # unit_is_quiz is for its "View live" link.
+            "last_edited_is_quiz": last_edited_unit is not None
+            and last_edited_unit.unit_type == ContentNode.UnitType.QUIZ,
             "enrolled_courses": enrolled_courses,
             "taught_courses": taught_courses,
             "owned_courses": owned_courses,

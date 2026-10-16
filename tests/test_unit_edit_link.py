@@ -480,4 +480,7 @@ def test_editor_view_live_survives_422_rerender(client):
         },
     )
     assert resp.status_code == 422
-    assert "editor-crumb__live" in resp.content.decode()
+    link = BeautifulSoup(resp.content, "html.parser").select_one("a.editor-crumb__live")
+    assert link["href"] == reverse(
+        "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+    )
