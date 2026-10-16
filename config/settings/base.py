@@ -300,6 +300,14 @@ PWA_KILL_SWITCH = env.bool("LIBLI_PWA_KILL_SWITCH", default=False)
 # static content, so a developer's JS/CSS edits would freeze.
 PWA_CACHE_UNHASHED_STATIC = False
 
+# Web push (docs/superpowers/specs/2026-10-16-pwa-c2-web-push-design.md). Per-box
+# VAPID keys; with any of the three blank, push is entirely hidden and nothing is
+# sent (notifications.push.push_configured). Generate with `manage.py
+# generate_vapid_keys`. The subject must start with mailto: or https:.
+PUSH_VAPID_PUBLIC_KEY = env("LIBLI_VAPID_PUBLIC_KEY", default="")
+PUSH_VAPID_PRIVATE_KEY = env("LIBLI_VAPID_PRIVATE_KEY", default="")
+PUSH_VAPID_SUBJECT = env("LIBLI_VAPID_SUBJECT", default="")
+
 # The allocation grid posts two fields per student row (the radio's single value
 # plus its hidden state token) plus a small fixed overhead, so Django's default
 # of 1000 would 400 with TooManyFieldsSent past roughly 500 students — losing

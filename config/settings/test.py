@@ -40,6 +40,11 @@ VENDOR_INSTANCE = False
 # Tests that exercise the worker opt in with the settings fixture.
 PWA_ENABLED = False
 PWA_KILL_SWITCH = False
+# Pinned for the same reason: a developer's .env may carry real VAPID keys. Tests
+# that exercise push opt in with the settings fixture (tests use push_settings()).
+PUSH_VAPID_PUBLIC_KEY = ""
+PUSH_VAPID_PRIVATE_KEY = ""
+PUSH_VAPID_SUBJECT = ""
 
 # REPLACES the production list rather than extending it -- with the Wikimedia hosts
 # still present, a unit test whose transport mock failed to intercept could reach the
