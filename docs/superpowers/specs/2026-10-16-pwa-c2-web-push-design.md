@@ -290,13 +290,13 @@ It exposes the device state, evaluated **in this order, first match wins**:
 | 2 | `unsupported` | no `serviceWorker`, `PushManager` or `Notification`, OR `navigator.serviceWorker.getRegistration()` resolves `undefined` or rejects (registration refused, e.g. a private window or blocked site data) |
 | 3 | `blocked` | `Notification.permission === "denied"` (wins over a leftover subscription) |
 | 4 | `on` | `registration.pushManager.getSubscription()` is non-null (after the claim step below) |
+| 5 | `off` | otherwise |
 
 `registration` for the on-load evaluation always comes from
 `navigator.serviceWorker.getRegistration()` (resolves immediately), NEVER
 `navigator.serviceWorker.ready`, which never settles when `pwa.js`'s `register()` failed and would
 leave the switch disabled forever. Only `subscribe()` awaits `ready` (a first visit may click
 before the C1 worker activates), bounded by a 10 s timeout that fails as an ordinary error.
-| 5 | `off` | otherwise |
 
 **Claim step (on load).** It runs BEFORE the state table, in every state where a
 subscription can be read (including `blocked`: a denied permission still leaves
@@ -370,7 +370,11 @@ A `hidden` row at the top of the panel, rendered only when `push_available`:
 "Get notifications on this device — **Turn on** · ×". `push.js` unhides it only when the state
 is `off` and the localStorage flag `libli:push-invite-dismissed` is not set (every storage access
 in try/catch; storage failing = show it). On iOS this means it appears only inside the installed
-app. **Turn on** runs `subscribe()`; on success the row hides. **×** sets the flag and hides it.
+app. **Turn on** runs `subscribe()`. The row holds its own initially-hidden error element, which
+push.js fills with `textContent` from `data-msg-error` on failure. After any action the row's
+visibility is recomputed from the new state: it stays visible only in `off` (with the error
+shown after a failure) and hides in every other state, including `blocked` after a denied
+prompt and `on` after success. **×** sets the flag and hides it.
 The row is the same for empty and non-empty panels.
 
 ## 8a. Strings and localization
@@ -434,6 +438,9 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   identical with and without a favicon override (guards §5's no-new-slot rule).
 - Independence — every test runs the callbacks with `captureOnCommitCallbacks(execute=True)`
   and names its mutant:
+  - Injection points are channel-ONLY, never the shared `email_content` (push reuses it, so
+    patching it would fail both channels): email fails via `EmailMultiAlternatives.send`, push
+    via `pywebpush.webpush` (or `push_kind_enabled`) for the chosen recipient.
   - email raising still pushes (mutant: email's log-and-swallow removed; email is registered
     first, so this is the guard that the email failure does not stop the push callback);
   - push's swallow (mutant: the `try` narrowed so `push_configured()` or the preference lookup
@@ -483,7 +490,8 @@ e2e (Playwright Chromium). The live-server process runs with push configured: a 
 overrides `PUSH_VAPID_*` with a pair from `generate_vapid_keys`' key helper, a `mailto:` subject,
 and `PWA_ENABLED=True`. Every stub subscription uses an allowlisted endpoint
 (`https://fcm.googleapis.com/fcm/send/<token>`), or the subscribe POST is a 400 that reads as a
-switch that stays off.
+switch that stays off. The same fixture patches `pywebpush.webpush` in the live-server process,
+so no e2e test ever reaches a real push service even if it triggers `notify()`.
 
 - Settings device switch and bell invite against a stubbed `PushManager` /
   `Notification.permission` (init script): `off → on` POSTs the subscription; `on → off` POSTs
@@ -503,6 +511,8 @@ switch that stays off.
   `unsupported` with its line shown, the switch does not stay disabled-without-a-line, and the bell
   invite stays hidden.
 - The shared-computer help line is visible in `off` and `on`, hidden in the other three states.
+- Bell Turn on with the subscribe POST returning 500: the error shows inside the panel and the
+  invite stays visible; a denied permission prompt hides the invite.
 - `blocked` with a leftover subscription whose endpoint the server reports `mine: false`: the
   claim still runs and the row is deleted; the state reads blocked.
 - Claim on load: a stubbed subscription whose endpoint the server reports `mine: false` is
