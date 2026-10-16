@@ -113,3 +113,15 @@ def generate_vapid_pair():
     )
     private = key.private_numbers().private_value.to_bytes(32, "big")
     return _b64url(public), _b64url(private)
+
+
+def push_kind_enabled(user, kind):
+    """True when the user has no push preference row (default-on), else the per-kind
+    boolean. An unknown kind raises later -- AttributeError here when a row exists, else
+    ValueError in email_content -- and delivery swallows both."""
+    from notifications.models import NotificationPushPreference
+
+    pref = NotificationPushPreference.objects.filter(user=user).first()
+    if pref is None:
+        return True
+    return getattr(pref, kind)

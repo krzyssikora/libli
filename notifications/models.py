@@ -65,3 +65,44 @@ class NotificationEmailPreference(models.Model):
 
     def __str__(self):
         return f"email prefs for {self.user_id}"
+
+
+class PushSubscription(models.Model):
+    """One subscribed browser (PWA C2 spec §2). Delivers only while the login session
+    named by session_key is live, authenticated as `user` and remembered (D7, D8)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="push_subscriptions",
+    )
+    endpoint = models.URLField(max_length=1024, unique=True)
+    p256dh = models.CharField(max_length=128)
+    auth = models.CharField(max_length=64)
+    user_agent = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Set on every subscribe upsert; orders the 5-device cap (created_at would keep
+    # a re-subscribed endpoint looking old).
+    subscribed_at = models.DateTimeField()
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    session_key = models.CharField(max_length=40, db_index=True)
+
+    def __str__(self):
+        return f"push subscription {self.pk} for {self.user_id}"
+
+
+class NotificationPushPreference(models.Model):
+    """Per-user, per-kind opt-out for PUSH (mirrors NotificationEmailPreference).
+    Absence of a row = all-on. Field names equal the Notification.Kind values."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_push_pref",
+    )
+    quiz_needs_review = models.BooleanField(default=True)
+    quiz_graded = models.BooleanField(default=True)
+    enrolled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"push prefs for {self.user_id}"
