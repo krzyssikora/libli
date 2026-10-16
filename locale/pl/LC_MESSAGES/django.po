@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 20:08+0200\n"
+"POT-Creation-Date: 2026-10-16 23:12+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -161,11 +161,11 @@ msgstr "Użytkownik dezaktywowany."
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
-#: .\config\settings\base.py:151
+#: .\config\settings\base.py:152
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:151
+#: .\config\settings\base.py:152
 msgid "Polski"
 msgstr "Polski"
 
@@ -226,7 +226,7 @@ msgstr "Eksport dziennika ocen"
 #: .\core\help.py:270 .\notes\templates\notes\course_notes.html:9
 #: .\notes\templates\notes\overview.html:3
 #: .\notes\templates\notes\overview.html:10
-#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:79
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:80
 msgid "Tags & notes"
 msgstr "Tagi i notatki"
 
@@ -251,13 +251,13 @@ msgstr "Branding i ustawienia platformy"
 msgid "SSO (OIDC)"
 msgstr "Logowanie SSO (OIDC)"
 
-#: .\core\help.py:312 .\courses\forms.py:81 .\templates\base.html:101
+#: .\core\help.py:312 .\courses\forms.py:81 .\templates\base.html:102
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
 msgstr "Przedmioty"
 
-#: .\core\help.py:319 .\grouping\forms.py:257 .\templates\base.html:104
+#: .\core\help.py:319 .\grouping\forms.py:257 .\templates\base.html:105
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
@@ -271,9 +271,10 @@ msgid "First-run wizard"
 msgstr "Kreator pierwszego uruchomienia"
 
 #: .\core\help.py:340
-#: .\notifications\templates\notifications\_bell_panel.html:4
+#: .\notifications\templates\notifications\_bell_panel.html:14
 #: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:128 .\templates\base.html:132
+#: .\templates\base.html:129 .\templates\base.html:133
+#: .\templates\core\user_settings.html:117
 #: .\templates\institution\manage\_tabs.html:14
 msgid "Notifications"
 msgstr "Powiadomienia"
@@ -422,11 +423,48 @@ msgstr "%(above)s i więcej"
 msgid "Considering libli for a school?"
 msgstr "Rozważasz libli dla swojej szkoły?"
 
-#: .\core\views.py:167
+#: .\core\views.py:125 .\notifications\models.py:10
+#: .\tests\test_review_wording_pl.py:175
+msgid "Quiz graded"
+msgstr "Quiz oceniony"
+
+#: .\core\views.py:126
+msgid "Email me when a quiz I submitted is graded."
+msgstr "Wyślij e-mail, gdy mój przesłany quiz zostanie oceniony."
+
+#: .\core\views.py:127
+msgid "When a quiz I submitted is graded."
+msgstr "Gdy mój przesłany quiz zostanie oceniony."
+
+#: .\core\views.py:131
+msgid "Course enrollment"
+msgstr "Zapisanie na kurs"
+
+#: .\core\views.py:132
+msgid "Email me when I'm enrolled in a course."
+msgstr "Wyślij e-mail, gdy zostanę zapisany(a) na kurs."
+
+#: .\core\views.py:133
+msgid "When I'm enrolled in a course."
+msgstr "Gdy zostanę zapisany(-a) na kurs."
+
+#: .\core\views.py:137 .\notifications\models.py:9
+msgid "Quiz needs review"
+msgstr "Quiz wymaga sprawdzenia"
+
+#: .\core\views.py:138
+msgid "Email me when a student's quiz needs my review."
+msgstr "Wyślij e-mail, gdy quiz ucznia wymaga mojego sprawdzenia."
+
+#: .\core\views.py:139
+msgid "When a student's quiz needs my review."
+msgstr "Gdy quiz ucznia wymaga mojego sprawdzenia."
+
+#: .\core\views.py:216
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\core\views.py:271
+#: .\core\views.py:332
 msgid "Lessons and courses from your school"
 msgstr "Lekcje i kursy Twojej szkoły"
 
@@ -3112,7 +3150,7 @@ msgstr ""
 msgid "This allocation belongs to a different course."
 msgstr "Ten przydział należy do innego kursu."
 
-#: .\grouping\forms.py:217 .\templates\base.html:84
+#: .\grouping\forms.py:217 .\templates\base.html:85
 #: .\templates\grouping\group_list.html:5
 #: .\templates\grouping\my_groups.html:10
 msgid "Groups"
@@ -3829,7 +3867,7 @@ msgstr "Zapisz"
 #: .\tags\templates\tags\delete_confirm.html:14
 #: .\tags\templates\tags\rename_page.html:17
 #: .\templates\accounts\manage\user_form.html:28
-#: .\templates\core\user_settings.html:163
+#: .\templates\core\user_settings.html:172
 #: .\templates\courses\manage\_move_picker.html:13
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_element_row.html:53
@@ -4044,15 +4082,6 @@ msgstr "Zapisano Cię na kurs %(course)s"
 msgid "You now have access to %(course)s."
 msgstr "Masz teraz dostęp do kursu %(course)s."
 
-#: .\notifications\models.py:9 .\templates\core\user_settings.html:150
-msgid "Quiz needs review"
-msgstr "Quiz wymaga sprawdzenia"
-
-#: .\notifications\models.py:10 .\templates\core\user_settings.html:122
-#: .\tests\test_review_wording_pl.py:175
-msgid "Quiz graded"
-msgstr "Quiz oceniony"
-
 #: .\notifications\models.py:11
 msgid "Enrolled in course"
 msgstr "Zapisano na kurs"
@@ -4074,41 +4103,53 @@ msgstr ""
 "Wyczyszczono powiadomienia — przeczytane: %(read_aged)d, osierocone: "
 "%(orphaned)d"
 
-#: .\notifications\templates\notifications\_bell_panel.html:11
+#: .\notifications\templates\notifications\_bell_panel.html:4
+msgid "Get notifications on this device"
+msgstr "Otrzymuj powiadomienia na tym urządzeniu"
+
+#: .\notifications\templates\notifications\_bell_panel.html:5
+msgid "Turn on"
+msgstr "Włącz"
+
+#: .\notifications\templates\notifications\_bell_panel.html:6
+msgid "Dismiss"
+msgstr "Zamknij"
+
+#: .\notifications\templates\notifications\_bell_panel.html:21
 #: .\notifications\templates\notifications\list.html:10
 msgid "Mark all read"
 msgstr "Oznacz wszystkie jako przeczytane"
 
-#: .\notifications\templates\notifications\_bell_panel.html:26
+#: .\notifications\templates\notifications\_bell_panel.html:36
 #: .\notifications\templates\notifications\list.html:21
 #, python-format
 msgid "%(student)s submitted a quiz for review: %(unit)s"
 msgstr "%(student)s przesłał(a) quiz do sprawdzenia: %(unit)s"
 
-#: .\notifications\templates\notifications\_bell_panel.html:28
+#: .\notifications\templates\notifications\_bell_panel.html:38
 #: .\notifications\templates\notifications\list.html:23
 #, python-format
 msgid "Your quiz was graded: %(unit)s"
 msgstr "Twój quiz został oceniony: %(unit)s"
 
-#: .\notifications\templates\notifications\_bell_panel.html:30
+#: .\notifications\templates\notifications\_bell_panel.html:40
 #: .\notifications\templates\notifications\list.html:25
 #, python-format
 msgid "You were enrolled in %(course)s"
 msgstr "Zapisano Cię na kurs %(course)s"
 
-#: .\notifications\templates\notifications\_bell_panel.html:33
+#: .\notifications\templates\notifications\_bell_panel.html:43
 #: .\notifications\tests\test_bell_i18n.py:12
 #, python-format
 msgid "%(time)s ago"
 msgstr "%(time)s temu"
 
-#: .\notifications\templates\notifications\_bell_panel.html:38
+#: .\notifications\templates\notifications\_bell_panel.html:48
 #: .\notifications\tests\test_bell_i18n.py:7
 msgid "See all"
 msgstr "Zobacz wszystkie"
 
-#: .\notifications\templates\notifications\_bell_panel.html:40
+#: .\notifications\templates\notifications\_bell_panel.html:50
 #: .\notifications\tests\test_bell_i18n.py:9
 msgid "You have no notifications yet."
 msgstr "Nie masz jeszcze żadnych powiadomień."
@@ -4291,7 +4332,7 @@ msgstr "Przeglądarka"
 msgid "Language header"
 msgstr "Nagłówek języka"
 
-#: .\support\templates\support\_report_dialog.html:6 .\templates\base.html:145
+#: .\support\templates\support\_report_dialog.html:6 .\templates\base.html:146
 msgid "Report an issue"
 msgstr "Zgłoś problem"
 
@@ -4398,7 +4439,7 @@ msgstr "Usunąć to zgłoszenie i jego zrzut ekranu?"
 
 #: .\support\templates\support\manage\report_list.html:3
 #: .\support\templates\support\manage\report_list.html:6
-#: .\templates\base.html:113
+#: .\templates\base.html:114
 msgid "Issue reports"
 msgstr "Zgłoszenia problemów"
 
@@ -4615,7 +4656,7 @@ msgid "New name"
 msgstr "Nowa nazwa"
 
 #: .\tags\templates\tags\rename_page.html:16
-#: .\templates\core\user_settings.html:164
+#: .\templates\core\user_settings.html:173
 msgid "Save changes"
 msgstr "Zapisz zmiany"
 
@@ -4643,7 +4684,7 @@ msgstr ""
 msgid "Back to main page"
 msgstr "Powrót do strony głównej"
 
-#: .\templates\403.html:25 .\templates\base.html:154
+#: .\templates\403.html:25 .\templates\base.html:155
 #: .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
@@ -4689,7 +4730,7 @@ msgstr "Moje grupy"
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\_groups_tabs.html:10 .\templates\base.html:107
+#: .\templates\_groups_tabs.html:10 .\templates\base.html:108
 #: .\templates\grouping\allocation_list.html:5
 msgid "Allocations"
 msgstr "Przydziały"
@@ -4855,7 +4896,7 @@ msgstr "Użytkownicy"
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:110
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:111
 msgid "People"
 msgstr "Osoby"
 
@@ -4864,6 +4905,7 @@ msgstr "Osoby"
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\accounts\manage\user_form.html:14
 #: .\templates\core\user_settings.html:43
+#: .\templates\core\user_settings.html:141
 #: .\templates\institution\setup\team.html:12
 msgid "Email"
 msgstr "E-mail"
@@ -4993,61 +5035,65 @@ msgstr ""
 "Twoje konto nie jest autoryzowane na tej platformie — skontaktuj się z "
 "administratorem."
 
-#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:73
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:74
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:77
+#: .\templates\base.html:10
+msgid "Couldn't change push notifications. Try again."
+msgstr "Nie udało się zmienić powiadomień push. Spróbuj ponownie."
+
+#: .\templates\base.html:78
 msgid "Menu"
 msgstr "Menu"
 
-#: .\templates\base.html:78
+#: .\templates\base.html:79
 #: .\templates\institution\manage\_branding_fields.html:16
 msgid "Primary"
 msgstr "Główne"
 
-#: .\templates\base.html:81 .\templates\core\home.html:47
+#: .\templates\base.html:82 .\templates\core\home.html:47
 #: .\templates\courses\manage\course_list.html:3
 #: .\templates\courses\manage\course_list.html:7
 msgid "Studio"
 msgstr "Studio"
 
-#: .\templates\base.html:87 .\templates\core\_public_footer.html:11
+#: .\templates\base.html:88 .\templates\core\_public_footer.html:11
 #: .\templates\core\landing.html:41 .\templates\help\doc.html:21
 #: .\templates\help\index.html:3 .\templates\help\index.html:7
 msgid "Help"
 msgstr "Pomoc"
 
-#: .\templates\base.html:97
+#: .\templates\base.html:98
 msgid "Admin"
 msgstr "Administracja"
 
-#: .\templates\base.html:117 .\templates\core\home.html:81
+#: .\templates\base.html:118 .\templates\core\home.html:81
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:118
+#: .\templates\base.html:119
 msgid "Setup wizard"
 msgstr "Kreator konfiguracji"
 
-#: .\templates\base.html:119
+#: .\templates\base.html:120
 msgid "SIS webhook guide"
 msgstr "Przewodnik webhooka SIS"
 
-#: .\templates\base.html:142 .\templates\core\home.html:79
+#: .\templates\base.html:143 .\templates\core\home.html:79
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:143 .\templates\core\_public_footer.html:12
+#: .\templates\base.html:144 .\templates\core\_public_footer.html:12
 #: .\templates\core\landing.html:42
 msgid "Install app"
 msgstr "Zainstaluj aplikację"
 
-#: .\templates\base.html:149
+#: .\templates\base.html:150
 msgid "Log out"
 msgstr "Wyloguj"
 
@@ -5252,31 +5298,69 @@ msgstr "Niepołączone"
 msgid "Connected"
 msgstr "Połączone"
 
-#: .\templates\core\user_settings.html:116
+#: .\templates\core\user_settings.html:118
+msgid ""
+"Choose which events email you and which send a push notification. The bell "
+"always shows everything."
+msgstr ""
+"Wybierz, o których zdarzeniach chcesz dostawać e-mail, a o których "
+"powiadomienie push. Dzwonek zawsze pokazuje wszystko."
+
+#: .\templates\core\user_settings.html:122
+#: .\templates\core\user_settings.html:127
+msgid "Push notifications on this device"
+msgstr "Powiadomienia push na tym urządzeniu"
+
+#: .\templates\core\user_settings.html:123
+msgid "On a shared computer, log out when you finish."
+msgstr "Na wspólnym komputerze wyloguj się, gdy skończysz."
+
+#: .\templates\core\user_settings.html:130
+msgid "This browser can't show push notifications."
+msgstr "Ta przeglądarka nie obsługuje powiadomień push."
+
+#: .\templates\core\user_settings.html:131
+msgid ""
+"To get push notifications on this device, tick 'Remember me' when you log in."
+msgstr ""
+"Aby dostawać powiadomienia push na tym urządzeniu, zaznacz „Zapamiętaj "
+"mnie” przy logowaniu."
+
+#: .\templates\core\user_settings.html:132
+msgid "On iPhone and iPad, add libli to your Home Screen first."
+msgstr "Na iPhonie i iPadzie najpierw dodaj libli do ekranu początkowego."
+
+#: .\templates\core\user_settings.html:132
+msgid "How to install"
+msgstr "Jak zainstalować"
+
+#: .\templates\core\user_settings.html:133
+msgid "Notifications are blocked for libli in this browser's settings."
+msgstr "Powiadomienia z libli są zablokowane w ustawieniach tej przeglądarki."
+
+#: .\templates\core\user_settings.html:141
+msgid "Push"
+msgstr "Push"
+
+#: .\templates\core\user_settings.html:145
 msgid "Email notifications"
 msgstr "Powiadomienia e-mail"
 
-#: .\templates\core\user_settings.html:117
+#: .\templates\core\user_settings.html:146
 msgid "Choose which events email you. In-app notifications are always shown."
 msgstr ""
 "Wybierz, które zdarzenia wysyłają e-mail. Powiadomienia w aplikacji są "
 "zawsze widoczne."
 
-#: .\templates\core\user_settings.html:119
-msgid "Email me when a quiz I submitted is graded."
-msgstr "Wyślij e-mail, gdy mój przesłany quiz zostanie oceniony."
+#: .\templates\core\user_settings.html:157
+#, python-format
+msgid "Email: %(label)s"
+msgstr "E-mail: %(label)s"
 
-#: .\templates\core\user_settings.html:133
-msgid "Email me when I'm enrolled in a course."
-msgstr "Wyślij e-mail, gdy zostanę zapisany(a) na kurs."
-
-#: .\templates\core\user_settings.html:136
-msgid "Course enrollment"
-msgstr "Zapisanie na kurs"
-
-#: .\templates\core\user_settings.html:147
-msgid "Email me when a student's quiz needs my review."
-msgstr "Wyślij e-mail, gdy quiz ucznia wymaga mojego sprawdzenia."
+#: .\templates\core\user_settings.html:162
+#, python-format
+msgid "Push: %(label)s"
+msgstr "Push: %(label)s"
 
 #: .\templates\courses\_catalog_detail.html:7
 #, python-format
