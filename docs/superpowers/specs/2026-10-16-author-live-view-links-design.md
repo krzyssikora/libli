@@ -47,6 +47,10 @@ The triggering case was a **draft** unit, so nothing may hide drafts.
 - No change to the live page for authors: the draft banner, the "Edit unit"
   link, no Continue card and unrecorded quiz attempts all stay.
 - No "hide drafts" or "view as a real student" mode.
+- No change to `quiz_unit`'s existing redirect to `quiz_results` when the
+  viewer has a SUBMITTED `QuizSubmission` (`courses/views.py` ~1503-1511). An
+  author with such a row lands on results, which is accepted under D1. Do not
+  "fix" it, and do not write a test expecting the quiz page in that state.
 - No QR code or "send to phone".
 - No change to the builder page.
 - No tracking of *who* last edited a unit.
@@ -74,8 +78,14 @@ panel's existing pattern: `<li class="dash-row">` with the title link
 (unchanged: `courses:manage_builder`) and a `dash-row__action` link labelled
 "View" pointing at `courses:course_outline` for that course. The
 `.dash-list li.dash-row` / `.dash-row__action` CSS already exists in
-`core/static/core/css/app.css` (around line 390). No new CSS is expected
-beyond what that pattern already provides.
+`core/static/core/css/app.css` (around line 390), but it cannot wrap a long
+unbroken title. The flex row has no `min-width: 0` or `overflow-wrap`, and the
+panels sit in `.dash-grid` (`minmax(18rem, 1fr)`), whose auto track grows to the
+longest word. So the row's title link (and the card's title text, Component 2)
+need `min-width: 0; overflow-wrap: anywhere`, as `.outline-unit__title`
+(app.css ~647) already has. `break-word` is not enough here. The 360px e2e is
+the RED test for this. The fix also helps the Teaching rows, which share the
+class, and that is intended.
 
 Access: `owned_courses` is `Course.objects.filter(owner=request.user)`, and the
 owner always passes `can_access_course` (the owner disjunct of
@@ -85,7 +95,7 @@ owner always passes `can_access_course` (the owner disjunct of
 
 At the top of the Studio panel (before the course list), when the user owns at
 least one unit, render one card: the unit title and the course title. The whole
-card links to `courses:lesson_unit` for that unit.
+card links to the unit's live page (URL rule below).
 
 - **Query (computed in `core.views.home`):** `ContentNode` rows with
   `kind=ContentNode.Kind.UNIT`, `course__owner=request.user`, ordered `-updated, -pk`, the
@@ -106,6 +116,9 @@ card links to `courses:lesson_unit` for that unit.
   node titles today. Render the title as
   `{{ unit.title|strip_math_delimiters }}` (`courses_extras`, as used by the
   lesson and editor `head_title`), with no KaTeX on the dashboard.
+  `templates/core/home.html` loads only `i18n` today, so it must add
+  `{% load courses_extras %}`. Without it the template raises
+  `TemplateSyntaxError` for every user.
 - The link URL is chosen by unit type: `courses:quiz_unit` for a quiz,
   `courses:lesson_unit` otherwise (no redirect round trip).
 - Structure: the visible "Last edited" label sits **outside** the `<a>`. The
@@ -205,7 +218,8 @@ e2e check for the property only a browser can see.
     including for a Platform Admin (`make_pa`) who owns a course of their own.
   - A user with no owned units sees no card.
   - A unit titled with inline maths (e.g. `Pole \(x^2\)`) shows on the card
-    without the `\(` `\)` delimiters.
+    without the `\(` `\)` delimiters, **and** the stripped text (`Pole x^2`)
+    is present inside the card.
   - A quiz unit's card links to `quiz_unit`, a lesson's to `lesson_unit`.
   - The Platform Admin case shows the PA's own owned unit (positive) and not
     the other author's later-updated unit (negative).
