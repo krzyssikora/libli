@@ -337,9 +337,9 @@ Expected: FAIL — `ImportError: cannot import name 'push' from 'notifications'`
 """Web push (PWA C2): every push decision lives here.
 
 Spec: docs/superpowers/specs/2026-10-16-pwa-c2-web-push-design.md. This module
-top-level-imports only Django and the notifications models; email_content is
-imported function-locally (emails.py top-level-imports services.py, and
-services.notify imports THIS module function-locally).
+top-level-imports only django.conf and the standard library; the notifications
+models, core and emails are imported function-locally (emails.py top-level-imports
+services.py, which imports THIS module function-locally) -- keep it that way.
 """
 
 import base64
@@ -1523,6 +1523,7 @@ Expected: PASS. Then the existing suite for the touched module: `uv run pytest n
 7. hoist `claims = {"sub": ...}` above the loop in `deliver_notification_push` and pass it into `_send_one` → `test_each_call_gets_its_own_claims_dict` FAILS.
 8. move `if not push_kind_enabled(...)` above the `try:` → `test_first_teachers_push_failure_does_not_stop_the_second_teacher` FAILS.
 9. comment out the `@receiver(request_started)` decorator → `test_request_started_resets_the_budget` FAILS.
+9b. drop `*user.get_session_auth_fallback_hash()` from `hashes` → `test_fallback_secret_hash_is_still_live` FAILS.
 10. make `live_subscriptions` `return subs` right after loading them (no filtering) → `test_missing_session_is_dropped_and_deleted` FAILS.
 11. in `_send_one`, pass `vapid_private_key=decode_b64url(settings.PUSH_VAPID_PRIVATE_KEY).hex()` → `test_real_pywebpush_encrypts_and_signs_with_our_keys` FAILS (no POST; the error is swallowed and logged). If the real-library test cannot pass on a CORRECT build, the key format in `generate_vapid_pair` is wrong for this pywebpush version — fix the format (e.g. PEM via `py_vapid`), never the test.
 
@@ -2061,6 +2062,9 @@ Expected: PASS.
 2. In the cap, `order_by("-created_at", "-pk")` → `test_cap_evicts_by_subscribed_at_not_created_at` FAILS. Separately, drop `.exclude(endpoint=endpoint)` from both cap queries → `test_resubscribing_an_old_endpoint_keeps_it` FAILS.
 3. Remove `from notifications import signals` from `NotificationsConfig.ready` → `test_logout_deletes_the_sessions_row_only` FAILS. Run this mutant with `uv run pytest notifications/tests/test_push_logout.py::test_logout_deletes_the_sessions_row_only -p no:xdist` ALONE: any earlier test in the same process that imports `notifications.signals` directly would connect the receivers and hide the mutant (no test does — the receiver test goes through `user_logged_out.send` — and `push.py` does not import it).
 4. In `push_claim`, drop `and remembered_from_data(...)` → `test_claim_in_a_not_remembered_session_deletes_own_row` FAILS.
+5. In `push_unsubscribe`, drop `user=request.user` from the delete → `test_unsubscribe_of_another_users_endpoint_deletes_nothing` FAILS.
+6. In `push_claim`'s foreign branch, re-key the row to the current user/session instead of deleting it → `test_claim_other_users_row_deletes_it` FAILS.
+7. Drop `filter(user=request.user)` from the cap's DELETE query (keep it on the `keep` query) → `test_sixth_subscribe_evicts_only_this_users_oldest` FAILS on its other-user assertion.
 Revert each by hand.
 
 - [ ] **Step 7: Commit**
@@ -2456,7 +2460,9 @@ Register it in `config/settings/base.py` after `"core.context_processors.notific
 
 - [ ] **Step 5: The view**
 
-In `core/views.py:user_settings`, replace the block from `from notifications.forms import NotificationEmailForm` through the `else:` branch's `notif_form = NotificationEmailForm(instance=pref)` with:
+In `core/views.py:user_settings`, make TWO edits (the POST branch's tail -- session language, success message, redirect, theme cookie -- stays exactly as it is and is NOT part of either):
+
+**Edit 1** — replace from `from notifications.forms import NotificationEmailForm` down to and including `                    reconcile_primary_email(user)` (the last line inside `with transaction.atomic():`) with:
 
 ```python
     from notifications.forms import NotificationEmailForm
@@ -2504,7 +2510,7 @@ In `core/views.py:user_settings`, replace the block from `from notifications.for
                     reconcile_primary_email(user)
 ```
 
-keep the rest of the POST branch (session language, message, redirect, cookie) unchanged, then:
+**Edit 2** — replace the `else:` branch (its two lines `form = UserSettingsForm(instance=request.user)` and `notif_form = NotificationEmailForm(instance=pref)`) with:
 
 ```python
     else:
@@ -3650,8 +3656,12 @@ def test_settings_and_bell_render_polish(client, settings):
         "On a shared computer, log out when you finish.",
         "Get notifications on this device",
         "Push notifications on this device",
+        "Turn on",
+        "How to install",
+        "Push",
     ):
         assert NEW[msgid] in html, msgid
+    assert f'aria-label="{NEW["Dismiss"]}"' in html
     # the error string travels in an attribute, HTML-escaped
     assert "Nie udało się zmienić powiadomień push" in html
 ```
