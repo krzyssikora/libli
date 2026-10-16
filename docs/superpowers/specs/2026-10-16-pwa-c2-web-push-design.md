@@ -198,7 +198,7 @@ All three are POST, CSRF-protected (called by `push.js` with the cookie token), 
 JSON response. Django's `CsrfViewMiddleware` runs first, so a POST without a valid token gets
 its HTML 403 before any of the following; for CSRF-valid requests the checks run in this order: `push_configured()` False → 404; anonymous → 403
 `{"ok": false}` (NOT `login_required`'s 302, which `fetch` would follow to an HTML page);
-malformed body → 400. `push.js` treats any non-200 as a failure and shows its generic error line
+subscribe only: a non-remembered session (D8) → 403 `{"ok": false}`; malformed body → 400. `push.js` treats any non-200 as a failure and shows its generic error line
 ("Couldn't change push notifications. Try again.").
 
 - `notifications/push/subscribe/` — body `{"endpoint", "keys": {"p256dh", "auth"}}`.
@@ -273,7 +273,7 @@ simply left), after which no signal fires.
   with `constant_time_compare` against `user.get_session_auth_hash()` or any of
   `user.get_session_auth_fallback_hash()` — the same test `django.contrib.auth.get_user` applies,
   so a password changed elsewhere ends delivery even though Django flushes that session only on
-  its next request; `user.is_active`; and the decoded `_session_expiry` is not `0` (D8: a
+  its next request; `user.is_active`; and `remembered_from_data(decoded)` is True (D8: a
   browser-close login is never sent to, even if it somehow holds a row). Rows failing any test are
   deleted, not sent. Cost: one select plus at most one delete per notification, and decoding at
   most 5 sessions (the device cap) — negligible beside the push calls themselves. (`Session` rows linger after expiry because no `clearsessions` cron runs,
@@ -291,7 +291,11 @@ simply left), after which no signal fires.
 - **Remembered logins only (D8).** A login made with "Remember me" unticked calls
   `request.session.set_expiry(0)` (`allauth/account/forms.py`), so the browser forgets it at
   close while the database row still says 2 weeks; the server cannot see the browser close. So:
-  `notifications.push.session_remembered(session)` = `not session.get_expire_at_browser_close()`.
+  ONE predicate decides it everywhere: `notifications.push.remembered_from_data(data)` over a
+  session's data dict — `_session_expiry` absent → `not settings.SESSION_EXPIRE_AT_BROWSER_CLOSE`,
+  else `_session_expiry != 0` (the same fallback `SessionBase.get_expire_at_browser_close()`
+  applies). The page and the endpoints call it on `request.session`'s data, the send path on the
+  decoded session row, so the two can never disagree.
   SSO, signup and invitation logins never call `set_expiry(0)` and are remembered. In a
   non-remembered session: `subscribe` → 403 `{"ok": false}` (no row created); `claim` → deletes
   any row with that endpoint and answers `{"mine": false}` (the person said this is not their
@@ -336,7 +340,7 @@ subscription is fixed by turning the switch on again).
 Loaded on every authenticated page only when `push_configured()` (a context flag
 `push_available`). The page carries `<meta name="libli-push" data-vapid-key="…"
 data-session-endpoint="…" data-remembered="1|0">` (`data-remembered` from
-`session_remembered(request.session)`, §4), `data-session-endpoint` being `request.session.get("push_endpoint", "")` ONLY
+`remembered_from_data(request.session)`, §4), `data-session-endpoint` being `request.session.get("push_endpoint", "")` ONLY
 when a row with that endpoint, this user and this session's current key exists, else empty (§4,
 session key rotation).
 It exposes the device state, evaluated **in this order, first match wins**:
@@ -443,7 +447,8 @@ push.js builds NO user-facing text. The repo has no JS gettext catalog; its conv
 server-rendered `{% trans %}` text (e.g. `data-msg-*` attributes in
 `templates/courses/manage/builder.html`). So:
 
-- Every device-state line (§7: unsupported, iOS-not-installed with its link, blocked), the
+- Every device-state line (§7: unsupported, not-remembered, iOS-not-installed with its link,
+  blocked), the
   shared-computer help line (§4; visible exactly when the device switch is, i.e. in `off` and
   `on`), and the whole bell invite row (§8) are server-rendered with
   `{% trans %}` inside elements that start `hidden`; push.js only toggles `hidden`.
@@ -578,7 +583,8 @@ so no e2e test ever reaches a real push service even if it triggers `notify()`.
 - Subscribe POST returning 500: the browser subscription is rolled back and the switch reads off.
 - The device switch is disabled until push.js reports a state (a held claim response keeps it
   disabled), and enabled after.
-- Every state line and the bell row render in Polish under `pl` (server-rendered, not JS).
+- Every state line (not-remembered included) and the bell row render in Polish under `pl`
+  (server-rendered, not JS).
 - `notificationclick` with only an uncontrolled window open falls back to `openWindow` (or the
   helper test, if the CDP route is unworkable).
 - `blocked` with a leftover subscription whose endpoint the server reports `mine: true`: the
