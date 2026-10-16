@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n courses_extras %}
 {% block head_title %}{% trans "Dashboard" %} · libli{% endblock %}
 {% block content %}
 <h1>
@@ -31,7 +31,7 @@
   <ul class="dash-list">
     {% for course in taught_courses %}
     <li class="dash-row">
-      <a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+      <a class="dash-row__title" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
       <a class="dash-row__action" href="{% url 'courses:manage_analytics' slug=course.slug %}">{% trans "Analytics" %}</a>
     </li>
     {% endfor %}
@@ -48,7 +48,10 @@
   {% if owned_courses %}
   <ul class="dash-list">
     {% for course in owned_courses %}
-    <li><a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a></li>
+    <li class="dash-row">
+      <a class="dash-row__title" href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a>
+      <a class="dash-row__action" href="{% url 'courses:course_outline' slug=course.slug %}">{% translate "View" context "dashboard row action: open the course as students see it" %}<span class="visually-hidden"> {{ course.title|strip_math_delimiters }}</span></a>
+    </li>
     {% endfor %}
   </ul>
   {% endif %}

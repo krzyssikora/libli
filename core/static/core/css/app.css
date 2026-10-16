@@ -397,6 +397,10 @@ input[type=number] {
   font-weight: 500; font-size: .85rem; }
 .dash-list .dash-row__action:hover,
 .dash-list .dash-row__action:focus-visible { color: var(--accent); text-decoration: underline; }
+/* The title flexes and must be allowed to shrink below its content width, else
+   an unbreakable title overflows the flex row at phone width (same recipe as
+   `.outline-unit__title`). */
+.dash-list .dash-row__title { min-width: 0; overflow-wrap: anywhere; }
 /* Panel footer actions (Studio): a primary CTA + a quiet link, gap-separated
    instead of whitespace-jammed. */
 .dash-actions { display: flex; flex-wrap: wrap; align-items: center;

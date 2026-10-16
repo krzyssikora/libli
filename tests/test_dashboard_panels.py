@@ -1,4 +1,5 @@
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from tests.factories import CourseFactory
@@ -8,6 +9,19 @@ from tests.factories import make_pa
 from tests.factories import make_teacher
 
 pytestmark = pytest.mark.django_db
+
+
+def _polish(client):
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+
+
+def _studio(resp):
+    soup = BeautifulSoup(resp.content, "html.parser")
+    return soup.select_one('section[data-section="manage"]')
 
 
 def _teaching_setup(client, username, *, archived=False):
@@ -88,3 +102,55 @@ def test_studio_new_course_shown_for_add_course_holder(client):
     mark_onboarded()  # avoid the first-run wizard redirect
     resp = client.get(reverse("home"))
     assert reverse("courses:manage_course_create") in resp.content.decode()
+
+
+def test_studio_row_title_goes_to_builder_and_view_to_outline(client):
+    owner = make_login(client, "studio_view")
+    course = CourseFactory(title="Algebra", owner=owner)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    row = _studio(resp).select_one("li.dash-row")
+    title = row.select_one("a.dash-row__title")
+    action = row.select_one("a.dash-row__action")
+    assert title["href"] == reverse(
+        "courses:manage_builder", kwargs={"slug": course.slug}
+    )
+    assert action["href"] == reverse(
+        "courses:course_outline", kwargs={"slug": course.slug}
+    )
+    assert not action.has_attr("target") and not title.has_attr("target")
+    assert len(row.select("a")) == 2
+    assert client.get(action["href"]).status_code == 200
+
+
+def test_studio_view_link_names_the_course_without_math_delimiters(client):
+    owner = make_login(client, "studio_math")
+    CourseFactory(title=r"Pole \(x^2\)", owner=owner)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    action = _studio(resp).select_one("a.dash-row__action")
+    hidden = action.select_one(".visually-hidden").get_text()
+    assert "Pole x^2" in hidden and r"\(" not in hidden
+
+
+def test_studio_view_action_is_not_the_widok_noun_in_polish(client):
+    owner = make_login(client, "studio_pl")
+    CourseFactory(title="Algebra", owner=owner)
+    _polish(client)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    action = _studio(resp).select_one("a.dash-row__action")
+    visible = action.find(string=True, recursive=False).strip()
+    assert visible and visible != "Widok"
+
+
+def test_teaching_row_title_carries_dash_row_title(client):
+    _user, course = _teaching_setup(client, "teach_title")
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    title = BeautifulSoup(resp.content, "html.parser").select_one(
+        'section[data-section="teaching"] li.dash-row a.dash-row__title'
+    )
+    assert title["href"] == reverse(
+        "courses:course_outline", kwargs={"slug": course.slug}
+    )
