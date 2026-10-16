@@ -16,6 +16,7 @@ from functools import partial
 
 from courses.recolour.colouriser import colourise
 from courses.recolour.colouriser import strip_spans
+from courses.sanitize import LEGACY_ALLOWED_ATTRIBUTES
 from courses.sanitize import LEGACY_ALLOWED_CLASSES
 from courses.sanitize import LEGACY_CELL_ALLOWED_CLASSES
 from courses.sanitize import sanitize_cell
@@ -38,7 +39,11 @@ SHAPE_STEM = "stem"
 SHAPE_COMPOSED = "composed"
 SHAPES = (SHAPE_HTML, SHAPE_CELL, SHAPE_STEM, SHAPE_COMPOSED)
 
-_legacy_html = partial(sanitize_html, allowed_classes=LEGACY_ALLOWED_CLASSES)
+_legacy_html = partial(
+    sanitize_html,
+    allowed_classes=LEGACY_ALLOWED_CLASSES,
+    attributes=LEGACY_ALLOWED_ATTRIBUTES,
+)
 _legacy_cell = partial(sanitize_cell, allowed_classes=LEGACY_CELL_ALLOWED_CLASSES)
 
 

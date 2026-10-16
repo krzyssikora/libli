@@ -65,10 +65,10 @@ def _patch_loader_to_legacy(monkeypatch):
 
     from courses import models as courses_models
     from courses import sanitize as courses_sanitize
-    from courses.sanitize import ALLOWED_ATTRIBUTES
     from courses.sanitize import ALLOWED_TAGS
     from courses.sanitize import ALLOWED_URL_SCHEMES
     from courses.sanitize import CELL_TAGS
+    from courses.sanitize import LEGACY_ALLOWED_ATTRIBUTES
     from courses.sanitize import LEGACY_ALLOWED_CLASSES
     from courses.sanitize import LEGACY_CELL_ALLOWED_CLASSES
     from courses.sanitize import sanitize_cell
@@ -90,7 +90,7 @@ def _patch_loader_to_legacy(monkeypatch):
         return nh3.clean(
             value or "",
             tags=legacy_tags,
-            attributes=ALLOWED_ATTRIBUTES,
+            attributes=LEGACY_ALLOWED_ATTRIBUTES,
             allowed_classes=LEGACY_ALLOWED_CLASSES,
             link_rel=None,
             url_schemes=ALLOWED_URL_SCHEMES,

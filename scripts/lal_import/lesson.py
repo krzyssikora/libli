@@ -1414,25 +1414,54 @@ def _image_dict(img):
     }
 
 
-def _emit_text_with_images(node, elements, flags):
+def _list_start(node):
+    """The number an <ol>'s first item carries (its `start`, default 1)."""
+    try:
+        return max(1, int(node.get("start", 1)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _open_list(tag, number):
+    return f'<{tag} start="{number}">' if tag == "ol" and number > 1 else f"<{tag}>"
+
+
+def _emit_text_with_images(node, elements, flags, item=None):
     """Emit a text-destined block that contains <img>: nh3 strips <img> from a
     sanitized TextElement.body, so pull each image out as its own ImageElement and
     coalesce the surrounding content into TextElements, preserving reading order.
     NavigableStrings are math-escaped like the F2 bare-text rule; child tags are
     already re-escaped by str().
 
-    A list's runs keep the list's own tag: a <p> around its <li>s re-parses (in
-    nh3) as `<p></p><li>..`, an orphan item the RTE cannot toggle."""
+    A list's runs keep the list's own tag -- a <p> around its <li>s re-parses (in
+    nh3) as `<p></p><li>..`, an orphan item the RTE cannot toggle -- and an <ol>'s
+    later runs continue its numbering via `start`. `item` is (list tag, number)
+    when `node` is an <li> that itself holds the image: its FIRST run keeps the
+    item's marker, the runs after the image continue as plain paragraphs."""
     buf = []
-    wrap = node.name if node.name in ("ul", "ol") else "p"
+    is_list = node.name in ("ul", "ol")
+    number = _list_start(node) if node.name == "ol" else 1
+    buf_number = [number]  # the number of the first <li> in buf
+    first_run = [True]
 
     def flush():
         html = "".join(buf).strip()
         buf.clear()
-        if html and BeautifulSoup(html, "html.parser").get_text(strip=True):
-            elements.append({"type": "text", "body": f"<{wrap}>{html}</{wrap}>"})
+        if not (html and BeautifulSoup(html, "html.parser").get_text(strip=True)):
+            return
+        if is_list:
+            body = f"{_open_list(node.name, buf_number[0])}{html}</{node.name}>"
+        elif item is not None and first_run[0]:
+            tag, n = item
+            body = f"{_open_list(tag, n)}<li>{html}</li></{tag}>"
+        else:
+            body = f"<p>{html}</p>"
+        first_run[0] = False
+        elements.append({"type": "text", "body": body})
 
     for child in list(node.children):
+        if is_list and child.name == "li" and not "".join(buf).strip():
+            buf_number[0] = number
         if isinstance(child, NavigableString):
             buf.append(escape_math_delimited(str(child)))
         elif getattr(child, "name", None) == "img":
@@ -1440,9 +1469,12 @@ def _emit_text_with_images(node, elements, flags):
             elements.append(_image_dict(child))
         elif isinstance(child, Tag) and child.find("img") is not None:
             flush()
-            _emit_text_with_images(child, elements, flags)
+            sub_item = (node.name, number) if is_list and child.name == "li" else None
+            _emit_text_with_images(child, elements, flags, item=sub_item)
         else:
             buf.append(str(child))
+        if is_list and getattr(child, "name", None) == "li":
+            number += 1
     flush()
 
 

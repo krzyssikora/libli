@@ -1928,20 +1928,49 @@ def test_reveal_table_without_rows_is_flagged_not_dropped():
 # `<p><li>..</li></p>`, which html5ever re-parses as `<p></p><li>..</li>` -- an
 # orphan item whose marker hangs outside the column and which the RTE's list
 # buttons cannot toggle.
-@pytest.mark.parametrize("tag", ["ul", "ol"])
-def test_list_split_around_an_image_keeps_its_list_tag(tag):
-    from bs4 import BeautifulSoup
-
+@pytest.mark.parametrize(
+    ("src_open", "expected"),
+    [
+        (
+            "<ul>",
+            [
+                "<ul><li>jeden</li>\n<li>dwa</li></ul>",
+                "<ul><li>trzy</li></ul>",
+                "IMG",
+                "<p>dalej</p>",
+                "<ul><li>cztery</li></ul>",
+            ],
+        ),
+        (
+            "<ol>",
+            [
+                "<ol><li>jeden</li>\n<li>dwa</li></ol>",
+                '<ol start="3"><li>trzy</li></ol>',
+                "IMG",
+                "<p>dalej</p>",
+                '<ol start="4"><li>cztery</li></ol>',
+            ],
+        ),
+        (
+            # The LAL author's own continuation: numbering starts from `start`.
+            '<ol class="bold" start="5">',
+            [
+                '<ol start="5"><li>jeden</li>\n<li>dwa</li></ol>',
+                '<ol start="7"><li>trzy</li></ol>',
+                "IMG",
+                "<p>dalej</p>",
+                '<ol start="8"><li>cztery</li></ol>',
+            ],
+        ),
+    ],
+)
+def test_list_split_around_an_image_keeps_its_list_and_numbering(src_open, expected):
+    tag = src_open[1:3]
     src = (
-        f"<{tag}><li>jeden</li><li>dwa</li>"
-        '<li>trzy <img src="static/a.png" alt=""/> dalej</li>'
-        f"<li>cztery</li></{tag}>"
+        f"{src_open}\n<li>jeden</li>\n<li>dwa</li>\n"
+        '<li>trzy <img src="static/a.png" alt=""/> dalej</li>\n'
+        f"<li>cztery</li>\n</{tag}>"
     )
     elements, _ = parse_lesson(src, "x.html")
-    assert [e["type"] for e in elements].count("image") == 1
-    texts = [e["body"] for e in elements if e["type"] == "text"]
-    items = [
-        li for body in texts for li in BeautifulSoup(body, "html.parser").find_all("li")
-    ]
-    assert [li.get_text(strip=True) for li in items] == ["jeden", "dwa", "cztery"]
-    assert all(li.parent.name == tag for li in items), texts
+    got = ["IMG" if e["type"] == "image" else e["body"] for e in elements]
+    assert got == expected
