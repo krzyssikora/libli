@@ -26,6 +26,7 @@
 - Polish quotes the login label exactly: „Zapamiętaj mnie”.
 - No FORMAT_VERSION bump. One migration: `notifications/0003_push.py`, depending on `0002_notificationemailpreference` (the graph head — verify with `ls notifications/migrations` before writing it).
 - Django `{# #}` comments are single-line ONLY; use `{% comment %}…{% endcomment %}` for anything longer.
+- No new password or secret literals anywhere (GitGuardian scans code AND markdown): passwords are `tests.factories.TEST_PASSWORD`; a different secret is DERIVED (e.g. `settings.SECRET_KEY[::-1] + "x"`).
 - A test client that must stay logged in uses `push_helpers.logged_in_user(client)` (a verified, persisted user) — NEVER `UserFactory()` + `force_login`, which leaves the client silently anonymous. `UserFactory()` is fine for users never logged in through the client.
 - Never pass `-q` to pytest (addopts already has it). e2e needs `-m e2e`. Run tests with `uv run pytest`.
 - Every new guard is falsified against its named mutant (shown RED, then reverted BY HAND — never `git checkout` a file holding uncommitted work).
@@ -125,7 +126,8 @@ In `.env.production.example`, after the `# LIBLI_PWA_ENABLED=false` line:
 # --- push ---
 # Web push keys, PER BOX (never copy them between schools; never rotate a key in
 # use). Generate with: bash manage.sh generate_vapid_keys
-# All three blank = push hidden. The subject MUST start with mailto: (runbook §9).
+# All three blank = push hidden. The subject starts with mailto: (libli's convention)
+# or https:; anything else turns push off (runbook §9).
 LIBLI_VAPID_PUBLIC_KEY=
 LIBLI_VAPID_PRIVATE_KEY=
 LIBLI_VAPID_SUBJECT=
@@ -751,6 +753,7 @@ from notifications.models import PushSubscription
 from notifications.push import live_subscriptions
 from notifications.tests.push_helpers import live_session_for
 from notifications.tests.push_helpers import make_sub
+from tests.factories import TEST_PASSWORD
 from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -793,7 +796,7 @@ def test_password_changed_elsewhere_is_dropped():
     # mutant: drop the auth-hash check
     user = UserFactory()
     make_sub(user, live_session_for(user))
-    user.set_password("a-new-Passw0rd!")
+    user.set_password(TEST_PASSWORD)  # differs from UserFactory's password
     user.save()
     assert live_subscriptions(user) == []
 
@@ -802,7 +805,7 @@ def test_fallback_secret_hash_is_still_live(settings):
     user = UserFactory()
     settings.SECRET_KEY_FALLBACKS = [settings.SECRET_KEY]
     key = live_session_for(user)  # hash made with the (now fallback) key
-    settings.SECRET_KEY = "a-rotated-secret-key-for-this-test-only-0123456789"
+    settings.SECRET_KEY = settings.SECRET_KEY[::-1] + "x"  # derived: no secret literal
     make_sub(user, key)
     assert len(live_subscriptions(user)) == 1
 
@@ -969,6 +972,42 @@ def test_payload_text_is_the_email_wording_in_the_recipient_language(
         _s, headline, body_line = email_content(n)
     payload = _payload(webpush.call_args)
     assert (payload["title"], payload["body"]) == (headline, body_line)
+
+
+def test_real_pywebpush_encrypts_and_signs_with_our_keys(settings):
+    """The ONE test that runs the real library (every other test mocks webpush): our
+    key format, the stored p256dh/auth and our kwargs must produce a real request.
+    Only the HTTP call is patched. pywebpush 2.x posts via requests.post when no
+    session is passed -- confirm in .venv/Lib/site-packages/pywebpush/__init__.py
+    (WebPusher.send) and patch whatever it calls if that differs."""
+    import os
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from notifications.push import _b64url
+
+    push_settings(settings)
+    receiver = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+    )
+    user = UserFactory()
+    sub = make_sub(user, live_session_for(user), endpoint=FCM + "real",
+                   p256dh=_b64url(receiver), auth=_b64url(os.urandom(16)))
+    response = mock.Mock(status_code=201, text="", headers={})
+    with mock.patch("requests.post", return_value=response) as http:
+        deliver_notification_push(_graded(user))
+    http.assert_called_once()
+    args, kwargs = http.call_args
+    assert (args[0] if args else kwargs["url"]) == FCM + "real"
+    headers = {k.lower(): v for k, v in kwargs["headers"].items()}
+    assert headers["content-encoding"] == "aes128gcm"
+    assert headers["ttl"] == "86400"
+    assert headers["authorization"].startswith("vapid t=")
+    assert f"k={settings.PUSH_VAPID_PUBLIC_KEY}" in headers["authorization"]
+    assert kwargs["timeout"] == 5
+    sub.refresh_from_db()
+    assert sub.last_success_at is not None
 
 
 def test_icon_is_the_static_default_without_an_override(webpush, subscribed):
@@ -1476,6 +1515,7 @@ Expected: PASS. Then the existing suite for the touched module: `uv run pytest n
 8. move `if not push_kind_enabled(...)` above the `try:` → `test_first_teachers_push_failure_does_not_stop_the_second_teacher` FAILS.
 9. comment out the `@receiver(request_started)` decorator → `test_request_started_resets_the_budget` FAILS.
 10. make `live_subscriptions` `return subs` right after loading them (no filtering) → `test_missing_session_is_dropped_and_deleted` FAILS.
+11. in `_send_one`, pass `vapid_private_key=decode_b64url(settings.PUSH_VAPID_PRIVATE_KEY).hex()` → `test_real_pywebpush_encrypts_and_signs_with_our_keys` FAILS (no POST; the error is swallowed and logged). If the real-library test cannot pass on a CORRECT build, the key format in `generate_vapid_pair` is wrong for this pywebpush version — fix the format (e.g. PEM via `py_vapid`), never the test.
 
 Mutant 4 (`is_active`) must go RED on its own: `live_session_for` persists the password first, so `user.save()` in that test changes only `is_active`. If it stays green, the hash is still dropping the row — fix the helper, not the test.
 
@@ -2342,12 +2382,9 @@ Expected: FAIL — e.g. `assert 'name="libli-push"' in html`.
 
 - [ ] **Step 3: The form**
 
-Append to `notifications/forms.py`:
+Add `from notifications.models import NotificationPushPreference` to the TOP import block of `notifications/forms.py` (after the `NotificationEmailPreference` import, one name per line — ruff E402/isort), then append the class:
 
 ```python
-from notifications.models import NotificationPushPreference
-
-
 class NotificationPushForm(forms.ModelForm):
     """Per-kind PUSH opt-outs. ALWAYS built with prefix="push": the booleans share
     their names with NotificationEmailForm's (which has no prefix), so without it
@@ -3517,6 +3554,8 @@ NEW = {
     "Get notifications on this device": "Otrzymuj powiadomienia na tym urządzeniu",
     "Turn on": "Włącz",
     "Dismiss": "Zamknij",
+    "Email: %(label)s": "E-mail: %(label)s",
+    "Push: %(label)s": "Push: %(label)s",
 }
 
 
@@ -3524,6 +3563,19 @@ NEW = {
 def test_polish_translation(msgid):
     with translation.override("pl"):
         assert translation.gettext(msgid) == NEW[msgid]
+
+
+@pytest.mark.parametrize("msgid", sorted(k for k, v in NEW.items() if k == v))
+def test_identical_translations_are_really_filled(msgid):
+    """gettext returns the msgid for an EMPTY msgstr, so for entries whose Polish
+    equals the English the comparison above cannot fail; read the .po instead."""
+    from pathlib import Path
+
+    from django.conf import settings as dj_settings
+
+    po = (Path(dj_settings.BASE_DIR) / "locale/pl/LC_MESSAGES/django.po").read_text(encoding="utf-8")
+    entry = po.split(f'msgid "{msgid}"\n', 1)[1].split("\n\n", 1)[0]
+    assert f'msgstr "{NEW[msgid]}"' in entry
 
 
 @pytest.mark.django_db
@@ -3552,7 +3604,7 @@ def test_settings_and_bell_render_polish(client, settings):
     assert "Nie udało się zmienić powiadomień push" in html
 ```
 
-Before writing the Polish, check the existing catalog for msgids that already exist (`Email`, `Notifications`, `Dismiss`, `Turn on` may already be translated — `grep -n 'msgid "Email"' locale/pl/LC_MESSAGES/django.po`). Where one exists, keep ITS translation and change the test's expected value to match it (never retranslate an existing msgid). Also add the two `blocktrans` strings `"Email: %(label)s"` → `"E-mail: %(label)s"` and `"Push: %(label)s"` → `"Push: %(label)s"`.
+Before writing the Polish, check the existing catalog for msgids that already exist (`Email`, `Notifications`, `Dismiss`, `Turn on` may already be translated — `grep -n 'msgid "Email"' locale/pl/LC_MESSAGES/django.po`). Where one exists, keep ITS translation and change the test's expected value to match it (never retranslate an existing msgid). The two `blocktrans` strings (`"Email: %(label)s"`, `"Push: %(label)s"`) are in `NEW` too. (If `makemessages` wraps a long msgid across lines, the `.po`-reading test's `split` will not find it — none of the identical-translation msgids is long enough to wrap.)
 
 - [ ] **Step 2: Run** — FAIL (untranslated).
 
@@ -3602,6 +3654,13 @@ def test_runbook_steps():
     assert "never copy them between schools" in s.lower() or "never copy" in s
     assert "rotate" in s
     assert "slows" in s
+    # replace-if-present, append-if-not (a blind append would duplicate keys)
+    assert 'grep -q "^$1=" .env.production' in s
+    assert 'sed -i "s|^$1=.*|$1=$2|" .env.production' in s
+    assert "set_env LIBLI_VAPID_PUBLIC_KEY" in s
+    # turning it off
+    assert "sed -i 's/^LIBLI_VAPID_" in s
+    assert "docker compose restart" in s  # named, as the thing NOT to do
 
 
 def test_restore_section_mentions_vapid_keys():
@@ -3616,7 +3675,7 @@ def test_env_example_lists_the_three_vars():
         assert f"\n{var}\n" in text
 ```
 
-- [ ] **Step 2: Run** — FAIL.
+- [ ] **Step 2: Run** — the two runbook tests FAIL; `test_env_example_lists_the_three_vars` already PASSES (Task 1 added the lines). Falsify it now: delete the `LIBLI_VAPID_SUBJECT=` line from `.env.production.example`, see it RED, restore the line by hand.
 
 - [ ] **Step 3: Write the runbook** — insert before `### PWA kill switch`:
 
@@ -3632,14 +3691,32 @@ bash manage.sh generate_vapid_keys
 # prints two lines: LIBLI_VAPID_PUBLIC_KEY=... and LIBLI_VAPID_PRIVATE_KEY=...
 ```
 
-Add both lines, plus `LIBLI_VAPID_SUBJECT=mailto:<contact address>` (libli's convention; an
-`https:` URL also works, and any other value turns push off), to `.env.production`, using the same guarded
-append as the kill switch below (end the last line first, then `grep -x` each line before
-recreating). Then recreate the app container (never `restart`; ~24 s maintenance page):
+Put both values, plus `LIBLI_VAPID_SUBJECT=mailto:<contact address>` (libli's convention; an
+`https:` URL also works, any other value turns push off), into `.env.production`. A box
+provisioned after this release already has the three lines, blank; an older box has none — so
+each line is REPLACED if present and appended if not (never a blind append, which would leave
+duplicate keys):
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+# on the box, in /opt/libli -- paste the two values the command printed
+set_env() {
+  if grep -q "^$1=" .env.production; then
+    sed -i "s|^$1=.*|$1=$2|" .env.production
+  else
+    [ -n "$(tail -c1 .env.production)" ] && echo >> .env.production   # end the last line first
+    echo "$1=$2" >> .env.production
+  fi
+}
+set_env LIBLI_VAPID_PUBLIC_KEY '<public key>'
+set_env LIBLI_VAPID_PRIVATE_KEY '<private key>'
+set_env LIBLI_VAPID_SUBJECT 'mailto:<contact address>'
+grep -c '^LIBLI_VAPID_' .env.production   # must print 3
+grep -x "LIBLI_VAPID_SUBJECT=mailto:<contact address>" .env.production \
+  && docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
 ```
+
+Never `docker compose restart` (it keeps the old environment); recreating shows the usual ~24 s
+maintenance page.
 
 Smoke test: on a phone, log in with "Remember me" ticked, turn on Settings → Notifications →
 "Push notifications on this device"; have a teacher account grade one of that account's quiz
@@ -3650,8 +3727,15 @@ Rules:
 - Never rotate a key in use: every existing subscription silently stops working and users must
   turn push on again.
 - A hung push service slows the requests that send notifications (quiz submit, grading,
-  enrolment) by up to ~15–20 s per request. To turn push off, blank the three `LIBLI_VAPID_*`
-  values and recreate the app container the same way.
+  enrolment) by up to ~15–20 s per request.
+
+To turn push off, blank the three values and recreate the same way:
+
+```bash
+sed -i 's/^LIBLI_VAPID_\(PUBLIC_KEY\|PRIVATE_KEY\|SUBJECT\)=.*/LIBLI_VAPID_\1=/' .env.production
+grep '^LIBLI_VAPID_' .env.production   # three lines, all ending in =
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
 ````
 
 In `### Rolling back across a migration: restore in place`, append the line:
