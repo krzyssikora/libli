@@ -1,4 +1,14 @@
 {% load i18n %}
+{% if push_available %}
+<div class="notif-menu__push" data-push-invite hidden>
+  <span class="notif-menu__push-text">{% trans "Get notifications on this device" %}</span>
+  <button type="button" class="btn btn--small" data-push-invite-on>{% trans "Turn on" %}</button>
+  <button type="button" class="btn--icon notif-menu__push-dismiss" data-push-invite-dismiss aria-label="{% trans 'Dismiss' %}">
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>
+  </button>
+  <p class="notif-menu__push-error" data-push-error hidden></p>
+</div>
+{% endif %}
 {% if notifications_recent %}
 <div class="notif-menu__head">
   <p class="notif-menu__title">{% trans "Notifications" %}</p>
