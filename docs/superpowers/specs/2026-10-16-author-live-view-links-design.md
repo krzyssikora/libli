@@ -119,8 +119,10 @@ card links to the unit's live page (URL rule below).
   `templates/core/home.html` loads only `i18n` today, so it must add
   `{% load courses_extras %}`. Without it the template raises
   `TemplateSyntaxError` for every user.
-- The link URL is chosen by unit type: `courses:quiz_unit` for a quiz,
-  `courses:lesson_unit` otherwise (no redirect round trip).
+- The link URL is chosen by unit type: `courses:quiz_unit` when
+  `unit.unit_type == ContentNode.UnitType.QUIZ`, `courses:lesson_unit`
+  otherwise (no redirect round trip). Component 3 uses the same check. The
+  editor template may reuse `_editor_page`'s existing `unit_is_quiz` key.
 - Structure: the visible "Last edited" label sits **outside** the `<a>`. The
   link contains the unit title and the course title, so its accessible name
   reads "unit title, course title" and not a run-on including the label.
@@ -236,7 +238,10 @@ e2e check for the property only a browser can see.
 - **e2e (one test):** at a 360px-wide viewport, the owner's dashboard with a
   long unbroken unit title on the "Last edited" card and a long course title in
   a Studio row has `document.documentElement.scrollWidth <= clientWidth`.
-  Tapping the card lands on the unit's live page. Also take light and dark
+  Tapping the card lands on the unit's live page. Prove the landing by waiting
+  for a live-page element (the unit title heading, and the draft banner for a
+  draft unit), never `to_have_url` alone, which passes at navigation start.
+  Also take light and dark
   screenshots of the Studio panel and the editor crumb and check them by eye.
 - Test fixtures: use `make_pa` / `make_verified_user` / `make_login` from
   `tests/factories.py`. Never use `UserFactory` + `force_login` (the password
