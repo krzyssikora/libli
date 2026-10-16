@@ -139,7 +139,10 @@ card links to the unit's live page (URL rule below).
   only the two titles, and its `::after` (`position: absolute; inset: 0` on a
   `position: relative` card) covers the card. So tapping anywhere, the label
   included, follows the link, while the label stays outside the anchor in the
-  DOM. The e2e taps the **label area** to prove it.
+  DOM. The e2e taps the **label area** to prove it. Keyboard focus is shown
+  on the whole card (e.g. `:focus-within` on the card, or the outline on the
+  `::after`), and the card must not clip it (no `overflow: hidden` that cuts
+  the ring).
 - **Position:** the card's first child after the Studio panel's
   `<h2 class="dash-panel__title">`, before the course list. Studio comes after
   "My learning" and "Teaching" in `home.html`, so on a phone the card can sit
@@ -272,11 +275,12 @@ e2e check for the property only a browser can see.
   a Studio row (the long-titled unit **belongs to** the long-titled course, so
   one fixture covers the row, the card's unit title and the card's course
   title) has `document.documentElement.scrollWidth <= clientWidth`.
-  Tapping the card lands on the unit's live page. Prove the landing by waiting
-  for a live-page element (the unit title heading, and the draft banner for a
-  draft unit), never `to_have_url` alone, which passes at navigation start.
-  Also take light and dark
-  screenshots of the Studio panel and the editor crumb and check them by eye.
+  The e2e unit is a **draft**, matching the triggering case. Tapping the card
+  lands on the unit's live page. Prove the landing by waiting for **both** the
+  unit title heading and the draft banner, never `to_have_url` alone, which
+  passes at navigation start. Also take light and dark screenshots of the
+  Studio panel (including a keyboard-focused card) and the editor crumb, and
+  check them by eye.
 - Test fixtures: use `make_pa` / `make_verified_user` / `make_login` from
   `tests/factories.py`. Never use `UserFactory` + `force_login` (the password
   is never persisted, so the client is silently anonymous).
