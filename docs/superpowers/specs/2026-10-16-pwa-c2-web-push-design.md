@@ -141,23 +141,37 @@ into the on_commit chain):
 
 No retry. A push that fails is lost; the bell row and the email are unaffected.
 
-**Latency bound (accepted under D5).** The callbacks run in the triggering request after
-commit, so a hung push service delays that response by roughly
-`recipients × devices-per-recipient × 5 s` on top of email (`requests` applies the timeout to
-the connect and to each read separately, so a service that trickles bytes can exceed 5 s per
-call; the bound assumes a hung service, not a trickling one). Two limits keep it bounded:
-the per-request `timeout=5`, and **at most 5 subscriptions per user** — the subscribe endpoint
-(§4) deletes that user's oldest rows (by `subscribed_at`) beyond five. Typical case: a "needs
-review" to 1–3 teachers with 1–2 devices each, each push tens of milliseconds. Worst realistic
-case (push service hanging, 3 teachers × 5 devices) is 75 s and is accepted; the runbook says a
-hung push service slows quiz submissions and that unsetting the VAPID keys + recreate turns
-push off.
+**Latency bound (accepted under D5, tightened here).** The callbacks run in the triggering
+request after commit, so push time adds to that response. Three limits bound it:
+
+1. The per-call `timeout=5` (`requests` applies it to the connect and to each read separately).
+2. **At most 5 subscriptions per user** — the subscribe endpoint (§4) deletes that user's oldest
+   rows (by `subscribed_at`) beyond five.
+3. **A per-request push budget of 10 s.** `notifications.push` keeps a `ContextVar` holding the
+   monotonic deadline of the current request's push work; a `request_started` receiver (in
+   `notifications/signals.py`, §4) resets it to unset. The first push in a request sets the
+   deadline to now + 10 s; before each `webpush` call, if the deadline has passed, every remaining
+   push in that request is skipped with ONE warning log line naming how many were skipped. A
+   skipped push is lost; the bell row and email are unaffected. Outside a request (management
+   commands, shell) the budget is never reset, so a long-running command stops pushing 10 s into
+   its push work — accepted: no command today sends notifications in bulk.
+
+Numbers. A "needs review" to 1–3 teachers × 1–2 devices: tens of ms each. The largest fan-out is
+bulk group enrolment — `grouping/services.py:add_students_to_group` reaches `notify_enrolled`
+once per student, so adding a class of 30 queues 30 push callbacks: with a healthy service
+~30 × 1–2 × 100–200 ms ≈ 3–12 s (fresh TLS per call), the budget cutting the tail; with a hung
+service the request is held for at most ~10 s + one in-flight call (≤ ~15–20 s), instead of the
+unbounded 30 × 5 × 5 s = 750 s. The runbook says a hung push service slows quiz submits, grading
+and enrolment by up to that, and that blanking the VAPID keys + recreate turns push off.
 
 ### The tap target: `notifications/<pk>/open/`
 
-New GET view `notifications:open`, login required. `get_object_or_404(Notification, pk=pk,
-recipient=request.user)` — another user's pk is a 404, never a redirect. Sets `read_at` if
-unset, then redirects to `notification_url(n)` or, when that is None, `notifications:list`.
+New GET view `notifications:open`, login required. Looks up `Notification(pk=pk,
+recipient=request.user)`. Not found — another user's pk, or the user's own notification since
+purged by `notifications/retention.py` (a push can sit in the tray, or be queued up to
+`ttl=86400`) — redirects to `notifications:list`, the same response in both cases so there is no
+oracle. Found: sets `read_at` if unset, then redirects to `notification_url(n)` or, when that is
+None, `notifications:list`.
 A GET with a side effect is deliberate: the worker cannot send the CSRF token a POST needs, and
 the only effect is marking the viewer's own notification read. A logged-out device gets the
 normal login redirect with `next` back to this URL.
@@ -172,7 +186,14 @@ malformed body → 400. `push.js` treats any non-200 as a failure and shows its 
 ("Couldn't change push notifications. Try again.").
 
 - `notifications/push/subscribe/` — body `{"endpoint", "keys": {"p256dh", "auth"}}`.
-  Validate: endpoint is an `https://` URL ≤ 1024 chars; both keys present, base64url, within
+  Validate: endpoint is an `https://` URL ≤ 1024 chars whose host is a known push service —
+  `PUSH_ENDPOINT_HOSTS` in `notifications/push.py`, matched exactly or as a dot-suffix:
+  `fcm.googleapis.com` (Chrome, Edge-on-Android, Samsung), `push.services.mozilla.com`
+  (Firefox), `push.apple.com` (Safari/iOS), `notify.windows.com` (Edge on Windows). Any other
+  host (an IP literal, an internal name, a server the caller controls) → 400. Without this, any
+  logged-in user could make the server POST to an arbitrary host on every notification for them,
+  and a host that trickles bytes would hold the triggering request past the timeout. A host the
+  device checklist finds missing is added to the constant in a follow-up release; both keys present, base64url, within
   the field lengths. Invalid → 400. `update_or_create(endpoint=…)` setting user, keys and UA,
   so an endpoint already owned by another user MOVES to the current one (a shared computer).
   The upsert's defaults also set `subscribed_at = now()` (a non-auto `DateTimeField` on the
@@ -255,7 +276,9 @@ It exposes the device state, evaluated **in this order, first match wins**:
 | 4 | `on` | `registration.pushManager.getSubscription()` is non-null (after the claim step below) |
 | 5 | `off` | otherwise |
 
-**Claim step (on load).** When a browser subscription exists and its endpoint differs from
+**Claim step (on load).** It runs BEFORE the state table, in every state where a
+subscription can be read (including `blocked`: a denied permission still leaves
+`getSubscription()` readable, and a leftover row must still be claimed or deleted). When a browser subscription exists and its endpoint differs from
 `data-session-endpoint`, `push.js` POSTs it to `push/claim/` (§4) before reporting a state:
 `{"mine": true}` → `on`; `{"mine": false}` → `subscription.unsubscribe()` and `off`. A failed
 claim request reports `on` and retries on the next page load. This is what makes the session
@@ -404,8 +427,15 @@ Unit (pytest, `pywebpush.webpush` mocked — we test our decisions, not the cryp
   user's; no-op with no session key;
   no-op with `user=None`; a subscription made in an EARLIER session is deleted once a claim has
   run in the current one.
-- `notifications:open`: marks read, redirects to the target, falls back to the list, 404 for
-  another user's pk, idempotent on a read notification.
+- `notifications:open`: marks read, redirects to the target, falls back to the list when the
+  target cannot be reversed; another user's pk and a missing pk both redirect to the list with
+  identical responses and mark nothing; idempotent on a read notification; an anonymous GET
+  redirects to login with `next=` the open URL and marks nothing (mutant: `login_required`
+  dropped).
+- Endpoint host allowlist: each listed host and a subdomain of it accepted; an IP literal,
+  `localhost`, `fcm.googleapis.com.evil.example` and `evilfcm.googleapis.com` → 400.
+- Push budget: with a mocked clock, pushes after the deadline are skipped with one warning and
+  not sent; a `request_started` resets it so the next request pushes again (mutant: no reset).
 - Settings: push switches saved with the form, unsaved pref on GET, section unchanged (no push
   markup) when not configured; with push NOT configured, a settings POST leaves an existing push
   preference row with `False` values unchanged and creates none; bell invite absent when not configured.
@@ -426,6 +456,8 @@ e2e (Playwright Chromium):
 - Every state line and the bell row render in Polish under `pl` (server-rendered, not JS).
 - `notificationclick` with only an uncontrolled window open falls back to `openWindow` (or the
   helper test, if the CDP route is unworkable).
+- `blocked` with a leftover subscription whose endpoint the server reports `mine: false`: the
+  claim still runs and the row is deleted; the state reads blocked.
 - Claim on load: a stubbed subscription whose endpoint the server reports `mine: false` is
   unsubscribed and the switch reads off; `mine: true` reads on.
 - Worker: with `context.grant_permissions(["notifications"])`, deliver a push through CDP
