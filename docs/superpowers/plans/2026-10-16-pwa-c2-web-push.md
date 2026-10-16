@@ -1899,11 +1899,16 @@ def test_logout_via_confirmation_page_still_deletes(client, settings):
 
 def test_receiver_ignores_a_none_user_and_a_missing_request():
     # Through the signal, not a direct import, so this test cannot connect the
-    # receivers for later tests and mask the "ready() import removed" mutant.
+    # receivers for later tests and mask the "ready() import removed" mutant. NOTE:
+    # every send also reaches core/signals.py:clear_theme_cookie_on_logout, which sets
+    # an attribute on any non-None request -- so pass a real request object (a bare
+    # object() would raise there), one with NO .session to exercise our guard.
     from django.contrib.auth.signals import user_logged_out
+    from django.test import RequestFactory
 
     user_logged_out.send(sender=None, request=None, user=UserFactory())
-    user_logged_out.send(sender=None, request=object(), user=None)
+    user_logged_out.send(sender=None, request=RequestFactory().get("/"), user=UserFactory())
+    user_logged_out.send(sender=None, request=RequestFactory().get("/"), user=None)
 ```
 
 - [ ] **Step 3: Run to verify failure**
@@ -3331,9 +3336,13 @@ def test_subscribe_500_rolls_back_and_shows_the_error(page, context, live_server
     page.route("**/notifications/push/claim/", lambda r: r.fulfill(
         status=200, content_type="application/json", body='{"mine": true}'))
     box = _settings(page, live_server, "off")
-    box.check(force=True)
-    page.wait_for_selector('html[data-push-reported="off"]')
+    # click(), not check(): the page itself reverts the box on this path, and check()
+    # would race that revert ("did not change its state").
+    box.click(force=True)
+    # The state is already "off" before the POST, so waiting on it would be vacuous;
+    # the error line is the synchronisation point, the state the final assertion.
     expect(page.locator("[data-push-device] [data-push-error]")).to_be_visible()
+    expect(page.locator("html")).to_have_attribute("data-push-reported", "off")
     assert page.evaluate("() => !window.__pushStub.sub")
 
 
@@ -3543,7 +3552,7 @@ Two notes for the implementer, recorded here so they are not rediscovered:
 - [ ] **Step 2: Run** — `uv run pytest -m e2e notifications/tests/test_e2e_push.py -n 2`
 Expected: PASS, EXCEPT `test_polish_lines_and_the_quoted_login_label`, which FAILS until Task 11 writes the Polish catalog (the not-remembered line still renders in English). That failure is expected here — do not touch the test, template or push.js for it; Task 11 Step 4 re-runs it. Any test passing on the FIRST run must still be falsified (Step 3).
 
-- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) change the `[data-push-help]` toggle in `render()` to `el.hidden = false` (help shown in every state) → all four `test_help_line_hidden_in_every_cannot_state` cases FAIL. (Removing the toggle instead leaves the server-rendered `hidden` in place — that mutant is caught only by `test_off_to_on_to_off_posts_and_persists`'s `to_be_visible`, run it there.) (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. (g) drop `disabled` from the server-rendered `input[data-push-switch]` in `user_settings.html` → `test_switch_disabled_until_a_state_is_reported` FAILS. (h) in `claim()`, skip `sub.unsubscribe()` on `mine: false` → the `("default", "false", "off")` case of `test_claim_on_load` FAILS. (i) make the dismiss handler skip `storageSet(DISMISS_KEY, "1")` → the after-reload half of `test_bell_invite_turn_on_dismiss_and_errors` FAILS. (j) in `render()`, set the invite's `el.hidden = storageGet(DISMISS_KEY) === "1"` (ignoring the state) → `test_denied_prompt_hides_the_invite` and the invite assertion in `test_not_remembered_login_shows_the_d8_line` FAIL. (k) make `registration()`'s `.catch` return `{}` instead of `undefined` → `test_registration_refused_reads_unsupported` FAILS (it now reaches `unsupported` only through `refresh()`'s fallback, so ALSO run (l) to keep both honest). (l) remove `refresh()`'s terminal `.catch` → `test_a_registration_without_push_manager_reads_unsupported` FAILS (times out in `pending`). (m) in `render()`, set the help line's `el.hidden = state !== "on"` → `test_off_to_on_to_off_posts_and_persists` FAILS at its first help assertion. Revert each by hand.
+- [ ] **Step 3: Falsify** — (a) in `push.js` make `registration()` call `navigator.serviceWorker.getRegistration()` instead of the published promise → `test_first_visit_reads_off_not_unsupported` MUST FAIL. The test logs in by cookie so `/settings/` is the origin's first page and no worker exists yet; if it still stays green, the race is not being reached — STOP and fix the test (e.g. clear registrations with a fresh context, or assert the state before `navigator.serviceWorker.controller` exists) rather than keeping an unfalsified guard. (b) remove the rollback `sub.unsubscribe()` in `subscribe()` → `test_subscribe_500_rolls_back_and_shows_the_error` FAILS. (c) swap the `isIos()` and `supported()` checks in `evaluate()` → `test_ios_outside_the_app_shows_the_install_line` FAILS. (d) make `targetUrl` return `url.href` unconditionally → `test_worker_refuses_off_origin_targets` FAILS. (e) change the `[data-push-help]` toggle in `render()` to `el.hidden = false` (help shown in every state) → all four `test_help_line_hidden_in_every_cannot_state` cases FAIL. (Removing the toggle instead leaves the server-rendered `hidden` in place — that mutant is caught only by `test_off_to_on_to_off_posts_and_persists`'s `to_be_visible`, run it there.) (f) in `push_claim`, re-key instead of deleting a foreign row → `test_blocked_with_a_foreign_leftover_deletes_the_server_row` FAILS. (g) drop `disabled` from the server-rendered `input[data-push-switch]` in `user_settings.html` → `test_switch_disabled_until_a_state_is_reported` FAILS. (h) in `claim()`, skip `sub.unsubscribe()` on `mine: false` → the `("default", "false", "off")` case of `test_claim_on_load` FAILS. (i) make the dismiss handler skip `storageSet(DISMISS_KEY, "1")` → the after-reload half of `test_bell_invite_turn_on_dismiss_and_errors` FAILS. (j) in `render()`, set the invite's `el.hidden = storageGet(DISMISS_KEY) === "1"` (ignoring the state) → `test_denied_prompt_hides_the_invite` and the invite assertion in `test_not_remembered_login_shows_the_d8_line` FAIL. (k) make `registration()`'s `.catch` return `{}` instead of `undefined` AND remove `refresh()`'s terminal `.catch` (applied TOGETHER: with the fallback present, (k) alone is an equivalent mutant — the TypeError on `{}.pushManager` is caught and still reads `unsupported`) → `test_registration_refused_reads_unsupported` FAILS (times out in `pending`). (l) remove ONLY `refresh()`'s terminal `.catch` → `test_a_registration_without_push_manager_reads_unsupported` FAILS (times out in `pending`). (m) in `render()`, set the help line's `el.hidden = state !== "on"` → `test_off_to_on_to_off_posts_and_persists` FAILS at its first help assertion. Revert each by hand.
 
 - [ ] **Step 4: Commit**
 
