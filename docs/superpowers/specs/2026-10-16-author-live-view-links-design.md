@@ -40,8 +40,9 @@ The triggering case was a **draft** unit, so nothing may hide drafts.
 | C2 | "Last edited" covers courses the user **owns** (`Course.owner == user`) only, not `manageable_courses`. |
 | C3 | The editor link opens in a **new tab**, mirroring the "Edit unit" link in `templates/courses/_unit_strip.html`. The dashboard links (card and Studio "View") open in the **same tab**, with no `target`: in a standalone PWA a `_blank` would throw the author out of the app. Tests assert those anchors have no `target`. |
 | C4 | The editor link is rendered only when `can_access_course(user, course)` is true. |
-| C6 | Dashboard panel order is unchanged; the card lives inside Studio even if that puts it below the fold on a phone. |
 | C5 | EN wording: "View" (Studio row action), "Last edited" (card label), "View live" (editor link). PL wording is proposed in the PR for owner review. |
+| C6 | Dashboard panel order is unchanged; the card lives inside Studio even if that puts it below the fold on a phone. |
+| C7 | The "Last edited" query runs only when `can_manage_courses` is true, so students' dashboards pay nothing. |
 
 ## Non-goals
 
@@ -94,7 +95,8 @@ use a broad `.dash-row a`, which would give the `flex: none`
 `.dash-row__action` `min-width: 0`.
 Each "View" link carries a visually hidden course title inside the anchor
 (`View<span class="visually-hidden"> {course title}</span>`), so the links can
-be told apart in a screen reader's links list.
+be told apart in a screen reader's links list. That hidden course title also
+gets `|strip_math_delimiters`, since screen-reader text cannot typeset.
 
 Access: `owned_courses` is `Course.objects.filter(owner=request.user)`, and the
 owner always passes `can_access_course` (the owner disjunct of
@@ -251,7 +253,9 @@ e2e check for the property only a browser can see.
   builder. Check each anchor of the row separately, not substrings anywhere in
   the body: parse the `data-section="manage"` `li.dash-row` and assert that
   the title `<a>` → `manage_builder` and the `.dash-row__action` `<a>` →
-  `course_outline`. A swap or a duplicate must fail. A Teaching row's title
+  `course_outline`. A swap or a duplicate must fail. With Polish active (the
+  user's language set to `pl`), the `.dash-row__action` text is not "Widok",
+  which catches a missing translation context. A Teaching row's title
   anchor also carries `dash-row__title` (template assertion on a teacher's
   dashboard).
 - **Last edited:**
