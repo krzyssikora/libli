@@ -6,11 +6,13 @@
   "use strict";
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("/sw.js", { scope: "/", updateViaCache: "none" })
-      .catch(function (err) {
-        console.warn("libli: service worker registration failed", err);
-      });
+    // Published for push.js: unlike navigator.serviceWorker.ready this promise
+    // always settles (it rejects when registration is refused).
+    window.libliSwRegistration = navigator.serviceWorker
+      .register("/sw.js", { scope: "/", updateViaCache: "none" });
+    window.libliSwRegistration.catch(function (err) {
+      console.warn("libli: service worker registration failed", err);
+    });
   }
 
   var kept = null; // the single-use beforeinstallprompt event
