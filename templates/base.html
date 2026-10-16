@@ -7,6 +7,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if push_available %}<meta name="libli-push" data-vapid-key="{{ push_vapid_key }}" data-session-endpoint="{{ push_session_endpoint }}" data-remembered="{{ push_remembered|yesno:'1,0' }}" data-subscribe-url="{% url 'notifications:push_subscribe' %}" data-unsubscribe-url="{% url 'notifications:push_unsubscribe' %}" data-claim-url="{% url 'notifications:push_claim' %}" data-msg-error="{% trans "Couldn't change push notifications. Try again." %}">{% endif %}
   <title>{% block head_title %}libli{% endblock %}</title>
   <script>
     // Pre-paint: resolve auto -> OS theme before stylesheets paint (no flash).
@@ -143,7 +144,7 @@
             {% if can_report_issue %}
             <button class="menu__item" type="button" data-report-trigger>{% trans "Report an issue" %}</button>
             {% endif %}
-            <form method="post" action="{% url 'account_logout' %}">
+            <form method="post" action="{% url 'account_logout' %}" data-logout-form>
               {% csrf_token %}
               <button class="menu__item" type="submit">{% trans "Log out" %}</button>
             </form>
@@ -166,6 +167,7 @@
   {% block footer %}{% endblock %}
   <script src="{% static 'core/js/ui.js' %}" defer></script>
   {% if pwa_enabled %}<script src="{% static 'core/js/pwa.js' %}" defer></script>{% endif %}
+  {% if push_available %}<script src="{% static 'core/js/push.js' %}" defer></script>{% endif %}
   {% comment %}Global: every horizontally scrollable box (.scroll-x) gets its edge
   affordance, from lesson tables to the manage-page ledgers. Pure enhancement —
   with JS off the boxes still scroll and no gradient is ever shown.{% endcomment %}

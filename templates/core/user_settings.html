@@ -113,50 +113,59 @@
     </section>
 
     <section class="settings-section">
+      {% if push_form %}
+      <h2 class="settings-sec-title">{% trans "Notifications" %}</h2>
+      <p class="settings-sec-lede">{% trans "Choose which events email you and which send a push notification. The bell always shows everything." %}</p>
+
+      <div class="settings-field" data-push-device>
+        <div>
+          <div class="settings-field-label">{% trans "Push notifications on this device" %}</div>
+          <p class="settings-field-help" data-push-help hidden>{% trans "On a shared computer, log out when you finish." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <label class="switch" data-push-switch-wrap>
+            <input type="checkbox" data-push-switch disabled aria-label="{% trans 'Push notifications on this device' %}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+          <p class="settings-field-help" data-push-state="unsupported" hidden>{% trans "This browser can't show push notifications." %}</p>
+          <p class="settings-field-help" data-push-state="not-remembered" hidden>{% trans "To get push notifications on this device, tick 'Remember me' when you log in." %}</p>
+          <p class="settings-field-help" data-push-state="ios-not-installed" hidden>{% trans "On iPhone and iPad, add libli to your Home Screen first." %} <a href="{% url 'core:install_app' %}">{% trans "How to install" %}</a></p>
+          <p class="settings-field-help" data-push-state="blocked" hidden>{% trans "Notifications are blocked for libli in this browser's settings." %}</p>
+          <p class="settings-field-help settings-field-error" data-push-error hidden></p>
+        </div>
+      </div>
+
+      <div class="settings-field settings-field--cols" aria-hidden="true">
+        <div></div>
+        <div class="settings-field-control settings-cols">
+          <span>{% trans "Email" %}</span><span>{% trans "Push" %}</span>
+        </div>
+      </div>
+      {% else %}
       <h2 class="settings-sec-title">{% trans "Email notifications" %}</h2>
       <p class="settings-sec-lede">{% trans "Choose which events email you. In-app notifications are always shown." %}</p>
+      {% endif %}
 
-      {% trans "Email me when a quiz I submitted is graded." as help_graded %}
+      {% for key, label, help_email, help_neutral in notif_rows %}
       <div class="settings-field">
         <div>
-          <div class="settings-field-label">{% trans "Quiz graded" %}</div>
-          <p class="settings-field-help">{{ help_graded }}</p>
+          <div class="settings-field-label">{{ label }}</div>
+          <p class="settings-field-help">{% if push_form %}{{ help_neutral }}{% else %}{{ help_email }}{% endif %}</p>
         </div>
-        <div class="settings-field-control">
+        <div class="settings-field-control{% if push_form %} settings-cols{% endif %}">
           <label class="switch">
-            <input type="checkbox" name="quiz_graded" {% if notif_form.quiz_graded.value %}checked{% endif %} aria-label="{{ help_graded }}">
+            <input type="checkbox" name="{{ key }}" {% if key in notif_on %}checked{% endif %} aria-label="{% if push_form %}{% blocktrans %}Email: {{ label }}{% endblocktrans %}{% else %}{{ help_email }}{% endif %}">
             <span class="switch__track" aria-hidden="true"></span>
           </label>
-        </div>
-      </div>
-
-      {% trans "Email me when I'm enrolled in a course." as help_enrolled %}
-      <div class="settings-field">
-        <div>
-          <div class="settings-field-label">{% trans "Course enrollment" %}</div>
-          <p class="settings-field-help">{{ help_enrolled }}</p>
-        </div>
-        <div class="settings-field-control">
+          {% if push_form %}
           <label class="switch">
-            <input type="checkbox" name="enrolled" {% if notif_form.enrolled.value %}checked{% endif %} aria-label="{{ help_enrolled }}">
+            <input type="checkbox" name="push-{{ key }}" {% if key in push_on %}checked{% endif %} aria-label="{% blocktrans %}Push: {{ label }}{% endblocktrans %}">
             <span class="switch__track" aria-hidden="true"></span>
           </label>
+          {% endif %}
         </div>
       </div>
-
-      {% trans "Email me when a student's quiz needs my review." as help_review %}
-      <div class="settings-field">
-        <div>
-          <div class="settings-field-label">{% trans "Quiz needs review" %}</div>
-          <p class="settings-field-help">{{ help_review }}</p>
-        </div>
-        <div class="settings-field-control">
-          <label class="switch">
-            <input type="checkbox" name="quiz_needs_review" {% if notif_form.quiz_needs_review.value %}checked{% endif %} aria-label="{{ help_review }}">
-            <span class="switch__track" aria-hidden="true"></span>
-          </label>
-        </div>
-      </div>
+      {% endfor %}
     </section>
 
     <div class="settings-save-bar">

@@ -120,6 +120,31 @@ def landing(request):
     )
 
 
+def _notif_rows():
+    """(field, label, email-era help, neutral help) for the Notifications section, in
+    the order the page has always shown them."""
+    return [
+        (
+            "quiz_graded",
+            _("Quiz graded"),
+            _("Email me when a quiz I submitted is graded."),
+            _("When a quiz I submitted is graded."),
+        ),
+        (
+            "enrolled",
+            _("Course enrollment"),
+            _("Email me when I'm enrolled in a course."),
+            _("When I'm enrolled in a course."),
+        ),
+        (
+            "quiz_needs_review",
+            _("Quiz needs review"),
+            _("Email me when a student's quiz needs my review."),
+            _("When a student's quiz needs my review."),
+        ),
+    ]
+
+
 @login_required
 def user_settings(request):
     """Edit theme/language/display_name/email; re-sync session language + theme
@@ -145,7 +170,10 @@ def user_settings(request):
         sso_provider_label = app.name or effective_provider
 
     from notifications.forms import NotificationEmailForm
+    from notifications.forms import NotificationPushForm
     from notifications.models import NotificationEmailPreference
+    from notifications.models import NotificationPushPreference
+    from notifications.push import push_configured
 
     pref = (
         NotificationEmailPreference.objects.filter(user=request.user).first()
@@ -153,11 +181,30 @@ def user_settings(request):
             user=request.user
         )  # unsaved → GET stays read-only
     )
+    # Push prefs only when push can work: on a dark box the form is never bound, so
+    # absent checkboxes can never switch every push kind off (spec §7).
+    with_push = push_configured()
+    push_pref = (
+        (
+            NotificationPushPreference.objects.filter(user=request.user).first()
+            or NotificationPushPreference(user=request.user)
+        )
+        if with_push
+        else None
+    )
 
     if request.method == "POST":
         form = UserSettingsForm(request.POST, instance=request.user)
         notif_form = NotificationEmailForm(request.POST, instance=pref)
-        if form.is_valid() and notif_form.is_valid():
+        push_form = (
+            NotificationPushForm(request.POST, instance=push_pref, prefix="push")
+            if with_push
+            else None
+        )
+        forms_valid = form.is_valid() and notif_form.is_valid()
+        if push_form is not None:
+            forms_valid = push_form.is_valid() and forms_valid
+        if forms_valid:
             from django.db import transaction
 
             from accounts.emails import reconcile_primary_email
@@ -165,6 +212,8 @@ def user_settings(request):
             with transaction.atomic():
                 user = form.save()
                 notif_form.save()
+                if push_form is not None:
+                    push_form.save()
                 if "email" in form.changed_data:
                     reconcile_primary_email(user)
             request.session[SESSION_KEY] = user.language
@@ -182,12 +231,24 @@ def user_settings(request):
     else:
         form = UserSettingsForm(instance=request.user)
         notif_form = NotificationEmailForm(instance=pref)
+        push_form = (
+            NotificationPushForm(instance=push_pref, prefix="push")
+            if with_push
+            else None
+        )
+    kinds = ("quiz_graded", "enrolled", "quiz_needs_review")
     return render(
         request,
         "core/user_settings.html",
         {
             "form": form,
             "notif_form": notif_form,
+            "push_form": push_form,
+            "notif_rows": _notif_rows(),
+            "notif_on": {k for k in kinds if notif_form[k].value()},
+            "push_on": (
+                {k for k in kinds if push_form[k].value()} if push_form else set()
+            ),
             "sso_account": sso_account,
             "sso_provider_label": sso_provider_label,
         },
