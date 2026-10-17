@@ -348,6 +348,7 @@
   }
 
   function notice(text) {
+    if (isPhone()) { showToast(text); return; }
     var bar = document.createElement("div");
     bar.className = "op-error";
     bar.textContent = text;
@@ -1438,6 +1439,17 @@
   // Shown while a node panel loads into the sheet (Task 4).
   var PLACEHOLDER_HTML = '<div class="panel" data-panel-loading><p class="panel__meta">'
     + escHtml(root.getAttribute("data-msg-loading") || "") + "</p></div>";
+
+  // A phone notice is a toast: the panel lives in the (possibly closed) sheet, so
+  // an .op-error prepended there would be invisible. One element, one timer; a
+  // newer notice replaces the text and restarts the six seconds.
+  function showToast(text) {
+    if (!toast) return;
+    toast.textContent = text;
+    toast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.hidden = true; toastTimer = null; }, 6000);
+  }
 
   // Same fallback as unit_nav.js: checkVisibility is Safari 17.4+. Every visibility
   // test in this section goes through here, never a bare checkVisibility().
