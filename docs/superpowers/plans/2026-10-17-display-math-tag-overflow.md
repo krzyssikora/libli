@@ -76,7 +76,7 @@
   Run: `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_tagovf uv run pytest tests/test_e2e_display_math_tag_overflow.py -m e2e -p no:randomly`
   Expected:
   - Assertions 1 and 2 FAIL on the new-build measurement, since master has no rule.
-  - `_vendor_leg`'s `count == 13` assertion FAILS in every A/B test, because there is nothing to strip.
+  - `_vendor_leg`'s `count == 13` assertion FAILS in tests 3 and 4 (tests 1 and 2 fail earlier, on the new-build check), because there is nothing to strip.
   - The table, untagged, near-fit-overflow and page-width tests PASS.
 
   - The vendor-reproduces-defect ("is False") checks are not reached on master. They first run in Task 2 Step 2, which is where a fixture that fails to reproduce the defect would show.
@@ -111,7 +111,7 @@
   Expected: all PASS.
 
 - [ ] **Step 3: Record numbers, and check the wide-fixture condition.** Temporarily add `print(...)` of the `_measure` dicts in the wide and fit tests and run them with `-s`. Then:
-  - Confirm, for both surfaces at scrollLeft 0, `ink.left > scroller.right`: the tag is off-screen, so reaching it needs the scroller. If not, lengthen `WIDE` and re-run Step 2.
+  - Confirm, for both surfaces at scrollLeft 0, `ink.left > scroller.right`: the tag is off-screen, so reaching it needs the scroller. If not, lengthen `WIDE` and re-run Step 2. If `WIDE` changed, update its docstring numbers and re-confirm it overflows on the vendor leg before committing.
   - Fill the placeholders: gap = `ink.left − base_union.right`, scroll-end `ink.right` vs `scroller.right`, and vertical offset deltas vs vendor.
   - Remove the prints, and confirm with `git diff tests/` that only intended changes remain.
 
@@ -122,7 +122,7 @@
 
 - [ ] **Step 5: Lint.** Run `uv run ruff check .` and `uv run ruff format --check .`. Both must be clean.
 
-- [ ] **Step 6: Re-absolutising grep.** Run `grep -rn "\.tag" courses/static core/static --include=*.css | grep -v vendor`. Only the new block may touch `.katex-html > .tag`.
+- [ ] **Step 6: Re-absolutising grep.** Run `grep -rnE "\.tag" --include=*.css . | grep -v -e vendor -e node_modules -e .venv`. Only the new block may touch `.katex-html > .tag`.
 
 - [ ] **Step 7: Commit**
   ```bash
@@ -133,7 +133,7 @@
 ### Task 3: Falsification and visual A/B evidence
 
 **Files:**
-- No tracked files change unless a mutant exposes a decorative test. In that case, fix the test (`tests/test_e2e_display_math_tag_overflow.py`) or delete the unearned declaration from courses.css, per the spec.
+- No tracked files change unless a mutant exposes a decorative test. In that case, fix the test (`tests/test_e2e_display_math_tag_overflow.py`) or, ONLY for `align-items: baseline`, delete the unearned declaration from courses.css per the spec. For any other mutant that stays green, strengthen the test. Never touch the #292 pair or a table opt-out.
 - Scratch only: screenshots and a capture script in the session scratchpad, outside the repo.
 
 - [ ] **Step 1: Run every mutant in the spec's falsification table.** Apply each mutant by **emptying the declarations and keeping the selector**: `{}` for a rule, or delete the single declaration. The `:has(> .tag)` rule count then stays 13, and `_vendor_leg`'s count check cannot supply a vacuous RED. The whole-block mutant is the only exception. For every RED, read the failure message and record WHICH assertion failed. A count-check failure never counts as the required RED. Hand-edit courses.css, run the new test file, record pass/fail per test, and hand-revert. Run `git diff --stat` after each revert to confirm no diff. Required REDs:
