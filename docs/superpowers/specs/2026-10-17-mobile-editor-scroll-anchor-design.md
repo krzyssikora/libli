@@ -112,7 +112,12 @@ rows (delete, paste-move): their own rows simply don't resolve, and resolution
 moves on to the next candidate.
 
 1. **Paste-move (primary).** The op is `element-paste` or
-   `element-paste-before` and the mode is `move`.
+   `element-paste-before`, the mode is `move`, **and `res.status === 200`**. On
+   409 (stale token, vanished element, deadlock) and 422 (`_refused`), nothing
+   moved. S still sits at its original place, so anchoring it to the form's top
+   would jump the page there. On those statuses this candidate is not recorded:
+   candidates 2 and 3 and the safety net run normally. This is the **only**
+   status branch inside the anchoring.
    - For `element-paste`, the mode comes from the same submitter `post()`
      received (`e.submitter`, the `name="mode"` buttons). A null submitter means
      "not move": this candidate is skipped.
@@ -173,7 +178,9 @@ paint, and before any test predicate can see the new pane.
      `applyFragments`, **before** keep-in-place. The measurement after the swap
      therefore already includes the bar, and the bar's insertion is compensated.
   1. **Keep in place.** Walk the candidate list in order and take the first
-     whose row exists after the swap and is `rendered`. Let
+     whose row exists after the swap and is `rendered`. Look it up as
+     `[data-scope="editor"] .el-row[data-element="<id>"]`, the same scope the
+     candidates were recorded in. Let
      `dy = newRow.getBoundingClientRect().top - anchor.top`. If `|dy| >= 1`,
      call `window.scrollBy(0, dy)`.
      - The browser clamps this to the document's scroll range. When the
@@ -240,6 +247,12 @@ paint, and before any test predicate can see the new pane.
   removes it 6 s later. On the stacked layout the anchored rows shift by the
   bar's height at that moment. The position is restored right after the swap,
   not kept across the later bar removal. This is accepted.
+- **Refusal/conflict message may be off-screen on mobile.** A refused paste or
+  move writes its message into `#editor-error` at the top of the editor pane,
+  and the 409 bar is prepended to the page top. On the stacked layout both can
+  sit above the viewport while keep-in-place holds the author lower down. This
+  matches master's stacked behaviour and is accepted. Surfacing it is a separate
+  follow-up.
 - **Late layout shifts.** Content whose height changes after the synchronous
   correction is not re-corrected. Examples: images in a re-rendered edit form,
   web fonts. Whatever the browser's native scroll anchoring (`overflow-anchor`)
@@ -271,7 +284,8 @@ paint, and before any test predicate can see the new pane.
 
 - **Status gating.** Only 200, 409 and 422 responses reach this code, as today.
   - **409 (conflict reload) and 422 (validation re-render)** get the same
-    anchoring as 200.
+    anchoring as 200, except that candidate 1 (paste-move) is recorded only on
+    200, because on a refusal nothing moved.
   - **422 on a create.** The response has no `data-saved-element`, so `focusId`
     falls back to `keepId` (the container row, or null). Keep-in-place holds the
     first visible row, which is usually inside the error form's surroundings.
@@ -397,7 +411,11 @@ Tolerance is ±2 px throughout.
     `.el-row[data-element]` top is on-screen (assert this). Then no candidate
     exists.
   - Before Save, also assert:
-    `documentElement.scrollHeight − (scrollY + viewportH) ≥ formHeight + 100`.
+    - `documentElement.scrollHeight − (scrollY + viewportH) ≥ formHeight + 100`;
+    - **form top ≤ −viewportH**, so that even a collapsed row previewing a lot
+      of the text cannot reach into the viewport without the safety net.
+
+    The docstring records both.
   - Save. The collapsed new row lands where the form's top was, i.e. entirely
     above the viewport, unless the safety net acts.
   - Assert: the new row (`data-saved-element`) top equals the editor pane body's
@@ -422,9 +440,20 @@ Tolerance is ±2 px throughout.
     children are on-screen, and at least one trailing row is on-screen. Assert
     all three.
   - Pick D = the first trailing row on-screen, and record its top.
-  - Delete the callout (accept the real `confirm` dialog via a
-    `page.on("dialog")` handler, if the delete asks for one).
+  - Delete the callout. The editor's `element-delete` form has no confirm, so
+    no dialog handler is installed.
   - Assert: D's top is unchanged.
+- **(j) Refused paste-move does not jump to S (409).**
+  - Seed: leading texts, S, ≥ 6 texts, a callout with 2 children, then
+    trailing texts.
+  - Select S. Scroll so the callout's "Move here" button is at mid-viewport and
+    S is above the viewport. Record R = the first rendered on-screen row and its
+    top.
+  - Simulate another tab changing the unit: set the paste form's hidden
+    `unit_token` input to a stale value via `page.evaluate`. Then click
+    "Move here" for real.
+  - The server answers 409 and S does not move. Assert: R's top is unchanged,
+    and S is still above the viewport.
 
 ### Desktop no-regression (1280×800, editor-only)
 
@@ -447,7 +476,8 @@ Tolerance is ±2 px throughout.
 ### Falsification (required; output recorded in the PR)
 
 - Run (a)–(e), (h), (h2) and (i) against the unmodified `editor.js`: all must go
-  **RED**.
+  **RED**. (j) is a regression guard against the new code, so it may be green on
+  master.
   Re-apply the fix: all **GREEN**.
 - Mutants, each chosen from a likely implementation mistake. Each must turn the
   named test red:
@@ -461,10 +491,11 @@ Tolerance is ±2 px throughout.
      input → (h).
   7. **Safety net left active after candidate 1 resolves** → (h2).
   8. **Deleted-subtree exclusion removed from the catch-all** → (i).
-- **Admitted gap: 409/422 anchoring.** Every test uses a 200 response. Gating on
-  `status === 200` would stay green. The implementation shares one code path
-  for 200/409/422 (no status branch inside the anchoring), and the code comment
-  says so. No dedicated test is claimed.
+  9. **Status check on candidate 1 dropped** → (j).
+- **Admitted gap: 409/422 for the other candidates.** Apart from candidate 1's
+  status check, which (j) guards, the anchoring has no status branch. A mutant
+  gating candidates 2 and 3 on `status === 200` would stay green. The code
+  comment says so.
 - **Admitted gap: `rendered()`.** It is defence-in-depth with no independently
   observable effect in these tests. Two things make it unobservable here:
   - resolution re-checks `rendered` after the swap, and `applyStoredSlots` keeps
