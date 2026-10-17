@@ -118,11 +118,19 @@ title section below) and the commit goes through `commitRename`. The menu is
 ONE shared element, populated from the tapped row; when an item is chosen
 it re-finds the row by `data-node` (the row may have been replaced by an
 `applyFragment` while the menu was open) and acts on the CURRENT row's
-control; if the row is gone, the menu closes and does nothing. The ⋯
+control; if the row is gone, the menu closes and does nothing. The menu
+element lives outside every row (e.g. a child of `.builder__tree`, so no
+`applyFragment` can destroy it), its items are `type="button"`, and it
+carries none of builder.js's hook attributes (`data-move`, `data-delete`,
+`data-op`, `data-flag*`, `data-expand-all`, `data-collapse-all`), so
+`root`'s delegated handlers never fire on a menu click itself. The ⋯
 button is `type="button"` (it lives inside the rename form; a submit-type
 button would submit a rename or hijack implicit submission) and is not
 rendered visible without JS (`.js` gate) — the no-JS path keeps today's
-visible cluster.
+visible cluster. **Every** phone-layout rule (title swap, sheet, Kurs,
+sticky header, toolbar move, cluster hiding, ⋯) is scoped under `.js`
+(added in `<head>` by base.html, so there is no flash of the wrong
+layout); without JS the page keeps today's layout at every width.
 
 **Title element and Rename on phone (D8):** the phone title is a separate
 `<button type="button">` holding the title text (focusable, Enter/Space
@@ -150,7 +158,14 @@ replaced), and only then is the input hidden — focus never lands on a
 hidden element, and hiding never triggers the focusout commit. On a
 **blur exit** focus is left wherever the author put it (the filter,
 another row's title…); the input, no longer focused, is simply hidden
-when the commit settles, and focus is never pulled back to ⋯. **On the
+when the commit settles, and focus is never pulled back to ⋯. **A
+blur-initiated commit never moves focus, whatever its outcome** (200,
+409 or 422) — the author may already be in an open sheet; a 422 after a
+blur exit reverts and exits, with the notice shown as a toast (the
+author re-enters via ⋯ → Rename). **No-request outcomes:** Enter with an
+unchanged value exits and moves focus to ⋯; blur with an unchanged or
+emptied value reverts and exits with focus untouched; Enter with an
+empty value stays editing with the native validity bubble. **On the
 phone layout, focusing the rename input never opens the sheet** — the
 `focusin` panel load is desktop-only.
 
@@ -223,7 +238,10 @@ has `overscroll-behavior: contain`, the page scroll is locked while the
 sheet is open, and whatever lock technique is used restores the exact
 `scrollY` on close. **Closing:** ✕, a tap on the dimmed area, Escape, and
 **swipe down on the grab bar/sheet header** (promised in the approved
-mockup — required, not optional). Device Back closing it is a nice-to-have.
+mockup — required, not optional). Device Back closing it is a nice-to-have. On `pageshow` with
+`persisted` (back from the editor via bfcache) the sheet is closed and the
+tree restored (inert and scroll lock removed, pending loads invalidated),
+so the author lands on the tree (my call).
 The tree's scroll position (`scrollY`) and open/closed scopes are
 identical before opening and after closing. **Closing while the move
 picker is showing — by any path (✕, dimmed-area tap, swipe, Escape) — runs
@@ -279,8 +297,9 @@ the sheet. Focus
 returns to the opener: the row's ⋯ for menu actions and Move…, the row's
 phone title for a row tap, the Kurs button for the course sheet. If that
 row no longer exists (replaced or removed by `applyFragment`), focus goes
-to the same row's replacement found by `data-node`, else to the Kurs
-button. `dismissPicker`'s focus target (`a[data-move]`) is hidden on the
+to the same row's replacement found by `data-node`; if that is missing
+or not visible (`checkVisibility()` false — a collapsed scope, a filter),
+focus goes to the Kurs button. This applies to every focus-return path. `dismissPicker`'s focus target (`a[data-move]`) is hidden on the
 phone; on the phone layout it uses the ⋯ of that row instead, and its
 `panel.focus()` fallback is replaced by the Kurs button — focus never
 lands on a hidden element.
@@ -289,7 +308,9 @@ lands on a hidden element.
 inside `header.manage__head` next to the never-moving items (the h1 and
 the filter), never inside a moved group, so it never ends up in the sheet
 it opens. On the phone layout the header row that remains (course title,
-Kurs, filter) is `position: sticky` at the top of the viewport, so Kurs
+Kurs, filter) is `position: sticky` at the top of the viewport (opaque
+background in both themes; the phone layout sets `scroll-padding-top` of
+at least its height so a focused row never lands under it), so Kurs
 and the filter are reachable from deep in a long tree (my call). Its
 height is bounded: the h1 is clamped to one line with an ellipsis, and
 Kurs + the filter form stay on one row, so the sticky header stays at
@@ -399,8 +420,9 @@ desktop load (and so does the panel content: the course panel).
 - Row DOM is large on big courses (mat-pp: ~2,900 rows when fully
   expanded; see the comment at the top of `_tree_node.html`). Do not
   duplicate per-row controls into a second per-row menu DOM; the one
-  shared menu above is required. The extra per-row phone title element is
-  the only per-row addition.
+  shared menu above is required. The allowed per-row additions are: the
+  phone title button, the ⋯ button, and the badge's one-letter form (an
+  attribute or a span, since CSS cannot derive it from the server text).
 - builder.js's focus-driven panel load (`focusin` on `.tree__title`,
   `builder.js:645-667`) and its pointer/keyboard debounce keep working on
   desktop, unchanged.
@@ -474,7 +496,11 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
     of the viewport height (with a long course title).
 17. ⋯ Rename then Escape: no POST is sent, the title is unchanged,
     `document.activeElement` is the row's ⋯. ⋯ Rename then Enter: one
-    POST, the phone title shows the new value, focus on ⋯.
+    POST, the phone title shows the new value, focus on ⋯. ⋯ Rename then
+    Enter unchanged: no POST, editing exits, focus on ⋯. ⋯ Rename, empty
+    the field, tap the filter: no POST, title reverted, focus in the
+    filter. ⋯ Rename, type, tap another row's title, hold the rename POST
+    and release it as a 409: focus stays inside the sheet.
 18. ⋯ Delete chosen from the menu carries the current `open` set in its
     href (proves activation goes through the real control).
 19. Desktop no-regression: a ~945 px mouse window keeps the desktop
