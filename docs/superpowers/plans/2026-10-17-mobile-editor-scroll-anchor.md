@@ -96,8 +96,8 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
     - (b): `max_up=H(one text row), max_down=0`, before each press;
     - (c)/(h)/(h2): `max_up=H(S), max_down=0`;
     - (i): `max_up=H(deleted callout), max_down=0` (needs ≥ H + 100 px above the callout);
-    - (l): `max_up=0, max_down=150`;
-    - (d): `max_up=150, max_down=0`;
+    - (l): `max_up=0, max_down=H(banner)+H(pastewrap)`, measured in a dry run; or use 250;
+    - (d): `max_up=H(#clip-banner incl. margin)`, measured before the click, `max_down=0`. The ✕'s document y must be ≥ that + 100. If that cannot be met at 390×844, use a shorter viewport height for (d) (e.g. 390×640) and say so in the docstring. Never weaken the guard;
     - (j): `max_up=0, max_down=0`.
 
     (e) has its own guards.
@@ -241,7 +241,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
   Same command as Step 2. Expected: every test in Step 1 PASSES.
 
-  Then run every non-e2e test that reads editor.js. List them with `grep -l "editor.js" tests/test_*.py | grep -v test_e2e_`; this includes `tests/test_editor_js_scroll_invariants.py` and `tests/test_editor_js_form_action.py`. Run them with `uv run pytest <those paths>`. Expected: all pass.
+  Then run every non-e2e test that reads editor.js. List them with `grep -l "editor.js" tests/test_*.py | grep -v test_e2e_`; this includes `tests/test_editor_js_scroll_invariants.py` and `tests/test_editor_js_form_action.py`. Run them with `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_scrollfix uv run pytest <those paths>`. Files in that list marked `pytest.mark.e2e` (e.g. `tests/test_tabs_editor_dnd.py`) also run with `-m e2e`. Expected: all pass.
   - `test_editor_js_form_action.py` fails on ANY `.action` in editor.js code, so no new code may spell `.action`.
   - The new code never needs the clip action, because cancel has no `opRow`.
 
@@ -407,7 +407,8 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
     - `tests/test_e2e_tabs.py`
     - `tests/test_e2e_twocolumn.py`
     - `tests/test_e2e_depth3.py`
-  - **Unit files**, in their own command without `-m e2e`: the Task 1 Step 7 grep list, e.g. `uv run pytest tests/test_editor_js_scroll_invariants.py tests/test_editor_js_form_action.py ...`.
+    - `tests/test_tabs_editor_dnd.py` (e2e-marked, though not named `test_e2e_*`)
+  - **Unit files**, in their own command without `-m e2e`: the Task 1 Step 7 grep list, e.g. `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_scrollfix uv run pytest tests/test_editor_js_scroll_invariants.py tests/test_editor_js_form_action.py ...`.
 
   Expected: all pass. For any failure, re-run that test alone. If it fails on master too (use the same `cp` swap), it is pre-existing; record it and do not fix it here.
 
