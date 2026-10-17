@@ -493,8 +493,8 @@ def test_desktop_up_aligns_to_pane_top_without_window_scroll(page, live_server):
         " - parseFloat(getComputedStyle(b).paddingTop); }",
         str(target.pk),
     )
+    assert page.evaluate("window.__ws") == 0  # checked first: names the path that ran
     assert abs(off) <= 2
-    assert page.evaluate("window.__ws") == 0
 
 
 # --- phone: paste-move (candidate 1) ---------------------------------------------
