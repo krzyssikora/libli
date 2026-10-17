@@ -71,7 +71,9 @@ FIT_MIXED = (
 # `align-items: baseline` has something to move.
 MULTI_BASE = r"x = \frac{a}{b} + y \tag{3}"
 # A LONG tag: vendor overlap needs (C - F)/2 < n while the fix needs
-# C - F >= n + 1em, which no short number can satisfy. Padded per surface.
+# C - F >= n + 1em, which no short number can satisfy. Padded into the measured
+# window; both surfaces share the column today, so the
+# two constants are equal -- re-tune them apart if the columns ever diverge.
 NEAR_FIT_PROSE = r"\hspace{80px} x = y + z \tag{1.2.3}"
 NEAR_FIT_MATH = r"\hspace{80px} x = y + z \tag{1.2.3}"
 
