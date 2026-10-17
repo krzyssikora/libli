@@ -77,7 +77,9 @@ The handler covers these ops:
   window.innerHeight`. With the soft keyboard open (e.g. Save from an edit form),
   this is the visible area, so a row hidden behind the keyboard does not count
   as on-screen.
-- `onScreen(top)` is `0 <= top && top < viewportH()`.
+- `onScreen(top)` is `0 <= top && top < viewportH()`. A panned visual viewport
+  (`visualViewport.offsetTop > 0`, e.g. iOS with the keyboard open) is **accepted
+  as best effort and untested**: the band is not shifted by `offsetTop`.
 - `rendered(el)` is `el.isConnected && el.getClientRects().length > 0 &&
   el.getBoundingClientRect().height > 0`. Tabs and columns slots are `<details>`
   elements (`SLOT_DETAILS` in editor.js); callout, spoiler and before/after slots
@@ -139,10 +141,13 @@ moves on to the next candidate.
    - Nested rows count. For a paste-move, rows inside the clip row's own subtree
      (the clip row included) are **excluded**: they relocate with the move, so
      holding one would track the moved block rather than the page.
-   - Rows the op deletes need no exclusion. They don't exist after the swap, so
-     resolution skips them.
+   - For `element-delete`, `opRow` and its descendants are **excluded** too, the
+     same way. Otherwise a deleted container with 5 or more visible children
+     would use up the cap on rows that cannot resolve, leaving no surviving row
+     to anchor.
    - Covers:
-     - ops with no `opRow` (clipboard cancel, top-level paste);
+     - ops with no `opRow`: clipboard cancel, and top-level paste-**copy** (a
+       top-level paste-move uses candidate 1);
      - ops whose `opRow` top is off-screen (a create or 422 inside a tall
        container; an update of a long row with the author at its Save button);
      - delete, including a delete of a tall container whose visible children
@@ -175,8 +180,12 @@ paint, and before any test predicate can see the new pane.
        document shrank below the anchor and the exact position is
        unreachable, the clamp is accepted as best effort. Step 2 below still
        guarantees the focus row isn't lost.
-  2. **Focus visibility safety net.** Resolve `focusId` exactly as today
-     (`data-saved-element` wins, else `keepId`) and look up `focusRow`.
+  2. **Focus visibility safety net.** **Skipped entirely when candidate 1
+     (paste-move) resolved in step 1.** The moved element is then already where
+     the author's finger was. Otherwise, for a paste-before move of a tall
+     element, the target row T could land entirely below the viewport and the
+     net would drag S up off-screen. Otherwise, resolve `focusId` exactly as
+     today (`data-saved-element` wins, else `keepId`) and look up `focusRow`.
      - Only `element_save` sets `data-saved-element`
        (`views_manage.py`, `saved_element=join.pk`). For paste ops, `focusId` is
        therefore the container row ("Move here" in a slot), the target row
@@ -247,7 +256,8 @@ paint, and before any test predicate can see the new pane.
    record the ordered candidate list:
    1. the paste-move candidate (paste-move ops only);
    2. the op's own row, if it is rendered and on-screen;
-   3. up to 5 rendered, on-screen rows (minus the clip subtree on a paste-move).
+   3. up to 5 rendered, on-screen rows (minus the clip subtree on a paste-move, and minus the deleted subtree on a
+      delete).
 3. `applyFragments(res.text)` replaces both panes. The `restoreScroll` inside it
    is a no-op on the stacked layout.
 4. If `paneScrolls()` is true, run today's code unchanged
@@ -402,10 +412,25 @@ Tolerance is ±2 px throughout.
   - This guards the hidden-input mode read. The paste-before submit button has
     no `name`/`value`, so reading the mode from the submitter would skip
     candidate 1.
+- **(h2) "Move before" a tall element: the safety net must not fire.**
+  - Same as (h), but S is taller than `viewportH − formTop` (many paragraphs),
+    so T lands entirely below the viewport after the move.
+  - Assert: S's top still equals the recorded form top.
+- **(i) Delete of a tall container.**
+  - Seed: leading texts; a callout with ≥ 7 short children; trailing texts.
+  - Scroll so the callout's own row top is above the viewport, ≥ 5 of its
+    children are on-screen, and at least one trailing row is on-screen. Assert
+    all three.
+  - Pick D = the first trailing row on-screen, and record its top.
+  - Delete the callout (accept the real `confirm` dialog via a
+    `page.on("dialog")` handler, if the delete asks for one).
+  - Assert: D's top is unchanged.
 
 ### Desktop no-regression (1280×800, editor-only)
 
-- **(f)** Scenario (a) at desktop. Assert that the row lands at the pane-top
+- **(f)** Scenario (a) at desktop. Set the start position by setting
+  `[data-scope="editor"] .pane-body`'s `scrollTop` (the page itself is locked),
+  **before** installing (g)'s spies. Assert that the row lands at the pane-top
   alignment exactly as today: `row.top − paneBody.top − paneBody.paddingTop`
   within ±2 px of 0.
 - **(g) Window path never runs on desktop.** Run this inside (f), on the same
@@ -421,7 +446,8 @@ Tolerance is ±2 px throughout.
 
 ### Falsification (required; output recorded in the PR)
 
-- Run (a)–(e) and (h) against the unmodified `editor.js`: all must go **RED**.
+- Run (a)–(e), (h), (h2) and (i) against the unmodified `editor.js`: all must go
+  **RED**.
   Re-apply the fix: all **GREEN**.
 - Mutants, each chosen from a likely implementation mistake. Each must turn the
   named test red:
@@ -433,6 +459,12 @@ Tolerance is ±2 px throughout.
   5. **Gate forced to the window path on desktop** → (g).
   6. **Paste-before mode read from the submitter** instead of the hidden
      input → (h).
+  7. **Safety net left active after candidate 1 resolves** → (h2).
+  8. **Deleted-subtree exclusion removed from the catch-all** → (i).
+- **Admitted gap: 409/422 anchoring.** Every test uses a 200 response. Gating on
+  `status === 200` would stay green. The implementation shares one code path
+  for 200/409/422 (no status branch inside the anchoring), and the code comment
+  says so. No dedicated test is claimed.
 - **Admitted gap: `rendered()`.** It is defence-in-depth with no independently
   observable effect in these tests. Two things make it unobservable here:
   - resolution re-checks `rendered` after the swap, and `applyStoredSlots` keeps
