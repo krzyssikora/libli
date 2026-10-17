@@ -47,9 +47,9 @@
   - `_vendor_leg(page, surface) -> None`. Calls `_strip_new_rules`, asserts the count `== 13`, asserts the `.tag` computes `position: absolute`, and asserts `.tag > :first-child` computes `margin-inline-start: 0px`.
   - LaTeX constants: `WIDE`, `FIT_MIXED`, `MULTI_BASE`, `NEAR_FIT_PROSE`, `NEAR_FIT_MATH`.
 
-- [ ] **Step 1: Write the fixtures and helpers.** Build every LaTeX string with raw strings. Starting candidates follow; tune them in Step 3.
+- [ ] **Step 1: Write the fixtures and helpers.** The module declares `pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]` and the session-scoped `_allow_sync_orm_under_playwright` fixture, copied from `tests/test_e2e_prose_display_math_overflow.py`. Build every LaTeX string with raw strings. Starting candidates follow; tune them in Step 3.
   - `WIDE`: the owner's case. `\begin{align}|P(A)P(B)| &= \sqrt{((2-y_A)-(2-y_B))^2+((x_A+1)-(x_B+1))^2}\\ &= \sqrt{(-y_A+y_B)^2+(x_A-x_B)^2}\\ &= |AB|\end{align}`
-  - `FIT_MIXED`: `r"egin{align}" + r"\ ".join(r"a_{%d}&=b" % i for i in range(1, 12)) + r"\end{align}"`. It must be inside an `align`, or no tag is emitted.
+  - `FIT_MIXED`: `r"\begin{align}" + r"\\".join(r"a_{%d}&=b" % i for i in range(1, 12)) + r"\end{align}"`. It must be inside an `align`, or no tag is emitted. Step 3 asserts the rendered tag has 11 `.eqn-num` rows.
   - `MULTI_BASE`: `x = \frac{a}{b} + y \tag{3}`
   - `NEAR_FIT_*`: `\hspace{Npx} x = y + z \tag{1.2.3}`, with N tuned per surface.
 
@@ -78,6 +78,9 @@
   - Assertions 1 and 2 FAIL on the new-build measurement, since master has no rule.
   - `_vendor_leg`'s `count == 13` assertion FAILS in every A/B test, because there is nothing to strip.
   - The table, untagged, near-fit-overflow and page-width tests PASS.
+
+  - The vendor-reproduces-defect ("is False") checks are not reached on master. They first run in Task 2 Step 2, which is where a fixture that fails to reproduce the defect would show.
+  - The collected count in the summary equals the parametrised total. If 0 were collected, the marker is missing.
 
   This is the RED state. Record it.
 
@@ -113,8 +116,8 @@
   - Remove the prints, and confirm with `git diff tests/` that only intended changes remain.
 
 - [ ] **Step 4: CSS-source and neighbour gates.**
-  Run: `TEST_DATABASE_URL=… uv run pytest tests/test_container_label_math.py $(ls tests/test_*css*.py) -n 4`
-  Then: `TEST_DATABASE_URL=… uv run pytest -m e2e tests/test_e2e_prose_display_math_overflow.py tests/test_e2e_math_element_overflow.py tests/test_e2e_table_display_math_align.py tests/test_e2e_math_reflow.py`
+  Run: `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_tagovf uv run pytest tests/test_container_label_math.py $(ls tests/test_*css*.py) -n 4`
+  Then: `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_tagovf uv run pytest -m e2e tests/test_e2e_prose_display_math_overflow.py tests/test_e2e_math_element_overflow.py tests/test_e2e_table_display_math_align.py tests/test_e2e_math_reflow.py`
   Expected: all PASS. Grep the summary line; do not trust the exit code.
 
 - [ ] **Step 5: Lint.** Run `uv run ruff check .` and `uv run ruff format --check .`. Both must be clean.
@@ -152,10 +155,10 @@
 
 - [ ] **Step 2: Fix and commit** anything a mutant exposed (`git commit -m "test(katex): …"`). Otherwise there is no commit.
 
-- [ ] **Step 3: Screenshots.** Create an UNTRACKED file `tests/test_e2e_zz_tagovf_shots.py`, never committed and deleted after this step, so it gets the repo conftest and live_server. It imports `_open`, `_strip_new_rules`, `_scroll_to_end` and `WIDE` from the new module. For each surface and each theme:
+- [ ] **Step 3: Screenshots.** Create an UNTRACKED file `tests/test_e2e_zz_tagovf_shots.py`, never committed and deleted after this step, so it gets the repo conftest and live_server. It declares the same `pytestmark`, because an unmarked file is deselected under `-m e2e`. It imports `_open`, `_strip_new_rules`, `_scroll_to_end` and `WIDE` from the new module. For each surface and each theme:
   - Set the theme with `page.evaluate("document.documentElement.dataset.theme = 'dark'")` (or `'light'`). That is the attribute the app's toggle sets; see `tests/test_e2e_auth.py:69`.
   - Screenshot the scroller element at scroll 0 and at scroll end, call `_strip_new_rules`, and screenshot again. That gives 16 PNGs, written to the session scratchpad directory (absolute path).
-  - Run with the usual `TEST_DATABASE_URL` prefix and `-m e2e`, then delete the file. `git status` must show it gone.
+  - Run with the usual `TEST_DATABASE_URL` prefix and `-m e2e`, confirm all 16 PNGs exist, then delete the file. `git status` must show it gone.
   - Look at every PNG. Judge dark separately.
 
 - [ ] **Step 4: Record the evidence** (the falsification table with outcomes, screenshot paths, and measured numbers) in the session ledger for the PR body.
