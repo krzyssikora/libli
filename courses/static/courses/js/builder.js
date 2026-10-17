@@ -34,7 +34,7 @@
   function isPhone() { return phoneMq.matches; }
 
   // Single writer for panel content. The panel is a scroll container (builder.css), so
-  // every swap must reset scrollTop or the next node's panel opens mid-way down. Nine
+  // every swap must reset scrollTop or the next node's panel opens mid-way down. Thirteen
   // call sites funnel through here; tests/test_builder_js_invariants.py enforces it.
   // On the phone the sheet body is the scroll container instead, so it resets too.
   function setPanel(html) {
@@ -134,6 +134,9 @@
     var pk = movingPk;
     setPanel(neutralPanel);
     clearMoving();
+    // Phone: the picker lives in the sheet and its a[data-move] is hidden, so the
+    // sheet closes (inert gone first) and focus goes to that row's ⋯.
+    if (isPhone()) { closeSheet({ focus: false }); focusRowMore(pk); return; }
     var mv = pk == null ? null : root.querySelector('a[data-move="' + pk + '"]');
     // The row may be gone or hidden (its chapter collapsed, a filter): never strand
     // focus on <body> -- the panel, now showing the course, takes it instead.
@@ -428,6 +431,11 @@
     // rename goes dead on every row in the builder. Guard it, and scope it
     // to the flag ops so no other op's button is touched.
     var control = e.submitter;
+    // A phone row-menu item asked for focus on its row's ⋯ once THIS request's
+    // fragment lands. Claimed per request, at submit time, so an unrelated op's
+    // response can never consume it.
+    var focusPk = (control && control === pendingFocusControl) ? pendingFocusPk : null;
+    if (focusPk) { pendingFocusPk = null; pendingFocusControl = null; }
     if (control && (op === "flag" || op === "flag-confirm")) {
       control.disabled = true;
       control.setAttribute("aria-disabled", "true");
@@ -482,6 +490,10 @@
                           // below still runs, via the `finally`.
               }
               applyFragment(text);
+              if (focusPk && isPhone()) focusRowMore(focusPk);
+              // The row menu's opener was replaced under it: its items would act
+              // on a row the author no longer sees as the menu's.
+              if (menuOpener && !menuOpener.isConnected) closeMenu(false);
               syncUrl();
               if (op === "flag" || op === "flag-confirm") {
                 restoreFlagFocus(op, control, body);
@@ -491,7 +503,14 @@
             // Only the Move picker remains as a panel form with data-op; it resets the
             // panel to neutral. (The panel's rename form is gone, so the re-token helper
             // that existed solely to refresh it was deleted along with it.)
-            if (inPanel) setPanel(neutralPanel);
+            // On the phone the picker sat in the sheet: close it (inert gone
+            // first), then focus the moved row's ⋯. movingPk is read BEFORE
+            // clearMoving() nulls it.
+            if (inPanel) {
+              var movedPk = movingPk;
+              setPanel(neutralPanel);
+              if (isPhone()) { closeSheet({ focus: false }); focusRowMore(movedPk); }
+            }
             clearMoving();
             if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
           } else if (r.status === 422) {
@@ -631,13 +650,28 @@
       // so after an expand-all every picker GET would carry a ~1 KB pk list.
       var u = new URL(mv.getAttribute("href"), window.location.origin);
       u.searchParams.set("q", appliedQ);
+      // Phone: the picker opens in the sheet, under the panel loads' last-request-
+      // wins counter, so a late picker after the sheet closed (or a late node panel
+      // after the picker showed) is dropped. Gated on the layout at ISSUE time: a
+      // desktop request keeps moveReq = 0 and stays unguarded, as today.
+      var moveReq = 0;
+      if (isPhone()) {
+        invalidatePanel();
+        setPanel(PLACEHOLDER_HTML);
+        openSheet("move", { pk: mv.getAttribute("data-move"), target: "more" });
+        moveReq = ++panelReq;
+      }
       fetch(u.pathname + u.search, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) {
+          if (moveReq && moveReq !== panelReq) return;
           setPanel(html);
           initPicker(parseInt(mv.getAttribute("data-move"), 10));
         })
-        .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
+        .catch(function () {
+          if (moveReq && moveReq !== panelReq) return;
+          setPanel('<div class="op-error" role="alert">Network error — please reload.</div>');
+        });
       return;
     }
   });
@@ -1469,8 +1503,125 @@
     if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
   }
 
-  // Placeholder until the row menu exists (Task 6 replaces it).
-  function closeMenu() {}
+  // ---- the shared ⋯ row menu ----
+  // ONE element (a child of .builder__tree, outside every row, so no applyFragment
+  // can destroy it), populated from the tapped row. Its items never copy an href or
+  // formaction: each one click()s the row's REAL control, re-found by data-node, so
+  // builder.js's delegated handlers above run unchanged. The menu carries none of
+  // their hook attributes, so a click on the menu itself triggers none of them.
+  var menuReason = menu && menu.querySelector("[data-menu-reason]");
+  var menuTitle = menu && menu.querySelector("[data-menu-title]");
+  var MENU_CONTROLS = {
+    "up": 'button[data-op="reorder"][value="up"]',
+    "down": 'button[data-op="reorder"][value="down"]',
+    "move": "a[data-move]",
+    "duplicate": 'button[data-op="duplicate"]',
+    "export": "a.icm--download",
+    "delete": "a[data-delete]"
+  };
+  function menuControl(row, action) {
+    var sel = MENU_CONTROLS[action];
+    var head = row.querySelector(":scope > form.tree__rowhead");
+    return sel && head ? head.querySelector(sel) : null;
+  }
+
+  // The row's ⋯, re-found by data-node; returnFocus falls back to Kurs.
+  function focusRowMore(pk) { returnFocus({ pk: pk, target: "more" }); }
+
+  // Rename from the menu (Task 7 replaces this placeholder).
+  function startPhoneRename() {}
+
+  function openMenu(moreBtn) {
+    var row = moreBtn.closest("li.tree__row");
+    if (!row || !menu) return;
+    if (menuOpener && menuOpener !== moreBtn) menuOpener.setAttribute("aria-expanded", "false");
+    // Settle an open add row the way openAdd does: typed text commits, an empty
+    // row cancels. The add field's own focusout timer does the same on Chromium;
+    // this line covers browsers where tapping a button does not move focus (iOS
+    // Safari). Never closeAdd(): it would discard the typed text.
+    root.querySelectorAll("form.tree__add.is-adding").forEach(commitOrCancel);
+    menuPk = row.getAttribute("data-node");
+    menuOpener = moreBtn;
+    var input = row.querySelector(":scope > form.tree__rowhead > input.tree__title");
+    if (menuTitle) menuTitle.textContent = input ? input.defaultValue : "";
+    var first = null, reorderOff = false;
+    menu.querySelectorAll("[data-menu-action]").forEach(function (item) {
+      var action = item.getAttribute("data-menu-action");
+      if (action !== "rename") {
+        var control = menuControl(row, action);
+        item.hidden = !control;
+        item.disabled = !!control && (control.disabled
+          || control.getAttribute("aria-disabled") === "true");
+        if ((action === "up" || action === "down") && item.disabled) reorderOff = true;
+      }
+      if (!first && !item.hidden && !item.disabled) first = item;
+    });
+    // `title` tooltips never show on touch, so the filter's reason is text.
+    if (menuReason) menuReason.hidden = !(effectiveQ(appliedQ) !== "" && reorderOff);
+    menu.hidden = false;
+    moreBtn.setAttribute("aria-expanded", "true");
+    if (first) first.focus();
+  }
+
+  // Called on every openSheet and every outside pointerdown, hence the early return.
+  function closeMenu(restoreFocus) {
+    if (!menu || menu.hidden) return;
+    menu.hidden = true;
+    if (menuOpener) menuOpener.setAttribute("aria-expanded", "false");
+    if (restoreFocus) focusRowMore(menuPk);
+    menuPk = null;
+    menuOpener = null;
+  }
+
+  root.addEventListener("click", function (e) {
+    var btn = e.target.closest(".tree__more");
+    var row = btn && btn.closest("li.tree__row");
+    if (!row) return;
+    e.preventDefault();
+    if (menuPk === row.getAttribute("data-node") && !menu.hidden) closeMenu(true);
+    else openMenu(btn);
+  });
+
+  if (menu) menu.addEventListener("click", function (e) {
+    var item = e.target.closest("[data-menu-action]");
+    if (!item || item.disabled) return;
+    var action = item.getAttribute("data-menu-action");
+    // The row may have been replaced by an applyFragment while the menu was open:
+    // act on the CURRENT row; if it is gone, do nothing.
+    var row = menuPk == null ? null
+      : root.querySelector('li.tree__row[data-node="' + menuPk + '"]');
+    if (!row) { closeMenu(false); return; }
+    if (action === "rename") { closeMenu(false); startPhoneRename(row); return; }
+    var control = menuControl(row, action);
+    if (!control) { closeMenu(false); return; }
+    // Move… opens the sheet, which owns focus from here.
+    if (action === "move") { closeMenu(false); control.click(); return; }
+    var pk = menuPk;   // closeMenu nulls menuPk
+    // export (a download -- the page stays) and delete (navigates away) render no
+    // fragment, so only the in-place ops ask the submit handler for a focus return.
+    if (action !== "export" && action !== "delete") {
+      pendingFocusPk = pk;
+      pendingFocusControl = control;
+    }
+    // Focus moves to the ⋯ BEFORE the menu hides, so it never drops to <body>.
+    focusRowMore(pk);
+    closeMenu(false);
+    control.click();
+  });
+
+  // An outside tap closes the menu without stealing focus from what was tapped;
+  // a tap on something unfocusable leaves focus on <body>, so it goes to the ⋯.
+  document.addEventListener("pointerdown", function (e) {
+    if (!menu || menu.hidden) return;
+    var t = e.target;
+    if (t && t.closest && (menu.contains(t) || t.closest(".tree__more"))) return;
+    var pk = menuPk;
+    closeMenu(false);
+    setTimeout(function () {
+      if (document.activeElement === document.body) focusRowMore(pk);
+    }, 0);
+  });
+  // ---- end row menu ----
 
   function sheetIsOpen() { return sheet.classList.contains("is-open"); }
 
@@ -1590,6 +1741,7 @@
       if (!sheetIsOpen()) sheet.inert = true;   // closed: out of the tab order
       measureHead();
     } else {
+      if (menu && !menu.hidden) closeMenu(false);
       closeSheet({ focus: false });             // itself a no-op when closed
       moveToolbar(false);
       // inert would reach the desktop panel through the display: contents wrapper.
@@ -1663,14 +1815,26 @@
     closeSheet({ focus: true });
   });
 
-  // While the sheet is open this is the ONE Escape owner: capture phase, then
-  // preventDefault, so the picker's document-level handler (top of this file)
-  // takes its defaultPrevented early return and never double-dismisses.
+  // One Escape closes only the TOPMOST layer. While the sheet is open this is the
+  // ONE Escape owner: capture phase, then preventDefault, so the picker's
+  // document-level handler (top of this file) takes its defaultPrevented early
+  // return and never double-dismisses. Sheet layer: picker -> sheet. Tree layer:
+  // the ⋯ menu here; with the menu closed too it does nothing, so the rename,
+  // strip and add-row handlers behave as today.
   document.addEventListener("keydown", function (e) {
-    if (!isPhone() || !sheetIsOpen() || e.key !== "Escape") return;
-    e.preventDefault();
-    e.stopPropagation();
-    closeSheet();   // also cleans up a showing picker
+    if (!isPhone() || e.key !== "Escape") return;
+    if (sheetIsOpen()) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (panel.querySelector("form.move-picker")) dismissPicker();
+      else closeSheet();
+      return;
+    }
+    if (menu && !menu.hidden) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu(true);
+    }
   }, true);
 
   // Back from the editor via bfcache: land on the tree, not a stale sheet.
