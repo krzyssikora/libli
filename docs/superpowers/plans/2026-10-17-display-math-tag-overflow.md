@@ -61,7 +61,7 @@
   - `test_fitting_display_matches_vendor[surface, fixture∈{fit_mixed, multi_base}]` (assertion 3): width is NOT a parameter. In one page, measure 390, then resize and measure 1280, then `_vendor_leg`, then measure 1280, then resize and measure 390. Every base rect, the ink rect and every leaf rect equal vendor within 0.5 at each width.
   - `test_numbers_level_with_rows[surface, fixture∈{fit_mixed, multi_base, wide, near}]` (assertion 4): `ink.top - html.top` and `ink.bottom - html.bottom` equal vendor within 0.5.
   - `test_near_fit_does_not_overflow[surface]` (assertion 5): scroller `scrollWidth <= clientWidth + 1`. New build only, no `_vendor_leg`.
-  - `test_table_widgets_keep_vendor_tag[widget∈{table, filltable}]` (assertion 6): a `TableElement` (`{"cells": [[{"html": r"\[" + FIT_MIXED + r"\]", "halign": "left"}]]}`), or a `FillTableElement` with a `"kind": "static"` cell of the same content. Expect `.katex-html` display `block`, tag position `absolute`, tag `textAlign` == its parent's, the first child's `marginInlineStart == "0px"`, and the first child's `textAlign` == `.katex-html`'s.
+  - `test_table_widgets_keep_vendor_tag[widget∈{table, filltable}]` (assertion 6): a `TableElement` (`{"cells": [[{"html": r"\[" + FIT_MIXED + r"\]", "halign": "left"}]]}`), or a `FillTableElement` whose row is `[{"kind": "static", "html": <same>, "halign": "left"}, {"kind": "answer", "answer": "1"}]`, matching `tests/test_e2e_table_display_math_align.py`. Expect `.katex-html` display `block`, tag position `absolute`, tag `textAlign` == its parent's, the first child's `marginInlineStart == "0px"`, and the first child's `textAlign` == `.katex-html`'s.
   - `test_untagged_display_untouched`: an `align*` prose display whose `.katex-html` computes `display: block`.
   - `test_page_does_not_widen[surface]` (assertion 7, wide): `documentElement.scrollWidth == clientWidth`. New build only, no `_vendor_leg`.
 
@@ -104,7 +104,7 @@
   - `tag > *`: `text-align: inherit`
   - `tag > :first-child`: `margin-inline-start: 0`
 
-  That gives 5 + 4 + 4 = 13 rules containing `:has(> .tag)`. Precede the block with a comment in house style: the defect (column-positioned abs tag), the flex mechanism and its three bands, the gap, why there are no shrink guards, why titles are not opted out, and placeholders (`<GAP>`, `<END>`, `<VERT>`) for the measured numbers that Step 3 fills in.
+  That gives 5 + 4 + 4 = 13 rules containing `:has(> .tag)`. Precede the block with a comment in house style. It cites sheets and selectors, never line numbers: `tests/test_css_citations_are_durable.py` forbids them. Nowhere may `*` be followed by `/`, because `.tag > */…` would end the comment early (`tests/test_css_comments_are_terminated_once.py`). Write `.tag > *` and `:first-child` as separate words. The comment covers: the defect (column-positioned abs tag), the flex mechanism and its three bands, the gap, why there are no shrink guards, why titles are not opted out, and placeholders (`<GAP>`, `<END>`, `<VERT>`) for the measured numbers that Step 3 fills in.
 
 - [ ] **Step 2: Run the new file.**
   Run: `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_tagovf uv run pytest tests/test_e2e_display_math_tag_overflow.py -m e2e -p no:randomly`
@@ -136,7 +136,7 @@
 - No tracked files change unless a mutant exposes a decorative test. In that case, fix the test (`tests/test_e2e_display_math_tag_overflow.py`) or delete the unearned declaration from courses.css, per the spec.
 - Scratch only: screenshots and a capture script in the session scratchpad, outside the repo.
 
-- [ ] **Step 1: Run every mutant in the spec's falsification table.** Hand-edit courses.css, run the new test file, record pass/fail per test, and hand-revert. Run `git diff --stat` after each revert to confirm no diff. Required REDs:
+- [ ] **Step 1: Run every mutant in the spec's falsification table.** Apply each mutant by **emptying the declarations and keeping the selector**: `{}` for a rule, or delete the single declaration. The `:has(> .tag)` rule count then stays 13, and `_vendor_leg`'s count check cannot supply a vacuous RED. The whole-block mutant is the only exception. For every RED, read the failure message and record WHICH assertion failed. A count-check failure never counts as the required RED. Hand-edit courses.css, run the new test file, record pass/fail per test, and hand-revert. Run `git diff --stat` after each revert to confirm no diff. Required REDs:
 
   | mutant | must go RED |
   |---|---|
@@ -149,15 +149,16 @@
   | `:first-child` margin reset in `.el--table` opt-out | 6 |
   | gap rule | 1, 2 |
   | `text-align: right` on `.tag` | 3 |
-  | #292 `.katex-display` overflow pair | 7[prose] (`[math]` stays green: `.el--math` keeps its own scroller) |
+  | #292 pair: empty `overflow-x: auto; overflow-y: hidden;` in the bare `.katex-display {` rule (the one with `padding-block: 4px`), NOT the `.el--math .katex-display, …` opt-out | 7[prose] (`[math]` stays green: `.el--math` keeps its own scroller) |
 
   Under the whole-block mutant, `_vendor_leg`'s count assertion also fails (count 0). That is expected. The REDs that matter are the new-build assertions 1 and 2.
 
 - [ ] **Step 2: Fix and commit** anything a mutant exposed (`git commit -m "test(katex): …"`). Otherwise there is no commit.
 
 - [ ] **Step 3: Screenshots.** Create an UNTRACKED file `tests/test_e2e_zz_tagovf_shots.py`, never committed and deleted after this step, so it gets the repo conftest and live_server. It declares the same `pytestmark`, because an unmarked file is deselected under `-m e2e`. It imports `_open`, `_strip_new_rules`, `_scroll_to_end` and `WIDE` from the new module. For each surface and each theme:
+  - Use one fresh `_open` per surface × theme, with a unique username and slug, at viewport 390×900. `deleteRule` cannot be undone, so a page is never reused.
   - Set the theme with `page.evaluate("document.documentElement.dataset.theme = 'dark'")` (or `'light'`). That is the attribute the app's toggle sets; see `tests/test_e2e_auth.py:69`.
-  - Screenshot the scroller element at scroll 0 and at scroll end, call `_strip_new_rules`, and screenshot again. That gives 16 PNGs, written to the session scratchpad directory (absolute path).
+  - Shoot scroll 0, then `_scroll_to_end` and shoot. Call `_strip_new_rules`, set `scrollLeft = 0` and shoot, then call `_scroll_to_end` again (stripping changes `scrollWidth`) and shoot. That gives 16 PNGs, written to the session scratchpad directory (absolute path).
   - Run with the usual `TEST_DATABASE_URL` prefix and `-m e2e`, confirm all 16 PNGs exist, then delete the file. `git status` must show it gone.
   - Look at every PNG. Judge dark separately.
 
