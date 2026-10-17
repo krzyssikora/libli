@@ -41,7 +41,7 @@
 **Interfaces:**
 - Produces, module-level, used by Tasks 2 and 3:
   - `_open(page, live_server, username, slug, element) -> None`. Seeds a course and unit with `_make_pa_user`/`_login`/`_seed_course_and_unit` from `tests.test_e2e_editor` and `add_element` from `tests.factories`. `element` is a saved model instance. Navigates to `courses:lesson_unit` and waits for `.katex-html > .tag`, or `.katex-html > .base` for the untagged case. Then waits on `document.fonts.ready` and asserts `document.fonts.check("1em KaTeX_Main")`.
-  - `_measure(page, surface) -> dict`. `surface` is `"prose"` (display `.el--text .katex-display`, scroller = that display) or `"math"` (display `.el--math .katex-display`, scroller = `.el--math`). Returns `{bases: [rect], base_union: rect, ink: rect, leaves: [rect], html: rect, scroller: rect, em: float, scroll_max: float}`, with rects as `{left, right, top, bottom}` in viewport px. `leaves` are the ink leaves in document order.
+  - `_measure(page, surface) -> dict`. `surface` is `"prose"` (display `.el--text .katex-display`, scroller = that display) or `"math"` (display `.el--math .katex-display`, scroller = `.el--math`). Returns `{bases: [rect], base_union: rect, ink: rect, leaves: [rect], html: rect, scroller: rect, em: float, scroll_max: float}`. `scroller` is the CLIENT rect (`left + clientLeft`, width `clientWidth`, same for top/height), not the border box, with rects as `{left, right, top, bottom}` in viewport px. `leaves` are the ink leaves in document order.
   - `_scroll_to_end(page, surface) -> None`. Sets the scroller's `scrollLeft` to `scrollWidth`.
   - `_strip_new_rules(page) -> int`. Walks `document.styleSheets` (try/catch per sheet), recursing into grouping rules. Calls `deleteRule` on every rule whose `selectorText` contains `:has(> .tag)`, iterating indices backwards, and returns the count.
   - `_vendor_leg(page, surface) -> None`. Calls `_strip_new_rules`, asserts the count `== 13`, asserts the `.tag` computes `position: absolute`, and asserts `.tag > :first-child` computes `margin-inline-start: 0px`.
@@ -49,7 +49,7 @@
 
 - [ ] **Step 1: Write the fixtures and helpers.** Build every LaTeX string with raw strings. Starting candidates follow; tune them in Step 3.
   - `WIDE`: the owner's case. `\begin{align}|P(A)P(B)| &= \sqrt{((2-y_A)-(2-y_B))^2+((x_A+1)-(x_B+1))^2}\\ &= \sqrt{(-y_A+y_B)^2+(x_A-x_B)^2}\\ &= |AB|\end{align}`
-  - `FIT_MIXED`: 11 rows of `a_{i}&=b`.
+  - `FIT_MIXED`: `r"egin{align}" + r"\ ".join(r"a_{%d}&=b" % i for i in range(1, 12)) + r"\end{align}"`. It must be inside an `align`, or no tag is emitted.
   - `MULTI_BASE`: `x = \frac{a}{b} + y \tag{3}`
   - `NEAR_FIT_*`: `\hspace{Npx} x = y + z \tag{1.2.3}`, with N tuned per surface.
 
@@ -57,15 +57,15 @@
 
 - [ ] **Step 2: Write the tests,** one per spec assertion, parametrised over `surface in ("prose", "math")` where the spec says so. Viewport is `page.set_viewport_size({"width": 390, "height": 900})` unless 1280 is named. Order per spec: new-build measurements at every width first, then `_vendor_leg`, then vendor measurements, resizing for each.
   - `test_tag_clears_formula_at_scroll_start[surface, fixture∈{wide, near}]` (assertion 1): `ink.left >= base_union.right + em - 0.5`. Also run the same check on the vendor leg and assert it is **False**, which proves the fixture reproduces the defect.
-  - `test_tag_reachable_and_clear_at_scroll_end[surface]` (assertion 2, wide): after `_scroll_to_end`, the ink lies inside the `scroller` rect ±0.5 and `ink.left >= base_union.right + em - 0.5`. Assert the same check is False on the vendor leg.
-  - `test_fitting_display_matches_vendor[surface, fixture∈{fit_mixed, multi_base}, width∈{390, 1280}]` (assertion 3): every base rect, the ink rect and every leaf rect equal vendor within 0.5. The A/B must run within one page, with both widths measured before the strip.
+  - `test_tag_reachable_and_clear_at_scroll_end[surface]` (assertion 2, wide): after `_scroll_to_end`, the ink lies inside the `scroller` client rect ±0.5 and `ink.left >= base_union.right + em - 0.5`. Assert the same check is False on the vendor leg. Call `_scroll_to_end` again AFTER `_vendor_leg`, because stripping changes `scrollWidth`.
+  - `test_fitting_display_matches_vendor[surface, fixture∈{fit_mixed, multi_base}]` (assertion 3): width is NOT a parameter. In one page, measure 390, then resize and measure 1280, then `_vendor_leg`, then measure 1280, then resize and measure 390. Every base rect, the ink rect and every leaf rect equal vendor within 0.5 at each width.
   - `test_numbers_level_with_rows[surface, fixture∈{fit_mixed, multi_base, wide, near}]` (assertion 4): `ink.top - html.top` and `ink.bottom - html.bottom` equal vendor within 0.5.
-  - `test_near_fit_does_not_overflow[surface]` (assertion 5): scroller `scrollWidth <= clientWidth + 1`.
+  - `test_near_fit_does_not_overflow[surface]` (assertion 5): scroller `scrollWidth <= clientWidth + 1`. New build only, no `_vendor_leg`.
   - `test_table_widgets_keep_vendor_tag[widget∈{table, filltable}]` (assertion 6): a `TableElement` (`{"cells": [[{"html": r"\[" + FIT_MIXED + r"\]", "halign": "left"}]]}`), or a `FillTableElement` with a `"kind": "static"` cell of the same content. Expect `.katex-html` display `block`, tag position `absolute`, tag `textAlign` == its parent's, the first child's `marginInlineStart == "0px"`, and the first child's `textAlign` == `.katex-html`'s.
   - `test_untagged_display_untouched`: an `align*` prose display whose `.katex-html` computes `display: block`.
-  - `test_page_does_not_widen[surface]` (assertion 7, wide): `documentElement.scrollWidth == clientWidth`.
+  - `test_page_does_not_widen[surface]` (assertion 7, wide): `documentElement.scrollWidth == clientWidth`. New build only, no `_vendor_leg`.
 
-- [ ] **Step 3: Size the fixtures on master.** Using a throwaway print (not committed), record per surface at 390px: column width, `C − F`, ink width n, and em. Check against the spec's conditions:
+- [ ] **Step 3: Size the fixtures on master.** Using a throwaway print (not committed), record per surface: column width, `C − F`, ink width n, and em. Use C = `html` width and F = `base_union` width. Record all fixtures at 390px, and the fit fixtures at 1280px too. Check against the spec's conditions:
   - wide: the ink starts off-screen on the new build. This is verified in Task 2; on master check only that it overflows.
   - fit-mixed and multi-base: `(C − F)/2 ≥ n + em + 20` at 390 and 1280.
   - near: `n + em + 4 ≤ C − F < 2n − 8`. Tune `\hspace` per surface.
@@ -77,7 +77,7 @@
   Expected:
   - Assertions 1 and 2 FAIL on the new-build measurement, since master has no rule.
   - `_vendor_leg`'s `count == 13` assertion FAILS in every A/B test, because there is nothing to strip.
-  - The table, untagged and page-width tests PASS.
+  - The table, untagged, near-fit-overflow and page-width tests PASS.
 
   This is the RED state. Record it.
 
@@ -95,19 +95,22 @@
 **Interfaces:**
 - Consumes: Task 1's test file, unchanged except the docstring.
 
-- [ ] **Step 1: Insert the block.** Four main rules, exactly as the spec's CSS block: container, `::before`, `> .tag`, `> .tag > *`, `> .tag > :first-child`. Then the opt-outs. For each of `.el--table` and `.el--filltable`:
+- [ ] **Step 1: Insert the block.** Five main rules, exactly as the spec's CSS block: container, `::before`, `> .tag`, `> .tag > *`, `> .tag > :first-child`. Then the opt-outs. For each of `.el--table` and `.el--filltable`:
   - container: `display: block`
   - tag: `position: absolute; text-align: inherit`
   - `tag > *`: `text-align: inherit`
   - `tag > :first-child`: `margin-inline-start: 0`
 
-  That gives 5 + 4 + 4 = 13 rules containing `:has(> .tag)`. Precede the block with a comment in house style: the defect (column-positioned abs tag), the flex mechanism and its three bands, the gap, why there are no shrink guards, why titles are not opted out, and the measured A/B numbers from Task 2, Step 3.
+  That gives 5 + 4 + 4 = 13 rules containing `:has(> .tag)`. Precede the block with a comment in house style: the defect (column-positioned abs tag), the flex mechanism and its three bands, the gap, why there are no shrink guards, why titles are not opted out, and placeholders (`<GAP>`, `<END>`, `<VERT>`) for the measured numbers that Step 3 fills in.
 
 - [ ] **Step 2: Run the new file.**
   Run: `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_tagovf uv run pytest tests/test_e2e_display_math_tag_overflow.py -m e2e -p no:randomly`
   Expected: all PASS.
 
-- [ ] **Step 3: Record numbers.** Put the measured values (gap, scroll-end ink vs scroller right, vertical offsets) in the CSS comment. They come from the test's measurements, not the prototype.
+- [ ] **Step 3: Record numbers, and check the wide-fixture condition.** Temporarily add `print(...)` of the `_measure` dicts in the wide and fit tests and run them with `-s`. Then:
+  - Confirm, for both surfaces at scrollLeft 0, `ink.left > scroller.right`: the tag is off-screen, so reaching it needs the scroller. If not, lengthen `WIDE` and re-run Step 2.
+  - Fill the placeholders: gap = `ink.left − base_union.right`, scroll-end `ink.right` vs `scroller.right`, and vertical offset deltas vs vendor.
+  - Remove the prints, and confirm with `git diff tests/` that only intended changes remain.
 
 - [ ] **Step 4: CSS-source and neighbour gates.**
   Run: `TEST_DATABASE_URL=… uv run pytest tests/test_container_label_math.py $(ls tests/test_*css*.py) -n 4`
@@ -143,12 +146,16 @@
   | `:first-child` margin reset in `.el--table` opt-out | 6 |
   | gap rule | 1, 2 |
   | `text-align: right` on `.tag` | 3 |
-  | #292 `.katex-display` overflow pair | 7 |
+  | #292 `.katex-display` overflow pair | 7[prose] (`[math]` stays green: `.el--math` keeps its own scroller) |
 
   Under the whole-block mutant, `_vendor_leg`'s count assertion also fails (count 0). That is expected. The REDs that matter are the new-build assertions 1 and 2.
 
 - [ ] **Step 2: Fix and commit** anything a mutant exposed (`git commit -m "test(katex): …"`). Otherwise there is no commit.
 
-- [ ] **Step 3: Screenshots.** Write a scratchpad script (not under `tests/`) that, against the running dev server or a live_server test harness, captures the wide `align` in prose and in `.el--math` at 390px, in light and dark (`data-theme`), before (rules stripped via CSSOM) and after. Take one shot at scroll 0 and one at scroll end, giving 16 PNGs. Look at every one. Judge dark separately.
+- [ ] **Step 3: Screenshots.** Create an UNTRACKED file `tests/test_e2e_zz_tagovf_shots.py`, never committed and deleted after this step, so it gets the repo conftest and live_server. It imports `_open`, `_strip_new_rules`, `_scroll_to_end` and `WIDE` from the new module. For each surface and each theme:
+  - Set the theme with `page.evaluate("document.documentElement.dataset.theme = 'dark'")` (or `'light'`). That is the attribute the app's toggle sets; see `tests/test_e2e_auth.py:69`.
+  - Screenshot the scroller element at scroll 0 and at scroll end, call `_strip_new_rules`, and screenshot again. That gives 16 PNGs, written to the session scratchpad directory (absolute path).
+  - Run with the usual `TEST_DATABASE_URL` prefix and `-m e2e`, then delete the file. `git status` must show it gone.
+  - Look at every PNG. Judge dark separately.
 
 - [ ] **Step 4: Record the evidence** (the falsification table with outcomes, screenshot paths, and measured numbers) in the session ledger for the PR body.
