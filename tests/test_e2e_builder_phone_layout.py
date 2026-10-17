@@ -65,6 +65,22 @@ _PTITLE_JS = """(pk) => {
 }"""
 
 
+# A row's phone-title width vs the rendered width of its longest word, measured
+# with a temporary nowrap span in the title's own font.
+_WORD_FIT_JS = """(pk) => {
+  const el = document.querySelector(`#node-${pk} > form > .tree__ptitle`);
+  const word = el.textContent.trim().split(/\\s+/)
+    .reduce((a, b) => (b.length > a.length ? b : a), "");
+  const probe = document.createElement("span");
+  probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+  probe.textContent = word;
+  el.appendChild(probe);
+  const wordWidth = probe.getBoundingClientRect().width;
+  probe.remove();
+  return {pk, text: el.textContent, width: el.clientWidth, word: wordWidth};
+}"""
+
+
 @pytest.mark.django_db(transaction=True)
 def test_portrait_rows(browser, live_server):
     make_pa_user("pa")
@@ -102,6 +118,15 @@ def test_portrait_rows(browser, live_server):
         assert flags.count() == 2
         for i in range(flags.count()):
             assert flags.nth(i).bounding_box()["x"] > ptitle_x
+
+        # Deepest rows (part > chapter > section > unit) stay readable: a floor on
+        # the title width, and no row's title narrower than its longest word, so
+        # "Przekształcenia" (section) / "przekształcenie" (unit) never break mid-word.
+        deep = [seeded["section"], *seeded["lessons"][1:], seeded["quiz"]]
+        for node in deep:
+            fit = page.evaluate(_WORD_FIT_JS, node.pk)
+            assert fit["width"] >= 160, fit
+            assert fit["width"] >= fit["word"], fit
     finally:
         context.close()
 
@@ -120,12 +145,13 @@ def test_landscape_geometry(browser, live_server):
             sel = f"#node-{node.pk} > form > .tree__ptitle"
             return page.locator(sel).bounding_box()["width"]
 
+        vw, vh = page.evaluate("() => [innerWidth, innerHeight]")
         # Part (level 1) and a unit at part > chapter > section > unit (level 4).
-        assert ptitle_width(seeded["part"]) > 0.60 * 890
-        assert ptitle_width(seeded["lessons"][1]) > 0.45 * 890
+        assert ptitle_width(seeded["part"]) > 0.60 * vw
+        assert ptitle_width(seeded["lessons"][1]) > 0.45 * vw
 
         head = page.locator("header.manage__head").bounding_box()
-        assert head["height"] <= 0.25 * 410, head
+        assert head["height"] <= 0.25 * vh, head
         h1 = page.evaluate(
             """() => { const h = document.querySelector('.builder__title');
                  return [h.getBoundingClientRect().height,

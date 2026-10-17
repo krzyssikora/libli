@@ -529,9 +529,14 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
   .js .builder__sheet-tools > .builder__movable { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
   /* Rows (D3-D5, D8): smaller indent, two-line plain title, ⋯ instead of the
-     cluster, flags AFTER the title (desktop puts them left of it). */
-  .js .tree__scope { padding-left: 8px; margin-left: 4px; }
-  .js .tree__rowhead { align-items: flex-start; }
+     cluster, flags AFTER the title (desktop puts them left of it).
+     Width budget (spec Goal 1 outranks fixed control sizes): at 390 px a
+     part > chapter > section > unit row must still give its title room for a
+     whole long Polish word ("Przekształcenia"), so every fixed piece of row
+     chrome is trimmed -- 10 px per level (`.tree__scope` padding + margin +
+     its 2 px rule), a 4 px row gap, 28 px targets below, a 12 px leaf spacer. */
+  .js .tree__scope { padding-left: 6px; margin-left: 2px; }
+  .js .tree__rowhead { align-items: flex-start; gap: var(--space-1); }
   .js .tree__rowhead:not(.is-editing) > input.tree__title:not(:focus) { display: none; }
   .js .tree__rowhead.is-editing > .tree__ptitle { display: none; }
   .js .tree__ptitle {
@@ -549,10 +554,14 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
     --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='black'%3E%3Ccircle cx='3' cy='8' r='1.5'/%3E%3Ccircle cx='8' cy='8' r='1.5'/%3E%3Ccircle cx='13' cy='8' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
     -webkit-mask: var(--icm) no-repeat center / contain;
     mask: var(--icm) no-repeat center / contain; }
-  /* Touch targets: at least 32 px for ⋯, both flags and the disclosure toggle
-     (the leaf spacer shares `.tree__toggle`, so titles stay aligned). */
+  /* Touch targets: 28 px for ⋯, both flags and the disclosure toggle -- the
+     floor kept while buying title width (see `.tree__scope` above). */
   .js .tree__more, .js .tree__rowhead > .tree__flag, .js .tree__toggle {
-    min-width: 32px; min-height: 32px; align-items: center; justify-content: center; }
+    min-width: 28px; min-height: 28px; align-items: center; justify-content: center; }
+  /* The leaf spacer shares `.tree__toggle` but is not interactive
+     (pointer-events: none, aria-hidden), so it needs no target: 12 px keeps a
+     unit's badge just right of where a sibling container's chevron sits. */
+  .js .tree__toggle--leaf { flex: 0 0 12px; width: 12px; min-width: 0; }
   /* Container badges become one-letter circles, like the L/Q unit badges. */
   .js .tree__badge[data-letter] {
     font-size: 0; width: 22px; height: 22px; border-radius: 50%; display: inline-flex;
