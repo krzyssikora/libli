@@ -3,6 +3,9 @@
 Every hook is server-rendered on every layout; only CSS/JS decide whether it shows.
 Selectors, never substring counts."""
 
+import re
+from pathlib import Path
+
 import pytest
 from bs4 import BeautifulSoup
 
@@ -116,3 +119,66 @@ def test_header_order_unchanged(soup):
         else:
             order.append(el["href"])
     assert order == ["h1", "kurs", "import", "export", "filter", "expand", "collapse"]
+
+
+# --- Task 2: phone CSS source --------------------------------------------------
+
+_BUILDER_CSS = (
+    Path(__file__).resolve().parent.parent
+    / "courses"
+    / "static"
+    / "courses"
+    / "css"
+    / "builder.css"
+)
+_PHONE_MEDIA = "@media (pointer: coarse) and (max-width: 959.98px)"
+
+
+def _match_brace(text, open_at):
+    """Index of the `}` closing the `{` at `open_at`."""
+    depth = 0
+    for i in range(open_at, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+    raise AssertionError("unbalanced braces in builder.css")
+
+
+def _selector_lists(body):
+    """Every rule prelude inside `body`, descending into nested at-rules."""
+    out, pos = [], 0
+    while True:
+        brace = body.find("{", pos)
+        if brace == -1:
+            return out
+        prelude = body[pos:brace].strip()
+        end = _match_brace(body, brace)
+        if prelude.startswith("@"):
+            out.extend(_selector_lists(body[brace + 1 : end]))
+        else:
+            out.append(prelude)
+        pos = end + 1
+
+
+def test_phone_rules_are_js_scoped():
+    css = re.sub(r"/\*.*?\*/", "", _BUILDER_CSS.read_text(encoding="utf-8"), flags=re.S)
+    blocks, pos = [], 0
+    while (start := css.find(_PHONE_MEDIA, pos)) != -1:
+        brace = css.index("{", start)
+        end = _match_brace(css, brace)
+        blocks.append(css[brace + 1 : end])
+        pos = end + 1
+    assert blocks, "no phone media block in builder.css"
+    preludes = [p for block in blocks for p in _selector_lists(block)]
+    assert preludes, "phone media block holds no rules"
+    for prelude in preludes:
+        for selector in prelude.split(","):
+            selector = " ".join(selector.split())
+            assert selector.startswith((".js ", "html.js")), selector
+
+
+def test_no_any_pointer():
+    assert "any-pointer" not in _BUILDER_CSS.read_text(encoding="utf-8")
