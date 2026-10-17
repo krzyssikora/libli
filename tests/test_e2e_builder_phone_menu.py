@@ -276,6 +276,10 @@ def test_menu_open_commits_typed_add_row(browser, live_server):
         expect(
             page.locator('li.tree__row input.tree__title[value="Nowa lekcja"]')
         ).to_have_count(1)
+        # The add's applyFragment replaced the scope holding the menu's opener:
+        # the menu closes, and focus goes to the REPLACEMENT ⋯, never <body>.
+        _menu_closed(page)
+        _focus_is_more(page, seeded["lessons"][0].pk)
     finally:
         context.close()
 

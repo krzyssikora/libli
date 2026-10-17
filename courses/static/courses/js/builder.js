@@ -492,8 +492,10 @@
               applyFragment(text);
               if (focusPk && isPhone()) focusRowMore(focusPk);
               // The row menu's opener was replaced under it: its items would act
-              // on a row the author no longer sees as the menu's.
-              if (menuOpener && !menuOpener.isConnected) closeMenu(false);
+              // on a row the author no longer sees as the menu's. Focus inside the
+              // menu would drop to <body> as it hides, so it goes to the
+              // replacement ⋯ (re-found by data-node; Kurs if hidden) instead.
+              if (menuOpener && !menuOpener.isConnected) closeMenu(menu.contains(document.activeElement));
               syncUrl();
               if (op === "flag" || op === "flag-confirm") {
                 restoreFlagFocus(op, control, body);
