@@ -206,7 +206,10 @@ closed is dropped, so `initPicker` never runs for a closed sheet. This
 prevents "Open editor →" on the wrong unit — the split-a-unit task
 produces two rows with near-identical titles ("X" and "X (kopia)").
 
-**Bottom sheet:** a sheet container (new markup, phone layout only)
+**Bottom sheet:** a sheet container (new markup, server-rendered in
+`builder.html` on every layout — as are the grab bar, ✕, toolbar section,
+dim layer and toast container; only their visibility and behaviour are
+phone-only)
 that WRAPS the existing `.builder__panel` / `[data-panel]` element (course
 panel, node panel, unit panel, move picker — panel content and `setPanel`
 unchanged), anchored to the bottom, with a grab bar and ✕. On the
@@ -236,8 +239,9 @@ and JS adds the wrapper's `inert` on desktop → phone and removes it on
 phone → desktop (and never sets it on a desktop load), because `inert`
 and inherited `visibility` would otherwise reach the desktop panel
 through the `display: contents` wrapper. Height: about 2/3 of the
-dynamic viewport height (`dvh`) in portrait, and near-full height in
-landscape (a 410 px-tall landscape screen leaves too little at 2/3). While
+dynamic viewport height (`dvh`) by default, and near-full height when
+`(orientation: landscape)` also matches inside the phone media query (a
+410 px-tall landscape screen leaves too little at 2/3). While
 the sheet is open, everything else in the builder — the tree, the filter
 box, the Kurs button, the info slot — is dimmed and `inert` (no taps, no
 focus); only the sheet, and the notice toast, stay live. Implementation
@@ -264,13 +268,18 @@ turns into touch-type pointer events. The swipe area (grab bar + sheet
 header) has `touch-action: none` so the browser does not claim the drag
 for panning and fire `pointercancel`. It closes only past a minimum
 downward travel (my call: 80 px or a quarter of the sheet height,
-whichever is smaller); a shorter drag, or `pointercancel`, snaps the sheet
-back. A tap (no travel) on the close button or the header is never a swipe.
+whichever is smaller); during the drag the sheet tracks the finger
+downward (translateY, clamped at 0, no upward travel); a shorter drag, or
+`pointercancel`, snaps the sheet back (instantly under
+`prefers-reduced-motion`). A tap (no travel) on the close button or the header is never a swipe.
 
 **Notices on the phone:** `notice()` (op errors, 409 conflicts, network
 errors) prepends into the panel, which is usually closed on a phone.
 On the phone layout notices must be visible without opening anything —
-e.g. a fixed toast/bar — with the same 6 s lifetime and text. When the
+e.g. a fixed toast/bar — with the same 6 s lifetime and text. On the
+phone layout `notice()` writes **only** to the toast (no in-panel copy,
+so nothing shows twice and no stale bar appears when the sheet next
+opens); desktop keeps today's in-panel prepend exactly. When the
 sheet is open, the toast sits ABOVE the sheet and its dim layer (e.g. a
 422 from a picker submit is visible). The toast's container sits OUTSIDE
 the inert container (a sibling of the sheet wrapper inside `.builder`),
