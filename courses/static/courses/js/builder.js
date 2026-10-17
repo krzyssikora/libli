@@ -327,6 +327,7 @@
       input.value = title;
       input.defaultValue = title;            // makes the field clean again
       input.title = title;
+      syncPtitle(input);
     }
 
     // Every carrier of this node's `updated`, scoped so descendant rows are untouched.
@@ -473,6 +474,11 @@
             // be applied, or the stale row is never reloaded.
             if (r.status === 200 && op === "rename") {
               applyRename(form, text);
+              // A phone rename exits once its commit lands (focus to the ⋯ only on
+              // a keyboard exit; see finishRenameExit).
+              if (form.classList.contains("is-editing")) {
+                finishRenameExit(form, rowPk(form), form.dataset.renameExit);
+              }
             } else {
               var incoming = parseFragment(text).firstElementChild;
               if (incoming && incoming.matches("[data-flag-strip]")) {
@@ -489,7 +495,13 @@
                 return;   // no tree re-render on this arm; releaseControl()
                           // below still runs, via the `finally`.
               }
+              // A phone rename's 409: read its state BEFORE the swap -- the
+              // re-rendered row never carries is-editing, and the focusout
+              // Chromium fires inside replaceWith() must not decide the exit.
+              var renameEditing = op === "rename" && form.classList.contains("is-editing");
+              var exitKind = form.dataset.renameExit, renamePk = rowPk(form);
               applyFragment(text);
+              if (renameEditing) finishRenameExit(form, renamePk, exitKind);
               if (focusPk && isPhone()) focusRowMore(focusPk);
               // The row menu's opener was replaced under it: its items would act
               // on a row the author no longer sees as the menu's. Focus inside the
@@ -517,6 +529,7 @@
             if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
           } else if (r.status === 422) {
             notice(parseFragment(text).textContent.trim());
+            if (op === "rename" && form.classList.contains("is-editing")) failPhoneRename(form);
           }
         } finally {
           releaseControl();
@@ -525,6 +538,7 @@
       });
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
+      if (op === "rename" && form.classList.contains("is-editing")) failPhoneRename(form);
       releaseControl();
       releaseForm(form, op);
     }).then(finish, function (e) { finish(); if (window.console) console.error(e); });        // BOTH arms, like every other site
@@ -751,6 +765,19 @@
   // form.tree__rowhead: the row's single form (was form.tree__rename, which no
   // longer exists -- the title is now a direct child of the rowhead form).
   function titleForm(input) { return input.closest("form.tree__rowhead"); }
+  function rowPk(form) {
+    var row = form.closest("li.tree__row");
+    return row ? row.getAttribute("data-node") : null;
+  }
+
+  // The phone title button always shows the input's COMMITTED value.
+  function syncPtitle(input) {
+    var row = input.closest("li.tree__row");
+    var btn = row && row.querySelector(":scope > form.tree__rowhead > .tree__ptitle");
+    if (!btn) return;
+    var target = btn.querySelector(".tree__ptitle-text") || btn;
+    target.textContent = input.defaultValue;
+  }
 
   // Programmatic value assignment fires NO input event, so the tooltip must be synced
   // by hand here or it keeps showing abandoned text -- exactly on the truncated long
@@ -758,23 +785,27 @@
   function revert(input) {
     input.value = input.defaultValue;
     input.title = input.value;
+    syncPtitle(input);
   }
 
+  // Returns "unchanged" | "invalid" | "sent" | "busy"; only the phone rename hooks
+  // read it.
   function commitRename(input) {
     var form = titleForm(input);
-    if (!form || form.dataset.submitting) return;
+    if (!form || form.dataset.submitting) return "busy";
     var trimmed = input.value.trim();
     // Compare trimmed against trimmed: a legacy row whose stored title has stray
     // whitespace would otherwise post a rename on a bare focus-and-blur.
-    if (trimmed === input.defaultValue.trim()) return;
+    if (trimmed === input.defaultValue.trim()) return "unchanged";
     // Write the trim back -- FormData reads the LIVE value, so trimming into a local
     // would leave the untrimmed string in the POST body.
     input.value = trimmed;
     input.title = input.value;
-    if (!form.reportValidity()) return;   // native bubble; no state set, so no wedge
+    if (!form.reportValidity()) return "invalid";   // native bubble; no state set, so no wedge
     form.dataset.submitting = "1";
     input.readOnly = true;           // AFTER validity: readonly is barred from it
     form.requestSubmit();
+    return "sent";
   }
 
   root.addEventListener("keydown", function (e) {
@@ -785,13 +816,23 @@
       // implicitly submits on Enter, which would post even an unchanged title and
       // would double-post alongside requestSubmit().
       e.preventDefault();
-      commitRename(input);   // itself null-guards the form and checks dataset.submitting
+      // Phone rename: a keyboard exit. A second Enter while the first commit is in
+      // flight touches nothing.
+      var form = titleForm(input);
+      var phoneEdit = !!form && form.classList.contains("is-editing") && !form.dataset.submitting;
+      if (phoneEdit) form.dataset.renameExit = "keys";
+      var result = commitRename(input);   // itself null-guards the form and checks dataset.submitting
+      if (phoneEdit && (result === "unchanged" || result === "invalid")) {
+        delete form.dataset.renameExit;
+        if (result === "unchanged") endPhoneRename(rowPk(form), true);
+      }
     } else if (e.key === "Escape") {
       e.preventDefault();
       if (titleForm(input).dataset.submitting) return;
       // Revert WITHOUT blurring: dropping focus to <body> would force someone who
       // abandoned an edit 300 rows down to Tab from the top of the document again.
       revert(input);
+      if (titleForm(input).classList.contains("is-editing")) endPhoneRename(rowPk(titleForm(input)), true);
     }
   });
 
@@ -800,6 +841,12 @@
     if (!input) return;
     var form = titleForm(input);
     if (!form) return;
+    var phoneEdit = form.classList.contains("is-editing");
+    // Phone rename: Enter, then a tap elsewhere before the response -- the exit
+    // becomes a blur one, so focus stays where the author tapped. Never from inside
+    // applyFragment's replaceWith() (swapping), nor for a detached form.
+    if (phoneEdit && !swapping && form.isConnected && form.dataset.submitting
+        && form.dataset.renameExit === "keys") form.dataset.renameExit = "blur";
     // 1. A commit is already in flight. Nothing is lost -- readOnly means the field
     //    cannot have changed since the POST.
     if (form.dataset.submitting) return;
@@ -821,8 +868,17 @@
     //    commitRename: an emptied field IS dirty, so we would otherwise post "" and
     //    surface a 422 on an ambiguous gesture. Enter deliberately does not share
     //    this branch -- it relies on required + reportValidity's native bubble.
-    if (!input.value.trim()) { revert(input); return; }
-    commitRename(input);
+    if (!input.value.trim()) {
+      revert(input);
+      if (phoneEdit) endPhoneRename(rowPk(form), false);
+      return;
+    }
+    if (phoneEdit) form.dataset.renameExit = "blur";
+    var result = commitRename(input);
+    if (phoneEdit && (result === "unchanged" || result === "invalid")) {
+      delete form.dataset.renameExit;
+      if (result === "unchanged") endPhoneRename(rowPk(form), false);
+    }
   });
 
   // Keep the tooltip honest while typing. Delegated like every other handler here,
@@ -1530,8 +1586,51 @@
   // The row's ⋯, re-found by data-node; returnFocus falls back to Kurs.
   function focusRowMore(pk) { returnFocus({ pk: pk, target: "more" }); }
 
-  // Rename from the menu (Task 7 replaces this placeholder).
-  function startPhoneRename() {}
+  // ---- phone rename ----
+  // ⋯ → Rename makes the row's own title input editable in place (is-editing on
+  // the rowhead; builder.css shows the input and hides the phone title). It
+  // commits through the desktop path (commitRename, the row's token). Every hook
+  // in the rename handlers above runs only while the rowhead has is-editing,
+  // which only the phone layout sets, so the desktop rename never reaches them.
+  // rowhead.dataset.renameExit: "keys" (Enter) | "blur" (focus left the field),
+  // set by the caller of commitRename, read when the response lands.
+  function startPhoneRename(row) {
+    var head = row.querySelector(":scope > form.tree__rowhead");
+    var input = head && head.querySelector(":scope > input.tree__title");
+    if (!input) return;
+    head.classList.add("is-editing");
+    input.focus();
+    input.select();
+  }
+
+  // Focus moves to the ⋯ FIRST, and only then is the input hidden, so focus never
+  // lands on a hidden element. The row is re-found by pk: the caller's form may sit
+  // in a row a 409's applyFragment has just replaced.
+  function endPhoneRename(pk, focusMore) {
+    var row = pk == null ? null : root.querySelector('li.tree__row[data-node="' + pk + '"]');
+    if (focusMore && isPhone()) focusRowMore(pk);
+    var head = row && row.querySelector(":scope > form.tree__rowhead");
+    if (head) head.classList.remove("is-editing");
+  }
+
+  // A commit's 200 or 409 landed. A blur exit never moves focus -- the author may
+  // already be in an open sheet.
+  function finishRenameExit(form, pk, exitKind) {
+    endPhoneRename(pk, exitKind === "keys");
+    delete form.dataset.renameExit;
+  }
+
+  // A 422 or a network failure: after a blur exit the edit is abandoned (reverted,
+  // exited, focus untouched; the toast says why); after Enter the field stays
+  // editing with the typed text (releaseForm unlocks it).
+  function failPhoneRename(form) {
+    var input = form.querySelector("input.tree__title");
+    if (input && form.dataset.renameExit === "blur") {
+      revert(input);
+      endPhoneRename(rowPk(form), false);
+    }
+    delete form.dataset.renameExit;
+  }
 
   function openMenu(moreBtn) {
     var row = moreBtn.closest("li.tree__row");
@@ -1740,6 +1839,16 @@
         setPanel(neutralPanel);
       }
       moveToolbar(true);
+      // A desktop rename in progress (dirty or in flight) becomes the phone editing
+      // state, keeping its typed text and focus; a settled focused title is blurred
+      // so the row shows only its phone title.
+      var active = document.activeElement;
+      if (active && active.matches && active.matches("input.tree__title") && root.contains(active)) {
+        var activeForm = titleForm(active);
+        if (activeForm && (active.value !== active.defaultValue || activeForm.dataset.submitting
+            || activeForm.classList.contains("is-editing"))) activeForm.classList.add("is-editing");
+        else active.blur();
+      }
       if (!sheetIsOpen()) sheet.inert = true;   // closed: out of the tab order
       measureHead();
     } else {
