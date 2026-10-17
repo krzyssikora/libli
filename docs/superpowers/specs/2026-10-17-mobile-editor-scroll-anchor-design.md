@@ -77,6 +77,14 @@ The handler covers these ops:
   this is the visible area, so a row hidden behind the keyboard does not count
   as on-screen.
 - `onScreen(top)` is `0 <= top && top < viewportH()`.
+- `rendered(el)` is `el.isConnected && el.getClientRects().length > 0 &&
+  el.getBoundingClientRect().height > 0`. Container slots are `<details>` elements,
+  and `applyStoredSlots` re-applies the author's collapse state after every swap.
+  A row inside a closed `<details>` (or any `display:none` subtree) has an
+  all-zero rect, which would otherwise pass `onScreen(0)` and read as "entirely
+  off-screen" at the same time. **Every anchor candidate and the safety net
+  require `rendered(row)`.** An unrendered row is never an anchor, and the safety
+  net never acts on it.
 
 ### Anchor selection (measured just before the swap)
 
@@ -87,15 +95,22 @@ one at tap time. The old DOM is still intact at that point. Every node is
 checked with `isConnected` before measuring.
 
 The measurement runs whenever the response status is 200, 409 or 422. It is
-cheap: a handful of `getBoundingClientRect` reads, and it never scrolls. The
-anchor is a pair `{id, top}`: `id` is a `data-element` value to look up after
-the swap, and `top` is the screen position to restore it to. Candidates, in
-priority order (the first one that applies wins):
+cheap: a handful of `getBoundingClientRect` reads, and it never scrolls.
+
+The result is an **ordered list of candidates**, each a pair `{id, top}`: `id` is
+a `data-element` value to look up after the swap, and `top` is the screen
+position to restore it to. Every applicable candidate below is recorded, in
+this order. After the swap, the **first candidate whose row still exists and is
+`rendered`** wins. That ordering is what handles ops that remove or relocate
+rows (delete, paste-move): their own rows simply don't resolve, and resolution
+moves on to the next candidate.
 
 1. **Paste-move (primary).** The op is `element-paste` or
-   `element-paste-before` and the mode is `move`. The mode comes from the
-   submitter for `element-paste` (`name="mode"` buttons) and from the hidden
-   `mode` input for `element-paste-before`.
+   `element-paste-before` and the mode is `move`.
+   - For `element-paste`, the mode comes from the same submitter `post()`
+     received (`e.submitter`, the `name="mode"` buttons). A null submitter means
+     "not move": this candidate is skipped.
+   - For `element-paste-before`, the mode comes from the hidden `mode` input.
    - `id` = the clip pk, `form.elements.element.value`.
    - `top` = the **form's** own `getBoundingClientRect().top`, i.e. where the
      author's finger was.
@@ -103,26 +118,34 @@ priority order (the first one that applies wins):
      slot, or just before the target row). Restoring it to `top` keeps "the thing
      I just moved" under the thumb. This handles a callout that keeps growing,
      where the container's own top is far above the viewport.
-   - If the moved row can't be found after the swap (e.g. the move gave the
-     element a new pk), resolution falls through to the secondary anchor below.
-     That anchor is therefore always measured too.
+   - `_move_into` (`courses/builder.py`) re-saves the same join row, so the
+     moved element keeps its pk and this candidate normally resolves. If it ever
+     doesn't, the next candidates take over.
 2. **The op's own row.** The form has an `opRow`
-   (`form.closest(".el-row[data-element]")`, the existing `keepId` logic) and
-   `onScreen(opRow top)` → `id = keepId`, `top` = that row's top. This covers
-   move ↑/↓, select, update-save, duplicate and paste-before-copy whose row is
-   visible.
-3. **First visible row (catch-all).** Use the first `.el-row[data-element]`
-   inside `[data-scope="editor"]`, in document order, whose `onScreen(top)` is
-   true. This covers:
-   - ops with no `opRow` (clipboard cancel, top-level paste);
-   - ops whose `opRow` top is off-screen (a create or 422 inside a tall
-     container, or an update of a long row where the author is at its Save
-     button);
-   - delete, whose row disappears.
+   (`form.closest(".el-row[data-element]")`, the existing `keepId` logic) that
+   is `rendered`, with `onScreen(opRow top)` → `id = keepId`, `top` = that row's
+   top.
+   - Covers move ↑/↓, select, update-save, duplicate and paste-before-copy whose
+     row is visible.
+   - For delete, this candidate is recorded too, but its row is gone after the
+     swap, so it never resolves.
+3. **Visible rows (catch-all).** Record up to **5** `.el-row[data-element]` inside
+   `[data-scope="editor"]`, in document order, each `rendered` and with
+   `onScreen(top)`.
+   - Nested rows count. For a paste-move, rows inside the clip row's own subtree
+     (the clip row included) are **excluded**: they relocate with the move, so
+     holding one would track the moved block rather than the page.
+   - Rows the op deletes need no exclusion. They don't exist after the swap, so
+     resolution skips them.
+   - Covers:
+     - ops with no `opRow` (clipboard cancel, top-level paste);
+     - ops whose `opRow` top is off-screen (a create or 422 inside a tall
+       container; an update of a long row with the author at its Save button);
+     - delete, including a delete of a tall container whose visible children
+       vanish with it.
 
-   Nested rows count: the first visible row may be a child inside a container.
-
-If none applies (no rows on screen at all), there is no anchor.
+If no candidate resolves (no rendered rows on screen at all, or all of them
+removed), there is no anchor.
 
 ### Resolution after the swap
 
@@ -137,9 +160,12 @@ paint, and before any test predicate can see the new pane.
   - The recorded anchors are ignored, and nothing calls `window.scrollBy` or
     `window.scrollTo`.
 - **Window scroller (`paneScrolls()` false; stacked <70rem): new.**
-  1. **Keep in place.** Take the primary anchor if its row exists after the
-     swap; otherwise the secondary anchor (candidate 2 or 3) if its row exists.
-     Let `dy = newRow.getBoundingClientRect().top - anchor.top`. If `|dy| >= 1`,
+  0. The existing `flash()` call for a 409 stays where it is today: right after
+     `applyFragments`, **before** keep-in-place. The measurement after the swap
+     therefore already includes the bar, and the bar's insertion is compensated.
+  1. **Keep in place.** Walk the candidate list in order and take the first
+     whose row exists after the swap and is `rendered`. Let
+     `dy = newRow.getBoundingClientRect().top - anchor.top`. If `|dy| >= 1`,
      call `window.scrollBy(0, dy)`.
      - The browser clamps this to the document's scroll range. When the
        document shrank below the anchor and the exact position is
@@ -147,7 +173,7 @@ paint, and before any test predicate can see the new pane.
        guarantees the focus row isn't lost.
   2. **Focus visibility safety net.** Resolve `focusId` exactly as today
      (`data-saved-element` wins, else `keepId`) and look up `focusRow`.
-     - If `focusRow` exists and is **entirely** off-screen
+     - If `focusRow` exists, is `rendered`, and is **entirely** off-screen
        (`bottom <= 0 || top >= viewportH()`), scroll so its top lands at the
        margin: `window.scrollBy(0, focusRow.getBoundingClientRect().top - margin)`,
        skipped when |delta| < 1.
@@ -195,6 +221,11 @@ paint, and before any test predicate can see the new pane.
   removes it 6 s later. On the stacked layout the anchored rows shift by the
   bar's height at that moment. The position is restored right after the swap,
   not kept across the later bar removal. This is accepted.
+- **Late layout shifts.** Content whose height changes after the synchronous
+  correction is not re-corrected. Examples: images in a re-rendered edit form,
+  web fonts. Whatever the browser's native scroll anchoring (`overflow-anchor`)
+  does there is untested. This is accepted: add **no** rAF or timeout
+  re-corrections.
 - **Drag-and-drop** (`editor_dnd.js`) is a desktop gesture.
 - **The builder's mobile layout** is a separate design.
 
@@ -203,14 +234,16 @@ paint, and before any test predicate can see the new pane.
 1. The author taps an op button. The handler resolves `opRow` / `keepId` as
    today and calls `post()`. Nothing is measured yet.
 2. The response arrives with status 200, 409 or 422. Before `applyFragments`,
-   measure the primary anchor (paste-move only) and the secondary anchor
-   (candidate 2, else 3).
+   record the ordered candidate list:
+   1. the paste-move candidate (paste-move ops only);
+   2. the op's own row, if it is rendered and on-screen;
+   3. up to 5 rendered, on-screen rows (minus the clip subtree on a paste-move).
 3. `applyFragments(res.text)` replaces both panes. The `restoreScroll` inside it
    is a no-op on the stacked layout.
 4. If `paneScrolls()` is true, run today's code unchanged
    (`alignTopInPane(focusRow)`, `scrollPreviewTo(focusId)`).
 5. If `paneScrolls()` is false:
-   1. keep in place (primary, else secondary);
+   1. keep in place (first candidate that resolves);
    2. apply the focus-visibility safety net;
    3. call `scrollPreviewTo(focusId)`, which is a no-op on this layout.
 
@@ -247,9 +280,17 @@ All new e2e tests live in **`tests/test_e2e_editor_mobile_scroll_anchor.py`**
   children with `Element.objects.create(unit=unit, content_object=...,
   parent=<callout join>, tab_id=SINGLE_SLOT_ID)` (`SINGLE_SLOT_ID` from
   `courses.models`).
-  - Every seed puts **at least ~1.5 viewports of trailing text rows below** the
-    rows under test. The asserted positions are then reachable by construction
-    and never hit the end-of-document clamp. Each test's docstring says so.
+  - Every seed is built so the asserted positions are **reachable by
+    construction**: neither end-of-document clamp may interfere. Each test's
+    docstring says so.
+    - **Trailing:** at least ~1.5 viewports of text rows below the rows under
+      test (except (e), which pins its own layout).
+    - **Leading:** enough rows above that, after the op, the row under test's
+      document top is at least its recorded screen top + 100 px, so the
+      required `scrollY` is never below 0.
+    - Each test asserts its starting `scrollY` before the click: large enough
+      to absorb any upward correction, and small enough that the bottom clamp
+      cannot bite.
 - **View mode.** Enter editor-only mode by clicking the real view toggle,
   `[data-view="editor"]`, after load.
 - **Scrolling to a start position.** Scroll the window (the stacked layout's
@@ -274,7 +315,14 @@ All new e2e tests live in **`tests/test_e2e_editor_mobile_scroll_anchor.py`**
 Tolerance is ±2 px throughout.
 
 - **(a) ↑ past a tall container.**
-  - Seed: 3 texts, a callout with 8 children, TARGET, then trailing texts.
+  - Seed:
+    - ~10 leading texts, then a **collapsed** callout with 3 children;
+    - then a callout with 8 children;
+    - then TARGET;
+    - then trailing texts.
+  - Collapse the first callout's slot through its real `<summary>` before the
+    op. That puts unrendered child rows ahead of TARGET in document order, so a
+    `rendered`-less implementation picks a zero-rect row and goes red.
   - Put TARGET's row at mid-viewport, record its top, click its ↑.
   - Assert: TARGET's row top equals the recorded top.
   - On master it lands around −730.
@@ -294,41 +342,52 @@ Tolerance is ±2 px throughout.
     S's row is on-screen.
   - On master the window is clamped or the row is off-screen.
 - **(d) Clipboard cancel keeps the visible rows still.**
-  - Select an element; pick the first visible row R and record its top.
+  - `#clip-banner` sits at the top of the editor pane and is not sticky, so ✕ is
+    only reachable near the top of the page.
+  - Seed a short unit head (page header + ~2 texts), so ✕ is visible while
+    `scrollY` is still ≥ 150 px. That is enough to absorb the banner (~73 px)
+    plus the paste-before buttons above R.
+  - Select an element. Scroll to a pinned `scrollY` where ✕ is on-screen, and
+    assert both conditions. Take R = a rendered text row below the banner,
+    on-screen, and record its top.
   - Click the banner's cancel ✕.
-  - Assert: R's top is unchanged. The banner and every paste button disappear,
-    which shifts rows on master.
-- **(e) Create lands visibly (safety net).**
-  - Open "Add element" → a text type at the end of the unit and fill the form.
-    Scroll so that only the form's Save button is on-screen and the form's top
-    is above the viewport.
-  - Save.
-  - Assert: the new row (`data-saved-element`) is at least partly on-screen. If
-    it was entirely off-screen after keep-in-place, its top must be at the pane
-    body's `padding-top`.
+  - Assert: R's top is unchanged. On master, the banner and every paste button
+    disappearing shifts R.
+- **(e) Create inside a container lands at the top (safety net), with no anchor.**
+  - Seed: a callout with 2 children, followed by trailing texts.
+  - Open the callout's nested "Add element" → a text type. Fill the body with
+    enough lines that the edit form is taller than the viewport.
+  - Scroll so the form's Save button is on-screen and **no**
+    `.el-row[data-element]` top is on-screen (assert this). Then no candidate
+    exists.
+  - Save. The collapsed new row lands where the form's top was, i.e. entirely
+    above the viewport, unless the safety net acts.
+  - Assert: the new row (`data-saved-element`) top equals the editor pane body's
+    computed `padding-top`, within ±2 px.
 
 ### Desktop no-regression (1280×800, editor-only)
 
 - **(f)** Scenario (a) at desktop. Assert that the row lands at the pane-top
   alignment exactly as today: `row.top − paneBody.top − paneBody.paddingTop`
   within ±2 px of 0.
-- **(g) Window path never runs on desktop.** Before the click, wrap
+- **(g) Window path never runs on desktop.** Run this inside (f), on the same
+  ↑ past the tall container (a large, known shift). Before the click, wrap
   `window.scrollBy` and `window.scrollTo` with counting spies via
   `page.evaluate`, then assert zero calls after the op.
+  - The falsification record must show a **non-zero** count under mutant 5.
   - `window.scrollY` is NOT a usable signal: the ≥70rem page is locked to the
     viewport and cannot scroll.
 
 ### Falsification (required; output recorded in the PR)
 
-- Run (a)–(e) against the unmodified `editor.js`: (a), (b), (c) and (d) must go
-  **RED**. (e) may already pass on master; it guards the safety net against
-  mutants below. Re-apply the fix: all **GREEN**.
+- Run (a)–(e) against the unmodified `editor.js`: all five must go **RED**.
+  Re-apply the fix: all **GREEN**.
 - Mutants, each chosen from a likely implementation mistake. Each must turn the
   named test red:
   1. **Primary paste-move anchor removed** (always use the op's row) → (c).
   2. **First-visible-row catch-all removed** → (d).
-  3. **Safety net removed** → (e). If (e) cannot be made to fail this way, the
-     seed is adjusted until it can, and the reason is recorded.
+  3. **Safety net removed** → (e).
+  6. **`rendered()` check dropped from the catch-all** → (a).
   4. **Anchor measured after `applyFragments`** instead of before → (a).
   5. **Gate forced to the window path on desktop** → (g).
 
