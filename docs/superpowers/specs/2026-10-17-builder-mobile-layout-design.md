@@ -106,11 +106,15 @@ rendered visible without JS (`.js` gate) — the no-JS path keeps today's
 visible cluster.
 
 **Title element and Rename on phone (D8):** the phone title is a separate
-non-input element in the row, with its OWN class (not `.tree__title`, so
+`<button type="button">` holding the title text (focusable, Enter/Space
+activate it; `type="button"` because it sits inside the rename form and
+must never become a submitter), with its OWN class (not `.tree__title`, so
 none of builder.js's `.tree__title` focusin/keydown/focusout/input
 handlers or the desktop debounce run on it). It is rendered server-side
 next to the existing `input.tree__title`; the phone CSS hides the input
-and shows the text, desktop the reverse. It must always show the input's
+and shows the text, desktop the reverse. It carries the draft
+strike-through like the input, and its text is the row's accessible name
+for opening the sheet. It must always show the input's
 committed value: `applyRename` and `revert` (builder.js:280-320, 686-689)
 must update it too, so after ⋯ → Rename → commit the row shows the new
 title. Choosing Rename makes the title editable and commits through the
@@ -123,9 +127,9 @@ phone layout, focusing the rename input never opens the sheet** — the
 **What opens the sheet (phone layout):** the sheet opens on an explicit
 tap only, never on focus:
 1. a tap on a row's phone title element → load that node's panel;
-2. Move… (from ⋯) → the picker loads into the panel and the sheet opens on
-   it (the picker lives in the panel, so a closed sheet would make Move…
-   do nothing);
+2. Move… (from ⋯) → the sheet opens and the picker loads into the panel
+   (the picker lives in the panel, so a closed sheet would make Move… do
+   nothing);
 3. the Kurs button → course panel (see below).
 Panel-load failures ("Network error — please reload.") show inside the
 open sheet. When builder.js restores `neutralPanel` after a picker
@@ -133,10 +137,15 @@ submit or `dismissPicker`, **the sheet closes** (the author returns to the
 tree, where the move is visible). Every other `setPanel` call site keeps
 its current behaviour and does not open the sheet.
 
-**Sheet loading state:** when a row tap opens the sheet, the sheet opens
-immediately showing a loading placeholder (never the previously shown
-panel), and the requested node's panel replaces it when it arrives
-(last-request-wins, as today). This prevents "Open editor →" on the wrong
+**Sheet loading state:** when a row tap or Move… opens the sheet, the
+sheet opens immediately showing a loading placeholder (never the
+previously shown panel), and the requested node's panel / the picker (or
+its network error) replaces it when it arrives. **One last-request-wins
+sequence covers every sheet-opening write:** a row tap, Move… and Kurs
+each invalidate any pending node-panel load (bump `panelReq`, clear
+`panelTimer`), and the Move… picker fetch is guarded by the same counter,
+so a late response can never overwrite newer sheet content (and never
+leaves `movingPk`/`.moving` set without a visible picker). This prevents "Open editor →" on the wrong
 unit — the split-a-unit task produces two rows with near-identical titles
 ("X" and "X (kopia)").
 
@@ -145,33 +154,59 @@ that WRAPS the existing `.builder__panel` / `[data-panel]` element (course
 panel, node panel, unit panel, move picker — panel content and `setPanel`
 unchanged), anchored to the bottom, with its own scroll, a grab bar and
 ✕. On desktop the wrapper is layout-neutral and the panel renders exactly
-as today. Height: about 2/3 of the
+as today. The wrapper is **not** a `<dialog>` element (a closed
+`<dialog>` is `display:none` and would hide the desktop panel, and
+`showModal`'s native Escape/`cancel` would bypass the layering rules);
+modal semantics come from `role="dialog"` + `aria-modal="true"` on the
+wrapper, applied on the phone layout only. Height: about 2/3 of the
 dynamic viewport height (`dvh`) in portrait, and near-full height in
-landscape (a 410 px-tall landscape screen leaves too little at 2/3). The
-tree behind is dimmed and inert (no taps, no focus); the page does not
-scroll behind it. **Closing:** ✕, a tap on the dimmed area, Escape, and
+landscape (a 410 px-tall landscape screen leaves too little at 2/3). While
+the sheet is open, everything else in the builder — the tree, the filter
+box, the Kurs button, the info slot — is dimmed and `inert` (no taps, no
+focus); only the sheet, and the notice toast, stay live. Implementation
+shape: the builder content other than the sheet wrapper sits in one
+container that receives `inert` (the sheet cannot live inside an inert
+ancestor). The page does not scroll behind it. **Closing:** ✕, a tap on the dimmed area, Escape, and
 **swipe down on the grab bar/sheet header** (promised in the approved
 mockup — required, not optional). Device Back closing it is a nice-to-have.
 The tree's scroll position (`scrollY`) and open/closed scopes are
-identical before opening and after closing.
+identical before opening and after closing. **Closing while the move
+picker is showing — by any path (✕, dimmed-area tap, swipe, Escape) — runs
+the same cleanup as `dismissPicker`** (`clearMoving`, restore
+`neutralPanel`), so no picker, `movingPk` or `.moving` highlight survives
+a closed sheet. Swipe-down is implemented with **pointer events** (touch
+pointers), and its e2e drives it with real touch input (CDP
+`Input.dispatchTouchEvent` start → several moves → end), which the browser
+turns into touch-type pointer events.
 
 **Notices on the phone:** `notice()` (op errors, 409 conflicts, network
 errors) prepends into the panel, which is usually closed on a phone.
 On the phone layout notices must be visible without opening anything —
-e.g. a fixed toast/bar over the tree — with the same 6 s lifetime and text.
+e.g. a fixed toast/bar — with the same 6 s lifetime and text. When the
+sheet is open, the toast sits ABOVE the sheet and its dim layer (e.g. a
+422 from a picker submit is visible).
 
-**Escape and focus layering:** one Escape closes only the TOPMOST layer, in
-this order: rename field (reverts, as today) → ⋯ menu → confirm strip →
-move picker (dismissing the picker restores the course panel and closes
-the sheet, per the rule above, in that one keypress) → sheet. Focus
+**Escape and focus layering:** one Escape closes only the TOPMOST layer.
+There are two layers:
+- **Tree layer** (active only while the sheet is closed): rename field
+  (Escape reverts, as today) → ⋯ menu → confirm strip.
+- **Sheet layer** (while the sheet is open): move picker (dismissing the
+  picker restores the course panel and closes the sheet, per the rule
+  above, in that one keypress) → sheet.
+Opening the sheet closes the ⋯ menu and dismisses any open confirm strip
+(via `dismissStrip`) first, so nothing from the tree layer lingers under
+the sheet. Focus
 returns to the opener: the row's ⋯ for menu actions and Move…, the row's
 phone title for a row tap, the Kurs button for the course sheet. If that
 row no longer exists (replaced or removed by `applyFragment`), focus goes
 to the same row's replacement found by `data-node`, else to the Kurs
 button. `dismissPicker`'s focus target (`a[data-move]`) is hidden on the
-phone; on the phone layout it uses the ⋯ of that row instead.
+phone; on the phone layout it uses the ⋯ of that row instead, and its
+`panel.focus()` fallback is replaced by the Kurs button — focus never
+lands on a hidden element.
 
-**"Kurs" button (D7):** in the builder's top bar; opens the sheet and
+**"Kurs" button (D7):** in the builder's top bar, rendered for every
+layout but hidden on desktop; opens the sheet and
 replaces whatever the panel holds with the course panel via
 `setPanel(neutralPanel)` (no fetch).
 
@@ -185,7 +220,9 @@ these controls are **not duplicated**. They stay in the tree header DOM,
 and on the phone layout JS **moves** that header group into a phone-only
 section that sits **outside** `[data-panel]` but inside the sheet
 container (so node-panel loads and `neutralPanel` restores never destroy
-it), and moves it back when the layout reverts to desktop. The Kurs sheet
+it), and moves it back when the layout reverts to desktop. The forward move
+runs on first load when the phone layout already applies, and whenever
+the layout flips desktop → phone. The Kurs sheet
 therefore shows: that phone-only section + the course panel. The bulk
 links' hrefs must remain correct after a filter change (they are the same
 elements `rewriteBulkHrefs` already updates). Choosing Expand all or
@@ -211,8 +248,11 @@ stays exactly as today for non-touch narrow windows. Known limitation,
 accepted: on a large tablet (desktop layout), tapping a title still brings
 up the keyboard, exactly as today.
 
-**Layout flip while open:** when the media query changes (e.g. a small
-tablet rotates across 960 px), JS closes the ⋯ menu and the sheet, removes
+**Layout flip while open:** when the media query changes desktop → phone
+while a node panel or picker shows in the desktop panel, the panel keeps
+its content and the sheet stays closed (the author can reopen it); a
+showing picker is dismissed (`dismissPicker` cleanup). When it changes
+phone → desktop (e.g. a small tablet rotates across 960 px), JS closes the ⋯ menu and the sheet, removes
 the tree's inert state and any scroll lock, returns the moved header group
 to its desktop place, and leaves an in-progress rename intact (its typed
 value is not lost or committed by the flip). Desktop then looks exactly as
@@ -265,8 +305,14 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
    width, ✕ and Escape dismiss).
 8. Kurs sheet: course panel + moved toolbar group; Expand all/Collapse all
    close the sheet and act; bulk hrefs correct after a filter change.
-9. Layout flip across 960 px with the sheet open: sheet/menu closed, no
-   inert/scroll lock left, header group back in place.
+9. Layout flips: phone → desktop with the sheet open (sheet/menu closed,
+   no inert/scroll lock left, header group back in place); desktop →
+   phone with a node panel and with a picker showing (header group moved,
+   sheet closed, picker dismissed, Kurs visible).
+11. Race: hold a slow node-panel response, then tap Kurs (and separately
+    ⋯ Move…); the late response must not overwrite the sheet.
+12. Keyboard: the phone title opens the sheet with Enter; focus returns
+    to it on close.
 10. Desktop no-regression: a ~945 px mouse window keeps the desktop
     layout with rename-in-place, drag and the Tab debounce intact; the
     existing builder e2e suite stays green.
