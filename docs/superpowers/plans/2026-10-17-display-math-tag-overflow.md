@@ -45,7 +45,7 @@
   - `_scroll_to_end(page, surface) -> None`. Sets the scroller's `scrollLeft` to `scrollWidth`.
   - `_strip_new_rules(page) -> int`. Walks `document.styleSheets` (try/catch per sheet), recursing into grouping rules. Calls `deleteRule` on every rule whose `selectorText` contains `:has(> .tag)`, iterating indices backwards, and returns the count.
   - `_vendor_leg(page, surface) -> None`. Calls `_strip_new_rules`, asserts the count `== 13`, asserts the `.tag` computes `position: absolute`, and asserts `.tag > :first-child` computes `margin-inline-start: 0px`.
-  - LaTeX constants: `WIDE`, `FIT_MIXED`, `MULTI_BASE`, `NEAR_FIT_PROSE`, `NEAR_FIT_MATH`.
+  - LaTeX constants: `WIDE`, `FIT_MIXED`, `MULTI_BASE`, `NEAR_FIT_PROSE`, `NEAR_FIT_MATH`. The `near` parameter value maps to `NEAR_FIT_PROSE` or `NEAR_FIT_MATH` by `surface`. The other fixtures use the same string on both surfaces.
 
 - [ ] **Step 1: Write the fixtures and helpers.** The module declares `pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]` and the session-scoped `_allow_sync_orm_under_playwright` fixture, copied from `tests/test_e2e_prose_display_math_overflow.py`. Build every LaTeX string with raw strings. Starting candidates follow; tune them in Step 3.
   - `WIDE`: the owner's case. `\begin{align}|P(A)P(B)| &= \sqrt{((2-y_A)-(2-y_B))^2+((x_A+1)-(x_B+1))^2}\\ &= \sqrt{(-y_A+y_B)^2+(x_A-x_B)^2}\\ &= |AB|\end{align}`
@@ -96,7 +96,7 @@
 - Modify: `courses/static/courses/css/courses.css` (insert after the #292 opt-out rule, ~line 1879)
 
 **Interfaces:**
-- Consumes: Task 1's test file, unchanged except the docstring.
+- Consumes: Task 1's test file, unchanged except the docstring and, if Step 3 requires it, the `WIDE` constant.
 
 - [ ] **Step 1: Insert the block.** Five main rules, exactly as the spec's CSS block: container, `::before`, `> .tag`, `> .tag > *`, `> .tag > :first-child`. Then the opt-outs. For each of `.el--table` and `.el--filltable`:
   - container: `display: block`
@@ -104,7 +104,7 @@
   - `tag > *`: `text-align: inherit`
   - `tag > :first-child`: `margin-inline-start: 0`
 
-  That gives 5 + 4 + 4 = 13 rules containing `:has(> .tag)`. Precede the block with a comment in house style. It cites sheets and selectors, never line numbers: `tests/test_css_citations_are_durable.py` forbids them. Nowhere may `*` be followed by `/`, because `.tag > */…` would end the comment early (`tests/test_css_comments_are_terminated_once.py`). Write `.tag > *` and `:first-child` as separate words. The comment covers: the defect (column-positioned abs tag), the flex mechanism and its three bands, the gap, why there are no shrink guards, why titles are not opted out, and placeholders (`<GAP>`, `<END>`, `<VERT>`) for the measured numbers that Step 3 fills in.
+  That gives 5 + 4 + 4 = 13 rules containing `:has(> .tag)`. Precede the block with a comment in house style. It cites sheets and selectors, never line numbers: `tests/test_css_citations_are_durable.py` forbids them. Nowhere may `*` be followed by `/`, because `.tag > */…` would end the comment early (`tests/test_css_comments_are_terminated_once.py`). Write `.tag > *` and `:first-child` as separate words. The comment covers: the defect (column-positioned abs tag), the flex mechanism and its three bands, the gap, why there are no shrink guards, why titles are not opted out, and placeholders (`<GAP>`, `<END>`, `<VERT>`) for the measured numbers that Step 3 fills in. Each records both surfaces, for example "prose X px / `.el--math` Y px at 390".
 
 - [ ] **Step 2: Run the new file.**
   Run: `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_tagovf uv run pytest tests/test_e2e_display_math_tag_overflow.py -m e2e -p no:randomly`
@@ -162,4 +162,8 @@
   - Run with the usual `TEST_DATABASE_URL` prefix and `-m e2e`, confirm all 16 PNGs exist, then delete the file. `git status` must show it gone.
   - Look at every PNG. Judge dark separately.
 
-- [ ] **Step 4: Record the evidence** (the falsification table with outcomes, screenshot paths, and measured numbers) in the session ledger for the PR body.
+- [ ] **Step 4: Record the evidence** in the session ledger for the PR body:
+  - the falsification table with outcomes;
+  - screenshot paths;
+  - measured numbers;
+  - **the owner flag, verbatim in substance:** a fitting display whose free space / 2 lies between n and n + 1em moves left by up to 1em to make room for the gap. This is intended and deliberately untested, and the owner must acknowledge it because the approved goal said "unchanged when it fits".
