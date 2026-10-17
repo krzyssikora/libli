@@ -153,7 +153,9 @@ Below, *g* is the 1em gap and *n* the number's width.
   - n ≤ free space / 2 < n + g: the vendor version does not overlap but crowds
     the number, with a gap under 1em. The formula moves left by at most 1em.
     **This is an intended geometry change in a fitting, non-overlapping
-    display.** It is the only one, and the PR body must flag it for the owner,
+    display.** It is the only one, and it is **deliberately untested**: its size
+    follows directly from the gap rule, which the falsification table pins. The
+    PR body must flag it for the owner,
     because the approved goal said "unchanged when it fits".
 - **Overflows** (formula + n + g > column). `::before` collapses to 0. The
   formula runs at full width and the tag follows it at n + g. The flex line overflows `.katex-html`,
@@ -221,12 +223,15 @@ definition necessary rather than a simpler one:
   opt-out is written as **the same selector chain with the surface class
   prefixed**: `.el--table .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline))`
   and so on. Each opt-out then out-specifies its counterpart by exactly one
-  class. The opt-outs are (0,6,0), (0,6,1), (0,7,0), (0,7,0) and (0,8,0); the main
-  rules they beat are (0,5,0), (0,5,1), (0,6,0), (0,6,0) and (0,7,0), in the
-  order container, `::before`, tag, `tag > *`, `tag > :first-child`. Declarations: `display: block` on `.katex-html`
-  (`align-items` is inert on a block, so it needs no reset), `content: none` on
-  `::before`, and `position: absolute; flex: initial; text-align: inherit` on
-  the tag. `inherit` restores the vendor's inherited cell alignment, which
+  class. There are four opt-out rules per table: (0,6,0), (0,7,0), (0,7,0) and
+  (0,8,0), beating the main rules (0,5,0), (0,6,0), (0,6,0) and (0,7,0), in the
+  order container, tag, `tag > *`, `tag > :first-child`. Declarations:
+  `display: block` on `.katex-html`, and `position: absolute; text-align:
+  inherit` on the tag. Nothing is reset on `::before` and nothing on the tag's
+  `flex`. Once `.katex-html` is a block, `flex` is inert, and `align-items` with
+  it. The `content: ""` pseudo becomes an empty, zero-width inline box on the
+  formula's own line, which is geometrically inert. Resetting either would add
+  an unearned declaration, against the principle above. `inherit` restores the vendor's inherited cell alignment, which
   `initial` would not. The vendor `right: 0` is never overridden, so it
   survives. The `.tag > *` rule gets `text-align: inherit` too, and the
   `.tag > :first-child` rule gets `margin-inline-start: 0`.
@@ -271,7 +276,12 @@ the new rules removed through CSSOM. Walk `document.styleSheets` and
 `deleteRule` every rule whose `selectorText` contains `:has(> .tag)`. That
 removes the main rules and the table opt-outs together, so the result is exactly
 the vendor cascade. A sanity check must follow, asserting that a **non-table**
-fixture's `.tag` now computes `position: absolute`. A table fixture is absolute
+fixture's `.tag` now computes `position: absolute` **and** its first child
+computes `margin-inline-start: 0px`. The helper must also return the number of
+rules it deleted and assert it equals 13 (5 main, plus 4 per table opt-out).
+That catches a partial deletion, for example a rule nested in a grouping rule
+or serialised differently, which would otherwise leave a hybrid vendor leg. A
+table fixture is absolute
 on both legs, so it proves nothing.
 
 `deleteRule` cannot be undone in the page, so the order is fixed: measure the
@@ -292,9 +302,12 @@ surface**: the fixture may differ between the two (other content, or an
 `\hspace` pad tuned per surface). The plan records the measured free space and
 ink width for each.
 
-- **wide**: a numbered `align` that overflows the 390px viewport's column by at
-  least the tag's ink width plus 50px. That margin makes the vendor tag still
-  overlap ink at max scroll (prototype: about 176px and 256px of overflow).
+- **wide**: a numbered `align` that overflows the 390px column far enough that,
+  on the new build, the tag ink is off-screen at scroll 0, so reaching it needs
+  the scroller. Vendor fails assertions 1 and 2 at any overflow, because
+  overflowing content is start-aligned and the tag at C − n always lies inside
+  the base union. No extra margin is needed for the RED leg (prototype: about
+  176px and 256px of overflow).
 - **fit-mixed**: a fitting numbered `align` with at least ten rows, so (9) sits
   above (10) and the number widths differ. It must satisfy free space / 2 ≥ tag
   ink width + 1em + 20px at 390px and at 1280px.
@@ -366,6 +379,7 @@ to courses.css, never with `git checkout`, and the file is re-run:
 | delete only the `.el--table` opt-out | 6 |
 | delete only the `.el--filltable` opt-out | 6 |
 | delete only the `.tag > *` reset inside the `.el--table` opt-out | 6 (first-child `text-align`) |
+| delete only the `:first-child` margin reset inside the `.el--table` opt-out | 6 (first-child margin) |
 | delete only the `.tag > :first-child` gap rule | 1, 2 (the gap term) |
 | delete only `text-align: right` on `.tag` | 3 (fit fixtures; in near-fit/overflow the share equals the number, so nothing moves) |
 | delete the #292 `.katex-display` `overflow-x`/`overflow-y` pair | 7 |
