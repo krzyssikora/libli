@@ -77,8 +77,9 @@ free width) · publish ○ · obligatory ★ · ⋯. Publish/obligatory stay on 
 row because they are glanceable status (my call — the mockup shows them
 there and the owner approved it). Draft units keep their strike-through. On the phone layout `.builder`'s
 two-column grid (and the 720 px stacking) gives way to a full-width
-`.builder__tree`; the sheet wrapper is taken out of flow (fixed), so the
-tree uses the whole viewport width in both orientations.
+`.builder__tree` (its desktop `border-right` and `padding-right`,
+builder.css:4, are reset); the sheet wrapper is taken out of flow
+(fixed), so the tree uses the whole viewport width in both orientations.
 On desktop `builder.css:194-198` puts the flags LEFT of the title
 (`.tree__flag` order 3, title order 4); the phone layout overrides flex
 `order` so they sit after the title. DOM order is NOT changed (the hidden
@@ -194,7 +195,9 @@ comment above `setPanel` is updated to the new count — and the requested node'
 its network error) replaces it when it arrives. **One last-request-wins
 sequence covers every sheet-opening write:** a row tap, Move… and Kurs
 each invalidate any pending node-panel load (bump `panelReq`, clear
-`panelTimer`), and the Move… picker fetch is guarded by the same counter,
+`panelTimer`), and the Move… picker fetch is guarded by the same counter
+(this guard and the Move… bump apply on the **phone layout only**;
+desktop's picker fetch stays exactly as today),
 so a late response can never overwrite newer sheet content (and never
 leaves `movingPk`/`.moving` set without a visible picker). **Every
 close path also invalidates pending sheet loads** (bump `panelReq`, clear
@@ -225,7 +228,14 @@ modal semantics come from `role="dialog"` + `aria-modal="true"` on the
 wrapper, present on the phone layout **only while the sheet is open**.
 A closed sheet on the phone layout is removed from the tab order and the
 accessibility tree (`visibility: hidden` once the close transition ends,
-plus `inert`), so Tab from the tree never reaches its controls. Height: about 2/3 of the
+plus `inert`), so Tab from the tree never reaches its controls. These
+closed-state attributes and styles (`inert`, `visibility: hidden`,
+`role`, `aria-modal`) exist **only while the phone layout applies**: the
+visibility comes from a class/rule scoped inside the phone media query,
+and JS adds the wrapper's `inert` on desktop → phone and removes it on
+phone → desktop (and never sets it on a desktop load), because `inert`
+and inherited `visibility` would otherwise reach the desktop panel
+through the `display: contents` wrapper. Height: about 2/3 of the
 dynamic viewport height (`dvh`) in portrait, and near-full height in
 landscape (a 410 px-tall landscape screen leaves too little at 2/3). While
 the sheet is open, everything else in the builder — the tree, the filter
@@ -384,7 +394,11 @@ showing picker is dismissed (`dismissPicker` cleanup). If a rename is in
 progress (the title input focused or dirty), the flip neither commits nor
 loses it: the row enters the phone Rename editing state with the typed
 value preserved and focused (hiding a focused input would blur it and let
-builder.js's focusout handler commit a half-typed title). When it changes
+builder.js's focusout handler commit a half-typed title). The CSS side
+guards this itself: the phone rule hides only `input.tree__title:not(:focus)`
+(and a row marked as editing), so the media-query switch can never hide
+the field being typed in before the JS `change` listener turns it into
+the editing state. When it changes
 phone → desktop (e.g. a small tablet rotates across 960 px), JS closes the
 ⋯ menu and the sheet, removes the inert state and any scroll lock, returns
 the moved containers to their desktop places, and leaves an in-progress
@@ -405,7 +419,10 @@ desktop load (and so does the panel content: the course panel).
   "More actions" (⋯ aria-label), "Close", "Rename", "Loading…", "Details" (reuse any
   that already exist).
 - Accessibility: ⋯ is a real `type="button"` with `aria-expanded` and
-  `aria-controls` pointing at the shared menu — a plain **disclosure**,
+  `aria-controls` pointing at the shared menu (only the current opener
+  carries `aria-expanded="true"`; opening from another row resets the
+  previous one; if the opener row is replaced while the menu is open, the
+  menu closes) — a plain **disclosure**,
   not an ARIA `role="menu"` (no `aria-haspopup="menu"`, no arrow-key
   model): on open, focus moves to the first enabled item, items are
   reached with Tab/Shift+Tab, Escape closes the menu and returns focus to
@@ -462,7 +479,9 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
    e.g. 1000 → 900 → 1000, asserting the `matchMedia` result before
    acting): desktop → phone while typing a rename (no commit, typed
    value kept in the phone editing state); phone → desktop with the sheet open (sheet/menu closed,
-   no inert/scroll lock left, header group back in place); desktop →
+   no inert/scroll lock left, header group back in place, the wrapper
+   and `[data-panel]` neither inert nor hidden and a panel link reachable
+   with Tab; no POST after a forced layout in the mid-rename flip); desktop →
    phone with a node panel and with a picker showing (header group moved,
    sheet closed, picker dismissed, Kurs visible).
 10. Race: hold a slow node-panel response, then tap Kurs (and separately
@@ -491,8 +510,9 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
     `data-node`); on Kurs after closing the course sheet.
 16. Fresh phone load: a page loaded at 390×844 already has the moved
     containers in the Kurs sheet section and the filter, h1 and Kurs in
-    the sticky header row; in landscape (~890×410) a row's title box is
-    wider than 60% of the viewport and the sticky header is at most ~25%
+    the sticky header row; in landscape (~890×410) a top-level row's
+    title box is wider than 60% of the viewport and a unit at the
+    fixture's deepest level wider than 45%, and the sticky header is at most ~25%
     of the viewport height (with a long course title).
 17. ⋯ Rename then Escape: no POST is sent, the title is unchanged,
     `document.activeElement` is the row's ⋯. ⋯ Rename then Enter: one
@@ -507,8 +527,10 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
     layout with rename-in-place, drag and the Tab debounce intact; the
     desktop header looks and orders exactly as before; on a long tree the
     panel stays in the viewport after scrolling (sticky, its top near
-    `--space-4`); no new grid row or gap appears; the existing builder
-    e2e suite stays green.
+    `--space-4`); no new grid row or gap appears; on a fresh desktop
+    load the wrapper and `[data-panel]` are neither inert nor hidden and a
+    panel link is reachable with Tab; the existing builder e2e suite stays
+    green.
 
 ## Left to the builder
 
