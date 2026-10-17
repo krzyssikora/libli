@@ -294,7 +294,7 @@ paint, and before any test predicate can see the new pane.
 2. The response arrives with status 200, 409 or 422. Before `applyFragments`,
    record the ordered candidate list:
    1. the paste-move candidate (paste-move ops, status 200 only);
-   2. the op's own row, if it is rendered and on-screen;
+   2. the op's own row (head ops: its control on-screen; save/delete: its top on-screen);
    3. up to 5 rendered, on-screen rows (minus the clip subtree on a paste-move, and minus the deleted subtree on a
       delete);
    4. container fallbacks for catch-all rows inside tabs/columns slots.
