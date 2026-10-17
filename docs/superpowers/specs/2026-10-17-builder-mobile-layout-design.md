@@ -1,6 +1,6 @@
 # Course builder on a phone — design
 
-Date: 2026-10-17 · Status: draft for owner approval
+Date: 2026-10-17 · Status: approved by the owner 2026-10-17 ("lgtm")
 Mockup (approved by the owner 2026-10-17, "mockups look great!"):
 `docs/mockups/builder-mobile-layout.html` (an HTML fragment; wireframe only)
 
