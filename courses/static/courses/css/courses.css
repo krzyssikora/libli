@@ -3541,6 +3541,17 @@ html.js .unit-strip__print { display: inline-flex; }
      columns past the page edge were clipped. Let the statements wrap instead. */
   .choicegrid, .multigrid { min-width: 0; }
 
+  /* Display maths wider than the column: KaTeX cannot line-break a display and
+     paper cannot scroll, so it was clipped, equation numbers first. print.js
+     flags each display on beforeprint with its natural width in em and the
+     room its containers take around it; in print `100vw` is the printed
+     content width and 3rem the lesson's print padding (`.unit-shell__main >
+     .lesson`, 1.5rem a side). min() leaves a display that fits at 1em. NOT a
+     container query: style containment would restart the equation numbers. */
+  .katex-display[data-print-fit] > .katex > .katex-html {
+    font-size: min(1em, calc((100vw - 3rem - var(--print-fit-inset) - 2px) / var(--print-fit-em)));
+  }
+
   /* gallery.js stacks every card absolutely at opacity 0 except the active one
      and sets inline min-heights; on paper every card prints, stacked. */
   .el--gallery.gallery--js .gallery__stage { position: static !important; min-height: 0 !important; }
