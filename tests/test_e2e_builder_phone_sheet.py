@@ -370,3 +370,223 @@ def test_pageshow_persisted_closes_sheet(browser, live_server):
         assert page.locator(".builder__tree").get_attribute("inert") is None
     finally:
         context.close()
+
+
+# ---- Task 4: a title tap opens that node's panel in the sheet ----------------
+
+NETWORK_ERROR = "Network error — please reload."
+
+
+def _ptitle(page, pk):
+    return page.locator(f"#node-{pk} > form.tree__rowhead > .tree__ptitle")
+
+
+def _panel_path(course, pk):
+    return f"/manage/courses/{course.slug}/build/node/{pk}/"
+
+
+def _node_panel(page, pk):
+    return page.locator(f'[data-panel] .panel[data-panel-for="{pk}"]')
+
+
+def _hold(page, course, pk):
+    """Hold the panel GET for `pk` (a fetch, never a navigation). Returns the list
+    the held route lands in; `_release` continues it."""
+    held = []
+    page.route(f"**{_panel_path(course, pk)}", lambda route: held.append(route))
+    return held
+
+
+def _release(held):
+    assert len(held) == 1, held
+    held[0].continue_()
+
+
+def _two_frames(page):
+    page.evaluate(
+        "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+    )
+
+
+def _focus_in_sheet(page):
+    return page.evaluate(
+        "() => !!document.activeElement"
+        " && !!document.activeElement.closest('[data-sheet]')"
+    )
+
+
+def _focus_is_ptitle(page, pk):
+    return page.evaluate(
+        "(pk) => document.activeElement === document.querySelector("
+        "'#node-' + pk + ' > form.tree__rowhead > .tree__ptitle')",
+        pk,
+    )
+
+
+def _close_x(page):
+    page.locator("[data-sheet-close]").tap()
+    _sheet_closed(page)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tap_title_opens_that_units_panel(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    izo = seeded["lessons"][1]
+    context, page = _open(browser, live_server, seeded["course"])
+    try:
+        # A Kurs round trip first, so a stale data-mode="course" could linger.
+        _open_kurs(page)
+        _close_x(page)
+
+        _ptitle(page, izo.pk).tap()
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        expect(_node_panel(page, izo.pk)).to_be_visible()
+        expect(_node_panel(page, izo.pk).locator("h2")).to_contain_text("Izometria")
+        expect(page.locator("[data-sheet-tools]")).to_be_hidden()
+        assert not _active_matches(page, "input, textarea, [contenteditable]")
+        assert _focus_in_sheet(page)
+
+        _close_x(page)
+        assert _focus_is_ptitle(page, izo.pk)
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_placeholder_never_shows_previous_panel(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    course = seeded["course"]
+    a, b = seeded["lessons"][0], seeded["lessons"][1]
+    context, page = _open(browser, live_server, course)
+    try:
+        _ptitle(page, a.pk).tap()
+        expect(_node_panel(page, a.pk)).to_be_visible()
+        _close_x(page)
+
+        held = _hold(page, course, b.pk)
+        _ptitle(page, b.pk).tap()
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        expect(page.locator("[data-panel] [data-panel-loading]")).to_be_visible()
+        expect(page.locator(f'.panel[data-panel-for="{a.pk}"]')).to_have_count(0)
+
+        _release(held)
+        expect(_node_panel(page, b.pk)).to_be_visible()
+        expect(page.locator("[data-panel] [data-panel-loading]")).to_have_count(0)
+        assert _focus_in_sheet(page)
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_late_panel_response_is_dropped(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    course = seeded["course"]
+    a, b = seeded["lessons"][0], seeded["lessons"][1]
+    a_glob = f"**{_panel_path(course, a.pk)}"
+    context, page = _open(browser, live_server, course)
+    try:
+        # Variant 1: A held, sheet closed, Kurs opened -> A's late reply is dropped.
+        held = _hold(page, course, a.pk)
+        _ptitle(page, a.pk).tap()
+        expect(page.locator("[data-panel] [data-panel-loading]")).to_be_visible()
+        _close_x(page)
+        _open_kurs(page)
+        course_panel = page.locator('[data-panel] .panel[data-panel-for="course"]')
+        expect(course_panel).to_be_visible()
+        with page.expect_response(lambda r: _panel_path(course, a.pk) in r.url):
+            _release(held)
+        _two_frames(page)
+        expect(course_panel).to_be_visible()
+        expect(page.locator(f'.panel[data-panel-for="{a.pk}"]')).to_have_count(0)
+        _close_x(page)
+        page.unroute(a_glob)
+
+        # Variant 2: A held, sheet closed, B tapped (unheld) -> B stays.
+        held = _hold(page, course, a.pk)
+        _ptitle(page, a.pk).tap()
+        expect(page.locator("[data-panel] [data-panel-loading]")).to_be_visible()
+        _close_x(page)
+        _ptitle(page, b.pk).tap()
+        expect(_node_panel(page, b.pk)).to_be_visible()
+        with page.expect_response(lambda r: _panel_path(course, a.pk) in r.url):
+            _release(held)
+        _two_frames(page)
+        expect(_node_panel(page, b.pk)).to_be_visible()
+        expect(page.locator(f'.panel[data-panel-for="{a.pk}"]')).to_have_count(0)
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_panel_network_error_shows_in_sheet(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    course = seeded["course"]
+    izo = seeded["lessons"][1]
+    context, page = _open(browser, live_server, course)
+    try:
+        page.route(f"**{_panel_path(course, izo.pk)}", lambda route: route.abort())
+        _ptitle(page, izo.pk).tap()
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        error = page.locator("[data-sheet] [data-panel] .op-error")
+        expect(error).to_be_visible()
+        expect(error).to_have_text(NETWORK_ERROR)
+        expect(page.locator("[data-panel] [data-panel-loading]")).to_have_count(0)
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_keyboard_enter_opens_sheet(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    izo = seeded["lessons"][1]
+    context, page = _open(browser, live_server, seeded["course"])
+    try:
+        _ptitle(page, izo.pk).focus()
+        page.keyboard.press("Enter")
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        expect(_node_panel(page, izo.pk)).to_be_visible()
+        page.keyboard.press("Escape")
+        _sheet_closed(page)
+        assert _focus_is_ptitle(page, izo.pk)
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sheet_scroll_resets_between_opens(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    izo = seeded["lessons"][1]
+    # Landscape: the Kurs sheet's content fits a portrait 67dvh sheet unscrolled,
+    # so only the short landscape sheet body can be scrolled to set up the state.
+    context, page = _open(
+        browser, live_server, seeded["course"], orientation="landscape"
+    )
+    try:
+        _open_kurs(page)
+        # Sets up state (a scrolled sheet body); it asserts no behaviour itself.
+        scrolled = page.evaluate(
+            "() => { const b = document.querySelector('[data-sheet-body]');"
+            " b.scrollTop = 200; return b.scrollTop; }"
+        )
+        assert scrolled > 0, scrolled
+        _close_x(page)
+        _ptitle(page, izo.pk).tap()
+        expect(_node_panel(page, izo.pk)).to_be_visible()
+        body_top = page.evaluate(
+            "() => document.querySelector('[data-sheet-body]').scrollTop"
+        )
+        assert body_top == 0, body_top
+        # The sheet body is the one phone scroll container: no own panel scroll.
+        heights = page.evaluate(
+            "() => { const p = document.querySelector('[data-panel]');"
+            " return [p.scrollHeight, p.clientHeight]; }"
+        )
+        assert heights[0] <= heights[1] + 1, heights
+    finally:
+        context.close()

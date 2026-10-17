@@ -1612,6 +1612,26 @@
     openSheet("course", { pk: null, target: "kurs" });
   });
 
+  // A row's panel in the sheet. The placeholder goes in BEFORE the sheet opens,
+  // so the previously shown panel is never visible; loadPanel's own id bump plus
+  // invalidatePanel's timer clear make this the newest sheet load.
+  function openNodeSheet(row) {
+    invalidatePanel();
+    setPanel(PLACEHOLDER_HTML);
+    openSheet("node", { pk: row.getAttribute("data-node"), target: "title" });
+    loadPanel(urlFor(row));
+  }
+
+  // The phone title button (hidden on desktop). Enter/Space click it natively.
+  root.addEventListener("click", function (e) {
+    if (!isPhone()) return;
+    var btn = e.target.closest(".tree__ptitle");
+    var row = btn && btn.closest("li.tree__row");
+    if (!row) return;
+    e.preventDefault();
+    openNodeSheet(row);
+  });
+
   root.addEventListener("click", function (e) {
     if (e.target.closest("[data-sheet-close]") || e.target.closest("[data-sheet-dim]")) {
       closeSheet();
