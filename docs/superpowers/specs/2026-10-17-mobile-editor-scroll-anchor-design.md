@@ -58,8 +58,8 @@ The handler covers these ops:
   container slot and once at top level, `_editor_scope.html`);
 - "Move/Copy before this element" (`element-paste-before`, in the row controls);
 - save (create and update, `element-save`);
-- delete;
-- duplicate.
+- delete (`element-delete`, in the row controls);
+- duplicate (`element-duplicate`, in the row controls).
 
 ### Helpers
 
@@ -76,7 +76,10 @@ The handler covers these ops:
 - `viewportH()` returns `(window.visualViewport && visualViewport.height) ||
   window.innerHeight`. With the soft keyboard open (e.g. Save from an edit form),
   this is the visible area, so a row hidden behind the keyboard does not count
-  as on-screen.
+  as on-screen. Each check uses whatever `viewportH()` returns **at that
+  moment**. A keyboard that closes after the swap (Save removes the focused
+  field) changes it asynchronously. That is accepted like the other late
+  layout shifts, with no re-correction.
 - `onScreen(top)` is `0 <= top && top < viewportH()`. A panned visual viewport
   (`visualViewport.offsetTop > 0`, e.g. iOS with the keyboard open) is **accepted
   as best effort and untested**: the band is not shifted by `offsetTop`.
@@ -85,7 +88,10 @@ The handler covers these ops:
   elements (`SLOT_DETAILS` in editor.js); callout, spoiler and before/after slots
   are always-open divs. `applyStoredSlots` re-applies the author's collapse
   state after every swap, but these slots are force-opened (`data-force-open`)
-  while a clip is active, so the case cannot arise during a paste op. A row
+  while a clip is active. They re-collapse when the clip ends (a cancel, or a
+  paste-move, which clears the clip; only the destination's ancestor slots stay
+  open), so recorded rows CAN become unrendered across the swap. See the
+  container fallback, candidate 4. A row
   inside a closed `<details>` (or any `display:none` subtree) has an
   all-zero rect, which would otherwise pass `onScreen(0)` and read as "entirely
   off-screen" at the same time. **Every anchor candidate and the safety net
@@ -157,6 +163,15 @@ moves on to the next candidate.
        container; an update of a long row with the author at its Save button);
      - delete, including a delete of a tall container whose visible children
        vanish with it.
+
+4. **Container fallbacks (after the 5 rows).** For every candidate-3 row that
+   sits inside a `SLOT_DETAILS` slot (tabs/columns `<details>`), also record its
+   nearest ancestor `.el-row[data-element]` (the tabs/columns element row) with
+   that row's **current** top. That top may be off-screen: a recorded `top` does
+   not need to be on-screen to anchor. The fallback covers a cancel or
+   paste-move that re-collapses the slot holding every recorded row.
+   Duplicates are recorded once. The deleted/clip subtree exclusions apply here
+   too.
 
 If no candidate resolves (no rendered rows on screen at all, or all of them
 removed), there is no anchor.
@@ -267,10 +282,11 @@ paint, and before any test predicate can see the new pane.
    today and calls `post()`. Nothing is measured yet.
 2. The response arrives with status 200, 409 or 422. Before `applyFragments`,
    record the ordered candidate list:
-   1. the paste-move candidate (paste-move ops only);
+   1. the paste-move candidate (paste-move ops, status 200 only);
    2. the op's own row, if it is rendered and on-screen;
    3. up to 5 rendered, on-screen rows (minus the clip subtree on a paste-move, and minus the deleted subtree on a
-      delete).
+      delete);
+   4. container fallbacks for catch-all rows inside tabs/columns slots.
 3. `applyFragments(res.text)` replaces both panes. The `restoreScroll` inside it
    is a no-op on the stacked layout.
 4. If `paneScrolls()` is true, run today's code unchanged
@@ -455,6 +471,15 @@ Tolerance is ±2 px throughout.
   - The server answers 409 and S does not move. Assert: R's top is unchanged,
     and S is still above the viewport.
 
+- **(k) Phone split mode, the default view.** Repeat (a) after clicking
+  `[data-view="split"]` (the preview renders below the editor).
+  - Assert: TARGET keeps its top right after the swap.
+  - Assert again after `scrollPreviewTo`'s timers have run. The happens-after
+    barrier is `page.evaluate("() => new Promise(r => setTimeout(r, 700))")`,
+    registered after the op's 500 ms timer, so it fires strictly later.
+    This is an ordering barrier on a known timer, not a guess at a sleep.
+  - Assert: TARGET still keeps its top.
+
 ### Desktop no-regression (1280×800, editor-only)
 
 - **(f)** Scenario (a) at desktop. Set the start position by setting
@@ -492,6 +517,10 @@ Tolerance is ±2 px throughout.
   7. **Safety net left active after candidate 1 resolves** → (h2).
   8. **Deleted-subtree exclusion removed from the catch-all** → (i).
   9. **Status check on candidate 1 dropped** → (j).
+  10. **`scrollPreviewTo` / preview alignment redirected to the window** → (k).
+- **Admitted gap: container fallbacks (candidate 4).** No test seeds a
+  tabs/columns element whose slot re-collapses across the op; seeding one is
+  disproportionate here. The code comment says so.
 - **Admitted gap: 409/422 for the other candidates.** Apart from candidate 1's
   status check, which (j) guards, the anchoring has no status branch. A mutant
   gating candidates 2 and 3 on `status === 200` would stay green. The code
