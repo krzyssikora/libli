@@ -25,6 +25,7 @@ The desktop pane path is byte-for-byte unchanged.
 - Candidate cap = **5** catch-all rows. Tolerance in tests = **±2 px**. Sub-pixel skip = `|dy| < 1`.
 - Tests run with `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_scrollfix`; another worktree uses `/libli_buildermobile`. Start the container first: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`.
 - Never pass `-q` to pytest (addopts has it). Always pass `-m e2e` for e2e files. Grep the summary line; don't trust the exit code.
+- **Scratchpad (literal path, no shell variables — every Bash call is a fresh shell):** `C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/83592fd0-f524-4a85-a21b-2c06f2fd95f9/scratchpad`. All backups and evidence files go there by this absolute path.
 - Every new code comment for an untested path says so: the `rendered()` check, candidate 4, the 409/422 sharing of candidates 2–3, duplicate/update-save.
 
 ## Review Focus
@@ -70,18 +71,33 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
   - `_row_top(page, eid) -> float`
   - `_first_visible_row_id(page) -> str`
   - `_scroll_window_to_row(page, eid, y_in_viewport)`
+  - `_row_control(page, eid, selector) -> Locator`, scoped to `[data-scope="editor"] .el-row[data-element="<eid>"] > .el-row__head` before `selector`. A container's `<li>` also holds its children's controls, so an unscoped locator trips strict mode. Use it for **every** op click (↑, ⊹, delete, paste-before).
+  - `_assert_unclamped(page, max_up, max_down)` asserts `scrollY >= max_up + 100` and `scrollHeight - innerHeight - scrollY >= max_down + 100`.
 
 - [ ] **Step 1: Write the test module and the failing phone/desktop tests**
 
   Header: `pytestmark = pytest.mark.e2e`; the session-scoped autouse `DJANGO_ALLOW_ASYNC_UNSAFE` fixture (copy from `tests/test_e2e_editor.py:20-23`). Import `_make_pa_user`, `_login`, `_seed_course_and_unit`, `_editor_url` from `tests.test_e2e_editor`.
 
   **Helpers:**
-  - **Seeding.** `tests.factories.add_element(unit, TextElement.objects.create(body=...))` for top-level elements. Container children: `Element.objects.create(unit=unit, content_object=..., parent=<callout join>, tab_id=SINGLE_SLOT_ID)`; `SINGLE_SLOT_ID` comes from `courses.models` (`order` follows existing children, as in the scratch diagnosis test).
-  - **Tall text.** "Tall" = `paras` paragraphs of ~40 words each.
+  - **Seeding.**
+    - Top-level text: `tests.factories.add_element(unit, TextElement.objects.create(body=...))`.
+    - Callout: `add_element(unit, CalloutElement.objects.create(kind="note", heading="Box"))`.
+    - Container children: `Element.objects.create(unit=unit, content_object=..., parent=<callout join>, tab_id=SINGLE_SLOT_ID)`. `SINGLE_SLOT_ID` comes from `courses.models`; `Element.order` is an `OrderField(for_fields=["unit"])`, so it is assigned automatically.
+  - **Tall text.** `body = "".join(f"<p>{' '.join(['lorem'] * 40)} {i}</p>" for i in range(paras))`.
   - **Swap sync.** `_arm_swap` / `_wait_swap` use exactly the JS strings in spec §Testing → "Swap synchronisation", including the two-rAF `page.evaluate` Promise.
   - **`_first_visible_row_id`** returns the id of the first `[data-scope="editor"] .el-row[data-element]` in document order where `checkVisibility()` is true, height > 0, and `0 <= top < (visualViewport.height || innerHeight)`.
   - **Page setup.** Every test: `page.set_viewport_size(...)`, `goto`, `wait_for_selector('[data-scope="editor"]')`, then click `[data-view="editor"]` (or `split` for (k)).
-  - **Pre-click guards.** Before each click, assert that the target button's rect lies inside `[0, innerHeight)`, and assert the starting `scrollY` per spec §Scaffolding.
+  - **Pre-click guards.** Before each click, assert that the target button's rect lies inside `[0, innerHeight)`. Call `_assert_unclamped(page, max_up, max_down)` with the test's expected correction magnitude:
+    - (a)/(b2)/(k): `max_up` ≈ the 8-child callout's height;
+    - (b): one row height;
+    - (c): S's height;
+    - (h)/(h2): S's height;
+    - (i): the deleted callout's height (`max_down`);
+    - (l)/(d): 150;
+    - (j): 0.
+
+    (e) has its own guards.
+  - **Every click** (including the preliminary ⊹ select in (c), (d), (h), (h2), (j) and (l)) is wrapped `_arm_swap(page)` → click → `_wait_swap(page)`.
 
   **Tests (390×844 unless noted):**
 
@@ -118,7 +134,12 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
   def test_phone_nested_create_lands_at_pane_top(page, live_server):  # (e)
       # seed: callout(2), trailing >= form height + 1 viewport; open the callout's nested
-      # add menu -> text; fill until the form is >= ~2*viewportH; scroll so Save is within
+      # add menu: callout_row.locator("[data-add-menu].addwrap--nested [data-add-toggle]").click(),
+      # then "[data-add-type='text']"; wait for "[data-edit-slot] form[data-op='element-save']".
+      # Grow the form via the RTE surface (.rte-surface, contenteditable): click it, then
+      # page.keyboard.type(<40 words>) + page.keyboard.press("Enter") per paragraph, looping
+      # until form height >= 2*innerHeight (keyboard input fires the input event that syncs
+      # [data-rte-source]; see test_e2e_editor.py::test_add_text_element). Scroll so Save is within
       # ~60px of the viewport bottom; assert form top <= -innerHeight, no row top on-screen,
       # scrollHeight - (scrollY+innerHeight) >= formHeight + 100; click Save
       new = page.evaluate("document.querySelector('[data-scope=\"editor\"]').getAttribute('data-saved-element')")
@@ -184,7 +205,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 - [ ] **Step 6: Wire it into the submit handler**
 
   - Before `post(...)`: `var submitter = e.submitter || null;` Pass it to `post` in place of `e.submitter`, with the same value.
-  - Inside the `if (res.status === 200 || 409 || 422)` block, **before** `applyFragments(res.text)`:
+  - Inside the existing `if (res.status === 200 || res.status === 409 || res.status === 422)` block, **before** `applyFragments(res.text)`:
     `var anchors = recordAnchors(form, submitter, res.status, opRow);`
   - Keep `applyFragments` and the `flash` line as they are.
   - Keep the `pane` / `focusId` lines as they are. Then:
@@ -208,7 +229,11 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
 - [ ] **Step 7: Run the new file; all must pass**
 
-  Same command as Step 2. Expected: every test in Step 1 PASSES. Then run `uv run pytest tests/test_editor_js_scroll_invariants.py` and expect it to pass.
+  Same command as Step 2. Expected: every test in Step 1 PASSES.
+
+  Then run every non-e2e test that reads editor.js. List them with `grep -l "editor.js" tests/test_*.py | grep -v test_e2e_`; this includes `tests/test_editor_js_scroll_invariants.py` and `tests/test_editor_js_form_action.py`. Run them with `uv run pytest <those paths>`. Expected: all pass.
+  - `test_editor_js_form_action.py` fails on ANY `.action` in editor.js code, so no new code may spell `.action`.
+  - The new code never needs the clip action, because cancel has no `opRow`.
 
 - [ ] **Step 8: Commit**
 
@@ -238,9 +263,13 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       # mid-viewport, the callout row top < 0, and no child row top is on-screen (assert all)
       # f0 = paste form top; click Move here
       assert abs(_row_top(page, s) - f0) <= 2
+      assert 0 <= _row_top(page, s) < page.evaluate("innerHeight")   # S on-screen
 
   def test_phone_move_before_lands_at_tapped_spot(page, live_server):  # (h)
-      # seed: texts, S, 3 texts, T, trailing; select S; T mid-viewport;
+      # seed: texts, tall S (6 paras), 3 texts, T, trailing; select S; scroll so T is the
+      # FIRST rendered on-screen row (rows above it off-screen) and its paste-before button is
+      # on-screen (assert both). That way mutant 6 (no candidate 1, no candidate 2) holds T,
+      # putting S at T.top - S.height, far from f0.
       # f0 = T's form[data-op=element-paste-before] top; click it
       assert abs(_row_top(page, s) - f0) <= 2
 
@@ -295,18 +324,18 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 ### Task 3: Falsification record and regression sweep
 
 **Files:**
-- No committed changes. The evidence goes to the scratchpad (`falsification.md`) and into the PR body.
+- No planned changes. Commit only seed fixes or formatting found here. The evidence goes to `<scratchpad>/falsification.md` and into the PR body.
 
 **Interfaces:**
 - Consumes: the finished `editor.js` (Task 2 commit) and the 13 tests.
 
 - [ ] **Step 1: RED on master**
 
-  1. Back up the fixed file: `cp courses/static/courses/js/editor.js "$SCRATCH/editor.fixed.js"`.
-  2. Install master's version: `git show origin/master:courses/static/courses/js/editor.js > courses/static/courses/js/editor.js`.
-  3. Run the new file.
+  1. Back up the fixed file: `cp courses/static/courses/js/editor.js "C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/83592fd0-f524-4a85-a21b-2c06f2fd95f9/scratchpad/editor.fixed.js"`.
+  2. Install the base version. Run `git merge-base HEAD origin/master` first (one call), then `git show <that sha>:courses/static/courses/js/editor.js > courses/static/courses/js/editor.js`.
+  3. Run the new file with Task 1 Step 2's command.
   4. Expected RED: (a), (b), (b2), (c), (d), (e), (h), (h2), (i), (k), (l). (j) and (f)+(g) may pass. Record (g)'s spy count as the **zero baseline**.
-  5. Restore: `cp "$SCRATCH/editor.fixed.js" courses/static/courses/js/editor.js`, then `git diff --quiet courses/static/courses/js/editor.js`. It must be clean.
+  5. Restore: `cp "C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/83592fd0-f524-4a85-a21b-2c06f2fd95f9/scratchpad/editor.fixed.js" courses/static/courses/js/editor.js`, then `git diff --quiet courses/static/courses/js/editor.js`. It must be clean.
 
   Never use `git checkout` to revert (memory: it has destroyed work three times).
 
@@ -331,11 +360,19 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
   If a mutant stays GREEN, the test is not discriminating: fix the test's seed (spec §Testing), re-run its RED/GREEN, and commit the test change as `test(editor): ...`.
 
-  For (c), also record the discrimination: under mutant 1, S's top differs from `f0` by more than 50 px.
+  Also record the discrimination:
+  - (c), under mutant 1: S's top differs from `f0` by more than 50 px.
+  - (h), under mutant 6: S's top differs from `f0` by more than 10 px.
 
 - [ ] **Step 3: Regression sweep (branch gate)**
 
-  Run in about 3 chunks, foreground, each with a timeout ≤ 600 s:
+  Run in 3 chunks, foreground, each with a Bash timeout of 600000 and `-p no:xdist`. Prefix every command with
+  `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_scrollfix uv run pytest -m e2e -p no:xdist`.
+  - Chunk 1: the `editor*` and `preview*` files.
+  - Chunk 2: `clipboard`, `paste_before`, `cross_unit_copy`.
+  - Chunk 3: `tabs`, `twocolumn`, `depth3`.
+
+  All paths are under `tests/`. The unit file runs without `-m e2e`. The files:
   - Unit test: `tests/test_editor_js_scroll_invariants.py`.
   - e2e (with `-m e2e`, and the `TEST_DATABASE_URL` above):
     - `test_e2e_editor_scroll_containment.py`
