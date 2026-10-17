@@ -140,10 +140,19 @@ moves on to the next candidate.
      doesn't, the next candidates take over.
 2. **The op's own row.** The form has an `opRow`
    (`form.closest(".el-row[data-element]")`, the existing `keepId` logic) that
-   is `rendered`, with `onScreen(opRow top)` → `id = keepId`, `top` = that row's
-   top.
+   is `rendered` → `id = keepId`, `top` = that row's top (which may be
+   off-screen). It is recorded when:
+   - **Head ops** (`element-move`, `element-clip` select, `element-duplicate`,
+     `element-paste-before` copy): the **submitting form** is on-screen
+     (`onScreen(form top)`), even if the row's own top is a few pixels above
+     the viewport. These forms sit in `.el-row__head`, so the author can tap a
+     visible ↑ while the row's top is at −8 px. Losing the row there would
+     bring back the −730 px jump at a common boundary.
+   - **Other ops** (`element-save`, `element-delete`): `onScreen(opRow top)`.
+     For a save, the catch-all is the intended outcome when the row's top is
+     off-screen (the author is at the form's Save button).
    - Covers move ↑/↓, select, update-save, duplicate and paste-before-copy whose
-     row is visible.
+     row (or control) is visible.
    - For delete, this candidate is recorded too, but its row is gone after the
      swap, so it never resolves.
 3. **Visible rows (catch-all).** Record up to **5** `.el-row[data-element]` inside
@@ -166,8 +175,10 @@ moves on to the next candidate.
 
 4. **Container fallbacks (after the 5 rows).** For every candidate-3 row that
    sits inside a `SLOT_DETAILS` slot (tabs/columns `<details>`), also record its
-   nearest ancestor `.el-row[data-element]` (the tabs/columns element row) with
-   that row's **current** top. That top may be off-screen: a recorded `top` does
+   ancestor `.el-row[data-element]` rows **up to the top level, innermost
+   first**, each with its **current** top. A nested tabs element's own row can
+   itself sit in a slot that re-collapses; the first ancestor still rendered
+   wins. That top may be off-screen: a recorded `top` does
    not need to be on-screen to anchor. The fallback covers a cancel or
    paste-move that re-collapses the slot holding every recorded row.
    Duplicates are recorded once. The deleted/clip subtree exclusions apply here
@@ -373,6 +384,11 @@ Tolerance is ±2 px throughout.
   - Put TARGET's row at mid-viewport, record its top, click its ↑.
   - Assert: TARGET's row top equals the recorded top.
   - On master it lands around −730.
+- **(b2) ↑ with the row's top just above the viewport.** As (a), but scroll
+  so that TARGET's top is at about −5 px while its ↑ button is on-screen
+  (assert both). Record the top and click ↑.
+  - Assert: TARGET's top equals the recorded value (−5 ± 2 px).
+  - This guards the head-op rule in candidate 2.
 - **(b) Repeated ↑.**
   - Press ↑ on the same row 4 times, each time past a plain text row.
   - Assert: the row top stays at its starting position after every press.
@@ -406,9 +422,11 @@ Tolerance is ±2 px throughout.
 - **(d) Clipboard cancel keeps the visible rows still.**
   - `#clip-banner` sits at the top of the editor pane and is not sticky, so ✕ is
     only reachable near the top of the page.
-  - Seed a short unit head (page header + ~2 texts), so ✕ is visible while
-    `scrollY` is still ≥ 150 px. That is enough to absorb the banner (~73 px)
-    plus the paste-before buttons above R.
+  - Whether ✕ is on-screen at `scrollY ≥ 150` depends only on the page chrome
+    above the editor pane, not on any seeded rows: the banner sits above every
+    row. The test asserts it before relying on it. 150 px is enough to absorb
+    the banner (~73 px) plus the paste-before buttons above R. (d) is exempt
+    from the "Leading" seeding rule; it relies on that chrome instead.
   - Select an element. Scroll to a pinned `scrollY` where ✕ is on-screen, and
     assert both conditions. Take R = **the first rendered
     `.el-row[data-element]` whose top is on-screen**, i.e. exactly the row the
@@ -421,8 +439,11 @@ Tolerance is ±2 px throughout.
     **at least the edit form's height plus one viewport**. Saving collapses the
     tall form, so the document shrinks by roughly that much; without this the
     bottom clamp could leave the new row partly visible on a correct build.
-  - Open the callout's nested "Add element" → a text type. Fill the body with
-    enough lines that the edit form is taller than the viewport.
+  - Open the callout's nested "Add element" → a text type. Fill the body until
+    the edit form is **at least ~2 × viewportH tall**: the form's top must be
+    ≤ −viewportH, with Save within ~60 px of the viewport bottom (so no
+    trailing row's top is on-screen either). Derive the line count from these
+    two assertions, not the other way round.
   - Scroll so the form's Save button is on-screen and **no**
     `.el-row[data-element]` top is on-screen (assert this). Then no candidate
     exists.
@@ -500,8 +521,8 @@ Tolerance is ±2 px throughout.
 
 ### Falsification (required; output recorded in the PR)
 
-- Run (a)–(e), (h), (h2) and (i) against the unmodified `editor.js`: all must go
-  **RED**. (j) is a regression guard against the new code, so it may be green on
+- Run (a)–(e), (b2), (h), (h2), (i) and (k) against the unmodified `editor.js`:
+  all must go **RED**. (j) is a regression guard against the new code, so it may be green on
   master.
   Re-apply the fix: all **GREEN**.
 - Mutants, each chosen from a likely implementation mistake. Each must turn the
@@ -541,6 +562,20 @@ Tolerance is ±2 px throughout.
 - `tests/test_e2e_editor_preview_state_regression.py`
 - `tests/test_e2e_preview_nested_locate.py`
 - `tests/test_e2e_editor.py`
+- The suites that drive these exact forms, including stacked widths:
+  - `tests/test_e2e_clipboard.py`
+  - `tests/test_e2e_paste_before.py`
+  - `tests/test_e2e_cross_unit_copy.py` (its narrow-viewport clip op takes the
+    new window path)
+  - `tests/test_e2e_editor_view_toggle.py` (stacked 1000 px)
+  - `tests/test_e2e_editor_row_layout.py`
+  - `tests/test_e2e_editor_container_state.py`
+  - `tests/test_e2e_editor_force_open.py`
+  - `tests/test_e2e_editor_saved_element_in_view.py`
+  - `tests/test_e2e_editor_unit_token.py`
+  - `tests/test_e2e_tabs.py`
+  - `tests/test_e2e_twocolumn.py`
+  - `tests/test_e2e_depth3.py`
 
 Run them against an isolated test DB, because another worktree may be running
 tests concurrently:
