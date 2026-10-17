@@ -917,9 +917,9 @@ def test_a_checklist_callout_into_a_quiz_is_refused_on_the_enforcing_path():
     assert Element.objects.filter(unit=quiz).count() == count_before
 
 
-def test_a_two_level_container_into_a_depth_three_slot_is_too_deep():
-    """Destination depth is PINNED to 3 (a slot of a container at depth 2): the
-    root alone (a container, cap 3) would be admitted, the whole subtree is not.
+def test_a_two_level_container_into_a_depth_four_slot_is_too_deep():
+    """Destination depth is PINNED to 4 (a slot of a container at depth 3): the
+    root alone (a container, cap 4) would be admitted, the whole subtree is not.
     A deeper slot would refuse the root alone too and let the mutant survive.
     Same mutant as above -> RED."""
     course, x = make_course_with_unit()
@@ -927,11 +927,12 @@ def test_a_two_level_container_into_a_depth_three_slot_is_too_deep():
     outer = _callout(x)
     _callout(x, parent=outer, tab=CalloutElement.SLOT_ID)  # callout > callout
     d1 = _callout(y)
-    d2 = _callout(y, parent=d1, tab=CalloutElement.SLOT_ID)  # d2 is at depth 2
+    d2 = _callout(y, parent=d1, tab=CalloutElement.SLOT_ID)
+    d3 = _callout(y, parent=d2, tab=CalloutElement.SLOT_ID)  # d3 is at depth 3
     count_before = Element.objects.filter(unit=y).count()
 
     reason = _refused(
-        course, outer, y, parent_ref=str(d2.pk), tab=CalloutElement.SLOT_ID
+        course, outer, y, parent_ref=str(d3.pk), tab=CalloutElement.SLOT_ID
     )
 
     assert reason == "too_deep"
