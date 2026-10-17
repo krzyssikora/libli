@@ -1948,6 +1948,41 @@
     }
   }, true);
 
+  // Swipe the sheet down by its head (grabber + title strip) to close it. Touch
+  // only; the close button keeps its own tap. touch-action: none on the head
+  // (builder.css) keeps the browser from taking the gesture as a pan.
+  function dragOffset(e) { return Math.max(0, e.clientY - dragStartY); }
+  function snapBack() {
+    sheetShell.style.removeProperty("transition");
+    sheetShell.style.removeProperty("--sheet-drag");
+  }
+  if (sheetGrab) {
+    sheetGrab.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "touch" || !isPhone() || !sheetIsOpen()) return;
+      if (e.target.closest && e.target.closest("[data-sheet-close]")) return;
+      dragStartY = e.clientY;
+      try { sheetGrab.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      sheetShell.style.transition = "none";
+    });
+    sheetGrab.addEventListener("pointermove", function (e) {
+      if (dragStartY === null) return;
+      sheetShell.style.setProperty("--sheet-drag", dragOffset(e) + "px");
+    });
+    sheetGrab.addEventListener("pointerup", function (e) {
+      if (dragStartY === null) return;
+      var dy = dragOffset(e);
+      dragStartY = null;
+      sheetShell.style.removeProperty("transition");
+      if (dy >= Math.min(80, sheetShell.offsetHeight / 4)) closeSheet();
+      else snapBack();
+    });
+    sheetGrab.addEventListener("pointercancel", function () {
+      if (dragStartY === null) return;
+      dragStartY = null;
+      snapBack();
+    });
+  }
+
   // Back from the editor via bfcache: land on the tree, not a stale sheet.
   window.addEventListener("pageshow", function (e) {
     if (e.persisted && sheetIsOpen()) closeSheet({ focus: false });

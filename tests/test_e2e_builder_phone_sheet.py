@@ -10,6 +10,7 @@ from playwright.sync_api import expect
 
 from tests.helpers_builder_phone import assert_phone
 from tests.helpers_builder_phone import builder_url
+from tests.helpers_builder_phone import cdp_swipe
 from tests.helpers_builder_phone import login
 from tests.helpers_builder_phone import make_pa_user
 from tests.helpers_builder_phone import phone_context
@@ -588,5 +589,106 @@ def test_sheet_scroll_resets_between_opens(browser, live_server):
             " return [p.scrollHeight, p.clientHeight]; }"
         )
         assert heights[0] <= heights[1] + 1, heights
+    finally:
+        context.close()
+
+
+REST = "['none', 'matrix(1, 0, 0, 1, 0, 0)']"
+
+
+def _shell_at_rest(page):
+    """The open transition has finished and no drag offset remains."""
+    page.wait_for_function(
+        "() => " + REST + ".includes(getComputedStyle("
+        "document.querySelector('[data-sheet-shell]')).transform)"
+    )
+    page.wait_for_timeout(400)
+    assert page.evaluate(
+        "() => " + REST + ".includes(getComputedStyle("
+        "document.querySelector('[data-sheet-shell]')).transform)"
+    )
+
+
+def _head_y(page):
+    box = page.locator("[data-sheet-grab]").bounding_box()
+    return box["y"] + box["height"] / 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_swipe_down_closes(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course(extra_lessons=40)
+    context, page = _open(browser, live_server, seeded["course"])
+    try:
+        _scroll_to(page, 400)
+        page.wait_for_timeout(600)
+        y0 = page.evaluate("() => window.scrollY")
+        scopes = _scopes(page)
+        _open_kurs(page)
+        _shell_at_rest(page)
+        y = _head_y(page)
+        cdp_swipe(page, 195, y, y + 200)
+        _sheet_closed(page)
+        assert _active_matches(page, "[data-sheet-course]")
+        assert page.evaluate("() => window.scrollY") == y0
+        assert _scopes(page) == scopes
+        page.wait_for_timeout(500)
+        # Chromium swallows the first tap after a fast touch stream (as after a
+        # fling); if that one did nothing, tap again. The sheet is NOT open then,
+        # so the retry cannot hit the dim and close it.
+        box = page.locator("[data-sheet-course]").bounding_box()
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        page.touchscreen.tap(cx, cy)
+        page.wait_for_timeout(400)
+        if page.locator("[data-sheet].is-open").count() == 0:
+            page.touchscreen.tap(cx, cy)
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        _shell_at_rest(page)
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_short_swipe_snaps_back(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    context, page = _open(browser, live_server, seeded["course"])
+    try:
+        _open_kurs(page)
+        _shell_at_rest(page)
+        y = _head_y(page)
+        cdp_swipe(page, 195, y, y + 30)
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        _shell_at_rest(page)
+        assert (
+            page.evaluate(
+                "() => document.querySelector('[data-sheet-shell]')"
+                ".style.getPropertyValue('--sheet-drag')"
+            )
+            == ""
+        )
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tap_on_header_is_not_a_swipe(browser, live_server):
+    make_pa_user("pa")
+    seeded = seed_course()
+    context, page = _open(browser, live_server, seeded["course"])
+    try:
+        _open_kurs(page)
+        _shell_at_rest(page)
+        box = page.locator(".builder__sheet-grabber").bounding_box()
+        page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        page.wait_for_timeout(500)
+        expect(page.locator("[data-sheet].is-open")).to_be_visible()
+        # A close would slide the sheet away and the tap's click could land on a
+        # tree title behind it and reopen a sheet: the Kurs sheet itself must be
+        # the one still showing, never closed-then-reopened.
+        assert page.locator("[data-sheet]").get_attribute("data-mode") == "course"
+        expect(
+            page.locator('[data-panel] .panel[data-panel-for="course"]')
+        ).to_be_visible()
     finally:
         context.close()
