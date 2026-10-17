@@ -134,7 +134,15 @@ must update it too, so after ⋯ → Rename → commit the row shows the new
 title. Choosing Rename makes the title editable and commits through the
 existing rename path (`form.tree__rowhead`, `commitRename`, concurrency
 token); how the editable field is presented (inline in the row, or in a
-small dialog) is left to the builder, subject to the anti-goals. **On the
+small dialog) is left to the builder, subject to the anti-goals. **Exit
+from the phone editing state:** Escape reverts (as today) and exits; a
+successful commit exits after `applyRename`; a 409 (the row is re-rendered
+by `applyFragment`) exits with the server's title; a 422 keeps the field
+editing with the notice shown; blur/tap outside commits as on desktop,
+then exits. On every exit focus first moves to the row's ⋯ (the Rename
+opener; re-found by `data-node` if the row was replaced), and only then
+is the input hidden — focus never lands on a hidden element, and hiding
+never triggers the focusout commit. **On the
 phone layout, focusing the rename input never opens the sheet** — the
 `focusin` panel load is desktop-only.
 
@@ -172,7 +180,13 @@ phone toolbar section and the panel); `[data-panel]` itself does not
 scroll there. `setPanel` stays the single writer of panel content and, on
 the phone layout, also resets the wrapper body's `scrollTop` to 0; every
 sheet open resets it too, so a sheet never opens mid-way down. On desktop the wrapper is layout-neutral and the panel renders exactly
-as today. The wrapper is **not** a `<dialog>` element (a closed
+as today: outside the phone media query the wrapper is `display: contents`
+(so `.builder__panel` stays the grid item with its sticky positioning,
+`align-self`, max-height and the 720 px stacked override all unchanged),
+and the grab bar, ✕, phone toolbar section, dim layer and toast
+container are `display: none`. The dim layer is part of the sheet
+wrapper (or its sibling), outside the inert container, so it receives the
+close tap. The wrapper is **not** a `<dialog>` element (a closed
 `<dialog>` is `display:none` and would hide the desktop panel, and
 `showModal`'s native Escape/`cancel` would bypass the layering rules);
 modal semantics come from `role="dialog"` + `aria-modal="true"` on the
@@ -209,7 +223,9 @@ e.g. a fixed toast/bar — with the same 6 s lifetime and text. When the
 sheet is open, the toast sits ABOVE the sheet and its dim layer (e.g. a
 422 from a picker submit is visible). The toast's container sits OUTSIDE
 the inert container (a sibling of the sheet wrapper inside `.builder`),
-and carries `role="alert"` so assistive tech announces it.
+is `position: fixed` (never an in-flow `.builder` grid item) and
+`display: none` outside the phone layout, and carries `role="alert"` so
+assistive tech announces it.
 
 **Escape and focus layering:** one Escape closes only the TOPMOST layer.
 There are two layers:
@@ -251,7 +267,10 @@ inside `header.manage__head` next to the never-moving items (the h1 and
 the filter), never inside a moved group, so it never ends up in the sheet
 it opens. On the phone layout the header row that remains (course title,
 Kurs, filter) is `position: sticky` at the top of the viewport, so Kurs
-and the filter are reachable from deep in a long tree (my call). Kurs
+and the filter are reachable from deep in a long tree (my call). Its
+height is bounded: the h1 is clamped to one line with an ellipsis, and
+Kurs + the filter form stay on one row, so the sticky header stays at
+or below ~25% of the viewport height even in ~890×410 landscape. Kurs
 opens the sheet and
 replaces whatever the panel holds with the course panel via
 `setPanel(neutralPanel)` (no fetch).
@@ -292,7 +311,8 @@ Collapse all **closes the sheet** so the author sees the tree change and
 the existing busy dimming; the `data-expand-all-disabled` /
 `aria-disabled` state and its explanation ("This course is too large to
 expand at once.") stay, and on the phone the explanation is visible text,
-not only a tooltip. The info slot (`.builder__info`, `role="status"`)
+not only a tooltip. Tapping the disabled Expand all does nothing and
+leaves the sheet open, so the explanation stays readable. The info slot (`.builder__info`, `role="status"`)
 stays visible above the tree on the phone.
 
 **When the phone layout applies (D10):** `(pointer: coarse) and
@@ -335,7 +355,7 @@ desktop load (and so does the panel content: the course panel).
 - Light and dark themes both; verify with screenshots of both.
 - Polish UI strings via the existing i18n catalog (`makemessages`, both
   `.po` and compiled `.mo`). New strings expected: "Course"/"Kurs",
-  "More actions" (⋯ aria-label), "Close", "Rename", "Loading…" (reuse any
+  "More actions" (⋯ aria-label), "Close", "Rename", "Loading…", "Details" (reuse any
   that already exist).
 - Accessibility: ⋯ is a real `type="button"` with `aria-expanded` and
   `aria-controls` pointing at the shared menu — a plain **disclosure**,
@@ -343,7 +363,9 @@ desktop load (and so does the panel content: the course panel).
   model): on open, focus moves to the first enabled item, items are
   reached with Tab/Shift+Tab, Escape closes the menu and returns focus to
   ⋯. The sheet wrapper is a modal dialog via `role="dialog"` +
-  `aria-modal="true"` + an accessible label (phone only; NOT a `<dialog>`
+  `aria-modal="true"` + a fixed `aria-label` (new i18n string
+  "Details"/"Szczegóły"; not `aria-labelledby`, whose target `setPanel`
+  would replace) (phone only; NOT a `<dialog>`
   element, see Bottom sheet). On open, focus moves to a **stable target
   that `setPanel` never replaces** — the sheet's ✕ button — so it survives
   the placeholder being replaced by the panel or picker; focus is
@@ -383,7 +405,8 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
    width, ✕ and Escape dismiss).
 8. Kurs sheet: course panel + moved toolbar group; Expand all/Collapse all
    close the sheet and act; bulk hrefs correct after a filter change. A
-   row-tap sheet and a Move… sheet do NOT show the toolbar section.
+   row-tap sheet and a Move… sheet do NOT show the toolbar section. A
+   disabled Expand all leaves the sheet open with its explanation.
 9. Layout flips: desktop → phone while typing a rename (no commit, typed
    value kept in the phone editing state); phone → desktop with the sheet open (sheet/menu closed,
    no inert/scroll lock left, header group back in place); desktop →
@@ -410,13 +433,19 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
 16. Fresh phone load: a page loaded at 390×844 already has the moved
     containers in the Kurs sheet section and the filter, h1 and Kurs in
     the sticky header row; in landscape (~890×410) a row's title box is
-    wider than 60% of the viewport.
-17. ⋯ Delete chosen from the menu carries the current `open` set in its
+    wider than 60% of the viewport and the sticky header is at most ~25%
+    of the viewport height (with a long course title).
+17. ⋯ Rename then Escape: no POST is sent, the title is unchanged,
+    `document.activeElement` is the row's ⋯. ⋯ Rename then Enter: one
+    POST, the phone title shows the new value, focus on ⋯.
+18. ⋯ Delete chosen from the menu carries the current `open` set in its
     href (proves activation goes through the real control).
-18. Desktop no-regression: a ~945 px mouse window keeps the desktop
+19. Desktop no-regression: a ~945 px mouse window keeps the desktop
     layout with rename-in-place, drag and the Tab debounce intact; the
-    desktop header looks and orders exactly as before; the existing
-    builder e2e suite stays green.
+    desktop header looks and orders exactly as before; on a long tree the
+    panel stays in the viewport after scrolling (sticky, its top near
+    `--space-4`); no new grid row or gap appears; the existing builder
+    e2e suite stays green.
 
 ## Left to the builder
 
