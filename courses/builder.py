@@ -58,7 +58,7 @@ class PlacementRefused(Exception):
         self.reason_key = reason_key
 
 
-MAX_NEST_DEPTH = 4  # a top-level element has depth 1
+MAX_NEST_DEPTH = 5  # a top-level element has depth 1
 
 # Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
 # membership here. Any new container must be added to THIS set, to
@@ -299,8 +299,8 @@ def ancestor_pks(element):
     student-facing POST. element_depth and payloads.validate_nesting both count
     hops for exactly this reason.
 
-    MAX_NEST_DEPTH is 4 and a top-level element has depth 1, so well-formed
-    content has at most three ancestors and the walk always terminates on
+    MAX_NEST_DEPTH is 5 and a top-level element has depth 1, so well-formed
+    content has at most four ancestors and the walk always terminates on
     `node is None`; the guard is purely a corruption backstop.
     """
     ancestors, node, hops = set(), element.parent, 0
@@ -376,7 +376,7 @@ def _parse_scope_ref(unit, parent_ref, tab):
         raise NestingError("parent and tab must be supplied together")
     try:
         join = (
-            Element.objects.select_related("parent__parent__parent")
+            Element.objects.select_related("parent__parent__parent__parent")
             .filter(pk=int(parent_ref), unit=unit)
             .first()
         )
@@ -469,7 +469,7 @@ class SubtreeFacts:
 def _slot_cap(join):
     """cap(n): a container may live at depth 1..MAX_NEST_DEPTH-1, a leaf at 1..MAX.
 
-    A container at depth 4 would render slots that can never be filled. Reads the
+    A container at depth 5 would render slots that can never be filled. Reads the
     MODEL-keyed registry, not CONTAINER_TRANSFER_KEYS, because the subject is an
     existing row rather than an incoming request -- no model->key hop is needed. A
     dangling GFK gives type(None), which is in neither, so it counts as a leaf.
@@ -1277,7 +1277,7 @@ def _resolve_before(unit, el, before):
     if pk == el.pk:
         raise NestingError("cannot paste an element before itself")
     anchor = (
-        Element.objects.select_related("parent__parent__parent")
+        Element.objects.select_related("parent__parent__parent__parent")
         .filter(pk=pk, unit=unit)
         .first()
     )

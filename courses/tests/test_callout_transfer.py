@@ -68,9 +68,11 @@ def test_validator_rejects_overlong_heading():
         )
 
 
-def test_import_rejects_a_depth_4_callout_archive():
-    """D3a, a DECIDED break: a depth-4 callout was legal before this slice, so an
-    archive containing one becomes unimportable. Measured exposure: 0 rows.
+def test_import_rejects_a_depth_5_callout_archive():
+    """D3a, a DECIDED break: a callout at the leaf-only depth was legal before
+    callout became a container, so an archive containing one is unimportable.
+    Measured exposure: 0 rows. (The leaf-only depth moved from 4 to 5 with the
+    MAX_NEST_DEPTH lift.)
     """
     from courses.transfer.payloads import validate_nesting
     from courses.transfer.schema import TransferError
@@ -79,7 +81,8 @@ def test_import_rejects_a_depth_4_callout_archive():
         {"id": "a", "type": "spoiler", "parent": None, "tab": "", "data": {}},
         {"id": "b", "type": "spoiler", "parent": "a", "tab": "only", "data": {}},
         {"id": "c", "type": "spoiler", "parent": "b", "tab": "only", "data": {}},
-        {"id": "d", "type": "callout", "parent": "c", "tab": "only", "data": {}},
+        {"id": "d", "type": "spoiler", "parent": "c", "tab": "only", "data": {}},
+        {"id": "e", "type": "callout", "parent": "d", "tab": "only", "data": {}},
     ]
     with pytest.raises(TransferError):
         validate_nesting(elements)

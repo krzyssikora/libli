@@ -182,15 +182,15 @@ def test_paste_allowed_still_permits_a_non_question_into_a_quiz_container():
     ) == (True, None)
 
 
-def _depth_4_container(unit):
-    """A container sitting at depth 4, built through the ORM.
+def _depth_5_container(unit):
+    """A container sitting at depth 5, built through the ORM.
 
     UNREACHABLE through resolve_scope: clause 4 forbids a container at depth
     MAX_NEST_DEPTH-1 or deeper, so no authoring path produces this. Modelled on
     courses/tests/test_nesting_rule.py::_mk, which exists for the same reason.
     """
     cur = None
-    for _ in range(3):
+    for _ in range(4):
         tabs = TabsElement.objects.create(data=TabsElement.default_data())
         cur = _join(
             unit,
@@ -209,13 +209,13 @@ def _depth_4_container(unit):
 )
 def test_question_in_quiz_is_reported_BEFORE_too_deep(unit_type, expected):
     """Precedence, both directions. A question is a leaf, so min_headroom is
-    MAX_NEST_DEPTH and too_deep needs a destination at depth 4 -- hence the hand-built
+    MAX_NEST_DEPTH and too_deep needs a destination at depth 5 -- hence the hand-built
     chain. The lesson half is what fails if the clause is placed AFTER clause 3:
     without it, a clause in either position reports question_in_quiz for the quiz.
     """
     _course, lesson, quiz = _units()
     unit = quiz if unit_type == "quiz" else lesson
-    dest = _depth_4_container(unit)
+    dest = _depth_5_container(unit)
     marked = _choice(unit)
     assert builder.paste_allowed(
         unit, marked, dest, CalloutElement.SLOT_ID, "move"

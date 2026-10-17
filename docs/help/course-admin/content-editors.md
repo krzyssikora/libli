@@ -175,11 +175,12 @@ a row, never produces an empty slide — it's simply absorbed.
 ## Containers and nesting
 
 Tabs, Columns, Spoiler, Callout, and Before / after are the five container
-types. A container can hold another container, up to three container levels
-— for example a Spoiler holding a Tabs container that holds another Spoiler.
-Ordinary content sits inside that third level, so a nested element can be
-four levels down. The third-level container's own **Add element** menu
-offers leaves only: no further container, question, or Slide break.
+types. A container can hold another container, up to four container levels
+— for example a Spoiler holding another Spoiler, which holds a Callout that
+holds Columns. Ordinary content sits inside that fourth level, so a nested
+element can be five levels down. The fourth-level container's own **Add
+element** menu offers leaves only: no further container, question, or Slide
+break.
 
 Inside any container, a nested **Add element** menu offers the non-container
 Content types — Text, Image, Video, Iframe, Math, HTML, Table, Gallery —
