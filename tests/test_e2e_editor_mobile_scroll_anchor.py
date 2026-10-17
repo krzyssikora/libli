@@ -215,6 +215,17 @@ FIRST_VISIBLE = """() => {
 }"""
 
 
+def _precedes(page, a, b):
+    """True when row `a` comes before row `b` in document order -- proves the move
+    happened, so an unchanged top cannot come from a silently refused op."""
+    return page.evaluate(
+        "([a, b]) => { const q = (id) => document.querySelector("
+        "'[data-scope=\"editor\"] .el-row[data-element=\"' + id + '\"]');"
+        " return !!(q(a).compareDocumentPosition(q(b)) & 4); }",
+        [str(a), str(b)],
+    )
+
+
 def _first_visible_row_id(page):
     return page.evaluate(FIRST_VISIBLE)
 
@@ -252,6 +263,7 @@ def test_phone_up_past_tall_container_keeps_row(page, live_server):
     t0 = _row_top(page, target.pk)
     _swap_click(page, btn)
     assert abs(_row_top(page, target.pk) - t0) <= 2
+    assert _precedes(page, target.pk, co.pk)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -273,6 +285,7 @@ def test_phone_up_with_row_top_just_above_viewport(page, live_server):
     t0 = _row_top(page, target.pk)
     _swap_click(page, btn)
     assert abs(_row_top(page, target.pk) - t0) <= 2
+    assert _precedes(page, target.pk, co.pk)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -294,6 +307,7 @@ def test_phone_repeated_up_keeps_row(page, live_server):
         t = _row_top(page, m.pk)
         _swap_click(page, btn)
         assert abs(_row_top(page, m.pk) - t) <= 2
+    assert _precedes(page, m.pk, lead[-4].pk)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -404,9 +418,12 @@ def test_phone_nested_create_lands_at_pane_top(page, live_server):
     page.keyboard.type("Nested new text")
     form = corow.locator("[data-edit-slot] form[data-op='element-save']").first
     vh = _inner_h(page)
-    while form.bounding_box()["height"] < 2 * vh:
+    for _ in range(30):
+        if form.bounding_box()["height"] >= 2 * vh:
+            break
         for _ in range(10):
             page.keyboard.press("Enter")
+    assert form.bounding_box()["height"] >= 2 * vh, "Enter no longer grows the form"
     save = form.locator("button[type=submit]").last
     _scroll_box_to(page, save, vh - 60)
     _assert_on_screen(page, save)
@@ -450,6 +467,7 @@ def test_phone_split_mode_keeps_row_after_preview_timers(page, live_server):
     t0 = _row_top(page, target.pk)
     _swap_click(page, btn)
     assert abs(_row_top(page, target.pk) - t0) <= 2
+    assert _precedes(page, target.pk, co.pk)
     page.evaluate("() => new Promise(r => setTimeout(r, 700))")
     assert abs(_row_top(page, target.pk) - t0) <= 2
 

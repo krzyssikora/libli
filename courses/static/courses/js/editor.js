@@ -337,8 +337,10 @@
       if (skip && skip.contains(r)) continue;
       if (!rendered(r)) continue;
       var t = r.getBoundingClientRect().top;
-      if (t >= vh) break;  // stacked layout: document order is vertical order
-      if (t >= 0) caught.push(r);
+      // No early break on t >= vh: two-column and before/after slots sit side by
+      // side once the pane is wider than ~31rem (still stacked below 70rem), so a
+      // later row in document order can be on-screen after one below the fold.
+      if (t >= 0 && t < vh) caught.push(r);
     }
     caught.forEach(function (r) { push(r.getAttribute("data-element"), r.getBoundingClientRect().top, false); });
     // 4. A tabs/columns slot can re-collapse when the clip ends (cancel, paste-move),
