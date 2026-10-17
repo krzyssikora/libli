@@ -65,8 +65,8 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
   - `keepInPlace(anchors) -> boolean` (true iff the resolved anchor had `primary: true`)
   - `revealFocusRow(row: Element|null) -> void`
 - Test helpers produced (module-level in the test file):
-  - `_seed_texts(unit, n, prefix, paras=1) -> list[Element]`
-  - `_seed_callout(unit, children: int, child_paras=1, tall_last=False) -> (Element, list[Element])`
+  - `_seed_texts(unit, n, prefix) -> list[Element]`
+  - `_seed_callout(unit, children: int, parent=None) -> (Element, list[Element])`: a callout (top-level, or nested under `parent`) with `children` short text children.
   - `_arm_swap(page)`, `_wait_swap(page)`
   - `_row_top(page, eid) -> float`
   - `_first_visible_row_id(page) -> str`
@@ -83,15 +83,15 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
     - Top-level text: `tests.factories.add_element(unit, TextElement.objects.create(body=...))`.
     - Callout: `add_element(unit, CalloutElement.objects.create(kind="note", heading="Box"))`.
     - Container children: `Element.objects.create(unit=unit, content_object=..., parent=<callout join>, tab_id=SINGLE_SLOT_ID)`. `SINGLE_SLOT_ID` comes from `courses.models`; `Element.order` is an `OrderField(for_fields=["unit"])`, so it is assigned automatically.
-  - **Tall text.** `body = "".join(f"<p>{' '.join(['lorem'] * 40)} {i}</p>" for i in range(paras))`.
+  - **Tall rows.** A TextElement editor row is a **one-line label** (`body_excerpt`, `.el-row__label { white-space: nowrap }`), so extra paragraphs never make it taller. A tall row = **a callout with N short children**; its height grows with N. Callouts are nestable (`NESTABLE_TYPE_KEYS`, `MAX_NEST_DEPTH = 4`). Each test that needs a tall row asserts its measured height before relying on it.
   - **Swap sync.** `_arm_swap` / `_wait_swap` use exactly the JS strings in spec §Testing → "Swap synchronisation", including the two-rAF `page.evaluate` Promise.
   - **`_first_visible_row_id`** returns the id of the first `[data-scope="editor"] .el-row[data-element]` in document order where `checkVisibility()` is true, height > 0, and `0 <= top < (visualViewport.height || innerHeight)`.
   - **Page setup.** Every test: `page.set_viewport_size(...)`, `goto`, `wait_for_selector('[data-scope="editor"]')`, then click `[data-view="editor"]` (or `split` for (k)).
   - **Pre-click guards.** Before each click, assert that the target button's rect lies inside `[0, innerHeight)`. Call `_assert_unclamped(page, max_up, max_down)` with the test's expected correction magnitude:
     - (a)/(b2)/(k): `max_up` ≈ the 8-child callout's height;
     - (b): one row height;
-    - (c): S's height;
-    - (h)/(h2): S's height;
+    - (c): S-callout's height;
+    - (h)/(h2): S-callout's height;
     - (i): the deleted callout's height (`max_down`);
     - (l)/(d): 150;
     - (j): 0.
@@ -112,7 +112,9 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       assert abs(_row_top(page, target) - t0) <= 2
 
   def test_phone_repeated_up_keeps_row(page, live_server):  # (b)
-      # 4 presses, each past a plain text row; per press: t=_row_top; click; then
+      # seed: 10 leading texts, the moving row M, 1.5 viewports trailing; M starts mid-viewport.
+      # 4 presses, each past a plain text row; before each: ↑ on-screen check + _assert_unclamped;
+      # per press: t=_row_top; click; then
       assert abs(_row_top(page, eid) - t) <= 2   # vs the top just before THAT press
 
   def test_phone_select_keeps_tapped_row(page, live_server):  # (l)
@@ -141,7 +143,9 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       # until form height >= 2*innerHeight (keyboard input fires the input event that syncs
       # [data-rte-source]; see test_e2e_editor.py::test_add_text_element). Scroll so Save is within
       # ~60px of the viewport bottom; assert form top <= -innerHeight, no row top on-screen,
-      # scrollHeight - (scrollY+innerHeight) >= formHeight + 100; click Save
+      # scrollHeight - (scrollY+innerHeight) >= formHeight + 100; click Save =
+      # callout_row.locator("[data-edit-slot] form[data-op='element-save'] button[type=submit]").first
+      # (the pending create row has no data-element, so not _row_control), wrapped in swap sync
       new = page.evaluate("document.querySelector('[data-scope=\"editor\"]').getAttribute('data-saved-element')")
       pad = page.evaluate("parseFloat(getComputedStyle(document.querySelector('[data-scope=\"editor\"] .pane-body')).paddingTop)")
       assert abs(_row_top(page, new) - pad) <= 2
@@ -179,7 +183,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
   - **Op name.** `op = form.getAttribute("data-op")`.
   - **Candidate 2.**
-    - `HEAD_OPS = ["element-move", "element-clip", "element-duplicate"]`. Add `"element-paste-before"` when its hidden `mode` input is `copy`; Task 2 handles the move case.
+    - `HEAD_OPS = ["element-move", "element-clip", "element-duplicate"]`. Add `"element-paste-before"` when `form.elements.mode && form.elements.mode.value === "copy"` (always via `form.elements`, never `form.mode`; see the shadowing note in `post()`). Task 2 handles the move case.
     - `OTHER_OPS = ["element-save", "element-delete"]`. An op in neither set records nothing.
     - Record `{id: opRow's data-element, top: opRow top, primary: false}` when `rendered(opRow)` and either:
       - a head op with `onScreen(form.getBoundingClientRect().top)`; or
@@ -258,7 +262,9 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
   ```python
   def test_phone_move_here_lands_at_tapped_spot(page, live_server):  # (c)
-      # seed: texts, tall S (>=200px row), callout(~10 children, tall last child), trailing
+      # seed: texts, S = callout(5 children) (assert S row height >= 200), destination callout D
+      # with ~8 text children whose LAST child is a nested callout(8 children) (assert its height >
+      # innerHeight/2), trailing. Discrimination: under mutant 1 S lands at f0 + formH - S.height.
       # select S; scroll so the callout's form[data-op=element-paste] button[value=move] is
       # mid-viewport, the callout row top < 0, and no child row top is on-screen (assert all)
       # f0 = paste form top; click Move here
@@ -266,7 +272,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       assert 0 <= _row_top(page, s) < page.evaluate("innerHeight")   # S on-screen
 
   def test_phone_move_before_lands_at_tapped_spot(page, live_server):  # (h)
-      # seed: texts, tall S (6 paras), 3 texts, T, trailing; select S; scroll so T is the
+      # seed: texts, S = callout(5 children), 3 texts, T, trailing; select S; scroll so T is the
       # FIRST rendered on-screen row (rows above it off-screen) and its paste-before button is
       # on-screen (assert both). That way mutant 6 (no candidate 1, no candidate 2) holds T,
       # putting S at T.top - S.height, far from f0.
@@ -274,7 +280,8 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       assert abs(_row_top(page, s) - f0) <= 2
 
   def test_phone_move_before_tall_element_skips_safety_net(page, live_server):  # (h2)
-      # as (h) with S taller than innerHeight - f0, so T lands entirely below the viewport
+      # as (h) with S = callout(~15 children); assert S height > innerHeight - f0, so T lands
+      # entirely below the viewport
       assert abs(_row_top(page, s) - f0) <= 2
 
   def test_phone_refused_move_does_not_jump(page, live_server):  # (j)
@@ -310,7 +317,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
 - [ ] **Step 4: Run the whole new file; all must pass**
 
-  Command as in Task 1 Step 2, without `-k`. Expected: all 13 PASS.
+  Command as in Task 1 Step 2, without `-k`. Expected: all 13 PASS. Then re-run Task 1 Step 7's grep-derived non-e2e editor.js tests (the `.action` ban included). Expected: all pass.
 
 - [ ] **Step 5: Commit**
 
@@ -368,11 +375,28 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
   Run in 3 chunks, foreground, each with a Bash timeout of 600000 and `-p no:xdist`. Prefix every command with
   `TEST_DATABASE_URL=postgres://libli@127.0.0.1:55433/libli_scrollfix uv run pytest -m e2e -p no:xdist`.
-  - Chunk 1: the `editor*` and `preview*` files.
-  - Chunk 2: `clipboard`, `paste_before`, `cross_unit_copy`.
-  - Chunk 3: `tabs`, `twocolumn`, `depth3`.
+  - **Chunk 1:**
+    - `tests/test_e2e_editor_scroll_containment.py`
+    - `tests/test_e2e_editor_preview_state_regression.py`
+    - `tests/test_e2e_preview_nested_locate.py`
+    - `tests/test_e2e_editor.py`
+    - `tests/test_e2e_editor_view_toggle.py`
+    - `tests/test_e2e_editor_row_layout.py`
+    - `tests/test_e2e_editor_container_state.py`
+    - `tests/test_e2e_editor_force_open.py`
+    - `tests/test_e2e_editor_saved_element_in_view.py`
+    - `tests/test_e2e_editor_unit_token.py`
+  - **Chunk 2:**
+    - `tests/test_e2e_clipboard.py`
+    - `tests/test_e2e_paste_before.py`
+    - `tests/test_e2e_cross_unit_copy.py`
+  - **Chunk 3:**
+    - `tests/test_e2e_tabs.py`
+    - `tests/test_e2e_twocolumn.py`
+    - `tests/test_e2e_depth3.py`
+  - **Unit files**, in their own command without `-m e2e`: the Task 1 Step 7 grep list, e.g. `uv run pytest tests/test_editor_js_scroll_invariants.py tests/test_editor_js_form_action.py ...`.
 
-  All paths are under `tests/`. The unit file runs without `-m e2e`. The files:
+  The files, for reference:
   - Unit test: `tests/test_editor_js_scroll_invariants.py`.
   - e2e (with `-m e2e`, and the `TEST_DATABASE_URL` above):
     - `test_e2e_editor_scroll_containment.py`
