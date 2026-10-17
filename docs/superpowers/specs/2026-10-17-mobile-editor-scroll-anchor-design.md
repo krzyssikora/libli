@@ -153,6 +153,9 @@ moves on to the next candidate.
      off-screen (the author is at the form's Save button).
    - Covers move ↑/↓, select, update-save, duplicate and paste-before-copy whose
      row (or control) is visible.
+   - Candidate 2 is **not** recorded for `element-paste` (any mode) or for a
+     paste-before **move**. Those rely on candidate 1 (status 200) or on the
+     catch-all (409/422).
    - For delete, this candidate is recorded too, but its row is gone after the
      swap, so it never resolves.
 3. **Visible rows (catch-all).** Record up to **5** `.el-row[data-element]` inside
@@ -238,7 +241,10 @@ paint, and before any test predicate can see the new pane.
      - A **partially** visible focus row is left alone. For example, after a 422
        the author stays at the error form they were looking at, even if the row's
        top is above the viewport.
-  3. `scrollPreviewTo(focusId)` is still called when `focusId` is set. On this
+  3. `alignTopInPane(focusRow)` is **not** called on the window path: it would
+     be a no-op on the non-scrolling editor pane, and leaving it in would invite
+     a future change to `alignTopInPane` to act here unexpectedly.
+     `scrollPreviewTo(focusId)` is still called when `focusId` is set. On this
      layout it routes through `alignTopInPane` on the preview's non-scrolling
      `.pane-body`, so it **must stay a no-op**. Never redirect it to the window:
      in stacked split mode the preview renders below the editor, and the page
@@ -501,6 +507,12 @@ Tolerance is ±2 px throughout.
     This is an ordering barrier on a known timer, not a guess at a sleep.
   - Assert: TARGET still keeps its top.
 
+- **(l) Select (⊹) keeps the tapped row still.**
+  - Seed with leading and trailing texts. Put a row at mid-viewport, record its
+    top, and click its ⊹.
+  - Assert: the row's top is unchanged. On master, the ~73 px banner inserted
+    above every row shifts it.
+
 ### Desktop no-regression (1280×800, editor-only)
 
 - **(f)** Scenario (a) at desktop. Set the start position by setting
@@ -521,7 +533,7 @@ Tolerance is ±2 px throughout.
 
 ### Falsification (required; output recorded in the PR)
 
-- Run (a)–(e), (b2), (h), (h2), (i) and (k) against the unmodified `editor.js`:
+- Run (a)–(e), (b2), (h), (h2), (i), (k) and (l) against the unmodified `editor.js`:
   all must go **RED**. (j) is a regression guard against the new code, so it may be green on
   master.
   Re-apply the fix: all **GREEN**.
@@ -539,6 +551,11 @@ Tolerance is ±2 px throughout.
   8. **Deleted-subtree exclusion removed from the catch-all** → (i).
   9. **Status check on candidate 1 dropped** → (j).
   10. **`scrollPreviewTo` / preview alignment redirected to the window** → (k).
+  11. **Head ops gated on `onScreen(opRow top)`** instead of the form's top → (b2).
+  12. **`element-clip` dropped from the head-op set** → (l).
+- **Admitted gap: duplicate and update-save.** Both reach candidate 2 through
+  the same head-op/other-op code as the tested ops. No dedicated test is
+  claimed.
 - **Admitted gap: container fallbacks (candidate 4).** No test seeds a
   tabs/columns element whose slot re-collapses across the op; seeding one is
   disproportionate here. The code comment says so.
