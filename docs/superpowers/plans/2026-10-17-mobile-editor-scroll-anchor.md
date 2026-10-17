@@ -44,7 +44,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 - Modify `courses/static/courses/js/editor.js`:
   - helpers next to `alignTopInPane` (~line 229);
   - the submit handler (~lines 494–521).
-- Create `tests/test_e2e_editor_mobile_scroll_anchor.py`: every new e2e case, plus local helpers (`_seed_texts`, `_seed_callout`, `_arm_swap`, `_wait_swap`, `_row_top`, `_first_visible_row_id`, `_scroll_window_to_row`).
+- Create `tests/test_e2e_editor_mobile_scroll_anchor.py`: every new e2e case, plus local helpers (`_seed_texts`, `_seed_callout`, `_arm_swap`, `_wait_swap`, `_row_top`, `_first_visible_row_id`, `_scroll_window_to_row`, `_row_control`, `_assert_unclamped`).
 
 ---
 
@@ -214,9 +214,9 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
 - [ ] **Step 6: Wire it into the submit handler**
 
-  - Before `post(...)`: `var submitter = e.submitter || null;` Pass it to `post` in place of `e.submitter`, with the same value.
+  - Before `post(...)`: `var opSubmitter = e.submitter || null;` (a distinct name: the "Try it" branch above already declares `submitter` with a `_libliSubmitter` fallback that does not apply here). Pass `opSubmitter` to `post` in place of `e.submitter`, with the same value, and to `recordAnchors`.
   - Inside the existing `if (res.status === 200 || res.status === 409 || res.status === 422)` block, **before** `applyFragments(res.text)`:
-    `var anchors = recordAnchors(form, submitter, res.status, opRow);`
+    `var anchors = recordAnchors(form, opSubmitter, res.status, opRow);`
   - Keep `applyFragments` and the `flash` line as they are.
   - Keep the `pane` / `focusId` lines as they are. Then:
 
