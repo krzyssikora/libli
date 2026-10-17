@@ -173,6 +173,12 @@ paint, and before any test predicate can see the new pane.
        guarantees the focus row isn't lost.
   2. **Focus visibility safety net.** Resolve `focusId` exactly as today
      (`data-saved-element` wins, else `keepId`) and look up `focusRow`.
+     - Only `element_save` sets `data-saved-element`
+       (`views_manage.py`, `saved_element=join.pk`). For paste ops, `focusId` is
+       therefore the container row ("Move here" in a slot), the target row
+       (paste-before), or null (top-level paste), never the moved element.
+       Bringing a moved element back on screen relies on candidate 1 plus the
+       clamp alone.
      - If `focusRow` exists, is `rendered`, and is **entirely** off-screen
        (`bottom <= 0 || top >= viewportH()`), scroll so its top lands at the
        margin: `window.scrollBy(0, focusRow.getBoundingClientRect().top - margin)`,
@@ -321,8 +327,8 @@ Tolerance is ±2 px throughout.
     - then TARGET;
     - then trailing texts.
   - Collapse the first callout's slot through its real `<summary>` before the
-    op. That puts unrendered child rows ahead of TARGET in document order, so a
-    `rendered`-less implementation picks a zero-rect row and goes red.
+    op. This is realism, not a mutant-killer: TARGET is the op's own row, so
+    candidate 2 resolves first and the catch-all is never consulted.
   - Put TARGET's row at mid-viewport, record its top, click its ↑.
   - Assert: TARGET's row top equals the recorded top.
   - On master it lands around −730.
@@ -331,12 +337,27 @@ Tolerance is ±2 px throughout.
   - Assert: the row top stays at its starting position after every press.
   - On master it drifts about one row height per press.
 - **(c) Move here into a callout whose top is OFF-screen.**
-  - Seed: a selected text S *above* a callout with ~10 children (taller than
-    the viewport), then trailing texts.
+  - Seed:
+    - leading texts;
+    - a **tall** selected text S (several paragraphs, rendered row height ≥ 200 px,
+      i.e. much taller than the paste form);
+    - a callout with ~10 children, the **last of them tall** (taller than half
+      the viewport);
+    - then trailing texts.
   - Select S with ⊹ (re-synchronise).
-  - Scroll so the callout's "Move here" button is at mid-viewport and the
-    callout's own row top is above the viewport (assert both). Record the paste
-    form's top.
+  - Scroll so that, at once:
+    - the callout's "Move here" button is at mid-viewport;
+    - the callout's own row top is above the viewport;
+    - **no child row's top is on-screen**: the tall last child starts above the
+      viewport.
+
+    Assert all three. Record the paste form's top.
+  - **Why the seed is shaped this way.** It makes the test discriminate the
+    primary candidate from the catch-all. Without candidate 1, the catch-all
+    would hold the first trailing row below the form. S would then land at
+    `formTop + formH − S.height`, far above the asserted `formTop` because
+    S.height ≫ formH. The falsification record shows that both numbers differ by
+    more than 50 px.
   - Click "Move here".
   - Assert: S's row (same `data-element`) top equals the recorded form top, and
     S's row is on-screen.
@@ -354,16 +375,31 @@ Tolerance is ±2 px throughout.
   - Assert: R's top is unchanged. On master, the banner and every paste button
     disappearing shifts R.
 - **(e) Create inside a container lands at the top (safety net), with no anchor.**
-  - Seed: a callout with 2 children, followed by trailing texts.
+  - Seed: a callout with 2 children, followed by trailing texts amounting to
+    **at least the edit form's height plus one viewport**. Saving collapses the
+    tall form, so the document shrinks by roughly that much; without this the
+    bottom clamp could leave the new row partly visible on a correct build.
   - Open the callout's nested "Add element" → a text type. Fill the body with
     enough lines that the edit form is taller than the viewport.
   - Scroll so the form's Save button is on-screen and **no**
     `.el-row[data-element]` top is on-screen (assert this). Then no candidate
     exists.
+  - Before Save, also assert:
+    `documentElement.scrollHeight − (scrollY + viewportH) ≥ formHeight + 100`.
   - Save. The collapsed new row lands where the form's top was, i.e. entirely
     above the viewport, unless the safety net acts.
   - Assert: the new row (`data-saved-element`) top equals the editor pane body's
     computed `padding-top`, within ±2 px.
+- **(h) "Move before this element" (paste-before move).**
+  - Seed: leading texts, a selected text S, ≥ 3 texts, a target text T, then
+    trailing texts.
+  - Select S. Scroll so T's row (and its paste-before button) is at
+    mid-viewport, and record the paste-before form's top.
+  - Click T's "Move before this element".
+  - Assert: S's row top equals the recorded paste-before form top.
+  - This guards the hidden-input mode read. The paste-before submit button has
+    no `name`/`value`, so reading the mode from the submitter would skip
+    candidate 1.
 
 ### Desktop no-regression (1280×800, editor-only)
 
@@ -374,22 +410,34 @@ Tolerance is ±2 px throughout.
   ↑ past the tall container (a large, known shift). Before the click, wrap
   `window.scrollBy` and `window.scrollTo` with counting spies via
   `page.evaluate`, then assert zero calls after the op.
-  - The falsification record must show a **non-zero** count under mutant 5.
+  - The falsification record must show:
+    - the **baseline**: zero calls on unmodified master for the same op, which
+      proves nothing else on the page calls these;
+    - a **non-zero** count under mutant 5.
   - `window.scrollY` is NOT a usable signal: the ≥70rem page is locked to the
     viewport and cannot scroll.
 
 ### Falsification (required; output recorded in the PR)
 
-- Run (a)–(e) against the unmodified `editor.js`: all five must go **RED**.
+- Run (a)–(e) and (h) against the unmodified `editor.js`: all must go **RED**.
   Re-apply the fix: all **GREEN**.
 - Mutants, each chosen from a likely implementation mistake. Each must turn the
   named test red:
   1. **Primary paste-move anchor removed** (always use the op's row) → (c).
   2. **First-visible-row catch-all removed** → (d).
   3. **Safety net removed** → (e).
-  6. **`rendered()` check dropped from the catch-all** → (a).
   4. **Anchor measured after `applyFragments`** instead of before → (a).
   5. **Gate forced to the window path on desktop** → (g).
+  6. **Paste-before mode read from the submitter** instead of the hidden
+     input → (h).
+- **Admitted gap: `rendered()`.** It is defence-in-depth with no independently
+  observable effect in these tests. Two things make it unobservable here:
+  - resolution re-checks `rendered` after the swap, and `applyStoredSlots` keeps
+    collapsed slots collapsed, so a recorded zero-rect row is skipped anyway;
+  - no deterministic seed makes the safety net meet an unrendered focus row.
+
+  No mutant is claimed for it, and the code comment beside the check says so,
+  per the "admit in a comment" rule.
 
 ### Existing suites that must stay green
 
