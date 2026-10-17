@@ -300,12 +300,19 @@ ink width for each.
   ink width + 1em + 20px at 390px and at 1280px.
 - **multi-base**: `x = \frac{a}{b} + y \tag{3}`-shaped, fitting, which yields several
   `.base` runs **of clearly different height** (the fraction), so the
-  `align-items: baseline` mutant has something to move.
+  `align-items: baseline` mutant has something to move. Same fit condition as
+  fit-mixed: free space / 2 ≥ tag ink width + 1em + 20px at 390px and 1280px.
 - **near-fit**: a `\tag{…}` display (not an array environment, so there is no
   2px `.vlist-t` overshoot to blur a `scrollWidth` check). At 390px it satisfies
-  formula + tag ink + 1em ≤ column − 10px and free space / 2 < tag ink width − 10px.
-  The vendor build therefore genuinely overlaps, and the new one must not. The
-  plan sizes it by measurement, per surface.
+  formula + tag ink + 1em ≤ column − 4px and free space / 2 < tag ink width − 4px.
+  The vendor build therefore genuinely overlaps, and the new one must not.
+  **Feasibility:** with C the column, F the formula, n the tag ink and g = 1em,
+  the conditions are n + g + 4 ≤ C − F < 2n − 8. They can only hold when
+  n > g + 12, about 32px at 390px. An ordinary `\tag{3}` (about 20–30px) cannot
+  meet them, so the near-fit tag must be long: `\tag{1.2.3}` or similar, about
+  2.5–3em. The C − F window is then n − g − 12 wide, roughly 25–35px, which is
+  reachable with an `\hspace` pad. The plan sizes it by measurement, per
+  surface, and records n, g and C − F.
 
 Assertions. "Overlap" means the tag ink's horizontal interval intersects the
 union of the `.base` rects. Rects are compared with a 0.5px tolerance.
@@ -321,7 +328,11 @@ union of the `.base` rects. Rects are compared with a 0.5px tolerance.
    on vendor, where the tag has scrolled left onto the formula. A "moves by the
    scroll delta" check is deliberately absent: it holds on both builds.
 3. **Fitting display unchanged (fit-mixed, multi-base; 390px and 1280px).**
-   Every `.base` rect and the tag ink rect match the vendor leg. This is a
+   Every `.base` rect, the tag ink rect, **and every individual ink leaf rect**
+   (each `.eqn-num`, compared in document order) match the vendor leg. The
+   per-leaf comparison matters. A row-alignment change, with (9) right-aligned
+   instead of centred under (10), moves only narrow rows inside the widest row's
+   span, so the union is unchanged. This is a
    regression guard, expected green on both builds by construction. Its job is to
    catch a geometry change, such as the I2 inheritance (see falsification).
 4. **Numbers stay level with their rows (fit-mixed, multi-base, and at 390px
@@ -335,8 +346,11 @@ union of the `.base` rects. Rects are compared with a 0.5px tolerance.
    deleted. It guards against the new layout spilling.
 6. **Opt-outs and the untagged case (drift guards).** In `.el--table` and
    `.el--filltable` (tagged fixture), `.katex-html` computes `display: block`,
-   the tag computes `position: absolute`, and the tag's `text-align` equals its
-   parent's. In an untagged display, `.katex-html` computes `display: block`.
+   the tag computes `position: absolute`, the tag's `text-align` equals its
+   parent's, the tag's first child computes `margin-inline-start: 0px`, and the
+   tag's first child (the vlist) computes the same `text-align` as
+   `.katex-html`. The fixture is a multi-row tagged `align` in a `ta-left` cell, so
+   inherited alignment is distinguishable from `center`. In an untagged display, `.katex-html` computes `display: block`.
 7. **Page does not widen (regression guard).** At 390px with wide,
    `documentElement.scrollWidth == clientWidth`. This is the #292 invariant,
    re-pinned for the new flex overflow.
@@ -347,10 +361,11 @@ to courses.css, never with `git checkout`, and the file is re-run:
 | mutant | must go RED |
 |---|---|
 | delete the whole new block (main rules and opt-outs) | 1, 2 |
-| delete only `align-items: baseline` | 4 (if it stays green, the declaration is unearned: remove it or fix the test) |
+| delete only `align-items: baseline` | 3 (multi-base base rects) and/or 4. The declaration is unearned only if EVERY assertion stays green |
 | delete only the `.tag > *` rule | 3 (fit-mixed) |
 | delete only the `.el--table` opt-out | 6 |
 | delete only the `.el--filltable` opt-out | 6 |
+| delete only the `.tag > *` reset inside the `.el--table` opt-out | 6 (first-child `text-align`) |
 | delete only the `.tag > :first-child` gap rule | 1, 2 (the gap term) |
 | delete only `text-align: right` on `.tag` | 3 (fit fixtures; in near-fit/overflow the share equals the number, so nothing moves) |
 | delete the #292 `.katex-display` `overflow-x`/`overflow-y` pair | 7 |
