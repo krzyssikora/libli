@@ -28,7 +28,10 @@ piece of work, not in this design).
 ## Goals
 
 1. Titles readable on a phone in both orientations: wrap to at most two
-   lines, no single-line ellipsis.
+   lines, no single-line ellipsis. A title longer than two lines is
+   clamped with an ellipsis at the end of line 2 (`line-clamp: 2`); the
+   full title is always visible unclamped in the ⋯ menu header and in the
+   sheet's panel heading.
 2. Every action available today on a row stays available on a phone.
 3. Tapping a row shows its detail panel **on screen**, without losing the
    author's place in the tree.
@@ -163,8 +166,12 @@ produces two rows with near-identical titles ("X" and "X (kopia)").
 **Bottom sheet:** a sheet container (new markup, phone layout only)
 that WRAPS the existing `.builder__panel` / `[data-panel]` element (course
 panel, node panel, unit panel, move picker — panel content and `setPanel`
-unchanged), anchored to the bottom, with its own scroll, a grab bar and
-✕. On desktop the wrapper is layout-neutral and the panel renders exactly
+unchanged), anchored to the bottom, with a grab bar and ✕. On the
+phone the **wrapper's body is the single scroll container** (it holds the
+phone toolbar section and the panel); `[data-panel]` itself does not
+scroll there. `setPanel` stays the single writer of panel content and, on
+the phone layout, also resets the wrapper body's `scrollTop` to 0; every
+sheet open resets it too, so a sheet never opens mid-way down. On desktop the wrapper is layout-neutral and the panel renders exactly
 as today. The wrapper is **not** a `<dialog>` element (a closed
 `<dialog>` is `display:none` and would hide the desktop panel, and
 `showModal`'s native Escape/`cancel` would bypass the layering rules);
@@ -207,10 +214,26 @@ and carries `role="alert"` so assistive tech announces it.
 **Escape and focus layering:** one Escape closes only the TOPMOST layer.
 There are two layers:
 - **Tree layer** (active only while the sheet is closed): rename field
-  (Escape reverts, as today) → ⋯ menu → confirm strip.
+  or inline add-title input (`[data-add-title]`; Escape reverts/cancels,
+  as today) → ⋯ menu → confirm strip. Opening the ⋯ menu closes any open
+  add row.
 - **Sheet layer** (while the sheet is open): move picker (dismissing the
   picker restores the course panel and closes the sheet, per the rule
   above, in that one keypress) → sheet.
+While the sheet is open, ONE handler owns Escape: the sheet's handler
+runs first (capture phase on `document`), performs the sheet-layer step,
+and calls `preventDefault()`, so builder.js's existing document-level
+picker Escape handler (builder.js:127-136) hits its `e.defaultPrevented`
+early return and never double-dismisses. With the sheet closed the
+existing handlers behave as today.
+**Close ordering:** every close path — including the one inside
+`dismissPicker` and the picker-submit success/409 branch that calls
+`setPanel(neutralPanel)` — closes the sheet and removes `inert` and the
+scroll lock **before** any focus-return call (`focus()` on an inert
+element is silently ignored). The info slot's live-region update
+(`applyInfo`) runs before the sheet closes in the picker-submit path, so
+that one announcement may be lost while the slot is inert; accepted
+limitation (my call) — the slot's text is visible once the sheet closes.
 Opening the sheet closes the ⋯ menu and dismisses any open confirm strip
 (via `dismissStrip`) first, so nothing from the tree layer lingers under
 the sheet. Focus
@@ -314,11 +337,17 @@ desktop load (and so does the panel content: the course panel).
   `.po` and compiled `.mo`). New strings expected: "Course"/"Kurs",
   "More actions" (⋯ aria-label), "Close", "Rename", "Loading…" (reuse any
   that already exist).
-- Accessibility: ⋯ is a real `type="button"` with `aria-haspopup` /
-  `aria-expanded`; the sheet wrapper is a modal dialog via `role="dialog"` +
-  `aria-modal="true"` (phone only; NOT a `<dialog>` element, see Bottom
-  sheet), focus moved in on open and returned per the layering rules on
-  close.
+- Accessibility: ⋯ is a real `type="button"` with `aria-expanded` and
+  `aria-controls` pointing at the shared menu — a plain **disclosure**,
+  not an ARIA `role="menu"` (no `aria-haspopup="menu"`, no arrow-key
+  model): on open, focus moves to the first enabled item, items are
+  reached with Tab/Shift+Tab, Escape closes the menu and returns focus to
+  ⋯. The sheet wrapper is a modal dialog via `role="dialog"` +
+  `aria-modal="true"` + an accessible label (phone only; NOT a `<dialog>`
+  element, see Bottom sheet). On open, focus moves to a **stable target
+  that `setPanel` never replaces** — the sheet's ✕ button — so it survives
+  the placeholder being replaced by the panel or picker; focus is
+  returned per the layering rules on close.
 - Row DOM is large on big courses (mat-pp: ~2,900 rows when fully
   expanded; see the comment at the top of `_tree_node.html`). Do not
   duplicate per-row controls into a second per-row menu DOM; the one
@@ -346,7 +375,9 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
    filter states (with the visible reason); Move… opens the picker in the
    sheet, a move completes and the sheet closes.
 5. The loading placeholder shows on open; the previously shown panel is
-   never visible for the new row.
+   never visible for the new row; after the panel arrives
+   `document.activeElement` is still inside the sheet wrapper. Scroll a
+   Kurs sheet down, close it, tap a row: the new sheet starts at the top.
 6. A 409 or network notice is visible with the sheet closed.
 7. Container publish via the confirm strip at 390×844 (renders within the
    width, ✕ and Escape dismiss).
@@ -361,7 +392,9 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
 10. Race: hold a slow node-panel response, then tap Kurs (and separately
     ⋯ Move…); the late response must not overwrite the sheet.
 11. Keyboard: the phone title opens the sheet with Enter; focus returns
-    to it on close.
+    to it on close. A title longer than two lines wraps to two lines with
+    an ellipsis at the end of line 2 (no single-line ellipsis), and its
+    full text is shown in the ⋯ menu header.
 12. Modality: with the sheet open, a tap on a tree row, the filter or Kurs
     does nothing, Tab cannot reach any of them, and `scrollY` does not
     change on a scroll attempt. (Page chrome outside `.builder` — the site
