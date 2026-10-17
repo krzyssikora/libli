@@ -105,6 +105,30 @@ between the `.base` runs and the `.tag` vlist, so each number stays level with
 its row. This is an A/B-pinned claim (see Testing). If measurement shows any
 vertical drift, the plan must fix it before shipping, not explain it away.
 
+### Prototype measurement (2026-10-17, Chromium via Playwright)
+
+A standalone probe ran the vendored `katex.min.css`/`katex.min.js` plus the two
+#292 scroller shapes: prose `.katex-display`, and an `.el--math` ancestor with
+the inner display set to `overflow: visible`. It compared the vendor stylesheet
+against the vendor stylesheet plus the four rules above:
+
+| width | fixture | vendor tag (L–R) vs base right | new tag ink vs base right | after scroll-to-end (new) |
+|---|---|---|---|---|
+| 390 | wide align, prose | 348.6–374 over base ending 547.9 (**overlap**) | starts at 547.9 | ink right 372.3 ≤ scroller right 374 |
+| 390 | wide align, `.el--math` | 346.1–374 over base ending 628 (**overlap**) | starts at 628 | ink right 371.9 ≤ 374 |
+| 390 / 1280 | fitting align, `	ag` with 3 bases | base rects identical | base rects identical, ink flush right at 374 / 1264 | n/a |
+
+Vertical: `tag.top − katexHtml.top` and `tag.bottom − katexHtml.bottom` matched
+vendor to within 0.02px in every case. `documentElement.scrollWidth` stayed
+equal to `clientWidth` (390/390).
+
+**Measurement consequence for the tests:** under the new rule the `.tag` *box*
+is a flex-grow spacer. It spans from the formula's right edge to the column
+edge, and the number is right-aligned inside it. Every horizontal assertion must
+therefore measure the tag's **ink**, the rect of its content (its first child
+element, or a Range over its contents), never `.tag`'s own box. On the vendor
+build the two coincide, so the A/B stays like-for-like.
+
 ### Scope and opt-outs
 
 - `:has(> .tag)`: untagged displays (`align*`, `\[…\]`) are untouched.
