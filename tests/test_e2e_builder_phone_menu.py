@@ -526,3 +526,77 @@ def test_focus_returns_to_replaced_row(browser, live_server):
         _focus_is_more(page, lesson.pk)
     finally:
         context.close()
+
+
+def _is_filter_get(url):
+    return "/build/tree/" in url and "q=" in url
+
+
+@pytest.mark.django_db(transaction=True)
+def test_non_op_swap_closes_open_menu(browser, live_server):
+    """A filter response (not an op submit) replacing the opener's row while the
+    menu is open closes the menu, and focus never drops to <body>."""
+    context, page, seeded = _open(browser, live_server)
+    try:
+        lesson = seeded["lessons"][1]  # "Izometria": stays in the filtered tree
+        held = []
+        page.route(_is_filter_get, lambda route: held.append(route))
+        box = page.locator("#builder-q")
+        box.fill("Izometria")
+        box.press("Enter")
+        for _ in range(60):
+            if held:
+                break
+            page.wait_for_timeout(50)
+        assert len(held) == 1, held
+        _open_menu(page, lesson.pk)
+        page.evaluate(
+            "(pk) => { window.__oldRow = document.getElementById('node-' + pk); }",
+            lesson.pk,
+        )
+        with page.expect_response(lambda r: _is_filter_get(r.url)):
+            held[0].continue_()
+        _two_frames(page)
+        assert page.evaluate("() => window.__oldRow.isConnected") is False
+        expect(page.locator(f"#node-{lesson.pk}")).to_be_visible()
+        _menu_closed(page)
+        assert not _active_matches(page, "body")
+        _focus_is_more(page, lesson.pk)
+        assert _more(page, lesson.pk).get_attribute("aria-expanded") == "false"
+    finally:
+        context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tab_out_of_menu_closes_it(browser, live_server):
+    context, page, seeded = _open(browser, live_server)
+    try:
+        lesson = seeded["lessons"][1]
+        _more(page, lesson.pk).focus()
+        page.keyboard.press("Enter")
+        expect(page.locator("[data-row-menu]")).to_be_visible()
+        assert _active_matches(page, "[data-row-menu] [data-menu-action]")
+        in_menu = (
+            "() => document.querySelector('[data-row-menu]')"
+            ".contains(document.activeElement)"
+        )
+        for _ in range(12):
+            page.keyboard.press("Tab")
+            if not page.evaluate(in_menu):
+                break
+        assert not page.evaluate(in_menu), "Tab never left the menu"
+        # Nothing focusable follows the menu, so Tab leaves the document
+        # (relatedTarget null) -- the case a focusout-only close misses.
+        _menu_closed(page)
+        assert _more(page, lesson.pk).get_attribute("aria-expanded") == "false"
+
+        # Focus moved to a real element outside, with no key and no pointer
+        # (e.g. a screen reader's virtual cursor): focusout closes the menu.
+        _more(page, lesson.pk).focus()
+        page.keyboard.press("Enter")
+        expect(page.locator("[data-row-menu]")).to_be_visible()
+        page.locator("#builder-q").focus()
+        _menu_closed(page)
+        assert _active_matches(page, "#builder-q")
+    finally:
+        context.close()

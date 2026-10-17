@@ -491,7 +491,7 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    Collapse all as its own items. The phone-only pieces are display: none. */
 .builder__sheet, .builder__sheet-shell, .builder__sheet-body, .builder__movable { display: contents; }
 .builder__sheet-dim, .builder__sheet-head, .builder__sheet-tools, .builder__toast,
-.builder__kurs, .tree__ptitle, .tree__more, .row-menu { display: none; }
+.builder__kurs, .builder__bulk-reason, .tree__ptitle, .tree__more, .row-menu { display: none; }
 
 /* ── Phone layout (D1-D11) ──────────────────────────────────────────────────
    One block, matching builder.js's PHONE_MQ literally: `pointer`, never the
@@ -526,6 +526,10 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
   /* Import/Export and Expand/Collapse stay hidden while still in the header;
      builder.js moves them into the Kurs sheet's tools, where they show. */
   .js .manage__head .builder__movable { display: none; }
+  /* The legends block is a direct child of the tree pane until builder.js moves
+     it into the sheet tools (no longer a child of .builder__tree there): hidden
+     from the first paint, so a phone load never flashes it above the tree. */
+  .js .builder__tree > .builder__movable { display: none; }
   .js .builder__sheet-tools > .builder__movable { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
   /* Rows (D3-D5, D8): smaller indent, two-line plain title, ⋯ instead of the
@@ -600,10 +604,13 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
   .js .builder__sheet[data-mode="course"] .builder__sheet-tools {
     display: block; padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--space-3); }
-  /* Over the ceiling Expand all is an inert anchor; its existing `title` is the
-     only reason given, and a touch screen has no hover, so show it as text. */
-  .js [data-sheet-tools] [data-expand-all][aria-disabled="true"]::after {
-    content: attr(title); display: block; font-size: .8rem; color: var(--text-secondary); }
+  /* Over the ceiling Expand all is an inert anchor and a touch screen has no
+     hover for its `title`, so the reason is a real element (builder.html),
+     wrapped onto its own line below the buttons -- never generated content
+     inside the button, which would join the link's accessible name. */
+  .js .builder__sheet-tools .builder__bulk-reason {
+    display: block; flex: 1 0 100%; order: 1; margin: 0;
+    font-size: .8rem; color: var(--text-secondary); }
 
   /* Page scroll lock while the sheet is open (builder.js openSheet/closeSheet):
      the body is pinned at the saved scrollY (`--lock-y`), so nothing behind the

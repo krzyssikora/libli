@@ -303,18 +303,42 @@ def test_disabled_expand_all_keeps_sheet_open(browser, live_server, monkeypatch)
         expand_all.tap()
         page.wait_for_timeout(300)
         expect(page.locator("[data-sheet].is-open")).to_be_visible()
-        display, content = page.evaluate(
-            """() => {
-                 const el = document.querySelector(
-                   '[data-sheet-tools] [data-expand-all]');
-                 const cs = getComputedStyle(el, '::after');
-                 return [cs.display, cs.content]; }"""
-        )
-        assert display == "block"
-        assert content in ("attr(title)", f'"{TOO_LARGE}"'), content
+        # The reason is a REAL element below the button, never generated content
+        # inside it (that would join the link's accessible name).
+        reason = page.locator("[data-sheet-tools] [data-expand-all-reason]")
+        expect(reason).to_be_visible()
+        expect(reason).to_have_text(TOO_LARGE)
+        # Below the whole button row: under Expand all AND Collapse all.
+        top = reason.bounding_box()["y"]
+        for button in (
+            expand_all,
+            page.locator("[data-sheet-tools] [data-collapse-all]"),
+        ):
+            box = button.bounding_box()
+            assert top >= box["y"] + box["height"], (top, box)
+        assert page.evaluate(
+            """() => getComputedStyle(document.querySelector(
+                 '[data-sheet-tools] [data-expand-all]'), '::after').content"""
+        ) in ("none", "normal")
         assert expand_all.get_attribute("title") == TOO_LARGE
     finally:
         context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_disabled_expand_all_reason_hidden_on_desktop(page, live_server, monkeypatch):
+    from courses import builder_open
+
+    monkeypatch.setattr(builder_open, "CEILING", 1)
+    make_pa_user("pa")
+    seeded = seed_course()
+    page.set_viewport_size({"width": 1280, "height": 800})
+    login(page, live_server, "pa")
+    page.goto(builder_url(live_server, seeded["course"]))
+    page.wait_for_selector(".builder")
+    assert page.locator("[data-expand-all]").get_attribute("aria-disabled") == "true"
+    expect(page.locator("[data-expand-all-reason]")).to_have_count(1)
+    expect(page.locator("[data-expand-all-reason]")).to_be_hidden()
 
 
 @pytest.mark.django_db(transaction=True)

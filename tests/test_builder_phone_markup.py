@@ -182,3 +182,66 @@ def test_phone_rules_are_js_scoped():
 
 def test_no_any_pointer():
     assert "any-pointer" not in _BUILDER_CSS.read_text(encoding="utf-8")
+
+
+def _phone_rules():
+    """(selector, declarations) for every top-level rule in the phone block."""
+    css = re.sub(r"/\*.*?\*/", "", _BUILDER_CSS.read_text(encoding="utf-8"), flags=re.S)
+    start = css.index(_PHONE_MEDIA)
+    brace = css.index("{", start)
+    body = css[brace + 1 : _match_brace(css, brace)]
+    rules, pos = [], 0
+    while (open_at := body.find("{", pos)) != -1:
+        end = _match_brace(body, open_at)
+        prelude = " ".join(body[pos:open_at].split())
+        if not prelude.startswith("@"):
+            for selector in prelude.split(","):
+                rules.append(
+                    (selector.strip(), " ".join(body[open_at + 1 : end].split()))
+                )
+        pos = end + 1
+    return rules
+
+
+def test_phone_legends_hidden_before_js_moves_them():
+    """The legends block is a direct child of .builder__tree until builder.js moves
+    it into the sheet tools: hidden from first paint, so a phone load never
+    flashes it above the tree."""
+    decls = [
+        d
+        for sel, d in _phone_rules()
+        if sel == ".js .builder__tree > .builder__movable"
+    ]
+    assert any(re.search(r"(^|;)\s*display:\s*none\b", d) for d in decls), decls
+
+
+def test_expand_all_reason_is_not_generated_content():
+    """Generated content inside the button would join the link's accessible name."""
+    offenders = [
+        sel for sel, _ in _phone_rules() if "expand-all" in sel and "::" in sel
+    ]
+    assert offenders == []
+
+
+@pytest.mark.django_db
+def test_expand_all_reason_rendered_only_over_the_ceiling(client, monkeypatch):
+    from courses import builder_open
+
+    user = make_pa_user("pa")
+    client.force_login(user)
+    seeded = seed_course()
+    url = f"/manage/courses/{seeded['course'].slug}/build/"
+
+    def reasons():
+        soup = BeautifulSoup(client.get(url).content.decode(), "html.parser")
+        return soup, soup.select("[data-expand-all-reason]")
+
+    soup, found = reasons()
+    assert found == []
+    monkeypatch.setattr(builder_open, "CEILING", 1)
+    soup, found = reasons()
+    assert len(found) == 1
+    assert found[0].get_text() == "This course is too large to expand at once."
+    bulk = soup.select_one('[data-phone-move="bulk"]')
+    assert found[0].parent is bulk
+    assert found[0].find_previous_sibling() is bulk.select_one("[data-expand-all]")

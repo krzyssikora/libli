@@ -299,6 +299,12 @@
       swapping = true;
       try { existing.replaceWith(incoming); } finally { swapping = false; }
     }
+    // Every swap, not only an op submit's: a filter, expand/collapse or scope
+    // toggle can replace the row menu's opener too. Its items would then act on
+    // a row the author no longer sees as the menu's. Focus inside the menu would
+    // drop to <body> as it hides, so it goes to the replacement ⋯ (re-found by
+    // data-node; Kurs if hidden) instead.
+    if (menuOpener && !menuOpener.isConnected) closeMenu(menu.contains(document.activeElement));
     // No append fallback: the target [data-scope] element is always present after the
     // first render (the tree-pane root for "top", a nested <ol> otherwise). Appending
     // on a missed selector would DUPLICATE the tree, so a miss is intentionally a no-op.
@@ -503,11 +509,6 @@
               applyFragment(text);
               if (renameEditing) finishRenameExit(form, renamePk, exitKind);
               if (focusPk && isPhone()) focusRowMore(focusPk);
-              // The row menu's opener was replaced under it: its items would act
-              // on a row the author no longer sees as the menu's. Focus inside the
-              // menu would drop to <body> as it hides, so it goes to the
-              // replacement ⋯ (re-found by data-node; Kurs if hidden) instead.
-              if (menuOpener && !menuOpener.isConnected) closeMenu(menu.contains(document.activeElement));
               syncUrl();
               if (op === "flag" || op === "flag-confirm") {
                 restoreFlagFocus(op, control, body);
@@ -1708,6 +1709,24 @@
     focusRowMore(pk);
     closeMenu(false);
     control.click();
+  });
+
+  // Keyboard focus leaving the menu closes it. focusout acts only for a REAL
+  // element outside both the menu and its ⋯: some touch paths blur with a null
+  // relatedTarget, and an item's own tap must still reach the menu's click.
+  // Tab past Delete usually has no element to land on (the menu ends the page's
+  // tab order; focus leaves the document, relatedTarget null), so a Tab key is
+  // checked once the browser has moved focus.
+  if (menu) menu.addEventListener("focusout", function (e) {
+    var to = e.relatedTarget;
+    if (!to || menu.contains(to) || to === menuOpener) return;
+    closeMenu(false);
+  });
+  if (menu) menu.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab") return;
+    setTimeout(function () {
+      if (!menu.hidden && !menu.contains(document.activeElement)) closeMenu(false);
+    }, 0);
   });
 
   // An outside tap closes the menu without stealing focus from what was tapped;
