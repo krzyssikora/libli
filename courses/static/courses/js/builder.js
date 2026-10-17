@@ -4,17 +4,43 @@
   var root = document.querySelector(".builder");
   var panel = root && root.querySelector("[data-panel]");
   if (!root || !panel) return;
+  // Phone layout pieces (server-rendered on every layout; see the "phone layout"
+  // section at the end of this file for what drives them).
+  var sheet = root.querySelector("[data-sheet]"),
+      sheetShell = root.querySelector("[data-sheet-shell]"),
+      sheetBody = root.querySelector("[data-sheet-body]"),
+      sheetTools = root.querySelector("[data-sheet-tools]"),
+      sheetClose = root.querySelector("[data-sheet-close]"),
+      sheetDim = root.querySelector("[data-sheet-dim]"),
+      sheetGrab = root.querySelector("[data-sheet-grab]"),
+      treePane = root.querySelector(".builder__tree"),
+      toast = root.querySelector("[data-toast]"),
+      kursBtn = root.querySelector("[data-sheet-course]"),
+      menu = root.querySelector("[data-row-menu]");
+  var sheetOpener = null, lockedY = 0, menuPk = null,
+      menuOpener = null,   // the ⋯ button that opened the row menu
+      pendingFocusPk = null, pendingFocusControl = null, dragStartY = null,
+      wasPhone = false, toolbarMarkers = null, toastTimer = null;
   // The panel's neutral state == its server-rendered content at load (the course panel).
   // Restored after a Move so reordering by Move, arrows, and drag all leave the panel
   // unchanged rather than Move alone forcing the moved node's details into view.
   var neutralPanel = panel.innerHTML;
+  // The phone layout condition. builder.css repeats this string literally in its one
+  // phone media block: `pointer`, never `any-pointer`, so a touch-screen laptop or a
+  // narrow mouse window keeps the desktop layout. Declared up here because the
+  // focusin panel loader below already asks it.
+  var PHONE_MQ = "(pointer: coarse) and (max-width: 959.98px)";
+  var phoneMq = window.matchMedia(PHONE_MQ);
+  function isPhone() { return phoneMq.matches; }
 
   // Single writer for panel content. The panel is a scroll container (builder.css), so
   // every swap must reset scrollTop or the next node's panel opens mid-way down. Nine
   // call sites funnel through here; tests/test_builder_js_invariants.py enforces it.
+  // On the phone the sheet body is the scroll container instead, so it resets too.
   function setPanel(html) {
     panel.innerHTML = html;
     panel.scrollTop = 0;
+    if (sheetBody) sheetBody.scrollTop = 0;
   }
 
   // ---- Move-picker state (declared early so the submit handler can call clearMoving) ----
@@ -446,8 +472,11 @@
                 // node's own first write landing elsewhere). This root
                 // carries no data-scope, so applyFragment would silently
                 // no-op on it -- branch before calling it.
-                insertStripAfterRowhead(incoming, control || form);
-                focusInto(incoming);
+                // Dropped while the phone sheet is open: it would land under it.
+                if (!(isPhone() && sheetIsOpen())) {
+                  insertStripAfterRowhead(incoming, control || form);
+                  focusInto(incoming);
+                }
                 return;   // no tree re-render on this arm; releaseControl()
                           // below still runs, via the `finally`.
               }
@@ -559,6 +588,9 @@
       .then(function (html) {
         var incoming = parseFragment(html).firstElementChild;
         if (!incoming) return;
+        // A strip GET still in flight when the phone sheet opened: never land it
+        // under the sheet (openSheet already removed every open strip).
+        if (isPhone() && sheetIsOpen()) return;
         insertStripAfterRowhead(incoming, a);
         focusInto(incoming);
       })
@@ -651,6 +683,9 @@
     var byPointer = pointerFocus;
     pointerFocus = false;
     if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+    // On the phone a focused title is a rename in progress, never a selection:
+    // the sheet opens from the phone title button instead.
+    if (isPhone()) return;
     var t = e.target.closest(".tree__title");
     if (!t) return;
     var row = t.closest("li.tree__row");
@@ -1391,4 +1426,224 @@
     // let a click on the same form's button win before blur closes it
     setTimeout(function () { if (form.isConnected && !form.contains(document.activeElement)) commitOrCancel(form); }, 120);
   });
+  // --- end WS2 inline "+" add -----------------------------------------------
+
+  // ---- phone layout ----------------------------------------------------------
+  // Everything below only acts while PHONE_MQ matches (builder.css's one phone
+  // media block). The markup it drives is server-rendered on every layout and is
+  // layout-neutral on desktop, so the desktop builder never runs any of it except
+  // applyLayout's no-op desktop branch at load.
+  if (!sheet || !sheetShell || !sheetBody || !sheetTools || !treePane) return;
+
+  // Shown while a node panel loads into the sheet (Task 4).
+  var PLACEHOLDER_HTML = '<div class="panel" data-panel-loading><p class="panel__meta">'
+    + escHtml(root.getAttribute("data-msg-loading") || "") + "</p></div>";
+
+  // Same fallback as unit_nav.js: checkVisibility is Safari 17.4+. Every visibility
+  // test in this section goes through here, never a bare checkVisibility().
+  function isShown(el) {
+    return el.checkVisibility ? el.checkVisibility() : el.offsetParent !== null;
+  }
+
+  // $-anchored, like the focusin loader: a `0` inside the course slug must not match.
+  function urlFor(row) {
+    return root.getAttribute("data-panel-url").replace(/\/0\/$/, "/" + row.getAttribute("data-node") + "/");
+  }
+
+  // Drop every pending panel load: a response for a sheet that has since closed
+  // (or been re-pointed) fails loadPanel's last-request-wins check.
+  function invalidatePanel() {
+    panelReq++;
+    if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+  }
+
+  // Placeholder until the row menu exists (Task 6 replaces it).
+  function closeMenu() {}
+
+  function sheetIsOpen() { return sheet.classList.contains("is-open"); }
+
+  // mode: "course" | "node" | "move"; opener: { pk, target: "title"|"more"|"kurs" },
+  // where focus goes back on close.
+  function openSheet(mode, opener) {
+    closeMenu(false);
+    // Nothing from the tree layer lingers under the sheet. remove(), not
+    // dismissStrip(): the strip's focus return would fight the sheet's own.
+    root.querySelectorAll("[data-flag-strip]").forEach(function (s) { s.remove(); });
+    sheet.dataset.mode = mode;
+    sheetOpener = opener;
+    if (!sheetIsOpen()) {
+      // Lock the page where it is: body goes position: fixed, offset by the
+      // saved scrollY (builder.css, `html.js.builder-sheet-lock body`), so a drag
+      // on the dim cannot scroll the tree behind it. Only on a real open --
+      // while locked, window.scrollY reads 0.
+      lockedY = window.scrollY;
+      document.documentElement.style.setProperty("--lock-y", lockedY + "px");
+      document.documentElement.classList.add("builder-sheet-lock");
+    }
+    treePane.inert = true;
+    sheet.inert = false;
+    sheet.setAttribute("role", "dialog");
+    sheet.setAttribute("aria-modal", "true");
+    sheet.setAttribute("aria-label", msg("details", "Details"));
+    sheet.classList.add("is-open");
+    sheetBody.scrollTop = 0;
+    if (sheetClose) sheetClose.focus();
+  }
+
+  // opts.focus === false skips the focus return (layout flips, bfcache restore).
+  // Inert and the scroll lock are gone BEFORE the focus return: focus() on an
+  // inert element is silently ignored.
+  function closeSheet(opts) {
+    opts = opts || {};
+    if (!sheetIsOpen()) return;
+    // A showing move picker gets dismissPicker's cleanup, minus its focus move.
+    if (panel.querySelector("form.move-picker")) {
+      clearMoving();
+      setPanel(neutralPanel);
+    }
+    invalidatePanel();
+    sheet.classList.remove("is-open");
+    sheet.removeAttribute("role");
+    sheet.removeAttribute("aria-modal");
+    sheet.removeAttribute("aria-label");
+    sheet.inert = true;
+    treePane.inert = false;
+    document.documentElement.classList.remove("builder-sheet-lock");
+    document.documentElement.style.removeProperty("--lock-y");
+    window.scrollTo(0, lockedY);
+    sheetShell.style.removeProperty("--sheet-drag");
+    sheetShell.style.removeProperty("transition");
+    dragStartY = null;
+    if (opts.focus !== false) returnFocus(sheetOpener);
+    sheetOpener = null;
+  }
+
+  // Back to the opener, found by data-node so a row replaced by applyFragment
+  // still counts; a missing or hidden one (collapsed scope, filter) falls back
+  // to the Kurs button, so focus never lands on a hidden element.
+  function returnFocus(opener) {
+    var el = null;
+    if (opener && opener.pk != null && opener.target !== "kurs") {
+      var row = root.querySelector('li.tree__row[data-node="' + opener.pk + '"]');
+      var cls = opener.target === "title" ? ".tree__ptitle" : ".tree__more";
+      el = row && row.querySelector(":scope > form.tree__rowhead > " + cls);
+    }
+    if (!el || !isShown(el)) el = kursBtn;
+    // A row's control may need scrolling into view; the Kurs button never does --
+    // it is in the sticky header, which sits INSIDE html's scroll-padding-top, so
+    // a scrolling focus() would drag the page back to the header's static slot and
+    // undo closeSheet's scroll restore.
+    if (el) el.focus({ preventScroll: el === kursBtn });
+  }
+
+  // Import/Export, Expand/Collapse all and the legends move into the Kurs sheet's
+  // tools on the phone. A comment marker left in each one's original slot puts it
+  // back exactly there; none is created until the first move to the phone, so a
+  // desktop load never touches the header.
+  var TOOLBAR_KEYS = ["io", "bulk", "legends"];
+  function moveToolbar(toPhone) {
+    if (!toolbarMarkers) {
+      if (!toPhone) return;
+      toolbarMarkers = [];
+      TOOLBAR_KEYS.forEach(function (key) {
+        var node = root.querySelector('[data-phone-move="' + key + '"]');
+        if (!node) return;
+        var marker = document.createComment("phone-move:" + key);
+        node.parentNode.insertBefore(marker, node.nextSibling);
+        toolbarMarkers.push({ node: node, marker: marker });
+      });
+    }
+    toolbarMarkers.forEach(function (m) {
+      if (toPhone) sheetTools.appendChild(m.node);
+      else m.marker.parentNode.insertBefore(m.node, m.marker);
+    });
+  }
+
+  // The sticky header's height, for scroll-padding-top (builder.css `html.js`).
+  var head = treePane.querySelector("header.manage__head");
+  function measureHead() {
+    if (head) document.documentElement.style.setProperty("--phone-head-h", head.offsetHeight + "px");
+  }
+
+  // Run at load and on every PHONE_MQ change.
+  function applyLayout() {
+    if (isPhone()) {
+      // Desktop -> phone with a picker showing: dismiss it (no focus move); a node
+      // panel is kept for the next sheet open.
+      if (panel.querySelector("form.move-picker")) {
+        clearMoving();
+        setPanel(neutralPanel);
+      }
+      moveToolbar(true);
+      if (!sheetIsOpen()) sheet.inert = true;   // closed: out of the tab order
+      measureHead();
+    } else {
+      closeSheet({ focus: false });             // itself a no-op when closed
+      moveToolbar(false);
+      // inert would reach the desktop panel through the display: contents wrapper.
+      sheet.inert = false;
+      treePane.inert = false;
+      document.documentElement.style.removeProperty("--phone-head-h");
+      if (wasPhone) setPanel(neutralPanel);
+      clearMoving();
+      // A phone rename still focused keeps its field until it settles or blurs.
+      root.querySelectorAll(".tree__rowhead.is-editing").forEach(function (form) {
+        var input = form.querySelector("input.tree__title");
+        if (!input || input !== document.activeElement) form.classList.remove("is-editing");
+      });
+    }
+    wasPhone = isPhone();
+  }
+  applyLayout();
+  if (phoneMq.addEventListener) phoneMq.addEventListener("change", applyLayout);
+  else phoneMq.addListener(applyLayout);   // Safari < 14
+  // Rotation inside the query and the filter's Clear link change the header's
+  // height without any media-query change.
+  if (head && window.ResizeObserver) {
+    new ResizeObserver(function () { if (isPhone()) measureHead(); }).observe(head);
+  }
+
+  // Kurs: the course panel, plus the moved toolbar.
+  root.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-sheet-course]")) return;
+    invalidatePanel();
+    clearMoving();   // a desktop picker GET that landed after a flip
+    setPanel(neutralPanel);
+    openSheet("course", { pk: null, target: "kurs" });
+  });
+
+  root.addEventListener("click", function (e) {
+    if (e.target.closest("[data-sheet-close]") || e.target.closest("[data-sheet-dim]")) {
+      closeSheet();
+    }
+  });
+
+  // Expand all / Collapse all act on the tree, so the sheet gets out of the way.
+  // Neither this nor the bulk handlers above stop propagation, so order is moot.
+  // A disabled Expand all does nothing -- the sheet stays open on its reason.
+  root.addEventListener("click", function (e) {
+    if (!isPhone() || !sheetIsOpen()) return;
+    var expand = e.target.closest("[data-expand-all]");
+    if (expand && (expand.getAttribute("aria-disabled") === "true"
+        || root.hasAttribute("data-expand-all-disabled"))) return;
+    if (!expand && !e.target.closest("[data-collapse-all]")) return;
+    sheetOpener = { pk: null, target: "kurs" };
+    closeSheet({ focus: true });
+  });
+
+  // While the sheet is open this is the ONE Escape owner: capture phase, then
+  // preventDefault, so the picker's document-level handler (top of this file)
+  // takes its defaultPrevented early return and never double-dismisses.
+  document.addEventListener("keydown", function (e) {
+    if (!isPhone() || !sheetIsOpen() || e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeSheet();   // also cleans up a showing picker
+  }, true);
+
+  // Back from the editor via bfcache: land on the tree, not a stale sheet.
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted && sheetIsOpen()) closeSheet({ focus: false });
+  });
+  // ---- end phone layout ------------------------------------------------------
 })();

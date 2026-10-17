@@ -600,6 +600,17 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
   .js .builder__sheet[data-mode="course"] .builder__sheet-tools {
     display: block; padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--space-3); }
+  /* Over the ceiling Expand all is an inert anchor; its existing `title` is the
+     only reason given, and a touch screen has no hover, so show it as text. */
+  .js [data-sheet-tools] [data-expand-all][aria-disabled="true"]::after {
+    content: attr(title); display: block; font-size: .8rem; color: var(--text-secondary); }
+
+  /* Page scroll lock while the sheet is open (builder.js openSheet/closeSheet):
+     the body is pinned at the saved scrollY (`--lock-y`), so nothing behind the
+     dim can scroll, and closeSheet scrolls back to it. Accepted trade-off: the
+     sticky header scrolls away behind the dim while locked. */
+  html.js.builder-sheet-lock body {
+    position: fixed; top: calc(-1 * var(--lock-y, 0px)); left: 0; right: 0; }
 
   /* Toast: above the sheet and the menu; taps pass through to what is under it.
      Colours mirror `.builder__panel > .op-error`. */
