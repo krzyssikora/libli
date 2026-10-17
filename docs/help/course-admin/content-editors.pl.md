@@ -184,12 +184,12 @@ tworzą pustego slajdu — są po prostu pomijane.
 ## Kontenery i zagnieżdżanie
 
 Zakładki, Kolumny, Rozwijana treść, Ramka i Przed / po to pięć typów
-kontenerów. Kontener może zawierać inny kontener — aż do trzech poziomów
-kontenerów, na przykład Rozwijana treść zawierająca Zakładki, a w nich
-kolejna Rozwijana treść. Zwykłą treść umieszczasz w tym trzecim poziomie,
-więc zagnieżdżony element może znaleźć się cztery poziomy niżej. Menu
-**Dodaj element** kontenera trzeciego poziomu oferuje już wyłącznie elementy
-liściowe: żadnego kolejnego kontenera, pytania ani Podziału slajdów.
+kontenerów. Kontener może zawierać inny kontener — aż do czterech poziomów
+kontenerów, na przykład Rozwijana treść zawierająca kolejną Rozwijaną treść,
+a w niej Ramkę z Kolumnami. Zwykłą treść umieszczasz w tym czwartym
+poziomie, więc zagnieżdżony element może znaleźć się pięć poziomów niżej.
+Menu **Dodaj element** kontenera czwartego poziomu oferuje już wyłącznie
+elementy liściowe: żadnego kolejnego kontenera, pytania ani Podziału slajdów.
 
 Wewnątrz dowolnego kontenera zagnieżdżone menu **Dodaj element** oferuje
 niekontenerowe typy treści — Tekst, Obraz, Wideo, Iframe, Wzór, HTML,

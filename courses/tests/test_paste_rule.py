@@ -90,68 +90,71 @@ def test_a_leaf_destination_is_not_a_container():
     assert (ok, reason) == (False, "not_a_container")
 
 
-def test_a_leaf_may_land_at_depth_four_but_a_container_may_not():
-    """Mutant: replace cap(n) with a constant 4 -> the container row goes RED.
-    A container at depth 4 would render slots that can never be filled."""
+def test_a_leaf_may_land_at_depth_five_but_a_container_may_not():
+    """Mutant: replace cap(n) with a constant 5 -> the container row goes RED.
+    A container at depth 5 would render slots that can never be filled."""
     _course, unit = make_course_with_unit()
     d1, s1 = _tabs(unit)
     d2, s2 = _tabs(unit, parent=d1, tab=s1[0])
-    d3, s3 = _tabs(unit, parent=d2, tab=s2[0])  # depth 3; its slots are depth 4
+    d3, s3 = _tabs(unit, parent=d2, tab=s2[0])
+    d4, s4 = _tabs(unit, parent=d3, tab=s3[0])  # depth 4; its slots are depth 5
 
     leaf = _text(unit)
     container, _cslots = _tabs(unit)
 
-    assert builder.paste_allowed(unit, leaf, d3, s3[0], "move") == (True, None)
-    assert builder.paste_allowed(unit, container, d3, s3[0], "move") == (
+    assert builder.paste_allowed(unit, leaf, d4, s4[0], "move") == (True, None)
+    assert builder.paste_allowed(unit, container, d4, s4[0], "move") == (
         False,
         "too_deep",
     )
 
 
 def test_depth_within_the_subtree_counts_not_just_the_roots():
-    """`rel` must be subtracted per node. Subtree: Spoiler(cap 3, rel 0) ->
-    Spoiler(cap 3, rel 1) -> Text(cap 4, rel 2), so the headroom is
-    min(3, 2, 2) = 2 and a destination at dest_depth 3 is one too far -- while an
-    EMPTY tabs (headroom 3) fits there exactly.
+    """`rel` must be subtracted per node. Subtree: Spoiler(cap 4, rel 0) ->
+    Spoiler(cap 4, rel 1) -> Text(cap 5, rel 2), so the headroom is
+    min(4, 3, 3) = 3 and a destination at dest_depth 4 is one too far -- while an
+    EMPTY tabs (headroom 4) fits there exactly.
 
-    Mutant: ignore `rel` -> min(3, 3, 4) = 3, the destination is admitted, RED.
+    Mutant: ignore `rel` -> min(4, 4, 5) = 4, the destination is admitted, RED.
     This subtree is deliberately NOT the one the height mutant catches: a
-    height-based bound computes 4 - 2 = 2 here, the same answer, so this case stays
+    height-based bound computes 5 - 2 = 3 here, the same answer, so this case stays
     GREEN under that mutation. That contrast is what separates the two mutations.
     """
     _course, unit = make_course_with_unit()
     d1, s1 = _tabs(unit)
-    d2, s2 = _tabs(unit, parent=d1, tab=s1[0])  # its slots are at dest_depth 3
+    d2, s2 = _tabs(unit, parent=d1, tab=s1[0])
+    d3, s3 = _tabs(unit, parent=d2, tab=s2[0])  # its slots are at dest_depth 4
 
     root = _spoiler(unit)
     mid = _spoiler(unit, parent=root, tab=SpoilerElement.SLOT_ID)
     _text(unit, parent=mid, tab=SpoilerElement.SLOT_ID)
 
     empty, _eslots = _tabs(unit)
-    assert builder.paste_allowed(unit, empty, d2, s2[0], "move") == (True, None)
-    assert builder.paste_allowed(unit, root, d2, s2[0], "move") == (False, "too_deep")
+    assert builder.paste_allowed(unit, empty, d3, s3[0], "move") == (True, None)
+    assert builder.paste_allowed(unit, root, d3, s3[0], "move") == (False, "too_deep")
 
 
 def test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does():
     """THE row that distinguishes min(cap(n) - rel(n)) from a plain subtree height.
 
-    Subtree: Tabs(root, cap 3, rel 0) -> Spoiler(cap 3, rel 1). The correct bound is
-    min(3-0, 3-1) = 2; a height-based bound computes MAX - max_rel = 4 - 1 = 3. At
-    dest_depth 3 the two therefore disagree: the correct rule REFUSES (the spoiler
-    would land at depth 4, which a container may never occupy) and the height-based
+    Subtree: Tabs(root, cap 4, rel 0) -> Spoiler(cap 4, rel 1). The correct bound is
+    min(4-0, 4-1) = 3; a height-based bound computes MAX - max_rel = 5 - 1 = 4. At
+    dest_depth 4 the two therefore disagree: the correct rule REFUSES (the spoiler
+    would land at depth 5, which a container may never occupy) and the height-based
     one admits.
 
-    Mutant: use subtree HEIGHT -> RED. The destination must be at dest_depth 3, not
-    2: at 2 both bounds admit and the mutation is unobservable.
+    Mutant: use subtree HEIGHT -> RED. The destination must be at dest_depth 4, not
+    3: at 3 both bounds admit and the mutation is unobservable.
     """
     _course, unit = make_course_with_unit()
     d1, s1 = _tabs(unit)
-    d2, s2 = _tabs(unit, parent=d1, tab=s1[0])  # its slots are at dest_depth 3
+    d2, s2 = _tabs(unit, parent=d1, tab=s1[0])
+    d3, s3 = _tabs(unit, parent=d2, tab=s2[0])  # its slots are at dest_depth 4
 
     root, rslots = _tabs(unit)
     _spoiler(unit, parent=root, tab=rslots[0])
 
-    ok, reason = builder.paste_allowed(unit, root, d2, s2[0], "move")
+    ok, reason = builder.paste_allowed(unit, root, d3, s3[0], "move")
 
     assert (ok, reason) == (False, "too_deep")
 
@@ -344,8 +347,8 @@ def test_subtree_facts_reports_the_pks_and_the_headroom():
     facts = builder.subtree_facts(root)
 
     assert facts.subtree_pks == frozenset({root.pk, child.pk, grandchild.pk})
-    # Tabs cap 3 at rel 0; Spoiler cap 3 at rel 1; Text cap 4 at rel 2.
-    assert facts.min_headroom == min(3 - 0, 3 - 1, 4 - 2)
+    # Tabs cap 4 at rel 0; Spoiler cap 4 at rel 1; Text cap 5 at rel 2.
+    assert facts.min_headroom == min(4 - 0, 4 - 1, 5 - 2)
 
 
 def test_subtree_facts_terminates_on_a_parent_cycle():

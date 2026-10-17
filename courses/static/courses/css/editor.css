@@ -732,9 +732,9 @@ button.asset-cell:hover { border-color: var(--primary); }
    list as .addwrap would); the adjacent-sibling rule tightens it to a half step when
    the paste row really is the add menu's second row, which is every legally
    reachable slot. Standalone is defensive only: the add-menu's guard compares the
-   CONTAINER's depth against 4 and a container may only live at depths 1–3, so
-   `depth < 4` holds everywhere and the menu is never actually suppressed beside a
-   paste row — it costs one line to not look broken behind an ORM-written depth-4
+   CONTAINER's depth against 5 and a container may only live at depths 1–4, so
+   `depth < 5` holds everywhere and the menu is never actually suppressed beside a
+   paste row — it costs one line to not look broken behind an ORM-written depth-5
    container. */
 .pastewrap { margin-top: var(--space-4); display: flex; gap: var(--space-2); }
 .addwrap + .pastewrap { margin-top: var(--space-2); }

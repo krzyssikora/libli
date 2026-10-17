@@ -229,10 +229,9 @@ def test_resolve_scope_accepts_interactive_form_key_in_spoiler(form_key):
 @pytest.mark.django_db
 def test_resolve_scope_accepts_leaf_child_of_a_nested_spoiler():
     # A spoiler-in-spoiler sits at depth 2 and takes both a leaf child (depth 3) and a
-    # THIRD spoiler (depth 3). Clause 4 only bites one level further down: the
-    # depth-3 spoiler takes leaves but no fourth container -- the user's
-    # "spoiler with child tabs with child spoiler, but this is it" boundary, read
-    # through the all-spoiler chain.
+    # THIRD spoiler (depth 3). Clause 4 only bites two levels further down: the
+    # depth-4 spoiler takes leaves but no fifth container -- the MAX_NEST_DEPTH = 5
+    # boundary, read through the all-spoiler chain.
     _course, unit = make_course_with_unit()
     _outer_sp, outer_join = _spoiler_join(unit)
     _inner_sp, inner_join = _spoiler_join(
@@ -248,17 +247,26 @@ def test_resolve_scope_accepts_leaf_child_of_a_nested_spoiler():
     )
     assert parent_join == inner_join and tab == SpoilerElement.SLOT_ID
 
-    # ...but a FOURTH is not, while a leaf at depth 4 still is.
+    # ...a FOURTH is accepted too...
     _third_sp, third_join = _spoiler_join(
         unit, parent=inner_join, tab_id=SpoilerElement.SLOT_ID
     )
     parent_join, tab = builder.resolve_scope(
-        unit, str(third_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+        unit, str(third_join.pk), SpoilerElement.SLOT_ID, "spoiler"
     )
     assert parent_join == third_join and tab == SpoilerElement.SLOT_ID
+
+    # ...but a FIFTH is not, while a leaf at depth 5 still is.
+    _fourth_sp, fourth_join = _spoiler_join(
+        unit, parent=third_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    parent_join, tab = builder.resolve_scope(
+        unit, str(fourth_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+    )
+    assert parent_join == fourth_join and tab == SpoilerElement.SLOT_ID
     with pytest.raises(NestingError):
         builder.resolve_scope(
-            unit, str(third_join.pk), SpoilerElement.SLOT_ID, "spoiler"
+            unit, str(fourth_join.pk), SpoilerElement.SLOT_ID, "spoiler"
         )
 
 

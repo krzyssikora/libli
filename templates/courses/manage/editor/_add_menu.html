@@ -11,9 +11,9 @@ monkeypatched cap really reaches this template).
 
 The CONTAINER cards (Tabs, Columns, Spoiler, Callout, Before/after) are guarded by
 `depth < max_nest_depth|add:-1`, which mirrors builder clause 4 exactly: a container
-child is accepted while its parent sits at depth 1 or 2 (so the child lands at depth 2
-or 3) and rejected from depth 3 down. Leaves stay offered at depth 3 because they land
-at depth 4, which clause 3 accepts.
+child is accepted while its parent sits at depth 1, 2 or 3 (so the child lands at
+depth 2, 3 or 4) and rejected from depth 4 down. Leaves stay offered at depth 4
+because they land at depth 5, which clause 3 accepts.
 
 Hiding the cards is COURTESY only -- the server still enforces NESTABLE_TYPE_KEYS and
 the depth clauses on every add/save, so a hand-crafted POST for a blocked type or an

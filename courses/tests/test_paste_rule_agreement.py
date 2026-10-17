@@ -86,17 +86,17 @@ def test_the_two_rules_agree_for_a_childless_element(form_key, make, parent_dept
 
 @pytest.mark.parametrize("form_key,make", CASES, ids=[c[0] for c in CASES])
 def test_the_two_rules_agree_at_the_unconstructible_parent_depth(form_key, make):
-    """Parent depth 4 cannot be reached by any legal write -- a parent must be a
-    container, and cap says a container never lives at depth 4. Built by direct ORM
+    """Parent depth 5 cannot be reached by any legal write -- a parent must be a
+    container, and cap says a container never lives at depth 5. Built by direct ORM
     write precisely to prove both rules reject it identically; the normal add path
     could never produce this row.
     """
     _course, unit = make_course_with_unit()
 
     dest, slots = _tabs_at(unit)
-    for _hop in range(3):
+    for _hop in range(4):
         dest, slots = _tabs_at(unit, parent=dest, tab=slots[0])
-    assert builder.element_depth(dest) == 4
+    assert builder.element_depth(dest) == 5
 
     subject = Element.objects.create(unit=unit, content_object=make())
 

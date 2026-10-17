@@ -244,10 +244,10 @@ def test_author_a_depth_4_text_through_the_ui(page, live_server):
     # --- depth 4: Text, from the INNER tabs' own nested menu ------------------------
     inner_menu = _nested_menu(page, inner_tabs_join.pk, inner_tab_id)
     expect(inner_menu).to_have_count(1)
-    # A depth-3 menu must NOT offer containers any more (that would be a fourth
-    # container level) — the same template guard, read from the other side.
+    # Since MAX_NEST_DEPTH = 5 a depth-3 menu still offers containers (a fourth
+    # level is legal); test_author_the_depth_5_shape_through_the_ui drives the edge.
     for card in ("tabs", "twocolumn", "spoiler"):
-        expect(inner_menu.locator(f"[data-add-type='{card}']")).to_have_count(0)
+        expect(inner_menu.locator(f"[data-add-type='{card}']")).to_have_count(1)
     _open_card(inner_menu, "text")
 
     surface = page.locator("[data-edit-slot] form[data-op='element-save'] .rte-surface")
@@ -285,6 +285,110 @@ def test_author_a_depth_4_text_through_the_ui(page, live_server):
     # built and shows its own two tabs, and the depth-4 text is in the active panel.
     expect(page.locator(f"{inner_sel} > .tabs__bar .tabs__tab")).to_have_count(2)
     expect(page.locator(f"{inner_sel} .tabs__child", has_text=MARKER)).to_be_visible()
+
+
+def _wait_saved_rows(page, expected):
+    """Poll until the editor pane holds exactly `expected` saved rows in total.
+
+    Same race as _wait_nested_row_count, keyed on the whole pane: each Save adds one
+    row, so the stale pane (expected - 1) can never satisfy it."""
+    page.wait_for_function(
+        """n => document.querySelectorAll(
+             '[data-scope="editor"] .el-row[data-element]').length === n""",
+        arg=expected,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_author_the_depth_5_shape_through_the_ui(page, live_server):
+    """Author spoiler > spoiler > callout > columns > text with real clicks -- the
+    owner's shape that MAX_NEST_DEPTH = 5 exists for -- then read it as a student.
+
+    Falsified by reverting MAX_NEST_DEPTH to 4: the callout's nested menu (depth 3)
+    then offers no Columns card and the gesture times out."""
+    from courses import builder
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import SpoilerElement
+    from courses.models import TextElement
+    from tests.factories import EnrollmentFactory
+
+    marker = "DEPTH5-UI-MARKER-9c2d"
+    pa = _make_pa_user("d5_ui")
+    course, unit = _seed_unit(pa, "d5-ui")
+    EnrollmentFactory(student=pa, course=course)
+    _login(page, live_server, "d5_ui")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    # --- depth 1: Spoiler, from the TOP-LEVEL menu ---------------------------------
+    _open_card(_top_menu(page), "spoiler")
+    page.wait_for_selector("[data-edit-slot] .el-editor--spoiler")
+    _save_open_form(page)
+    _wait_saved_rows(page, 1)
+    outer = Element.objects.get(unit=unit, parent__isnull=True)
+
+    # --- depth 2: Spoiler, from the outer spoiler's menu ---------------------------
+    _open_card(_nested_menu(page, outer.pk, SpoilerElement.SLOT_ID), "spoiler")
+    page.wait_for_selector("[data-edit-slot] .el-editor--spoiler")
+    _save_open_form(page)
+    _wait_saved_rows(page, 2)
+    inner = Element.objects.get(unit=unit, parent=outer)
+    assert builder.element_depth(inner) == 2
+
+    # --- depth 3: Callout, from the inner spoiler's menu ---------------------------
+    _open_card(_nested_menu(page, inner.pk, SpoilerElement.SLOT_ID), "callout")
+    page.wait_for_selector("[data-edit-slot] .el-editor--callout")
+    _save_open_form(page)
+    _wait_saved_rows(page, 3)
+    callout = Element.objects.get(unit=unit, parent=inner)
+    assert isinstance(callout.content_object, CalloutElement)
+    assert builder.element_depth(callout) == 3
+
+    # --- depth 4: Columns, from the callout's menu -- the hop the lift unlocks -----
+    _open_card(_nested_menu(page, callout.pk, CalloutElement.SLOT_ID), "twocolumn")
+    page.wait_for_selector("[data-edit-slot] .el-editor--twocolumn")
+    _save_open_form(page)
+    _wait_saved_rows(page, 4)
+    cols = Element.objects.get(unit=unit, parent=callout)
+    assert builder.element_depth(cols) == 4
+    col_id = cols.content_object.data["columns"][0]["id"]
+
+    # --- depth 5: Text, from column 1's menu ---------------------------------------
+    # Every column starts collapsed; a closed <details> makes its add-menu unclickable.
+    page.locator(
+        f'[data-scope="editor"] .el-row[data-element="{cols.pk}"] '
+        f'details.columns-rows[data-column-id="{col_id}"] > summary'
+    ).click()
+    col_menu = _nested_menu(page, cols.pk, col_id)
+    expect(col_menu).to_have_count(1)
+    # ...and the depth-4 menu offers no FIFTH container level.
+    for card in ("tabs", "twocolumn", "spoiler", "callout", "beforeafter"):
+        expect(col_menu.locator(f"[data-add-type='{card}']")).to_have_count(0)
+    _open_card(col_menu, "text")
+    surface = page.locator("[data-edit-slot] form[data-op='element-save'] .rte-surface")
+    surface.wait_for(state="visible")
+    surface.click()
+    page.keyboard.type(marker)
+    _save_open_form(page)
+    _wait_saved_rows(page, 5)
+
+    leaf = Element.objects.get(unit=unit, parent=cols)
+    assert isinstance(leaf.content_object, TextElement)
+    assert leaf.tab_id == col_id
+    assert builder.element_depth(leaf) == 5
+    assert marker in leaf.content_object.body
+
+    # --- and the reader can see it, after opening both spoilers --------------------
+    page.goto(_lesson_url(live_server, unit))
+    outer_sp = page.locator("details.spoiler").first
+    outer_sp.locator(":scope > .spoiler__toggle").click()
+    inner_sp = outer_sp.locator(".spoiler__child details.spoiler").first
+    inner_sp.locator(":scope > .spoiler__toggle").click()
+    text = inner_sp.locator(
+        ".callout .twocolumn__column .twocolumn__child", has_text=marker
+    )
+    expect(text).to_be_visible()
 
 
 # ---------------------------------------------------------------------------

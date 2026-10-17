@@ -79,7 +79,7 @@ def test_canonical_spoiler_tabs_callout_table_is_authorable():
     assert parent == co_join
 
 
-def test_a_container_may_not_be_nested_at_depth_4():
+def test_a_container_may_not_be_nested_at_depth_5():
     """Clause 4: callout is now a container, so it is refused where a leaf is fine."""
     from courses.models import Element
     from courses.models import SpoilerElement
@@ -99,5 +99,9 @@ def test_a_container_may_not_be_nested_at_depth_4():
     sp2_join = Element.objects.create(
         unit=unit, content_object=sp2, parent=tabs_join, tab_id="t000001"
     )
+    sp3 = SpoilerElement.objects.create(label="s3")
+    sp3_join = Element.objects.create(
+        unit=unit, content_object=sp3, parent=sp2_join, tab_id=SpoilerElement.SLOT_ID
+    )
     with pytest.raises(builder.NestingError):
-        builder.resolve_scope(unit, str(sp2_join.pk), SpoilerElement.SLOT_ID, "callout")
+        builder.resolve_scope(unit, str(sp3_join.pk), SpoilerElement.SLOT_ID, "callout")
