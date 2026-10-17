@@ -83,8 +83,17 @@ The handler covers these ops:
 - `onScreen(top)` is `0 <= top && top < viewportH()`. A panned visual viewport
   (`visualViewport.offsetTop > 0`, e.g. iOS with the keyboard open) is **accepted
   as best effort and untested**: the band is not shifted by `offsetTop`.
-- `rendered(el)` is `el.isConnected && el.getClientRects().length > 0 &&
-  el.getBoundingClientRect().height > 0`. Tabs and columns slots are `<details>`
+- `rendered(el)` is `el.isConnected && (el.checkVisibility ? el.checkVisibility()
+  : (!el.closest("details:not([open])") && el.getClientRects().length > 0)) &&
+  el.getBoundingClientRect().height > 0`, feature-detected the way
+  `unit_nav.js` already does.
+  - Since Chromium 131 a closed `<details>` hides its content with
+    `::details-content { content-visibility: hidden }`, not `display:none`.
+  - A row inside it keeps `getClientRects().length === 1` and a **stale,
+    non-zero** rect. This was measured in this repo's Playwright Chromium; see
+    memory `details-hides-via-content-visibility`.
+  - So rect checks alone do **not** detect it; `checkVisibility()` does.
+  - Tabs and columns slots are `<details>`
   elements (`SLOT_DETAILS` in editor.js); callout, spoiler and before/after slots
   are always-open divs. `applyStoredSlots` re-applies the author's collapse
   state after every swap, but these slots are force-opened (`data-force-open`)
@@ -92,9 +101,9 @@ The handler covers these ops:
   paste-move, which clears the clip; only the destination's ancestor slots stay
   open), so recorded rows CAN become unrendered across the swap. See the
   container fallback, candidate 4. A row
-  inside a closed `<details>` (or any `display:none` subtree) has an
-  all-zero rect, which would otherwise pass `onScreen(0)` and read as "entirely
-  off-screen" at the same time. **Every anchor candidate and the safety net
+  inside a closed `<details>` reports a stale rect (and a `display:none` row an
+  all-zero one). Either could pass `onScreen`, or read as "entirely off-screen",
+  for reasons unrelated to where the author is looking. **Every anchor candidate and the safety net
   require `rendered(row)`.** An unrendered row is never an anchor, and the safety
   net never acts on it.
 
@@ -142,8 +151,13 @@ moves on to the next candidate.
    (`form.closest(".el-row[data-element]")`, the existing `keepId` logic) that
    is `rendered` → `id = keepId`, `top` = that row's top (which may be
    off-screen). It is recorded when:
-   - **Head ops** (`element-move`, `element-clip` select, `element-duplicate`,
-     `element-paste-before` copy): the **submitting form** is on-screen
+   - An op in **neither** set below records no candidate 2.
+   - **Head ops** (`element-move`, `element-clip`, `element-duplicate`,
+     `element-paste-before` copy). `element-clip` covers both select and
+     cancel, but cancel's form sits in `#clip-banner` with no `opRow`, so the
+     rule only ever affects select. No `action` discriminator is needed. (If
+     one ever is, read it as `form.elements.action.value`, never `form.action`;
+     see the shadowing note in `post()`.) Rule: the **submitting form** is on-screen
      (`onScreen(form top)`), even if the row's own top is a few pixels above
      the viewport. These forms sit in `.el-row__head`, so the author can tap a
      visible ↑ while the row's top is at −8 px. Losing the row there would
@@ -161,8 +175,10 @@ moves on to the next candidate.
 3. **Visible rows (catch-all).** Record up to **5** `.el-row[data-element]` inside
    `[data-scope="editor"]`, in document order, each `rendered` and with
    `onScreen(top)`.
-   - Nested rows count. For a paste-move, rows inside the clip row's own subtree
-     (the clip row included) are **excluded**: they relocate with the move, so
+   - Nested rows count. For a paste-move (keyed on op + mode only, **regardless
+     of status**), rows inside the clip row's own subtree (the clip row
+     included) are **excluded**. On a 409/422 that is harmless: S didn't move,
+     and the other recorded rows still anchor. The reason for the exclusion: they relocate with the move, so
      holding one would track the moved block rather than the page.
    - For `element-delete`, `opRow` and its descendants are **excluded** too, the
      same way. Otherwise a deleted container with 5 or more visible children
@@ -435,7 +451,8 @@ Tolerance is ±2 px throughout.
     from the "Leading" seeding rule; it relies on that chrome instead.
   - Select an element. Scroll to a pinned `scrollY` where ✕ is on-screen, and
     assert both conditions. Take R = **the first rendered
-    `.el-row[data-element]` whose top is on-screen**, i.e. exactly the row the
+    `.el-row[data-element]` whose top is on-screen** (using the same
+  `checkVisibility`-based `rendered` predicate as the code), i.e. exactly the row the
     catch-all records first. Record its top.
   - Click the banner's cancel ✕.
   - Assert: R's top is unchanged. On master, the banner and every paste button
@@ -490,7 +507,7 @@ Tolerance is ±2 px throughout.
   - Seed: leading texts, S, ≥ 6 texts, a callout with 2 children, then
     trailing texts.
   - Select S. Scroll so the callout's "Move here" button is at mid-viewport and
-    S is above the viewport. Record R = the first rendered on-screen row and its
+    S is above the viewport. Record R = the first rendered on-screen row (same `rendered` predicate as the code) and its
     top.
   - Simulate another tab changing the unit: set the paste form's hidden
     `unit_token` input to a stale value via `page.evaluate`. Then click
@@ -508,8 +525,16 @@ Tolerance is ±2 px throughout.
   - Assert: TARGET still keeps its top.
 
 - **(l) Select (⊹) keeps the tapped row still.**
-  - Seed with leading and trailing texts. Put a row at mid-viewport, record its
-    top, and click its ⊹.
+  - Seed: leading texts; a callout with 2 children; the tapped text P; then
+    trailing texts.
+  - Scroll so that the callout (or one of its children) is the first rendered
+    on-screen row, P is at mid-viewport, and P is **not** the first on-screen
+    row. Assert all three.
+  - Why: select adds a `.pastewrap` at the bottom of the callout's slot, so the
+    callout grows. Without candidate 2 (mutant 12), the catch-all holds a row
+    above that growth and P shifts by the `.pastewrap` height. The
+    falsification record shows this shift under the mutant.
+  - Record P's top and click its ⊹.
   - Assert: the row's top is unchanged. On master, the ~73 px banner inserted
     above every row shifts it.
 
@@ -552,7 +577,7 @@ Tolerance is ±2 px throughout.
   9. **Status check on candidate 1 dropped** → (j).
   10. **`scrollPreviewTo` / preview alignment redirected to the window** → (k).
   11. **Head ops gated on `onScreen(opRow top)`** instead of the form's top → (b2).
-  12. **`element-clip` dropped from the head-op set** → (l).
+  12. **`element-clip` falls into neither set** (no candidate 2) → (l).
 - **Admitted gap: duplicate and update-save.** Both reach candidate 2 through
   the same head-op/other-op code as the tested ops. No dedicated test is
   claimed.
@@ -563,11 +588,9 @@ Tolerance is ±2 px throughout.
   status check, which (j) guards, the anchoring has no status branch. A mutant
   gating candidates 2 and 3 on `status === 200` would stay green. The code
   comment says so.
-- **Admitted gap: `rendered()`.** It is defence-in-depth with no independently
-  observable effect in these tests. Two things make it unobservable here:
-  - resolution re-checks `rendered` after the swap, and `applyStoredSlots` keeps
-    collapsed slots collapsed, so a recorded zero-rect row is skipped anyway;
-  - no deterministic seed makes the safety net meet an unrendered focus row.
+- **Admitted gap: `rendered()`.** No test seeds a closed tabs/columns slot
+  whose hidden rows' stale rects fall in the viewport band. Such a seed would
+  also exercise candidate 4, but it is disproportionate here.
 
   No mutant is claimed for it, and the code comment beside the check says so,
   per the "admit in a comment" rule.
