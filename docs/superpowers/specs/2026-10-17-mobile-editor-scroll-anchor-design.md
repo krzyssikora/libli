@@ -116,7 +116,9 @@ one at tap time. The old DOM is still intact at that point. Every node is
 checked with `isConnected` before measuring.
 
 The measurement runs whenever the response status is 200, 409 or 422. It is
-cheap: a handful of `getBoundingClientRect` reads, and it never scrolls.
+cheap: one layout pass plus O(rows) rect reads, and it never scrolls. The
+catch-all scan stops at the first rendered row whose top is ≥ `viewportH()`;
+on the stacked layout, document order equals vertical order.
 
 The result is an **ordered list of candidates**, each a pair `{id, top}`: `id` is
 a `data-element` value to look up after the swap, and `top` is the screen
@@ -178,7 +180,10 @@ moves on to the next candidate.
    - Nested rows count. For a paste-move (keyed on op + mode only, **regardless
      of status**), rows inside the clip row's own subtree (the clip row
      included) are **excluded**. On a 409/422 that is harmless: S didn't move,
-     and the other recorded rows still anchor. The reason for the exclusion: they relocate with the move, so
+     and the other recorded rows still anchor. The clip row is found as
+     `[data-scope="editor"] .el-row[data-element="<clip pk>"]`. When it is
+     absent (a cross-unit clip), the exclusion is empty. The reason for the
+     exclusion: they relocate with the move, so
      holding one would track the moved block rather than the page.
    - For `element-delete`, `opRow` and its descendants are **excluded** too, the
      same way. Otherwise a deleted container with 5 or more visible children
@@ -306,6 +311,10 @@ paint, and before any test predicate can see the new pane.
   web fonts. Whatever the browser's native scroll anchoring (`overflow-anchor`)
   does there is untested. This is accepted: add **no** rAF or timeout
   re-corrections.
+- **One tall row spanning the whole viewport.** If no row's top is on-screen
+  (a single row's top is above the viewport and its bottom below it), the
+  catch-all is empty. An op with no candidate 2 (paste-copy into a slot,
+  cancel) is then uncorrected. This is accepted.
 - **Drag-and-drop** (`editor_dnd.js`) is a desktop gesture.
 - **The builder's mobile layout** is a separate design.
 
@@ -337,7 +346,9 @@ paint, and before any test predicate can see the new pane.
     200, because on a refusal nothing moved.
   - **422 on a create.** The response has no `data-saved-element`, so `focusId`
     falls back to `keepId` (the container row, or null). Keep-in-place holds the
-    first visible row, which is usually inside the error form's surroundings.
+    container row when its top is on-screen (candidate 2, the "other ops"
+    rule). Otherwise it holds the first visible row, which is usually inside
+    the error form's surroundings.
     The safety net only acts if the focus row is entirely off-screen. One rule,
     no special case.
 - **Missing pieces.** A missing `.pane-body`, an anchor row that's gone after
@@ -413,7 +424,9 @@ Tolerance is ±2 px throughout.
   - This guards the head-op rule in candidate 2.
 - **(b) Repeated ↑.**
   - Press ↑ on the same row 4 times, each time past a plain text row.
-  - Assert: the row top stays at its starting position after every press.
+  - Assert: each press keeps the row's top within ±2 px of the top recorded
+    just before **that** press. This avoids sub-pixel drift piling up across
+    presses against a fixed tolerance.
   - On master it drifts about one row height per press.
 - **(c) Move here into a callout whose top is OFF-screen.**
   - Seed:
@@ -442,6 +455,8 @@ Tolerance is ±2 px throughout.
     S's row is on-screen.
   - On master the window is clamped or the row is off-screen.
 - **(d) Clipboard cancel keeps the visible rows still.**
+  - Seed: ~4 short texts (the first is the one selected), then ≥ 1.5 viewports
+    of trailing texts. The Trailing rule still applies; only Leading is waived.
   - `#clip-banner` sits at the top of the editor pane and is not sticky, so ✕ is
     only reachable near the top of the page.
   - Whether ✕ is on-screen at `scrollY ≥ 150` depends only on the page chrome
