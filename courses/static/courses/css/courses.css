@@ -1878,6 +1878,114 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   padding-block: 0;
 }
 
+/* --- Numbered display maths (align, equation, \tag) inside that scroller. ---
+   The vendor pins `.katex-html > .tag` with `position: absolute; right: 0`
+   against `.katex-html`, a block as wide as the COLUMN, never the formula. The
+   tag does scroll with the content, but its x was fixed by the column width: at
+   scroll 0 a too-wide formula has the numbers printed over its middle, and
+   scrolled to the end they have moved left onto it again. Nowhere in the scroll
+   range is a number clear of the ink (owner report, a 10-line align at 390px).
+
+   The fix lays a tagged `.katex-html` out as one flex row with two equal-weight
+   spacers either side of the formula -- the `::before` and the tag itself, now
+   in flow -- so the number reserves exactly its own width. Three bands, with n
+   the number's width and g the 1em gap:
+     * fits with room (half the free space >= n + g): the spacers split the free
+       space evenly, so the formula is exactly centred and the number flush
+       right -- the vendor geometry, unchanged;
+     * nearly fits: the tag's automatic minimum holds it at n + g and the rest
+       goes to `::before`, so the formula moves left just enough to leave the
+       gap. Where the vendor gap was already under 1em but not overlapping, that
+       is a shift of at most 1em in a fitting display -- intended, and flagged;
+     * overflows: `::before` collapses to 0, the number follows the widest line
+       at n + g, and the scroller takes the overflow, so scrolling to the end
+       shows it clear of the ink.
+
+   The gap is a margin on the tag's FIRST CHILD (the vlist of an environment,
+   the full-height strut of a \tag), not padding on the tag: that raises the
+   tag's min-content without touching the flex base size the spacers share, so
+   the fit band keeps exact centring. Padding on the tag would shift every
+   fitting formula left by half of it.
+
+   The rule on the tag's children puts back `center` between rows: text-align
+   inherits into the vlist, and without it a (9) above a (10) would switch from
+   centred against each other to right-aligned -- a geometry change in a fitting
+   display.
+
+   NO shrink guards (`flex: none`, `min-width: max-content`): flex items default
+   to `min-width: auto`, their min-content, and every item inherits the vendor's
+   `white-space: nowrap`, so min-content already IS the full width.
+   `align-items: baseline` is what keeps each number level with its row.
+
+   Scope: `:has(> .tag)` leaves untagged displays alone; `:not(:has(> .newline))`
+   leaves a top-level line break (a block-level child flex would put on the same
+   line) to the vendor. Titles get the rule: there app.css's
+   `[data-math-title] .katex-display > .katex` makes the formula shrink-to-fit,
+   where the vendor tag overlapped the formula's end and now follows it.
+
+   MEASURED in tests/test_e2e_display_math_tag_overflow.py, A/B against the same
+   page with these rules deleted, at 390px (prose / `.el--math` identical):
+     * gap: number 19.36px (= 1em) right of the formula when it overflows or
+       nearly fits; vendor had it 243px INSIDE the wide derivation at scroll 0;
+     * end of scroll range: number ink right 356.1px against the scroller's
+       358px client edge, on screen; vendor's had scrolled to 113-138px, back on
+       top of the formula;
+     * vertical: number top/bottom against `.katex-html` within 0.02px of vendor.
+
+   Table widgets opt out below: their display maths inherits the cell's
+   alignment, which a centring spacer would override. Each opt-out is the same
+   chain with the widget class prefixed, so it wins by exactly one class. */
+.katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) {
+  display: flex;
+  align-items: baseline;
+}
+.katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline))::before {
+  content: "";
+  flex: 1 1 0;
+}
+.katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag {
+  position: static;
+  flex: 1 1 0;
+  text-align: right;
+}
+.katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > * {
+  text-align: center;
+}
+.katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > :first-child {
+  margin-inline-start: 1em;
+}
+/* Opt-outs: back to the vendor block with an abs-pos tag at the vendor
+   `right: 0` (never overridden), cell alignment inherited, no gap. Nothing is
+   reset on the pseudo or on `flex`: once the container is a block, both are
+   inert. One rule per widget, not a selector list, so each is its own CSSOM
+   rule for the test's A/B strip. */
+.el--table .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) {
+  display: block;
+}
+.el--table .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag {
+  position: absolute;
+  text-align: inherit;
+}
+.el--table .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > * {
+  text-align: inherit;
+}
+.el--table .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > :first-child {
+  margin-inline-start: 0;
+}
+.el--filltable .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) {
+  display: block;
+}
+.el--filltable .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag {
+  position: absolute;
+  text-align: inherit;
+}
+.el--filltable .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > * {
+  text-align: inherit;
+}
+.el--filltable .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > :first-child {
+  margin-inline-start: 0;
+}
+
 /* The step highlight, carried by \htmlClass{mk mk-amber} inside the array.
    NOT \colorbox: that compiles to an inline background-color, so it can never
    follow the theme, and it inflates the marked row -- MEASURED at 6px taller
