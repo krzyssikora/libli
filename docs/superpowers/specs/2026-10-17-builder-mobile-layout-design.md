@@ -72,7 +72,10 @@ piece of work, not in this design).
 **Row (phone):** toggle · one-letter badge · title (≤2 lines, takes all
 free width) · publish ○ · obligatory ★ · ⋯. Publish/obligatory stay on the
 row because they are glanceable status (my call — the mockup shows them
-there and the owner approved it). Draft units keep their strike-through.
+there and the owner approved it). Draft units keep their strike-through. On the phone layout `.builder`'s
+two-column grid (and the 720 px stacking) gives way to a full-width
+`.builder__tree`; the sheet wrapper is taken out of flow (fixed), so the
+tree uses the whole viewport width in both orientations.
 On desktop `builder.css:194-198` puts the flags LEFT of the title
 (`.tree__flag` order 3, title order 4); the phone layout overrides flex
 `order` so they sit after the title. DOM order is NOT changed (the hidden
@@ -99,7 +102,11 @@ element re-found by `data-node`), so the event bubbles through `root` and
 builder.js's delegated handlers run unchanged: Move…'s fetch, Delete's
 stamping of the live `open` set (builder.js:1091-1097), the op submit
 interception, tokens and error paths. The menu never copies hrefs or
-formactions onto its own elements and never submits forms itself. The menu is
+formactions onto its own elements and never submits forms itself.
+**Rename is the one exception:** it clicks no row control (and must never
+`click()` the visually hidden submit button, which would submit the
+unchanged title); it opens the editable field for that row (see the
+title section below) and the commit goes through `commitRename`. The menu is
 ONE shared element, populated from the tapped row; when an item is chosen
 it re-finds the row by `data-node` (the row may have been replaced by an
 `applyFragment` while the menu was open) and acts on the CURRENT row's
@@ -149,9 +156,9 @@ sequence covers every sheet-opening write:** a row tap, Move… and Kurs
 each invalidate any pending node-panel load (bump `panelReq`, clear
 `panelTimer`), and the Move… picker fetch is guarded by the same counter,
 so a late response can never overwrite newer sheet content (and never
-leaves `movingPk`/`.moving` set without a visible picker). This prevents "Open editor →" on the wrong
-unit — the split-a-unit task produces two rows with near-identical titles
-("X" and "X (kopia)").
+leaves `movingPk`/`.moving` set without a visible picker). This
+prevents "Open editor →" on the wrong unit — the split-a-unit task
+produces two rows with near-identical titles ("X" and "X (kopia)").
 
 **Bottom sheet:** a sheet container (new markup, phone layout only)
 that WRAPS the existing `.builder__panel` / `[data-panel]` element (course
@@ -251,7 +258,11 @@ place), and on phone -> desktop each container is put back immediately
 before its marker, restoring the exact original order. The forward move
 runs on first load when the phone layout already applies, and whenever
 the layout flips desktop → phone. The Kurs sheet
-therefore shows: that phone-only section + the course panel. The bulk
+therefore shows: that phone-only section + the course panel. The
+phone-only section is visible **only** in a sheet opened by Kurs; a sheet
+opened by a row tap or Move… hides it (a sheet-mode set by each opener,
+under the same last-request-wins counter), so node panels and the picker
+start at the top of the sheet. The bulk
 links' hrefs must remain correct after a filter change (they are the same
 elements `rewriteBulkHrefs` already updates). Choosing Expand all or
 Collapse all **closes the sheet** so the author sees the tree change and
@@ -279,7 +290,11 @@ up the keyboard, exactly as today.
 **Layout flip while open:** when the media query changes desktop → phone
 while a node panel or picker shows in the desktop panel, the panel keeps
 its content and the sheet stays closed (the author can reopen it); a
-showing picker is dismissed (`dismissPicker` cleanup). When it changes
+showing picker is dismissed (`dismissPicker` cleanup). If a rename is in
+progress (the title input focused or dirty), the flip neither commits nor
+loses it: the row enters the phone Rename editing state with the typed
+value preserved and focused (hiding a focused input would blur it and let
+builder.js's focusout handler commit a half-typed title). When it changes
 phone → desktop (e.g. a small tablet rotates across 960 px), JS closes the
 ⋯ menu and the sheet, removes the inert state and any scroll lock, returns
 the moved containers to their desktop places, and leaves an in-progress
@@ -336,8 +351,10 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
 7. Container publish via the confirm strip at 390×844 (renders within the
    width, ✕ and Escape dismiss).
 8. Kurs sheet: course panel + moved toolbar group; Expand all/Collapse all
-   close the sheet and act; bulk hrefs correct after a filter change.
-9. Layout flips: phone → desktop with the sheet open (sheet/menu closed,
+   close the sheet and act; bulk hrefs correct after a filter change. A
+   row-tap sheet and a Move… sheet do NOT show the toolbar section.
+9. Layout flips: desktop → phone while typing a rename (no commit, typed
+   value kept in the phone editing state); phone → desktop with the sheet open (sheet/menu closed,
    no inert/scroll lock left, header group back in place); desktop →
    phone with a node panel and with a picker showing (header group moved,
    sheet closed, picker dismissed, Kurs visible).
@@ -347,7 +364,8 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
     to it on close.
 12. Modality: with the sheet open, a tap on a tree row, the filter or Kurs
     does nothing, Tab cannot reach any of them, and `scrollY` does not
-    change on a scroll attempt.
+    change on a scroll attempt. (Page chrome outside `.builder` — the site
+    header/nav — is not made inert; accepted limitation, my call.)
 13. A 422 from a picker submit shows a visible toast while the sheet is
     open (toast above the sheet and its dim layer).
 14. Escape layering: with the ⋯ menu open over an open confirm strip, one
@@ -358,7 +376,8 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
     `data-node`); on Kurs after closing the course sheet.
 16. Fresh phone load: a page loaded at 390×844 already has the moved
     containers in the Kurs sheet section and the filter, h1 and Kurs in
-    the sticky header row.
+    the sticky header row; in landscape (~890×410) a row's title box is
+    wider than 60% of the viewport.
 17. ⋯ Delete chosen from the menu carries the current `open` set in its
     href (proves activation goes through the real control).
 18. Desktop no-regression: a ~945 px mouse window keeps the desktop
@@ -368,8 +387,9 @@ matches, at 390×844 portrait and ~890×410 landscape. At minimum:
 
 ## Left to the builder
 
-- Exact sheet mechanics (CSS transform vs `<dialog>`, animation; respect
-  `prefers-reduced-motion`) — within the closing rules above.
+- The sheet's animation technique (e.g. CSS transform/transition) and
+  respecting `prefers-reduced-motion` — within the closing rules above
+  (the wrapper is never a `<dialog>`).
 - How Rename's editable field is presented (subject to D8 + anti-goals).
 - One-letter mapping for container kinds (e.g. C = Część, R = Rozdział,
   S = Sekcja) — derive from the existing kind display names; keep the full
