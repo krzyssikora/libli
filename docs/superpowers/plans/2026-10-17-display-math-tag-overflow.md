@@ -122,7 +122,7 @@
 
 - [ ] **Step 5: Lint.** Run `uv run ruff check .` and `uv run ruff format --check .`. Both must be clean.
 
-- [ ] **Step 6: Re-absolutising grep.** Run `grep -rnE "\.tag" --include=*.css . | grep -v -e vendor -e node_modules -e .venv`. Only the new block may touch `.katex-html > .tag`.
+- [ ] **Step 6: Re-absolutising grep.** Run `grep -rnE "\.tag\b" --include=*.css . | grep -v -e vendor -e node_modules -e .venv`. Only the new block may touch `.katex-html > .tag`.
 
 - [ ] **Step 7: Commit**
   ```bash
