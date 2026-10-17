@@ -76,7 +76,10 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
 
 - [ ] **Step 1: Write the test module and the failing phone/desktop tests**
 
-  Header: `pytestmark = pytest.mark.e2e`; the session-scoped autouse `DJANGO_ALLOW_ASYNC_UNSAFE` fixture (copy from `tests/test_e2e_editor.py:20-23`). Import `_make_pa_user`, `_login`, `_seed_course_and_unit`, `_editor_url` from `tests.test_e2e_editor`.
+  Header: `pytestmark = pytest.mark.e2e`; the session-scoped autouse `DJANGO_ALLOW_ASYNC_UNSAFE` fixture (copy from `tests/test_e2e_editor.py:20-23`). Imports:
+  - `_make_pa_user`, `_login`, `_seed_course_and_unit`, `_editor_url` from `tests.test_e2e_editor`;
+  - `TextElement`, `CalloutElement`, `Element`, `SINGLE_SLOT_ID` from `courses.models`;
+  - `add_element` from `tests.factories`.
 
   **Helpers:**
   - **Seeding.**
@@ -88,13 +91,14 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
   - **`_first_visible_row_id`** returns the id of the first `[data-scope="editor"] .el-row[data-element]` in document order where `checkVisibility()` is true, height > 0, and `0 <= top < (visualViewport.height || innerHeight)`.
   - **Page setup.** Every test: `page.set_viewport_size(...)`, `goto`, `wait_for_selector('[data-scope="editor"]')`, then click `[data-view="editor"]` (or `split` for (k)).
   - **Pre-click guards.** Before each click, assert that the target button's rect lies inside `[0, innerHeight)`. Call `_assert_unclamped(page, max_up, max_down)` with the test's expected correction magnitude:
-    - (a)/(b2)/(k): `max_up` ≈ the 8-child callout's height;
-    - (b): one row height;
-    - (c): S-callout's height;
-    - (h)/(h2): S-callout's height;
-    - (i): the deleted callout's height (`max_down`);
-    - (l)/(d): 150;
-    - (j): 0.
+    Each line gives both arguments. "H(x)" is x's measured row height.
+    - (a)/(b2)/(k): `max_up=H(8-child callout), max_down=0`;
+    - (b): `max_up=H(one text row), max_down=0`, before each press;
+    - (c)/(h)/(h2): `max_up=H(S), max_down=0`;
+    - (i): `max_up=H(deleted callout), max_down=0` (needs ≥ H + 100 px above the callout);
+    - (l): `max_up=0, max_down=150`;
+    - (d): `max_up=150, max_down=0`;
+    - (j): `max_up=0, max_down=0`.
 
     (e) has its own guards.
   - **Every click** (including the preliminary ⊹ select in (c), (d), (h), (h2), (j) and (l)) is wrapped `_arm_swap(page)` → click → `_wait_swap(page)`.
@@ -129,9 +133,11 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       assert abs(_row_top(page, r) - t0) <= 2
 
   def test_phone_delete_tall_container_keeps_trailing_row(page, live_server):  # (i)
-      # seed: texts, callout(>=7 short children), trailing; callout top above viewport,
-      # >=5 children on-screen, >=1 trailing row on-screen (assert); D=first trailing
-      # on-screen row; click the callout's own delete (form[data-op=element-delete])
+      # seed: >= H+100px of leading texts, callout(>=7 short children), trailing.
+      # Scroll so the callout's top is at about -5px and its delete button
+      # (_row_control(page, callout, "form[data-op=element-delete] button")) is inside
+      # [0, innerHeight) (as in (b2)); assert that, and that >=5 children and >=1 trailing
+      # row are on-screen. D=first trailing on-screen row; click that delete
       assert abs(_row_top(page, d) - t0) <= 2
 
   def test_phone_nested_create_lands_at_pane_top(page, live_server):  # (e)
@@ -184,7 +190,7 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
   - **Op name.** `op = form.getAttribute("data-op")`.
   - **Candidate 2.**
     - `HEAD_OPS = ["element-move", "element-clip", "element-duplicate"]`. Add `"element-paste-before"` when `form.elements.mode && form.elements.mode.value === "copy"` (always via `form.elements`, never `form.mode`; see the shadowing note in `post()`). Task 2 handles the move case.
-    - `OTHER_OPS = ["element-save", "element-delete"]`. An op in neither set records nothing.
+    - `OTHER_OPS = ["element-save", "element-delete"]`. An op in neither set records no candidate 2. Candidate 3 still runs for every op.
     - Record `{id: opRow's data-element, top: opRow top, primary: false}` when `rendered(opRow)` and either:
       - a head op with `onScreen(form.getBoundingClientRect().top)`; or
       - an other op with `onScreen(opRow top)`.
@@ -265,9 +271,15 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       # seed: texts, S = callout(5 children) (assert S row height >= 200), destination callout D
       # with ~8 text children whose LAST child is a nested callout(8 children) (assert its height >
       # innerHeight/2), trailing. Discrimination: under mutant 1 S lands at f0 + formH - S.height.
-      # select S; scroll so the callout's form[data-op=element-paste] button[value=move] is
-      # mid-viewport, the callout row top < 0, and no child row top is on-screen (assert all)
-      # f0 = paste form top; click Move here
+      # D's own paste form (the nested callout has one too):
+      #   PF = '[data-scope="editor"] form[data-op="element-paste"]:has(input[name="parent"][value="<D pk>"])'
+      #   button = PF + ' button[value="move"]'
+      # select S; scroll so D's Move-here sits NEAR THE VIEWPORT TOP (form top ~40px), so the
+      # nested callout's last grandchild is above the viewport (only the nested pastewrap, not
+      # an .el-row, sits between). Assert: D row top < 0, and NO .el-row[data-element] top at
+      # any depth is on-screen above the form. The catch-all then holds the first trailing row
+      # below the form, so under mutant 1 S lands at f0 + formH - H(S) (>50px from f0).
+      # f0 = PF top; click Move here
       assert abs(_row_top(page, s) - f0) <= 2
       assert 0 <= _row_top(page, s) < page.evaluate("innerHeight")   # S on-screen
 
@@ -285,7 +297,8 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
       assert abs(_row_top(page, s) - f0) <= 2
 
   def test_phone_refused_move_does_not_jump(page, live_server):  # (j)
-      # seed: texts, S, 6 texts, callout(2), trailing; select S; Move-here button mid-viewport,
+      # seed: texts, S, 6 texts, callout C(2), trailing; select S; C's Move-here (PF scoped by
+      # input[name=parent][value=<C pk>], as in (c)) mid-viewport,
       # S above the viewport; R=_first_visible_row_id; set the paste form's
       # input[name=unit_token] to "2000-01-01T00:00:00+00:00" via evaluate; click Move here (409)
       assert abs(_row_top(page, r) - t0) <= 2
@@ -395,26 +408,6 @@ Spec-implied conditions with no dedicated test, most likely to bite first. Each 
     - `tests/test_e2e_twocolumn.py`
     - `tests/test_e2e_depth3.py`
   - **Unit files**, in their own command without `-m e2e`: the Task 1 Step 7 grep list, e.g. `uv run pytest tests/test_editor_js_scroll_invariants.py tests/test_editor_js_form_action.py ...`.
-
-  The files, for reference:
-  - Unit test: `tests/test_editor_js_scroll_invariants.py`.
-  - e2e (with `-m e2e`, and the `TEST_DATABASE_URL` above):
-    - `test_e2e_editor_scroll_containment.py`
-    - `test_e2e_editor_preview_state_regression.py`
-    - `test_e2e_preview_nested_locate.py`
-    - `test_e2e_editor.py`
-    - `test_e2e_clipboard.py`
-    - `test_e2e_paste_before.py`
-    - `test_e2e_cross_unit_copy.py`
-    - `test_e2e_editor_view_toggle.py`
-    - `test_e2e_editor_row_layout.py`
-    - `test_e2e_editor_container_state.py`
-    - `test_e2e_editor_force_open.py`
-    - `test_e2e_editor_saved_element_in_view.py`
-    - `test_e2e_editor_unit_token.py`
-    - `test_e2e_tabs.py`
-    - `test_e2e_twocolumn.py`
-    - `test_e2e_depth3.py`
 
   Expected: all pass. For any failure, re-run that test alone. If it fails on master too (use the same `cp` swap), it is pre-existing; record it and do not fix it here.
 
