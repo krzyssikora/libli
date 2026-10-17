@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 23:12+0200\n"
+"POT-Creation-Date: 2026-10-17 14:48+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -423,48 +423,48 @@ msgstr "%(above)s i więcej"
 msgid "Considering libli for a school?"
 msgstr "Rozważasz libli dla swojej szkoły?"
 
-#: .\core\views.py:125 .\notifications\models.py:10
+#: .\core\views.py:129 .\notifications\models.py:10
 #: .\tests\test_review_wording_pl.py:175
 msgid "Quiz graded"
 msgstr "Quiz oceniony"
 
-#: .\core\views.py:126
+#: .\core\views.py:130
 msgid "Email me when a quiz I submitted is graded."
 msgstr "Wyślij e-mail, gdy mój przesłany quiz zostanie oceniony."
 
-#: .\core\views.py:127
+#: .\core\views.py:131
 msgid "When a quiz I submitted is graded."
 msgstr "Gdy mój przesłany quiz zostanie oceniony."
 
-#: .\core\views.py:131
+#: .\core\views.py:135
 msgid "Course enrollment"
 msgstr "Zapisanie na kurs"
 
-#: .\core\views.py:132
+#: .\core\views.py:136
 msgid "Email me when I'm enrolled in a course."
 msgstr "Wyślij e-mail, gdy zostanę zapisany(a) na kurs."
 
-#: .\core\views.py:133
+#: .\core\views.py:137
 msgid "When I'm enrolled in a course."
 msgstr "Gdy zostanę zapisany(-a) na kurs."
 
-#: .\core\views.py:137 .\notifications\models.py:9
+#: .\core\views.py:141 .\notifications\models.py:9
 msgid "Quiz needs review"
 msgstr "Quiz wymaga sprawdzenia"
 
-#: .\core\views.py:138
+#: .\core\views.py:142
 msgid "Email me when a student's quiz needs my review."
 msgstr "Wyślij e-mail, gdy quiz ucznia wymaga mojego sprawdzenia."
 
-#: .\core\views.py:139
+#: .\core\views.py:143
 msgid "When a student's quiz needs my review."
 msgstr "Gdy quiz ucznia wymaga mojego sprawdzenia."
 
-#: .\core\views.py:216
+#: .\core\views.py:220
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\core\views.py:332
+#: .\core\views.py:336
 msgid "Lessons and courses from your school"
 msgstr "Lekcje i kursy Twojej szkoły"
 
@@ -970,6 +970,7 @@ msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 #: .\grouping\forms.py:256 .\institution\forms.py:515
 #: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
+#: .\templates\courses\manage\builder.html:26
 #: .\templates\institution\manage\_demo_tab.html:101
 msgid "Course"
 msgstr "Kurs"
@@ -2799,7 +2800,8 @@ msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
 #: .\courses\views_manage.py:1016
-#: .\templates\courses\manage\_tree_node.html:152
+#: .\templates\courses\manage\_tree_node.html:153
+#: .\templates\courses\manage\builder.html:67
 msgid "Clear the filter to reorder."
 msgstr "Wyczyść filtr, aby zmienić kolejność."
 
@@ -3995,7 +3997,8 @@ msgstr "Usunąć tę notatkę?"
 #: .\notes\templates\notes\confirm_delete.html:9
 #: .\support\templates\support\manage\report_detail.html:69
 #: .\tags\templates\tags\delete_confirm.html:13
-#: .\templates\courses\manage\_tree_node.html:159
+#: .\templates\courses\manage\_tree_node.html:160
+#: .\templates\courses\manage\builder.html:71
 #: .\templates\courses\manage\editor\_element_row_controls.html:36
 #: .\templates\courses\manage\media\_asset_cell.html:45
 #: .\templates\courses\manage\node_confirm_delete.html:18
@@ -4966,7 +4969,7 @@ msgstr "Nieaktywny"
 
 #: .\templates\accounts\manage\people.html:34
 #: .\templates\courses\catalog.html:28
-#: .\templates\courses\manage\builder.html:30
+#: .\templates\courses\manage\builder.html:35
 #: .\templates\courses\manage\course_list.html:27
 #: .\templates\courses\manage\editor\_link_dialog.html:30
 #: .\templates\courses\manage\media\manager.html:53
@@ -5323,8 +5326,8 @@ msgstr "Ta przeglądarka nie obsługuje powiadomień push."
 msgid ""
 "To get push notifications on this device, tick 'Remember me' when you log in."
 msgstr ""
-"Aby dostawać powiadomienia push na tym urządzeniu, zaznacz „Zapamiętaj "
-"mnie” przy logowaniu."
+"Aby dostawać powiadomienia push na tym urządzeniu, zaznacz „Zapamiętaj mnie” "
+"przy logowaniu."
 
 #: .\templates\core\user_settings.html:132
 msgid "On iPhone and iPad, add libli to your Home Screen first."
@@ -5418,8 +5421,8 @@ msgid "Draft — not visible to students"
 msgstr "Wersja robocza — niewidoczna dla uczniów"
 
 #: .\templates\courses\_draft_banner.html:26
-#: .\templates\courses\manage\_tree_node.html:82
 #: .\templates\courses\manage\_tree_node.html:83
+#: .\templates\courses\manage\_tree_node.html:84
 msgid "Publish"
 msgstr "Opublikuj"
 
@@ -5558,6 +5561,7 @@ msgstr "Spis treści kursu"
 
 #: .\templates\courses\_unit_shell.html:39 .\templates\courses\catalog.html:61
 #: .\templates\courses\manage\builder.html:15
+#: .\templates\courses\manage\builder.html:84
 msgid "Close"
 msgstr "Zamknij"
 
@@ -6186,6 +6190,7 @@ msgstr[1] "Uczynić %(n)s lekcje w \"%(title)s\" opcjonalnymi?"
 msgstr[2] "Uczynić %(n)s lekcji w \"%(title)s\" opcjonalnymi?"
 
 #: .\templates\courses\manage\_move_buttons.html:14
+#: .\templates\courses\manage\builder.html:65
 #: .\templates\courses\manage\editor\_edit_gallery.html:34
 #: .\templates\courses\manage\editor\_edit_gallery.html:49
 #: .\templates\courses\manage\editor\_edit_tabs.html:58
@@ -6194,6 +6199,7 @@ msgid "Move up"
 msgstr "Przenieś wyżej"
 
 #: .\templates\courses\manage\_move_buttons.html:15
+#: .\templates\courses\manage\builder.html:66
 #: .\templates\courses\manage\editor\_edit_gallery.html:35
 #: .\templates\courses\manage\editor\_edit_gallery.html:50
 #: .\templates\courses\manage\editor\_edit_tabs.html:59
@@ -6252,77 +6258,85 @@ msgstr "Brak pasujących tytułów."
 msgid "No children yet."
 msgstr "Brak elementów."
 
-#: .\templates\courses\manage\_tree_node.html:54
+#: .\templates\courses\manage\_tree_node.html:55
+#: .\templates\courses\manage\builder.html:64
 #: .\templates\courses\manage\media\_asset_cell.html:14
 msgid "Rename"
 msgstr "Zmień nazwę"
 
-#: .\templates\courses\manage\_tree_node.html:77
-#: .\templates\courses\manage\_tree_node.html:82
+#: .\templates\courses\manage\_tree_node.html:78
 #: .\templates\courses\manage\_tree_node.html:83
+#: .\templates\courses\manage\_tree_node.html:84
 msgid "Hide from students"
 msgstr "Ukryj przed uczniami"
 
-#: .\templates\courses\manage\_tree_node.html:93
+#: .\templates\courses\manage\_tree_node.html:94
 msgid "Not applicable to quizzes"
 msgstr "Nie dotyczy quizów"
 
-#: .\templates\courses\manage\_tree_node.html:94
+#: .\templates\courses\manage\_tree_node.html:95
 msgid "Obligatory applies to lessons only."
 msgstr "Obowiązkowość dotyczy tylko lekcji."
 
-#: .\templates\courses\manage\_tree_node.html:99
 #: .\templates\courses\manage\_tree_node.html:100
+#: .\templates\courses\manage\_tree_node.html:101
 msgid "Make optional"
 msgstr "Uczyń opcjonalnym"
 
-#: .\templates\courses\manage\_tree_node.html:99
 #: .\templates\courses\manage\_tree_node.html:100
+#: .\templates\courses\manage\_tree_node.html:101
 msgid "Make required"
 msgstr "Uczyń wymaganym"
 
-#: .\templates\courses\manage\_tree_node.html:113
-#: .\templates\courses\manage\_tree_node.html:123
-#: .\templates\courses\manage\_tree_node.html:128
+#: .\templates\courses\manage\_tree_node.html:114
+#: .\templates\courses\manage\_tree_node.html:124
+#: .\templates\courses\manage\_tree_node.html:129
 msgid "Publish or hide…"
 msgstr "Opublikuj lub ukryj…"
 
-#: .\templates\courses\manage\_tree_node.html:113
+#: .\templates\courses\manage\_tree_node.html:114
 msgid "No units to publish here."
 msgstr "Brak jednostek do opublikowania."
 
-#: .\templates\courses\manage\_tree_node.html:124
-#: .\templates\courses\manage\_tree_node.html:143
+#: .\templates\courses\manage\_tree_node.html:125
+#: .\templates\courses\manage\_tree_node.html:144
 msgid "Clear the filter to publish or hide a whole section."
 msgstr "Wyczyść filtr, aby opublikować lub ukryć całą sekcję."
 
-#: .\templates\courses\manage\_tree_node.html:137
-#: .\templates\courses\manage\_tree_node.html:142
-#: .\templates\courses\manage\_tree_node.html:147
+#: .\templates\courses\manage\_tree_node.html:138
+#: .\templates\courses\manage\_tree_node.html:143
+#: .\templates\courses\manage\_tree_node.html:148
 msgid "Make required or optional…"
 msgstr "Ustaw jako wymagane lub opcjonalne…"
 
-#: .\templates\courses\manage\_tree_node.html:138
+#: .\templates\courses\manage\_tree_node.html:139
 msgid "No lessons to mark here."
 msgstr "Brak lekcji do oznaczenia."
 
-#: .\templates\courses\manage\_tree_node.html:152
+#: .\templates\courses\manage\_tree_node.html:153
 msgid "Drag to move"
 msgstr "Przeciągnij, aby przenieść"
 
-#: .\templates\courses\manage\_tree_node.html:154
+#: .\templates\courses\manage\_tree_node.html:155
+#: .\templates\courses\manage\builder.html:68
 msgid "Move…"
 msgstr "Przenieś…"
 
-#: .\templates\courses\manage\_tree_node.html:155
+#: .\templates\courses\manage\_tree_node.html:156
+#: .\templates\courses\manage\builder.html:70
 msgid "Export subtree"
 msgstr "Eksportuj poddrzewo"
 
-#: .\templates\courses\manage\_tree_node.html:157
+#: .\templates\courses\manage\_tree_node.html:158
+#: .\templates\courses\manage\builder.html:69
 #: .\templates\courses\manage\editor\_element_row_controls.html:20
 #: .\tests\test_manage_duplicate_button.py:69
 msgid "Duplicate"
 msgstr "Duplikuj"
+
+#: .\templates\courses\manage\_tree_node.html:162
+msgid "More actions"
+msgstr "Więcej akcji"
 
 #: .\templates\courses\manage\_tree_toggle.html:7
 #, python-format
@@ -6399,7 +6413,7 @@ msgid "Exit full screen"
 msgstr "Zamknij pełny ekran"
 
 #: .\templates\courses\manage\analytics_matrix.html:37
-#: .\templates\courses\manage\builder.html:26
+#: .\templates\courses\manage\builder.html:30
 #: .\templates\courses\manage\course_list.html:63
 msgid "Export"
 msgstr "Eksport"
@@ -6629,44 +6643,49 @@ msgid "Network error — please try again."
 msgstr "Błąd sieci — spróbuj ponownie."
 
 #: .\templates\courses\manage\builder.html:16
+#: .\templates\courses\manage\editor\_link_dialog.html:36
+msgid "Loading…"
+msgstr "Wczytywanie…"
+
+#: .\templates\courses\manage\builder.html:17
 #, python-format
 msgid "Only the first %%(limit)s scopes were opened."
 msgstr "Otwarto tylko pierwsze %%(limit)s zakresów."
 
-#: .\templates\courses\manage\builder.html:17
+#: .\templates\courses\manage\builder.html:18
 #, python-format
 msgid "Filtered: %%(shown)s / %%(total)s"
 msgstr "Filtrowane: %%(shown)s / %%(total)s"
 
-#: .\templates\courses\manage\builder.html:25
+#: .\templates\courses\manage\builder.html:29
 #: .\templates\courses\manage\import_course.html:4
 msgid "Import content"
 msgstr "Importuj zawartość"
 
-#: .\templates\courses\manage\builder.html:28
+#: .\templates\courses\manage\builder.html:33
 msgid "Filter by title"
 msgstr "Filtruj według tytułu"
 
-#: .\templates\courses\manage\builder.html:32
+#: .\templates\courses\manage\builder.html:37
 msgid "Clear"
 msgstr "Wyczyść"
 
-#: .\templates\courses\manage\builder.html:37
+#: .\templates\courses\manage\builder.html:43
 msgid "This course is too large to expand at once."
 msgstr "Ten kurs jest zbyt duży, aby rozwinąć go naraz."
 
-#: .\templates\courses\manage\builder.html:37
-#: .\templates\courses\manage\builder.html:40
+#: .\templates\courses\manage\builder.html:43
+#: .\templates\courses\manage\builder.html:46
 #: .\templates\courses\outline.html:11
 msgid "Expand all"
 msgstr "Rozwiń wszystko"
 
-#: .\templates\courses\manage\builder.html:43
+#: .\templates\courses\manage\builder.html:49
 #: .\templates\courses\outline.html:12
 msgid "Collapse all"
 msgstr "Zwiń wszystko"
 
-#: .\templates\courses\manage\builder.html:47
+#: .\templates\courses\manage\builder.html:55
 msgid "Add a slide break to split this unit into a slideshow."
 msgstr "Dodaj podział slajdów, aby podzielić tę jednostkę na pokaz slajdów."
 
@@ -7808,10 +7827,6 @@ msgstr "Filtruj po tytule…"
 #: .\templates\courses\manage\editor\_link_dialog.html:35
 msgid "Course content"
 msgstr "Spis treści kursu"
-
-#: .\templates\courses\manage\editor\_link_dialog.html:36
-msgid "Loading…"
-msgstr "Wczytywanie…"
 
 #: .\templates\courses\manage\editor\_link_dialog.html:37
 msgid "This course has no content yet."

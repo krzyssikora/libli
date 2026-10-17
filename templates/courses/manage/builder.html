@@ -13,6 +13,8 @@
          data-msg-illegal="{% trans "That move isn't allowed here." %}"
          data-msg-network="{% trans 'Network error — please try again.' %}"
          data-msg-close="{% trans 'Close' %}"
+         data-msg-loading="{% trans 'Loading…' %}"
+         data-msg-details="{% trans 'Details' %}"
          data-msg-truncation="{% trans 'Only the first %(limit)s scopes were opened.' %}"
          data-msg-filter="{% trans 'Filtered: %(shown)s / %(total)s' %}"
          data-applied-q="{{ q }}"
@@ -22,8 +24,12 @@
   <div class="builder__tree">
     <header class="manage__head">
       <h1 class="builder__title">{{ course.title }}</h1>
+      <button type="button" class="btn btn--ghost btn--small builder__kurs" data-sheet-course>{% trans "Course" %}</button>
+      {# Phone layout: builder.js moves each .builder__movable into the sheet; display: contents on desktop. #}
+      <span class="builder__movable" data-phone-move="io">
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_import_content' slug=course.slug %}">{% trans "Import content" %}</a>
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
+      </span>
       <form class="builder__filter" method="get" action="{{ builder_url }}" data-filter>
         <label class="visually-hidden" for="builder-q">{% trans "Filter by title" %}</label>
         <input id="builder-q" type="search" name="q" value="{{ q }}">
@@ -31,26 +37,62 @@
         <a class="btn btn--ghost btn--small" href="{{ builder_url }}"
            data-filter-clear{% if not q %} hidden{% endif %}>{% trans "Clear" %}</a>
       </form>
+      <span class="builder__movable" data-phone-move="bulk">
       {% if expand_all_disabled %}
       <a class="btn btn--ghost btn--small" data-expand-all
          aria-disabled="true"
          title="{% trans 'This course is too large to expand at once.' %}">{% trans "Expand all" %}</a>
+      {# The reason as text: a touch screen has no hover for the title. Shown only in the phone Course sheet. #}
+      <p class="builder__bulk-reason" data-expand-all-reason>{% trans 'This course is too large to expand at once.' %}</p>
       {% else %}
       <a class="btn btn--ghost btn--small" data-expand-all
          href="{{ builder_url }}?open=all{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Expand all" %}</a>
       {% endif %}
       <a class="btn btn--ghost btn--small" data-collapse-all
          href="{{ builder_url }}?open={% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Collapse all" %}</a>
+      </span>
     </header>
+    <div class="builder__movable" data-phone-move="legends">
     {% include "courses/manage/_structure_legend.html" with course=course %}
     {% include "courses/manage/_flag_legend.html" %}
     <p class="helptext">{% trans "Add a slide break to split this unit into a slideshow." %}</p>
+    </div>
     <ul class="builder__info" role="status" data-info>{% for entry in info %}<li data-info-key="{{ entry.key }}">{{ entry.text }}</li>{% endfor %}</ul>
     {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None open_ids=open_ids %}
+    {% comment %}ONE shared row menu for every row's ⋯ button (phone layout only;
+       display: none on desktop). Each item forwards to the row's own real control.{% endcomment %}
+    <div class="row-menu" id="row-menu" data-row-menu hidden>
+      <p class="row-menu__title" data-menu-title></p>
+      <button type="button" class="row-menu__item" data-menu-action="rename">{% trans "Rename" %}</button>
+      <button type="button" class="row-menu__item" data-menu-action="up">{% trans "Move up" %}</button>
+      <button type="button" class="row-menu__item" data-menu-action="down">{% trans "Move down" %}</button>
+      <p class="row-menu__reason" data-menu-reason hidden>{% trans "Clear the filter to reorder." %}</p>
+      <button type="button" class="row-menu__item" data-menu-action="move">{% trans "Move…" %}</button>
+      <button type="button" class="row-menu__item" data-menu-action="duplicate">{% trans "Duplicate" %}</button>
+      <button type="button" class="row-menu__item" data-menu-action="export">{% trans "Export subtree" %}</button>
+      <button type="button" class="row-menu__item row-menu__item--danger" data-menu-action="delete">{% trans "Delete" %}</button>
+    </div>
   </div>
-  <div class="builder__panel" data-panel>
-    {% include "courses/manage/_course_panel.html" with course=course %}
+  {% comment %}The phone bottom sheet wraps the panel. On desktop the wrapper, shell
+     and body are display: contents (the panel stays the sticky grid item) and the
+     dim, head and tools are display: none. Never a <dialog>: modal semantics are
+     set by builder.js only while the sheet is open on the phone layout.{% endcomment %}
+  <div class="builder__sheet" data-sheet>
+    <div class="builder__sheet-dim" data-sheet-dim></div>
+    <div class="builder__sheet-shell" data-sheet-shell>
+      <div class="builder__sheet-head" data-sheet-grab>
+        <span class="builder__sheet-grabber" aria-hidden="true"></span>
+        <button type="button" class="builder__sheet-close" data-sheet-close aria-label="{% trans 'Close' %}">×</button>
+      </div>
+      <div class="builder__sheet-body" data-sheet-body>
+        <div class="builder__sheet-tools" data-sheet-tools></div>
+        <div class="builder__panel" data-panel>
+          {% include "courses/manage/_course_panel.html" with course=course %}
+        </div>
+      </div>
+    </div>
   </div>
+  <div class="builder__toast" data-toast role="alert" hidden></div>
 </section>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'courses/js/builder.js' %}"></script>{% endblock %}

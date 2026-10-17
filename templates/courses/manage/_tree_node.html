@@ -41,7 +41,7 @@
     {% elif node.kind == "unit" and node.unit_type == "quiz" %}
     <span class="tree__badge tree__badge--unit tree__badge--quiz" title="{{ node.get_unit_type_display }}">Q</span>
     {% else %}
-    <span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span>
+    <span class="tree__badge tree__badge--{{ node.kind }}" data-letter="{{ node.get_kind_display|first|upper }}">{{ node.get_kind_display }}</span>
     {% endif %}
     {% comment %}The hidden submit exists so the no-JS path can commit, and so that
        Enter resolves to rename; tabindex="-1" keeps it out of the tab order, since
@@ -49,6 +49,7 @@
     <input class="tree__title" type="text" name="title" value="{{ node.title }}"
            title="{{ node.title }}" aria-label="{% trans 'Title' %}"
            required maxlength="200" autocomplete="off" spellcheck="false">
+    <button type="button" class="tree__ptitle">{{ node.title }}</button>
     <button class="visually-hidden" type="submit" tabindex="-1">{% trans "Rename" %}</button>
     {% comment %}Publish + obligatory toggles (Task 13). Siblings of .tree__cluster,
        both AFTER the hidden Rename button in DOM order (TREE1 -- Enter must still
@@ -150,6 +151,7 @@
       {% endif %}
       <a class="ica ica--danger icm icm--trash" href="{{ delete_url }}?node={{ node.pk }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}" data-delete="{{ node.pk }}" aria-label="{% trans 'Delete' %}" title="{% trans 'Delete' %}"></a>
     </span>
+    <button type="button" class="ica tree__more" aria-expanded="false" aria-controls="row-menu" aria-label="{% trans 'More actions' %}"></button>
   </form>
   {% if node.kind != "unit" %}
     {% if node.pk in open_ids %}

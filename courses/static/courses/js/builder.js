@@ -4,17 +4,43 @@
   var root = document.querySelector(".builder");
   var panel = root && root.querySelector("[data-panel]");
   if (!root || !panel) return;
+  // Phone layout pieces (server-rendered on every layout; see the "phone layout"
+  // section at the end of this file for what drives them).
+  var sheet = root.querySelector("[data-sheet]"),
+      sheetShell = root.querySelector("[data-sheet-shell]"),
+      sheetBody = root.querySelector("[data-sheet-body]"),
+      sheetTools = root.querySelector("[data-sheet-tools]"),
+      sheetClose = root.querySelector("[data-sheet-close]"),
+      sheetDim = root.querySelector("[data-sheet-dim]"),
+      sheetGrab = root.querySelector("[data-sheet-grab]"),
+      treePane = root.querySelector(".builder__tree"),
+      toast = root.querySelector("[data-toast]"),
+      kursBtn = root.querySelector("[data-sheet-course]"),
+      menu = root.querySelector("[data-row-menu]");
+  var sheetOpener = null, lockedY = 0, menuPk = null,
+      menuOpener = null,   // the ⋯ button that opened the row menu
+      pendingFocusPk = null, pendingFocusControl = null, dragStartY = null,
+      wasPhone = false, toolbarMarkers = null, toastTimer = null;
   // The panel's neutral state == its server-rendered content at load (the course panel).
   // Restored after a Move so reordering by Move, arrows, and drag all leave the panel
   // unchanged rather than Move alone forcing the moved node's details into view.
   var neutralPanel = panel.innerHTML;
+  // The phone layout condition. builder.css repeats this string literally in its one
+  // phone media block: `pointer`, never `any-pointer`, so a touch-screen laptop or a
+  // narrow mouse window keeps the desktop layout. Declared up here because the
+  // focusin panel loader below already asks it.
+  var PHONE_MQ = "(pointer: coarse) and (max-width: 959.98px)";
+  var phoneMq = window.matchMedia(PHONE_MQ);
+  function isPhone() { return phoneMq.matches; }
 
   // Single writer for panel content. The panel is a scroll container (builder.css), so
-  // every swap must reset scrollTop or the next node's panel opens mid-way down. Nine
+  // every swap must reset scrollTop or the next node's panel opens mid-way down. Thirteen
   // call sites funnel through here; tests/test_builder_js_invariants.py enforces it.
+  // On the phone the sheet body is the scroll container instead, so it resets too.
   function setPanel(html) {
     panel.innerHTML = html;
     panel.scrollTop = 0;
+    if (sheetBody) sheetBody.scrollTop = 0;
   }
 
   // ---- Move-picker state (declared early so the submit handler can call clearMoving) ----
@@ -108,6 +134,9 @@
     var pk = movingPk;
     setPanel(neutralPanel);
     clearMoving();
+    // Phone: the picker lives in the sheet and its a[data-move] is hidden, so the
+    // sheet closes (inert gone first) and focus goes to that row's ⋯.
+    if (isPhone()) { closeSheet({ focus: false }); focusRowMore(pk); return; }
     var mv = pk == null ? null : root.querySelector('a[data-move="' + pk + '"]');
     // The row may be gone or hidden (its chapter collapsed, a filter): never strand
     // focus on <body> -- the panel, now showing the course, takes it instead.
@@ -270,6 +299,12 @@
       swapping = true;
       try { existing.replaceWith(incoming); } finally { swapping = false; }
     }
+    // Every swap, not only an op submit's: a filter, expand/collapse or scope
+    // toggle can replace the row menu's opener too. Its items would then act on
+    // a row the author no longer sees as the menu's. Focus inside the menu would
+    // drop to <body> as it hides, so it goes to the replacement ⋯ (re-found by
+    // data-node; Kurs if hidden) instead.
+    if (menuOpener && !menuOpener.isConnected) closeMenu(menu.contains(document.activeElement));
     // No append fallback: the target [data-scope] element is always present after the
     // first render (the tree-pane root for "top", a nested <ol> otherwise). Appending
     // on a missed selector would DUPLICATE the tree, so a miss is intentionally a no-op.
@@ -298,6 +333,7 @@
       input.value = title;
       input.defaultValue = title;            // makes the field clean again
       input.title = title;
+      syncPtitle(input);
     }
 
     // Every carrier of this node's `updated`, scoped so descendant rows are untouched.
@@ -322,6 +358,7 @@
   }
 
   function notice(text) {
+    if (isPhone()) { showToast(text); return; }
     var bar = document.createElement("div");
     bar.className = "op-error";
     bar.textContent = text;
@@ -401,6 +438,11 @@
     // rename goes dead on every row in the builder. Guard it, and scope it
     // to the flag ops so no other op's button is touched.
     var control = e.submitter;
+    // A phone row-menu item asked for focus on its row's ⋯ once THIS request's
+    // fragment lands. Claimed per request, at submit time, so an unrelated op's
+    // response can never consume it.
+    var focusPk = (control && control === pendingFocusControl) ? pendingFocusPk : null;
+    if (focusPk) { pendingFocusPk = null; pendingFocusControl = null; }
     if (control && (op === "flag" || op === "flag-confirm")) {
       control.disabled = true;
       control.setAttribute("aria-disabled", "true");
@@ -438,6 +480,11 @@
             // be applied, or the stale row is never reloaded.
             if (r.status === 200 && op === "rename") {
               applyRename(form, text);
+              // A phone rename exits once its commit lands (focus to the ⋯ only on
+              // a keyboard exit; see finishRenameExit).
+              if (form.classList.contains("is-editing")) {
+                finishRenameExit(form, rowPk(form), form.dataset.renameExit);
+              }
             } else {
               var incoming = parseFragment(text).firstElementChild;
               if (incoming && incoming.matches("[data-flag-strip]")) {
@@ -446,12 +493,22 @@
                 // node's own first write landing elsewhere). This root
                 // carries no data-scope, so applyFragment would silently
                 // no-op on it -- branch before calling it.
-                insertStripAfterRowhead(incoming, control || form);
-                focusInto(incoming);
+                // Dropped while the phone sheet is open: it would land under it.
+                if (!(isPhone() && sheetIsOpen())) {
+                  insertStripAfterRowhead(incoming, control || form);
+                  focusInto(incoming);
+                }
                 return;   // no tree re-render on this arm; releaseControl()
                           // below still runs, via the `finally`.
               }
+              // A phone rename's 409: read its state BEFORE the swap -- the
+              // re-rendered row never carries is-editing, and the focusout
+              // Chromium fires inside replaceWith() must not decide the exit.
+              var renameEditing = op === "rename" && form.classList.contains("is-editing");
+              var exitKind = form.dataset.renameExit, renamePk = rowPk(form);
               applyFragment(text);
+              if (renameEditing) finishRenameExit(form, renamePk, exitKind);
+              if (focusPk && isPhone()) focusRowMore(focusPk);
               syncUrl();
               if (op === "flag" || op === "flag-confirm") {
                 restoreFlagFocus(op, control, body);
@@ -461,11 +518,19 @@
             // Only the Move picker remains as a panel form with data-op; it resets the
             // panel to neutral. (The panel's rename form is gone, so the re-token helper
             // that existed solely to refresh it was deleted along with it.)
-            if (inPanel) setPanel(neutralPanel);
+            // On the phone the picker sat in the sheet: close it (inert gone
+            // first), then focus the moved row's ⋯. movingPk is read BEFORE
+            // clearMoving() nulls it.
+            if (inPanel) {
+              var movedPk = movingPk;
+              setPanel(neutralPanel);
+              if (isPhone()) { closeSheet({ focus: false }); focusRowMore(movedPk); }
+            }
             clearMoving();
             if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
           } else if (r.status === 422) {
             notice(parseFragment(text).textContent.trim());
+            if (op === "rename" && form.classList.contains("is-editing")) failPhoneRename(form);
           }
         } finally {
           releaseControl();
@@ -474,6 +539,7 @@
       });
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
+      if (op === "rename" && form.classList.contains("is-editing")) failPhoneRename(form);
       releaseControl();
       releaseForm(form, op);
     }).then(finish, function (e) { finish(); if (window.console) console.error(e); });        // BOTH arms, like every other site
@@ -559,6 +625,9 @@
       .then(function (html) {
         var incoming = parseFragment(html).firstElementChild;
         if (!incoming) return;
+        // A strip GET still in flight when the phone sheet opened: never land it
+        // under the sheet (openSheet already removed every open strip).
+        if (isPhone() && sheetIsOpen()) return;
         insertStripAfterRowhead(incoming, a);
         focusInto(incoming);
       })
@@ -598,13 +667,28 @@
       // so after an expand-all every picker GET would carry a ~1 KB pk list.
       var u = new URL(mv.getAttribute("href"), window.location.origin);
       u.searchParams.set("q", appliedQ);
+      // Phone: the picker opens in the sheet, under the panel loads' last-request-
+      // wins counter, so a late picker after the sheet closed (or a late node panel
+      // after the picker showed) is dropped. Gated on the layout at ISSUE time: a
+      // desktop request keeps moveReq = 0 and stays unguarded, as today.
+      var moveReq = 0;
+      if (isPhone()) {
+        invalidatePanel();
+        setPanel(PLACEHOLDER_HTML);
+        openSheet("move", { pk: mv.getAttribute("data-move"), target: "more" });
+        moveReq = ++panelReq;
+      }
       fetch(u.pathname + u.search, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) {
+          if (moveReq && moveReq !== panelReq) return;
           setPanel(html);
           initPicker(parseInt(mv.getAttribute("data-move"), 10));
         })
-        .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
+        .catch(function () {
+          if (moveReq && moveReq !== panelReq) return;
+          setPanel('<div class="op-error" role="alert">Network error — please reload.</div>');
+        });
       return;
     }
   });
@@ -651,6 +735,9 @@
     var byPointer = pointerFocus;
     pointerFocus = false;
     if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+    // On the phone a focused title is a rename in progress, never a selection:
+    // the sheet opens from the phone title button instead.
+    if (isPhone()) return;
     var t = e.target.closest(".tree__title");
     if (!t) return;
     var row = t.closest("li.tree__row");
@@ -679,6 +766,19 @@
   // form.tree__rowhead: the row's single form (was form.tree__rename, which no
   // longer exists -- the title is now a direct child of the rowhead form).
   function titleForm(input) { return input.closest("form.tree__rowhead"); }
+  function rowPk(form) {
+    var row = form.closest("li.tree__row");
+    return row ? row.getAttribute("data-node") : null;
+  }
+
+  // The phone title button always shows the input's COMMITTED value.
+  function syncPtitle(input) {
+    var row = input.closest("li.tree__row");
+    var btn = row && row.querySelector(":scope > form.tree__rowhead > .tree__ptitle");
+    if (!btn) return;
+    var target = btn.querySelector(".tree__ptitle-text") || btn;
+    target.textContent = input.defaultValue;
+  }
 
   // Programmatic value assignment fires NO input event, so the tooltip must be synced
   // by hand here or it keeps showing abandoned text -- exactly on the truncated long
@@ -686,23 +786,27 @@
   function revert(input) {
     input.value = input.defaultValue;
     input.title = input.value;
+    syncPtitle(input);
   }
 
+  // Returns "unchanged" | "invalid" | "sent" | "busy"; only the phone rename hooks
+  // read it.
   function commitRename(input) {
     var form = titleForm(input);
-    if (!form || form.dataset.submitting) return;
+    if (!form || form.dataset.submitting) return "busy";
     var trimmed = input.value.trim();
     // Compare trimmed against trimmed: a legacy row whose stored title has stray
     // whitespace would otherwise post a rename on a bare focus-and-blur.
-    if (trimmed === input.defaultValue.trim()) return;
+    if (trimmed === input.defaultValue.trim()) return "unchanged";
     // Write the trim back -- FormData reads the LIVE value, so trimming into a local
     // would leave the untrimmed string in the POST body.
     input.value = trimmed;
     input.title = input.value;
-    if (!form.reportValidity()) return;   // native bubble; no state set, so no wedge
+    if (!form.reportValidity()) return "invalid";   // native bubble; no state set, so no wedge
     form.dataset.submitting = "1";
     input.readOnly = true;           // AFTER validity: readonly is barred from it
     form.requestSubmit();
+    return "sent";
   }
 
   root.addEventListener("keydown", function (e) {
@@ -713,13 +817,23 @@
       // implicitly submits on Enter, which would post even an unchanged title and
       // would double-post alongside requestSubmit().
       e.preventDefault();
-      commitRename(input);   // itself null-guards the form and checks dataset.submitting
+      // Phone rename: a keyboard exit. A second Enter while the first commit is in
+      // flight touches nothing.
+      var form = titleForm(input);
+      var phoneEdit = !!form && form.classList.contains("is-editing") && !form.dataset.submitting;
+      if (phoneEdit) form.dataset.renameExit = "keys";
+      var result = commitRename(input);   // itself null-guards the form and checks dataset.submitting
+      if (phoneEdit && (result === "unchanged" || result === "invalid")) {
+        delete form.dataset.renameExit;
+        if (result === "unchanged") endPhoneRename(rowPk(form), true);
+      }
     } else if (e.key === "Escape") {
       e.preventDefault();
       if (titleForm(input).dataset.submitting) return;
       // Revert WITHOUT blurring: dropping focus to <body> would force someone who
       // abandoned an edit 300 rows down to Tab from the top of the document again.
       revert(input);
+      if (titleForm(input).classList.contains("is-editing")) endPhoneRename(rowPk(titleForm(input)), true);
     }
   });
 
@@ -728,6 +842,12 @@
     if (!input) return;
     var form = titleForm(input);
     if (!form) return;
+    var phoneEdit = form.classList.contains("is-editing");
+    // Phone rename: Enter, then a tap elsewhere before the response -- the exit
+    // becomes a blur one, so focus stays where the author tapped. Never from inside
+    // applyFragment's replaceWith() (swapping), nor for a detached form.
+    if (phoneEdit && !swapping && form.isConnected && form.dataset.submitting
+        && form.dataset.renameExit === "keys") form.dataset.renameExit = "blur";
     // 1. A commit is already in flight. Nothing is lost -- readOnly means the field
     //    cannot have changed since the POST.
     if (form.dataset.submitting) return;
@@ -749,8 +869,17 @@
     //    commitRename: an emptied field IS dirty, so we would otherwise post "" and
     //    surface a 422 on an ambiguous gesture. Enter deliberately does not share
     //    this branch -- it relies on required + reportValidity's native bubble.
-    if (!input.value.trim()) { revert(input); return; }
-    commitRename(input);
+    if (!input.value.trim()) {
+      revert(input);
+      if (phoneEdit) endPhoneRename(rowPk(form), false);
+      return;
+    }
+    if (phoneEdit) form.dataset.renameExit = "blur";
+    var result = commitRename(input);
+    if (phoneEdit && (result === "unchanged" || result === "invalid")) {
+      delete form.dataset.renameExit;
+      if (result === "unchanged") endPhoneRename(rowPk(form), false);
+    }
   });
 
   // Keep the tooltip honest while typing. Delegated like every other handler here,
@@ -1391,4 +1520,491 @@
     // let a click on the same form's button win before blur closes it
     setTimeout(function () { if (form.isConnected && !form.contains(document.activeElement)) commitOrCancel(form); }, 120);
   });
+  // --- end WS2 inline "+" add -----------------------------------------------
+
+  // ---- phone layout ----------------------------------------------------------
+  // Everything below only acts while PHONE_MQ matches (builder.css's one phone
+  // media block). The markup it drives is server-rendered on every layout and is
+  // layout-neutral on desktop, so the desktop builder never runs any of it except
+  // applyLayout's no-op desktop branch at load.
+  if (!sheet || !sheetShell || !sheetBody || !sheetTools || !treePane) return;
+
+  // Shown while a node panel loads into the sheet (Task 4).
+  var PLACEHOLDER_HTML = '<div class="panel" data-panel-loading><p class="panel__meta">'
+    + escHtml(root.getAttribute("data-msg-loading") || "") + "</p></div>";
+
+  // A phone notice is a toast: the panel lives in the (possibly closed) sheet, so
+  // an .op-error prepended there would be invisible. One element, one timer; a
+  // newer notice replaces the text and restarts the six seconds.
+  function showToast(text) {
+    if (!toast) return;
+    toast.textContent = text;
+    toast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.hidden = true; toastTimer = null; }, 6000);
+  }
+
+  // Same fallback as unit_nav.js: checkVisibility is Safari 17.4+. Every visibility
+  // test in this section goes through here, never a bare checkVisibility().
+  function isShown(el) {
+    return el.checkVisibility ? el.checkVisibility() : el.offsetParent !== null;
+  }
+
+  // $-anchored, like the focusin loader: a `0` inside the course slug must not match.
+  function urlFor(row) {
+    return root.getAttribute("data-panel-url").replace(/\/0\/$/, "/" + row.getAttribute("data-node") + "/");
+  }
+
+  // Drop every pending panel load: a response for a sheet that has since closed
+  // (or been re-pointed) fails loadPanel's last-request-wins check.
+  function invalidatePanel() {
+    panelReq++;
+    if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+  }
+
+  // ---- the shared ⋯ row menu ----
+  // ONE element (a child of .builder__tree, outside every row, so no applyFragment
+  // can destroy it), populated from the tapped row. Its items never copy an href or
+  // formaction: each one click()s the row's REAL control, re-found by data-node, so
+  // builder.js's delegated handlers above run unchanged. The menu carries none of
+  // their hook attributes, so a click on the menu itself triggers none of them.
+  var menuReason = menu && menu.querySelector("[data-menu-reason]");
+  var menuTitle = menu && menu.querySelector("[data-menu-title]");
+  var MENU_CONTROLS = {
+    "up": 'button[data-op="reorder"][value="up"]',
+    "down": 'button[data-op="reorder"][value="down"]',
+    "move": "a[data-move]",
+    "duplicate": 'button[data-op="duplicate"]',
+    "export": "a.icm--download",
+    "delete": "a[data-delete]"
+  };
+  function menuControl(row, action) {
+    var sel = MENU_CONTROLS[action];
+    var head = row.querySelector(":scope > form.tree__rowhead");
+    return sel && head ? head.querySelector(sel) : null;
+  }
+
+  // The row's ⋯, re-found by data-node; returnFocus falls back to Kurs.
+  function focusRowMore(pk) { returnFocus({ pk: pk, target: "more" }); }
+
+  // ---- phone rename ----
+  // ⋯ → Rename makes the row's own title input editable in place (is-editing on
+  // the rowhead; builder.css shows the input and hides the phone title). It
+  // commits through the desktop path (commitRename, the row's token). Every hook
+  // in the rename handlers above runs only while the rowhead has is-editing,
+  // which only the phone layout sets, so the desktop rename never reaches them.
+  // rowhead.dataset.renameExit: "keys" (Enter) | "blur" (focus left the field),
+  // set by the caller of commitRename, read when the response lands.
+  function startPhoneRename(row) {
+    var head = row.querySelector(":scope > form.tree__rowhead");
+    var input = head && head.querySelector(":scope > input.tree__title");
+    if (!input) return;
+    head.classList.add("is-editing");
+    input.focus();
+    input.select();
+  }
+
+  // Focus moves to the ⋯ FIRST, and only then is the input hidden, so focus never
+  // lands on a hidden element. The row is re-found by pk: the caller's form may sit
+  // in a row a 409's applyFragment has just replaced.
+  function endPhoneRename(pk, focusMore) {
+    var row = pk == null ? null : root.querySelector('li.tree__row[data-node="' + pk + '"]');
+    if (focusMore && isPhone()) focusRowMore(pk);
+    var head = row && row.querySelector(":scope > form.tree__rowhead");
+    if (head) head.classList.remove("is-editing");
+  }
+
+  // A commit's 200 or 409 landed. A blur exit never moves focus -- the author may
+  // already be in an open sheet.
+  function finishRenameExit(form, pk, exitKind) {
+    endPhoneRename(pk, exitKind === "keys");
+    delete form.dataset.renameExit;
+  }
+
+  // A 422 or a network failure: after a blur exit the edit is abandoned (reverted,
+  // exited, focus untouched; the toast says why); after Enter the field stays
+  // editing with the typed text (releaseForm unlocks it).
+  function failPhoneRename(form) {
+    var input = form.querySelector("input.tree__title");
+    if (input && form.dataset.renameExit === "blur") {
+      revert(input);
+      endPhoneRename(rowPk(form), false);
+    }
+    delete form.dataset.renameExit;
+  }
+
+  function openMenu(moreBtn) {
+    var row = moreBtn.closest("li.tree__row");
+    if (!row || !menu) return;
+    if (menuOpener && menuOpener !== moreBtn) menuOpener.setAttribute("aria-expanded", "false");
+    // Settle an open add row the way openAdd does: typed text commits, an empty
+    // row cancels. The add field's own focusout timer does the same on Chromium;
+    // this line covers browsers where tapping a button does not move focus (iOS
+    // Safari). Never closeAdd(): it would discard the typed text.
+    root.querySelectorAll("form.tree__add.is-adding").forEach(commitOrCancel);
+    menuPk = row.getAttribute("data-node");
+    menuOpener = moreBtn;
+    var input = row.querySelector(":scope > form.tree__rowhead > input.tree__title");
+    if (menuTitle) menuTitle.textContent = input ? input.defaultValue : "";
+    var first = null, reorderOff = false;
+    menu.querySelectorAll("[data-menu-action]").forEach(function (item) {
+      var action = item.getAttribute("data-menu-action");
+      if (action !== "rename") {
+        var control = menuControl(row, action);
+        item.hidden = !control;
+        item.disabled = !!control && (control.disabled
+          || control.getAttribute("aria-disabled") === "true");
+        if ((action === "up" || action === "down") && item.disabled) reorderOff = true;
+      }
+      if (!first && !item.hidden && !item.disabled) first = item;
+    });
+    // `title` tooltips never show on touch, so the filter's reason is text.
+    if (menuReason) menuReason.hidden = !(effectiveQ(appliedQ) !== "" && reorderOff);
+    menu.hidden = false;
+    moreBtn.setAttribute("aria-expanded", "true");
+    if (first) first.focus();
+  }
+
+  // Called on every openSheet and every outside pointerdown, hence the early return.
+  function closeMenu(restoreFocus) {
+    if (!menu || menu.hidden) return;
+    menu.hidden = true;
+    if (menuOpener) menuOpener.setAttribute("aria-expanded", "false");
+    if (restoreFocus) focusRowMore(menuPk);
+    menuPk = null;
+    menuOpener = null;
+  }
+
+  root.addEventListener("click", function (e) {
+    var btn = e.target.closest(".tree__more");
+    var row = btn && btn.closest("li.tree__row");
+    if (!row) return;
+    e.preventDefault();
+    if (menuPk === row.getAttribute("data-node") && !menu.hidden) closeMenu(true);
+    else openMenu(btn);
+  });
+
+  if (menu) menu.addEventListener("click", function (e) {
+    var item = e.target.closest("[data-menu-action]");
+    if (!item || item.disabled) return;
+    var action = item.getAttribute("data-menu-action");
+    // The row may have been replaced by an applyFragment while the menu was open:
+    // act on the CURRENT row; if it is gone, do nothing.
+    var row = menuPk == null ? null
+      : root.querySelector('li.tree__row[data-node="' + menuPk + '"]');
+    if (!row) { closeMenu(false); return; }
+    if (action === "rename") { closeMenu(false); startPhoneRename(row); return; }
+    var control = menuControl(row, action);
+    if (!control) { closeMenu(false); return; }
+    // Move… opens the sheet, which owns focus from here.
+    if (action === "move") { closeMenu(false); control.click(); return; }
+    var pk = menuPk;   // closeMenu nulls menuPk
+    // export (a download -- the page stays) and delete (navigates away) render no
+    // fragment, so only the in-place ops ask the submit handler for a focus return.
+    if (action !== "export" && action !== "delete") {
+      pendingFocusPk = pk;
+      pendingFocusControl = control;
+    }
+    // Focus moves to the ⋯ BEFORE the menu hides, so it never drops to <body>.
+    focusRowMore(pk);
+    closeMenu(false);
+    control.click();
+  });
+
+  // Keyboard focus leaving the menu closes it. focusout acts only for a REAL
+  // element outside both the menu and its ⋯: some touch paths blur with a null
+  // relatedTarget, and an item's own tap must still reach the menu's click.
+  // Tab past Delete usually has no element to land on (the menu ends the page's
+  // tab order; focus leaves the document, relatedTarget null), so a Tab key is
+  // checked once the browser has moved focus.
+  if (menu) menu.addEventListener("focusout", function (e) {
+    var to = e.relatedTarget;
+    if (!to || menu.contains(to) || to === menuOpener) return;
+    closeMenu(false);
+  });
+  if (menu) menu.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab") return;
+    setTimeout(function () {
+      if (!menu.hidden && !menu.contains(document.activeElement)) closeMenu(false);
+    }, 0);
+  });
+
+  // An outside tap closes the menu without stealing focus from what was tapped;
+  // a tap on something unfocusable leaves focus on <body>, so it goes to the ⋯.
+  document.addEventListener("pointerdown", function (e) {
+    if (!menu || menu.hidden) return;
+    var t = e.target;
+    if (t && t.closest && (menu.contains(t) || t.closest(".tree__more"))) return;
+    var pk = menuPk;
+    closeMenu(false);
+    setTimeout(function () {
+      if (document.activeElement === document.body) focusRowMore(pk);
+    }, 0);
+  });
+  // ---- end row menu ----
+
+  function sheetIsOpen() { return sheet.classList.contains("is-open"); }
+
+  // mode: "course" | "node" | "move"; opener: { pk, target: "title"|"more"|"kurs" },
+  // where focus goes back on close.
+  function openSheet(mode, opener) {
+    closeMenu(false);
+    // Nothing from the tree layer lingers under the sheet. remove(), not
+    // dismissStrip(): the strip's focus return would fight the sheet's own.
+    root.querySelectorAll("[data-flag-strip]").forEach(function (s) { s.remove(); });
+    sheet.dataset.mode = mode;
+    sheetOpener = opener;
+    if (!sheetIsOpen()) {
+      // Lock the page where it is: body goes position: fixed, offset by the
+      // saved scrollY (builder.css, `html.js.builder-sheet-lock body`), so a drag
+      // on the dim cannot scroll the tree behind it. Only on a real open --
+      // while locked, window.scrollY reads 0.
+      lockedY = window.scrollY;
+      document.documentElement.style.setProperty("--lock-y", lockedY + "px");
+      document.documentElement.classList.add("builder-sheet-lock");
+    }
+    treePane.inert = true;
+    sheet.inert = false;
+    sheet.setAttribute("role", "dialog");
+    sheet.setAttribute("aria-modal", "true");
+    sheet.setAttribute("aria-label", msg("details", "Details"));
+    sheet.classList.add("is-open");
+    sheetBody.scrollTop = 0;
+    if (sheetClose) sheetClose.focus();
+  }
+
+  // opts.focus === false skips the focus return (layout flips, bfcache restore).
+  // Inert and the scroll lock are gone BEFORE the focus return: focus() on an
+  // inert element is silently ignored.
+  function closeSheet(opts) {
+    opts = opts || {};
+    if (!sheetIsOpen()) return;
+    // A showing move picker gets dismissPicker's cleanup, minus its focus move.
+    if (panel.querySelector("form.move-picker")) {
+      clearMoving();
+      setPanel(neutralPanel);
+    }
+    invalidatePanel();
+    sheet.classList.remove("is-open");
+    sheet.removeAttribute("role");
+    sheet.removeAttribute("aria-modal");
+    sheet.removeAttribute("aria-label");
+    sheet.inert = true;
+    treePane.inert = false;
+    document.documentElement.classList.remove("builder-sheet-lock");
+    document.documentElement.style.removeProperty("--lock-y");
+    window.scrollTo(0, lockedY);
+    sheetShell.style.removeProperty("--sheet-drag");
+    sheetShell.style.removeProperty("transition");
+    dragStartY = null;
+    if (opts.focus !== false) returnFocus(sheetOpener);
+    sheetOpener = null;
+  }
+
+  // Back to the opener, found by data-node so a row replaced by applyFragment
+  // still counts; a missing or hidden one (collapsed scope, filter) falls back
+  // to the Kurs button, so focus never lands on a hidden element.
+  function returnFocus(opener) {
+    var el = null;
+    if (opener && opener.pk != null && opener.target !== "kurs") {
+      var row = root.querySelector('li.tree__row[data-node="' + opener.pk + '"]');
+      var cls = opener.target === "title" ? ".tree__ptitle" : ".tree__more";
+      el = row && row.querySelector(":scope > form.tree__rowhead > " + cls);
+    }
+    if (!el || !isShown(el)) el = kursBtn;
+    // A row's control may need scrolling into view; the Kurs button never does --
+    // it is in the sticky header, which sits INSIDE html's scroll-padding-top, so
+    // a scrolling focus() would drag the page back to the header's static slot and
+    // undo closeSheet's scroll restore.
+    if (el) el.focus({ preventScroll: el === kursBtn });
+  }
+
+  // Import/Export, Expand/Collapse all and the legends move into the Kurs sheet's
+  // tools on the phone. A comment marker left in each one's original slot puts it
+  // back exactly there; none is created until the first move to the phone, so a
+  // desktop load never touches the header.
+  var TOOLBAR_KEYS = ["io", "bulk", "legends"];
+  function moveToolbar(toPhone) {
+    if (!toolbarMarkers) {
+      if (!toPhone) return;
+      toolbarMarkers = [];
+      TOOLBAR_KEYS.forEach(function (key) {
+        var node = root.querySelector('[data-phone-move="' + key + '"]');
+        if (!node) return;
+        var marker = document.createComment("phone-move:" + key);
+        node.parentNode.insertBefore(marker, node.nextSibling);
+        toolbarMarkers.push({ node: node, marker: marker });
+      });
+    }
+    toolbarMarkers.forEach(function (m) {
+      if (toPhone) sheetTools.appendChild(m.node);
+      else m.marker.parentNode.insertBefore(m.node, m.marker);
+    });
+  }
+
+  // The sticky header's height, for scroll-padding-top (builder.css `html.js`).
+  var head = treePane.querySelector("header.manage__head");
+  function measureHead() {
+    if (head) document.documentElement.style.setProperty("--phone-head-h", head.offsetHeight + "px");
+  }
+
+  // Run at load and on every PHONE_MQ change.
+  function applyLayout() {
+    if (isPhone()) {
+      // Desktop -> phone with a picker showing: dismiss it (no focus move); a node
+      // panel is kept for the next sheet open.
+      if (panel.querySelector("form.move-picker")) {
+        clearMoving();
+        setPanel(neutralPanel);
+      }
+      moveToolbar(true);
+      // A desktop rename in progress (dirty or in flight) becomes the phone editing
+      // state, keeping its typed text and focus; a settled focused title is blurred
+      // so the row shows only its phone title.
+      var active = document.activeElement;
+      if (active && active.matches && active.matches("input.tree__title") && root.contains(active)) {
+        var activeForm = titleForm(active);
+        if (activeForm && (active.value !== active.defaultValue || activeForm.dataset.submitting
+            || activeForm.classList.contains("is-editing"))) activeForm.classList.add("is-editing");
+        else active.blur();
+      }
+      if (!sheetIsOpen()) sheet.inert = true;   // closed: out of the tab order
+      measureHead();
+    } else {
+      if (menu && !menu.hidden) closeMenu(false);
+      closeSheet({ focus: false });             // itself a no-op when closed
+      moveToolbar(false);
+      // inert would reach the desktop panel through the display: contents wrapper.
+      sheet.inert = false;
+      treePane.inert = false;
+      document.documentElement.style.removeProperty("--phone-head-h");
+      if (wasPhone) setPanel(neutralPanel);
+      clearMoving();
+      // A phone rename still focused keeps its field until it settles or blurs.
+      root.querySelectorAll(".tree__rowhead.is-editing").forEach(function (form) {
+        var input = form.querySelector("input.tree__title");
+        if (!input || input !== document.activeElement) form.classList.remove("is-editing");
+      });
+    }
+    wasPhone = isPhone();
+  }
+  applyLayout();
+  if (phoneMq.addEventListener) phoneMq.addEventListener("change", applyLayout);
+  else phoneMq.addListener(applyLayout);   // Safari < 14
+  // Rotation inside the query and the filter's Clear link change the header's
+  // height without any media-query change.
+  if (head && window.ResizeObserver) {
+    new ResizeObserver(function () { if (isPhone()) measureHead(); }).observe(head);
+  }
+
+  // Kurs: the course panel, plus the moved toolbar.
+  root.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-sheet-course]")) return;
+    invalidatePanel();
+    clearMoving();   // a desktop picker GET that landed after a flip
+    setPanel(neutralPanel);
+    openSheet("course", { pk: null, target: "kurs" });
+  });
+
+  // A row's panel in the sheet. The placeholder goes in BEFORE the sheet opens,
+  // so the previously shown panel is never visible; loadPanel's own id bump plus
+  // invalidatePanel's timer clear make this the newest sheet load.
+  function openNodeSheet(row) {
+    invalidatePanel();
+    setPanel(PLACEHOLDER_HTML);
+    openSheet("node", { pk: row.getAttribute("data-node"), target: "title" });
+    loadPanel(urlFor(row));
+  }
+
+  // The phone title button (hidden on desktop). Enter/Space click it natively.
+  root.addEventListener("click", function (e) {
+    if (!isPhone()) return;
+    var btn = e.target.closest(".tree__ptitle");
+    var row = btn && btn.closest("li.tree__row");
+    if (!row) return;
+    e.preventDefault();
+    openNodeSheet(row);
+  });
+
+  root.addEventListener("click", function (e) {
+    if (e.target.closest("[data-sheet-close]") || e.target.closest("[data-sheet-dim]")) {
+      closeSheet();
+    }
+  });
+
+  // Expand all / Collapse all act on the tree, so the sheet gets out of the way.
+  // Neither this nor the bulk handlers above stop propagation, so order is moot.
+  // A disabled Expand all does nothing -- the sheet stays open on its reason.
+  root.addEventListener("click", function (e) {
+    if (!isPhone() || !sheetIsOpen()) return;
+    var expand = e.target.closest("[data-expand-all]");
+    if (expand && (expand.getAttribute("aria-disabled") === "true"
+        || root.hasAttribute("data-expand-all-disabled"))) return;
+    if (!expand && !e.target.closest("[data-collapse-all]")) return;
+    sheetOpener = { pk: null, target: "kurs" };
+    closeSheet({ focus: true });
+  });
+
+  // One Escape closes only the TOPMOST layer. While the sheet is open this is the
+  // ONE Escape owner: capture phase, then preventDefault, so the picker's
+  // document-level handler (top of this file) takes its defaultPrevented early
+  // return and never double-dismisses. Sheet layer: picker -> sheet. Tree layer:
+  // the ⋯ menu here; with the menu closed too it does nothing, so the rename,
+  // strip and add-row handlers behave as today.
+  document.addEventListener("keydown", function (e) {
+    if (!isPhone() || e.key !== "Escape") return;
+    if (sheetIsOpen()) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (panel.querySelector("form.move-picker")) dismissPicker();
+      else closeSheet();
+      return;
+    }
+    if (menu && !menu.hidden) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu(true);
+    }
+  }, true);
+
+  // Swipe the sheet down by its head (grabber + title strip) to close it. Touch
+  // only; the close button keeps its own tap. touch-action: none on the head
+  // (builder.css) keeps the browser from taking the gesture as a pan.
+  function dragOffset(e) { return Math.max(0, e.clientY - dragStartY); }
+  function snapBack() {
+    sheetShell.style.removeProperty("transition");
+    sheetShell.style.removeProperty("--sheet-drag");
+  }
+  if (sheetGrab) {
+    sheetGrab.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "touch" || !isPhone() || !sheetIsOpen()) return;
+      if (e.target.closest && e.target.closest("[data-sheet-close]")) return;
+      dragStartY = e.clientY;
+      try { sheetGrab.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      sheetShell.style.transition = "none";
+    });
+    sheetGrab.addEventListener("pointermove", function (e) {
+      if (dragStartY === null) return;
+      sheetShell.style.setProperty("--sheet-drag", dragOffset(e) + "px");
+    });
+    sheetGrab.addEventListener("pointerup", function (e) {
+      if (dragStartY === null) return;
+      var dy = dragOffset(e);
+      dragStartY = null;
+      sheetShell.style.removeProperty("transition");
+      if (dy >= Math.min(80, sheetShell.offsetHeight / 4)) closeSheet();
+      else snapBack();
+    });
+    sheetGrab.addEventListener("pointercancel", function () {
+      if (dragStartY === null) return;
+      dragStartY = null;
+      snapBack();
+    });
+  }
+
+  // Back from the editor via bfcache: land on the tree, not a stale sheet.
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted && sheetIsOpen()) closeSheet({ focus: false });
+  });
+  // ---- end phone layout ------------------------------------------------------
 })();

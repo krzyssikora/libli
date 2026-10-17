@@ -480,3 +480,179 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .flag-legend__list { margin: 0; display: grid; gap: 3px; }
 .flag-legend__row { display: grid; grid-template-columns: 15px auto; align-items: center; gap: var(--space-2); }
 .flag-legend__row dt, .flag-legend__row dd { margin: 0; }   /* UA <dd> indent */
+
+/* ── Phone layout scaffolding: desktop neutralisation ─────────────────────────
+   builder.html server-renders the phone bottom sheet, the toolbar wrappers, the
+   toast, the shared row menu and the per-row phone title + ⋯ on EVERY layout.
+   Outside the phone media block they must be invisible to layout: the wrappers
+   are display: contents, so `.builder__panel` stays the grid item and keeps its
+   sticky rule (`.builder__panel`) and the 720 px stacked override, and the
+   header's flex row (`.manage__head`) still sees Import, Export, Expand all and
+   Collapse all as its own items. The phone-only pieces are display: none. */
+.builder__sheet, .builder__sheet-shell, .builder__sheet-body, .builder__movable { display: contents; }
+.builder__sheet-dim, .builder__sheet-head, .builder__sheet-tools, .builder__toast,
+.builder__kurs, .builder__bulk-reason, .tree__ptitle, .tree__more, .row-menu { display: none; }
+
+/* ── Phone layout (D1-D11) ──────────────────────────────────────────────────
+   One block, matching builder.js's PHONE_MQ literally: `pointer`, never the
+   any- variant, so a touch-screen laptop or a mouse window under 960 px keeps
+   the desktop layout. EVERY selector here starts with `.js ` (or `html.js`):
+   without JS the phone title cannot open anything and the ⋯ menu cannot run,
+   so a no-JS phone keeps today's rows (tests/test_builder_phone_markup.py
+   pins the prefix). State classes are toggled by builder.js:
+   `.builder__sheet.is-open`, `.builder__sheet[data-mode]`,
+   `.tree__rowhead.is-editing`; `--phone-head-h` is the sticky header height. */
+@media (pointer: coarse) and (max-width: 959.98px) {
+  /* Full-width tree: the grid and the 720 px stack both give way, and the sheet
+     wrapper below is fixed, so it takes no room in the flow. */
+  .js .builder { display: block; }
+  .js .builder__tree { border-right: 0; padding-right: 0; }
+  /* Beats both `.builder__panel`'s sticky rule and the 720 px override: the
+     sheet body is the only scroll container on the phone. */
+  .js .builder__panel { position: static; max-height: none; overflow: visible; }
+
+  /* Header: title on its own line, Kurs + filter sharing the next one.
+     `stretch`, not app.css's baseline: Kurs takes the filter row's height, so
+     the two share a top edge and Kurs gets the taller touch target. */
+  html.js { scroll-padding-top: var(--phone-head-h, 0px); }
+  .js .builder__tree > .manage__head {
+    position: sticky; top: 0; z-index: 5; background: var(--surface-base);
+    padding-block: var(--space-2); flex-wrap: wrap; align-items: stretch; }
+  .js .builder__tree > .manage__head > h1 {
+    flex: 1 1 100%; min-width: 0; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; font-size: 1.05rem; }
+  .js .builder__kurs { display: inline-flex; }
+  .js .builder__filter { flex: 1 1 0; min-width: 0; }
+  /* Import/Export and Expand/Collapse stay hidden while still in the header;
+     builder.js moves them into the Kurs sheet's tools, where they show. */
+  .js .manage__head .builder__movable { display: none; }
+  /* The legends block is a direct child of the tree pane until builder.js moves
+     it into the sheet tools (no longer a child of .builder__tree there): hidden
+     from the first paint, so a phone load never flashes it above the tree. */
+  .js .builder__tree > .builder__movable { display: none; }
+  .js .builder__sheet-tools > .builder__movable { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+  /* Rows (D3-D5, D8): smaller indent, two-line plain title, ⋯ instead of the
+     cluster, flags AFTER the title (desktop puts them left of it).
+     Width budget (spec Goal 1 outranks fixed control sizes): at 390 px a
+     part > chapter > section > unit row must still give its title room for a
+     whole long Polish word ("Przekształcenia"), so every fixed piece of row
+     chrome is trimmed -- 10 px per level (`.tree__scope` padding + margin +
+     its 2 px rule), a 4 px row gap, 28 px targets below, a 12 px leaf spacer. */
+  .js .tree__scope { padding-left: 6px; margin-left: 2px; }
+  .js .tree__rowhead { align-items: flex-start; gap: var(--space-1); }
+  .js .tree__rowhead:not(.is-editing) > input.tree__title:not(:focus) { display: none; }
+  .js .tree__rowhead.is-editing > .tree__ptitle { display: none; }
+  .js .tree__ptitle {
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; overflow-wrap: anywhere; flex: 1 1 0; min-width: 0; order: 4;
+    text-align: left; background: none; border: 0; padding: 2px 0; font: inherit;
+    color: var(--text-primary); cursor: pointer; }
+  .js .tree__row--draft .tree__ptitle { text-decoration: line-through; }
+  .js .tree__rowhead > .tree__flag { order: 5; }
+  .js .tree__cluster { display: none; }
+  .js .tree__more { display: inline-flex; order: 6; }
+  /* Three dots, same masked-icon mechanism as `.icm::before` (fill `black`). */
+  .js .tree__more::before {
+    content: ""; display: block; width: 15px; height: 15px; background-color: currentColor;
+    --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='black'%3E%3Ccircle cx='3' cy='8' r='1.5'/%3E%3Ccircle cx='8' cy='8' r='1.5'/%3E%3Ccircle cx='13' cy='8' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask: var(--icm) no-repeat center / contain;
+    mask: var(--icm) no-repeat center / contain; }
+  /* Touch targets: 28 px for ⋯, both flags and the disclosure toggle -- the
+     floor kept while buying title width (see `.tree__scope` above). */
+  .js .tree__more, .js .tree__rowhead > .tree__flag, .js .tree__toggle {
+    min-width: 28px; min-height: 28px; align-items: center; justify-content: center; }
+  /* The leaf spacer shares `.tree__toggle` but is not interactive
+     (pointer-events: none, aria-hidden), so it needs no target: 12 px keeps a
+     unit's badge just right of where a sibling container's chevron sits. */
+  .js .tree__toggle--leaf { flex: 0 0 12px; width: 12px; min-width: 0; }
+  /* Container badges become one-letter circles, like the L/Q unit badges. */
+  .js .tree__badge[data-letter] {
+    font-size: 0; width: 22px; height: 22px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; padding: 0; flex: none; }
+  .js .tree__badge[data-letter]::before { content: attr(data-letter); font-size: .7rem; }
+
+  /* Bottom sheet (D6). Hidden by visibility, not display, so the slide-out can
+     run: the hide is delayed only while CLOSING (`.is-open` resets the delay). */
+  .js .builder__sheet {
+    display: block; position: fixed; inset: 0; z-index: 40;
+    visibility: hidden; pointer-events: none; transition: visibility 0s linear .22s; }
+  .js .builder__sheet.is-open { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .js .builder__sheet-dim {
+    display: block; position: absolute; inset: 0; background: rgb(0 0 0 / .45);
+    opacity: 0; transition: opacity .2s; }
+  .js .builder__sheet.is-open .builder__sheet-dim { opacity: 1; }
+  .js .builder__sheet-shell {
+    display: flex; flex-direction: column; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 67dvh; background: var(--surface-raised); border-radius: 16px 16px 0 0;
+    box-shadow: var(--shadow-lg, 0 -8px 24px rgb(0 0 0 / .35));
+    transform: translateY(100%); transition: transform .22s ease; }
+  .js .builder__sheet.is-open .builder__sheet-shell { transform: translateY(var(--sheet-drag, 0px)); }
+  .js .builder__sheet-head {
+    display: flex; align-items: center; justify-content: center; position: relative;
+    min-height: 40px; touch-action: none; flex: none; }
+  .js .builder__sheet-grabber {
+    display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--border-strong); }
+  .js .builder__sheet-close {
+    position: absolute; right: var(--space-2); top: 0; width: 40px; height: 40px;
+    background: none; border: 0; padding: 0; font-size: 1.5rem; line-height: 1;
+    color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); }
+  .js .builder__sheet-body {
+    display: block; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+    padding: 0 var(--space-4) var(--space-4); }
+  .js .builder__sheet-tools { display: none; }
+  .js .builder__sheet[data-mode="course"] .builder__sheet-tools {
+    display: block; padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--space-3); }
+  /* Over the ceiling Expand all is an inert anchor and a touch screen has no
+     hover for its `title`, so the reason is a real element (builder.html),
+     wrapped onto its own line below the buttons -- never generated content
+     inside the button, which would join the link's accessible name. */
+  .js .builder__sheet-tools .builder__bulk-reason {
+    display: block; flex: 1 0 100%; order: 1; margin: 0;
+    font-size: .8rem; color: var(--text-secondary); }
+
+  /* Page scroll lock while the sheet is open (builder.js openSheet/closeSheet):
+     the body is pinned at the saved scrollY (`--lock-y`), so nothing behind the
+     dim can scroll, and closeSheet scrolls back to it. Accepted trade-off: the
+     sticky header scrolls away behind the dim while locked. */
+  html.js.builder-sheet-lock body {
+    position: fixed; top: calc(-1 * var(--lock-y, 0px)); left: 0; right: 0; }
+
+  /* Toast: above the sheet and the menu; taps pass through to what is under it.
+     Colours mirror `.builder__panel > .op-error`. */
+  .js .builder__toast {
+    display: block; position: fixed; left: var(--space-3); right: var(--space-3);
+    bottom: var(--space-4); z-index: 60; pointer-events: none;
+    padding: var(--space-2) var(--space-3); background: var(--danger-subtle);
+    border: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--text-primary); }
+
+  /* Row menu: one shared bottom action sheet, not anchored to the ⋯. */
+  .js .row-menu {
+    display: block; position: fixed; left: var(--space-3); right: var(--space-3);
+    bottom: var(--space-3); z-index: 50; background: var(--surface-raised);
+    border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-lg);
+    max-height: 80dvh; overflow-y: auto; padding: var(--space-2) 0; }
+  .js .row-menu__title {
+    padding: var(--space-2) var(--space-4); color: var(--text-secondary);
+    overflow-wrap: anywhere; font-size: .875rem; }
+  .js .row-menu__reason { padding: 0 var(--space-4) var(--space-2); color: var(--text-secondary); font-size: .8125rem; }
+  .js .row-menu__item {
+    display: block; width: 100%; min-height: 44px; padding: 0 var(--space-4);
+    text-align: left; background: none; border: 0; font: inherit;
+    color: var(--text-primary); cursor: pointer; }
+  .js .row-menu__item--danger { color: var(--danger); }
+  .js .row-menu__item:disabled { opacity: .45; cursor: default; }
+
+  /* An author `display` above beats the UA `[hidden]` rule; restore it. */
+  .js .builder__toast[hidden], .js .row-menu[hidden], .js .row-menu__item[hidden],
+  .js .row-menu__reason[hidden] { display: none; }
+
+  @media (orientation: landscape) {
+    .js .builder__sheet-shell { height: 94dvh; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .js .builder__sheet, .js .builder__sheet.is-open,
+    .js .builder__sheet-dim, .js .builder__sheet-shell { transition: none; }
+  }
+}
