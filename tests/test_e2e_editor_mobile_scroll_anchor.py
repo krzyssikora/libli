@@ -495,3 +495,137 @@ def test_desktop_up_aligns_to_pane_top_without_window_scroll(page, live_server):
     )
     assert abs(off) <= 2
     assert page.evaluate("window.__ws") == 0
+
+
+# --- phone: paste-move (candidate 1) ---------------------------------------------
+
+ROWS_ABOVE_JS = """(limit) => {
+  const sel = '[data-scope="editor"] .el-row[data-element]';
+  return [...document.querySelectorAll(sel)].filter(r => {
+    const t = r.getBoundingClientRect().top;
+    return r.checkVisibility() && t >= 0 && t < limit;
+  }).length;
+}"""
+
+
+def _select_row(page, eid):
+    _scroll_window_to_row(page, eid, PHONE["height"] / 3)
+    btn = _select(page, eid)
+    _assert_on_screen(page, btn)
+    _swap_click(page, btn)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_phone_move_here_lands_at_tapped_spot(page, live_server):
+    """(c) "Move here" into a callout whose top is off-screen: the moved element S
+    lands where the author's finger was. No row top is on-screen above the form, so
+    a build without the paste-move anchor holds the first row BELOW it instead and
+    lands S at f0 + formH - H(S), far from f0 (S is a 5-child callout)."""
+    go = _open(page, live_server, "msa_c")
+    unit = _seed_course_and_unit("msa_c", slug="msa-c")
+    _seed_texts(unit, 6, "lead")
+    s, _ = _seed_callout(unit, 5)
+    d, _ = _seed_callout(unit, 8)
+    nested, _ = _seed_callout(unit, 8, parent=d)
+    _seed_texts(unit, 25, "tail")
+    go(unit)
+
+    h_s = _rect(page, s.pk)["height"]
+    assert h_s >= 200, h_s
+    assert _rect(page, nested.pk)["height"] > PHONE["height"] / 2
+    _select_row(page, s.pk)
+    pf = _paste_form(page, d.pk)
+    btn = pf.locator('button[value="move"]')
+    _scroll_box_to(page, pf, 40)
+    _assert_on_screen(page, btn)
+    f0 = pf.bounding_box()["y"]
+    assert _row_top(page, d.pk) < 0
+    assert page.evaluate(ROWS_ABOVE_JS, f0) == 0
+    _assert_unclamped(page, h_s, 0)
+    _swap_click(page, btn)
+    assert abs(_row_top(page, s.pk) - f0) <= 2
+    assert 0 <= _row_top(page, s.pk) < PHONE["height"]
+
+
+def _seed_paste_before(unit, s_children):
+    _seed_texts(unit, 6, "lead")
+    s, _ = _seed_callout(unit, s_children)
+    _seed_texts(unit, 3, "mid")
+    t = _seed_texts(unit, 1, "T")[0]
+    _seed_texts(unit, 25, "tail")
+    return s, t
+
+
+def _move_before(page, s, t):
+    """Select S, put T as the first on-screen row, return (button, form top)."""
+    _select_row(page, s.pk)
+    _scroll_window_to_row(page, t.pk, 10)
+    assert _first_visible_row_id(page) == str(t.pk)
+    form = _row_control(page, t.pk, 'form[data-op="element-paste-before"]')
+    btn = form.locator("button")
+    _assert_on_screen(page, btn)
+    _assert_unclamped(page, _rect(page, s.pk)["height"], 0)
+    return btn, form.bounding_box()["y"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_phone_move_before_lands_at_tapped_spot(page, live_server):
+    """(h) "Move before this element": the paste-before form carries its mode in a
+    hidden input (its button has no name), and S lands at the form's top. T is the
+    first on-screen row, so a build that misses the paste-move holds T and puts S
+    a whole S-height above f0."""
+    go = _open(page, live_server, "msa_h")
+    unit = _seed_course_and_unit("msa_h", slug="msa-h")
+    s, t = _seed_paste_before(unit, 5)
+    go(unit)
+
+    btn, f0 = _move_before(page, s, t)
+    _swap_click(page, btn)
+    assert abs(_row_top(page, s.pk) - f0) <= 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_phone_move_before_tall_element_skips_safety_net(page, live_server):
+    """(h2) S is taller than the room below the form, so its target T lands
+    entirely below the viewport. The focus-row safety net must not then drag T
+    (and S with it) up: a held paste-move already sits under the finger."""
+    go = _open(page, live_server, "msa_h2")
+    unit = _seed_course_and_unit("msa_h2", slug="msa-h2")
+    s, t = _seed_paste_before(unit, 15)
+    go(unit)
+
+    btn, f0 = _move_before(page, s, t)
+    assert _rect(page, s.pk)["height"] > PHONE["height"] - f0
+    _swap_click(page, btn)
+    assert abs(_row_top(page, s.pk) - f0) <= 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_phone_refused_move_does_not_jump(page, live_server):
+    """(j) A paste-move the server refuses (409, stale token) moved nothing; the
+    page must not jump to wherever S still sits. Another tab changing the unit is
+    simulated by staling the form's token; the click itself is real."""
+    go = _open(page, live_server, "msa_j")
+    unit = _seed_course_and_unit("msa_j", slug="msa-j")
+    _seed_texts(unit, 6, "lead")
+    s = _seed_texts(unit, 1, "S")[0]
+    _seed_texts(unit, 6, "mid")
+    c, _ = _seed_callout(unit, 2)
+    _seed_texts(unit, 25, "tail")
+    go(unit)
+
+    _select_row(page, s.pk)
+    pf = _paste_form(page, c.pk)
+    btn = pf.locator('button[value="move"]')
+    _scroll_box_to(page, pf, PHONE["height"] / 2)
+    _assert_on_screen(page, btn)
+    assert _rect(page, s.pk)["bottom"] <= 0
+    _assert_unclamped(page, 0, 0)
+    r = _first_visible_row_id(page)
+    t0 = _row_top(page, r)
+    pf.locator('input[name="unit_token"]').evaluate(
+        "el => { el.value = '2000-01-01T00:00:00+00:00'; }"
+    )
+    _swap_click(page, btn)
+    assert abs(_row_top(page, r) - t0) <= 2
+    assert _rect(page, s.pk)["bottom"] <= 0
