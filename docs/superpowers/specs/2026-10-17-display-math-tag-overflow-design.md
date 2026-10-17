@@ -110,7 +110,7 @@ large enough for the widest would shift every fitting formula off centre. An
 gap, in the near-fit and overflow cases the widest line would touch its number,
 so `… = 2(3)` would read as multiplication. The gap is a margin on the tag's
 **first child**, which is the vlist for an array environment and the full-height
-`.strut` for `	ag{…}` (see the ink definition below). That margin raises the
+`.strut` for `\tag{…}` (see the ink definition below). That margin raises the
 tag's min-content width by 1em. It does not touch the flex base size the two
 spacers share, so the fit case keeps exact centring, and the number stays flush
 right inside its wider share. Padding on `.tag` was rejected: it adds to the
@@ -184,7 +184,7 @@ tag's *leaf* descendant elements (no element children) whose width is greater
 than 0, excluding `.strut`, `.pstrut` and `.vlist-s`. Three facts make that
 definition necessary rather than a simpler one:
 
-- For `	ag{…}`, the tag's first child is a zero-width `.strut` whose height is
+- For `\tag{…}`, the tag's first child is a zero-width `.strut` whose height is
   the whole display's height plus depth. It is not the number (vendored
   `katex.min.js`: the tag is built through the unbreakable-base path and its
   `children[0]` gets the strut height).
