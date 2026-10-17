@@ -136,8 +136,12 @@ def test_collapsed_container_renders_a_toggle_with_its_direct_child_count(client
     ).content.decode()
     row = re.search(rf'data-node="{part.pk}".*?</div>', html, re.S).group(0)
     assert f'data-toggle="{part.pk}"' in row
-    assert 'aria-expanded="false"' in row
-    assert "aria-controls" not in row  # invalid ARIA while collapsed
+    # Scoped to the toggle's own tag: the row's phone ⋯ button legitimately carries
+    # aria-expanded="false" + aria-controls="row-menu", so a whole-row substring
+    # check would be vacuous for the first and always-red for the second.
+    toggle = re.search(rf'<a [^>]*data-toggle="{part.pk}"[^>]*>', row).group(0)
+    assert 'aria-expanded="false"' in toggle
+    assert "aria-controls" not in toggle  # invalid ARIA while collapsed
     # Assert the WHOLE label. `str(len(chapters)) in row` is vacuous: with 30
     # chapters, "30" also appears inside data-updated timestamps, maxlength
     # and pks, so it can never fail.

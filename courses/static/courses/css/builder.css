@@ -480,3 +480,15 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .flag-legend__list { margin: 0; display: grid; gap: 3px; }
 .flag-legend__row { display: grid; grid-template-columns: 15px auto; align-items: center; gap: var(--space-2); }
 .flag-legend__row dt, .flag-legend__row dd { margin: 0; }   /* UA <dd> indent */
+
+/* ── Phone layout scaffolding: desktop neutralisation ─────────────────────────
+   builder.html server-renders the phone bottom sheet, the toolbar wrappers, the
+   toast, the shared row menu and the per-row phone title + ⋯ on EVERY layout.
+   Outside the phone media block they must be invisible to layout: the wrappers
+   are display: contents, so `.builder__panel` stays the grid item and keeps its
+   sticky rule (`.builder__panel`) and the 720 px stacked override, and the
+   header's flex row (`.manage__head`) still sees Import, Export, Expand all and
+   Collapse all as its own items. The phone-only pieces are display: none. */
+.builder__sheet, .builder__sheet-shell, .builder__sheet-body, .builder__movable { display: contents; }
+.builder__sheet-dim, .builder__sheet-head, .builder__sheet-tools, .builder__toast,
+.builder__kurs, .tree__ptitle, .tree__more, .row-menu { display: none; }

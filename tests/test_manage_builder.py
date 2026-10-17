@@ -236,7 +236,9 @@ def test_hidden_rename_submit_is_out_of_the_tab_order(client):
     # .visually-hidden uses the clip pattern, which keeps the element FOCUSABLE --
     # without tabindex="-1" every row would gain a second tab stop. Asserted per
     # attribute so a harmless reorder doesn't fail a test that is about tab order.
-    btn = re.search(r"<button[^>]*>", form)
+    # The FIRST SUBMIT button, not the first <button>: the phone title
+    # (`button.tree__ptitle`, type="button") sits right after the title input.
+    btn = re.search(r'<button[^>]*type="submit"[^>]*>', form)
     assert btn, "the rename form must contain a submit button"
     assert 'class="visually-hidden"' in btn.group(0)
     assert 'type="submit"' in btn.group(0)
