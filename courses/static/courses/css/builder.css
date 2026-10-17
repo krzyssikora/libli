@@ -253,7 +253,7 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    vertical rhythm. Owl selector spaces sibling blocks; the Elements heading gets a
    larger gap as a section break; the action seam separates from the list above it. */
 .builder__panel .panel > * + * { margin-top: var(--space-3); }
-.builder__panel .panel h2 { font-size: 1.15rem; font-weight: 700; }
+.builder__panel .panel h2 { font-size: 1.15rem; font-weight: 700; overflow-wrap: anywhere; }  /* anywhere, NOT break-word: break-word keeps the min-content width and still overflows */
 .builder__panel .panel h3 { margin-top: var(--space-6); font-size: 1rem; font-weight: 700; }
 .builder__panel .panel__meta { color: var(--text-secondary); }
 .builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5);
