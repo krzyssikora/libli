@@ -117,8 +117,9 @@ checked with `isConnected` before measuring.
 
 The measurement runs whenever the response status is 200, 409 or 422. It is
 cheap: one layout pass plus O(rows) rect reads, and it never scrolls. The
-catch-all scan stops at the first rendered row whose top is ≥ `viewportH()`;
-on the stacked layout, document order equals vertical order.
+catch-all scan does NOT stop at the first row below the fold: two-column and
+before/after slots sit side by side once the pane is wider than ~31rem (code
+review finding), so document order is not vertical order there.
 
 The result is an **ordered list of candidates**, each a pair `{id, top}`: `id` is
 a `data-element` value to look up after the swap, and `top` is the screen
