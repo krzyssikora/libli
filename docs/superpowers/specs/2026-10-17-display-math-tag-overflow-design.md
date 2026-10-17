@@ -96,11 +96,28 @@ large enough for the widest would shift every fitting formula off centre. An
   flex: 1 1 0;            /* right spacer, the twin of ::before */
   text-align: right;      /* the number block flush right inside its share */
 }
-/* (0,7,0) */
+/* (0,6,0) -- `*` adds nothing */
 .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > * {
   text-align: center;     /* restore the vendor's inherited alignment BETWEEN rows */
 }
+/* (0,7,0) -- `:first-child` is a pseudo-class and counts as a class */
+.katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline)) > .tag > :first-child {
+  margin-inline-start: 1em; /* minimum gap between formula and number */
+}
 ```
+
+**The gap.** Neither KaTeX tag path puts any space before the number. Without a
+gap, in the near-fit and overflow cases the widest line would touch its number,
+so `… = 2(3)` would read as multiplication. The gap is a margin on the tag's
+**first child**, which is the vlist for an array environment and the full-height
+`.strut` for `	ag{…}` (see the ink definition below). That margin raises the
+tag's min-content width by 1em. It does not touch the flex base size the two
+spacers share, so the fit case keeps exact centring, and the number stays flush
+right inside its wider share. Padding on `.tag` was rejected: it adds to the
+tag's outer size, so the formula would shift left by half the padding in every
+fitting display. Mirroring it on `::before` would instead leave a 1em dead strip
+at the formula's left edge when it overflows. Consequence for the fit
+condition: "room for the number" now means free space / 2 ≥ number width + 1em.
 
 The `.tag > *` rule exists because `text-align` inherits into the vlist rows.
 Without it, a fitting `align` with (9) above (10) would switch its numbers from
@@ -151,7 +168,7 @@ final rules.
 |---|---|---|---|---|
 | 390 | wide align, prose | 348.6–374 over base ending 547.9 (**overlap**) | starts at 547.9 | vendor tag moved to 172.6–198 (still over ink). New ink right 372.3 ≤ scroller right 374 |
 | 390 | wide align, `.el--math` | 346.1–374 over base ending 628 (**overlap**) | starts at 628 | vendor 90.1–118 (over ink). New 371.9 ≤ 374 |
-| 390 / 1280 | fitting align, `\tag` with 3 bases | base rects identical | base rects identical, ink flush right at 374 / 1264 | n/a |
+| 390 / 1280 | fitting align, `\tag` with 3 bases | base rects identical | base rects identical, tag box flush right at 374 / 1264 (box, not ink -- the plan re-measures with the ink definition below) | n/a |
 
 Vertical: `tag.top − katexHtml.top` and `tag.bottom − katexHtml.bottom` matched
 vendor to within 0.02px in every case. `documentElement.scrollWidth` stayed
@@ -162,9 +179,24 @@ delta, 176px, confirms it scrolls with the content (see Root cause).
 is a flex-grow spacer. It spans from the formula's right edge to the column
 edge, with the number right-aligned inside it, and its height depends on flex
 alignment. **Every tag measurement, horizontal and vertical, uses the tag's
-ink.** The ink is the bounding rect of the tag's first child element (the
-vlist), never `.tag`'s own box. On the vendor build, box and ink coincide
-horizontally, so the A/B stays like-for-like.
+ink, never `.tag`'s own box.** **Ink** = the union of the bounding rects of the
+tag's *leaf* descendant elements (no element children) whose width is greater
+than 0, excluding `.strut`, `.pstrut` and `.vlist-s`. Three facts make that
+definition necessary rather than a simpler one:
+
+- For `	ag{…}`, the tag's first child is a zero-width `.strut` whose height is
+  the whole display's height plus depth. It is not the number (vendored
+  `katex.min.js`: the tag is built through the unbreakable-base path and its
+  `children[0]` gets the strut height).
+- For an array environment the first child is the `.vlist-t`, whose box
+  overshoots the number by 2px: KaTeX's `vlist-t2` margin trick. A re-run of the
+  probe measured that box's right edge at 376 against a 374 column edge, on both
+  builds.
+- Auto-numbers have **no text nodes**. `.eqn-num` gets its "(n)" from a CSS
+  counter in `::before`. A text-node Range sees nothing, so a leaf-element union,
+  where `.eqn-num` is the leaf, is the robust choice. (The counter runs across
+  the whole page, which is why the owner's second display starts at (3).
+  Unchanged by this work.)
 
 ### Scope and opt-outs
 
@@ -179,13 +211,15 @@ horizontally, so the A/B stays like-for-like.
   opt-out is written as **the same selector chain with the surface class
   prefixed**: `.el--table .katex-display > .katex > .katex-html:has(> .tag):not(:has(> .newline))`
   and so on. Each opt-out then out-specifies its counterpart by exactly one
-  class: (0,6,0), (0,6,1), (0,7,0) and (0,8,0) against (0,5,0), (0,5,1),
-  (0,6,0) and (0,7,0). Declarations: `display: block` on `.katex-html`
+  class. The opt-outs are (0,6,0), (0,6,1), (0,7,0), (0,7,0) and (0,8,0); the main
+  rules they beat are (0,5,0), (0,5,1), (0,6,0), (0,6,0) and (0,7,0), in the
+  order container, `::before`, tag, `tag > *`, `tag > :first-child`. Declarations: `display: block` on `.katex-html`
   (`align-items` is inert on a block, so it needs no reset), `content: none` on
   `::before`, and `position: absolute; flex: initial; text-align: inherit` on
   the tag. `inherit` restores the vendor's inherited cell alignment, which
   `initial` would not. The vendor `right: 0` is never overridden, so it
-  survives. The `.tag > *` rule gets `text-align: inherit` too.
+  survives. The `.tag > *` rule gets `text-align: inherit` too, and the
+  `.tag > :first-child` rule gets `margin-inline-start: 0`.
 - **Titles** (`[data-math-title]`, app.css ~line 2399): no opt-out. There
   `.katex-display > .katex` is forced `inline-block`, so `.katex-html` is
   shrink-to-fit at the formula's width. On vendor, the abs-pos tag at `right: 0`
@@ -241,20 +275,22 @@ MathElement (`.el--math`):
   overlap ink at max scroll (prototype: about 176px and 256px of overflow).
 - **fit-mixed**: a fitting numbered `align` with at least ten rows, so (9) sits
   above (10) and the number widths differ. It must satisfy free space / 2 ≥ tag
-  ink width + 20px at 390px and at 1280px.
+  ink width + 1em + 20px at 390px and at 1280px.
 - **multi-base**: `x = … \tag{3}`, fitting, which yields several `.base` runs.
 - **near-fit**: a numbered display where, at 390px, formula + tag ink ≤ column −
-  10px but free space / 2 < tag ink width − 10px. The vendor build overlaps
+  10px − 1em but free space / 2 < tag ink width + 1em − 10px. The vendor build overlaps
   here and the new one must not. The plan sizes it by measurement.
 
 Assertions. "Overlap" means the tag ink's horizontal interval intersects the
 union of the `.base` rects. Rects are compared with a 0.5px tolerance.
 
 1. **No overlap at scroll 0 (wide, near-fit; 390px; prose and `.el--math`).**
-   The tag ink's left ≥ the base union's right. RED on vendor.
+   The tag ink's left ≥ the base union's right + 1em − 0.5px
+   (1em = the display's computed font-size). RED on vendor.
 2. **Numbers clear of ink at the end of the scroll range (wide; 390px).** After
    setting the scroller's `scrollLeft` to its maximum, the tag ink lies entirely
-   inside the scroller's client rect, and its left ≥ the base union's right. RED
+   inside the scroller's client rect, and its left ≥ the base union's right +
+   1em − 0.5px. RED
    on vendor, where the tag has scrolled left onto the formula. A "moves by the
    scroll delta" check is deliberately absent: it holds on both builds.
 3. **Fitting display unchanged (fit-mixed, multi-base; 390px and 1280px).**
@@ -284,7 +320,9 @@ to courses.css, never with `git checkout`, and the file is re-run:
 | delete only `align-items: baseline` | 4 (if it stays green, the declaration is unearned: remove it or fix the test) |
 | delete only the `.tag > *` rule | 3 (fit-mixed) |
 | delete only the `.el--table` opt-out | 6 |
-| delete only `text-align: right` on `.tag` | 1/3 tag ink position (the number leaves the right edge) |
+| delete only the `.el--filltable` opt-out | 6 |
+| delete only the `.tag > :first-child` gap rule | 1, 2 (the gap term) |
+| delete only `text-align: right` on `.tag` | 3 (fit fixtures; in near-fit/overflow the share equals the number, so nothing moves) |
 | delete the #292 `.katex-display` `overflow-x`/`overflow-y` pair | 7 |
 
 Assertions 3, 4 and 7 are regression guards and are expected green when the
