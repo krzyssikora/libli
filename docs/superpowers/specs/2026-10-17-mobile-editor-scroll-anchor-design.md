@@ -50,7 +50,8 @@ The change is confined to **`courses/static/courses/js/editor.js`**, inside the
 template, view or server change.
 
 The handler covers these ops:
-- move ↑/↓ (`reorder`-style forms in the row controls);
+- move ↑/↓ (`data-op="element-move"`, `name="direction"` buttons in
+  `_element_row_controls.html`);
 - clipboard select ⊹ (`element-clip`, in the row controls);
 - clipboard cancel ✕ (`element-clip`, in `#clip-banner`);
 - "Move here" / "Copy here" (`element-paste`, rendered at the bottom of every
@@ -78,9 +79,12 @@ The handler covers these ops:
   as on-screen.
 - `onScreen(top)` is `0 <= top && top < viewportH()`.
 - `rendered(el)` is `el.isConnected && el.getClientRects().length > 0 &&
-  el.getBoundingClientRect().height > 0`. Container slots are `<details>` elements,
-  and `applyStoredSlots` re-applies the author's collapse state after every swap.
-  A row inside a closed `<details>` (or any `display:none` subtree) has an
+  el.getBoundingClientRect().height > 0`. Tabs and columns slots are `<details>`
+  elements (`SLOT_DETAILS` in editor.js); callout, spoiler and before/after slots
+  are always-open divs. `applyStoredSlots` re-applies the author's collapse
+  state after every swap, but these slots are force-opened (`data-force-open`)
+  while a clip is active, so the case cannot arise during a paste op. A row
+  inside a closed `<details>` (or any `display:none` subtree) has an
   all-zero rect, which would otherwise pass `onScreen(0)` and read as "entirely
   off-screen" at the same time. **Every anchor candidate and the safety net
   require `rendered(row)`.** An unrendered row is never an anchor, and the safety
@@ -322,13 +326,10 @@ Tolerance is ±2 px throughout.
 
 - **(a) ↑ past a tall container.**
   - Seed:
-    - ~10 leading texts, then a **collapsed** callout with 3 children;
+    - ~10 leading texts;
     - then a callout with 8 children;
     - then TARGET;
     - then trailing texts.
-  - Collapse the first callout's slot through its real `<summary>` before the
-    op. This is realism, not a mutant-killer: TARGET is the op's own row, so
-    candidate 2 resolves first and the catch-all is never consulted.
   - Put TARGET's row at mid-viewport, record its top, click its ↑.
   - Assert: TARGET's row top equals the recorded top.
   - On master it lands around −730.
@@ -369,8 +370,9 @@ Tolerance is ±2 px throughout.
     `scrollY` is still ≥ 150 px. That is enough to absorb the banner (~73 px)
     plus the paste-before buttons above R.
   - Select an element. Scroll to a pinned `scrollY` where ✕ is on-screen, and
-    assert both conditions. Take R = a rendered text row below the banner,
-    on-screen, and record its top.
+    assert both conditions. Take R = **the first rendered
+    `.el-row[data-element]` whose top is on-screen**, i.e. exactly the row the
+    catch-all records first. Record its top.
   - Click the banner's cancel ✕.
   - Assert: R's top is unchanged. On master, the banner and every paste button
     disappearing shifts R.
@@ -423,7 +425,8 @@ Tolerance is ±2 px throughout.
   Re-apply the fix: all **GREEN**.
 - Mutants, each chosen from a likely implementation mistake. Each must turn the
   named test red:
-  1. **Primary paste-move anchor removed** (always use the op's row) → (c).
+  1. **Candidate 1 deleted from the list** (resolution falls through to
+     candidates 2 and 3, unchanged) → (c).
   2. **First-visible-row catch-all removed** → (d).
   3. **Safety net removed** → (e).
   4. **Anchor measured after `applyFragments`** instead of before → (a).
