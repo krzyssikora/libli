@@ -116,8 +116,8 @@
      own print padding; `inset` is the room everything between the lesson's
      content box and the display takes (a deck slide's padding, a callout, a
      tab panel...), measured here from the screen layout. Every KaTeX length is
-     in em, so the width in em is a constant of the formula, valid at any size.
-     min() keeps every display that fits at 1em, exactly as before.
+     in em, so the width in em is nearly a constant of the formula (see the
+     small-size correction in fitWideMaths). min() keeps every display that fits at 1em, exactly as before.
 
      Deliberately NOT a container query (`100cqi`): `container-type` brings
      style containment, which scopes KaTeX's `katexEqnNo` counter to each
@@ -139,6 +139,7 @@
      <span>, and a block inside an inline breaks out to the full width) and
      `contents` (a single-slide lesson's .slide) are box-less for this. */
   var FLOW = { block: 1, "flow-root": 1, "list-item": 1, inline: 1, contents: 1 };
+  var A4_COLUMN_PX = (160 * 96) / 25.4; // 210mm minus the 25mm @page sides
   var BOX = ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth",
              "marginLeft", "marginRight"];
 
@@ -201,9 +202,40 @@
     if (!found.length) return;
     lesson.appendChild(host);
     found.forEach(function (f) {
-      var k = f.box.firstElementChild;
-      f.em = k.getBoundingClientRect().width / parseFloat(getComputedStyle(k).fontSize);
+      f.katex = f.box.firstElementChild;
+      f.html = f.katex.querySelector(":scope > .katex-html");
+      f.fs = parseFloat(getComputedStyle(f.katex).fontSize);
+      f.em = f.katex.getBoundingClientRect().width / f.fs;
+      f.low = f.fs;
     });
+    /* The width in em is NOT quite constant at small sizes: glyph advances
+       round (Linux Chromium measured +2.3% at half size, enough to push the
+       equation numbers off the page) and KaTeX's 1px rule minimums do not
+       scale. So re-measure the clone at the size it will likely print at,
+       predicted for the narrowest common column (A4: 160mm), and just below
+       it, keeping the largest width per em: an over-shrink, never a clip.
+       Repeat while a wider measurement pushes the size below what was
+       sampled. Wider paper prints larger, where the width in em is no worse. */
+    var rem3 = 3 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    for (var pass = 0; pass < 6; pass++) {
+      var todo = found.filter(function (f) {
+        f.size = (A4_COLUMN_PX - rem3 - Math.max(0, f.inset) - 2) / f.em;
+        return f.em > 0 && f.size < f.low;
+      });
+      if (!todo.length) break;
+      [1, 0.97].forEach(function (step) {
+        todo.forEach(function (f) {
+          f.html.style.fontSize = (f.size * step) / f.fs + "em";
+        });
+        todo.forEach(function (f) {
+          var w = f.katex.getBoundingClientRect().width / (f.size * step);
+          if (w > f.em) f.em = w;
+        });
+      });
+      todo.forEach(function (f) {
+        f.low = f.size * 0.97;
+      });
+    }
     host.remove();
     found.forEach(function (f) {
       if (!(f.em > 0)) return;

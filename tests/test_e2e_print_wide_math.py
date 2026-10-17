@@ -21,7 +21,9 @@ tiny probe links mark:
          with a negative margin so they add no width),
   T      the last 4px of the equation numbers (inside `.tag`),
   W      the column itself (a full-width block at the top of the element).
-A probe missing from the PDF was clipped; a present one is checked against W.
+A probe missing from the PDF was clipped (Windows Chromium drops it; Linux
+Chromium trims its rect to the clip, so every probe must also keep its full
+width); a present one is checked against W.
 The PDF is A4 at scale 1, so 1 CSS px = 0.75pt.
 
 Numbering: `_pdf_text` reads the PDF's text back through each font's
@@ -266,6 +268,9 @@ def test_wide_displays_print_inside_the_column(page, live_server, width):
             key = f"d{i}-{kind}"
             assert key in ann, f"{name}: {kind} probe clipped out of the PDF"
             x0, x1 = ann[key]
+            # Linux Chromium does not drop a partly clipped link: it trims the
+            # rect to the clip. A 4px probe must keep its full 3pt.
+            assert x1 - x0 >= 4 * PT - TOL, (name, kind, ann[key], "trimmed")
             assert x0 >= col[0] - TOL, (name, kind, ann[key], col)
             assert x1 <= col[1] + TOL, (name, kind, ann[key], col)
         if tagged:
