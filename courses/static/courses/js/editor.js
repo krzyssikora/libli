@@ -245,6 +245,141 @@
   // TypeError that would swallow their validation.
   window.libliAlignTopInPane = alignTopInPane;
 
+  // --- Stacked layout: keep the author's place across an element op --------------
+  // Below 70rem (editor.css) the panes are NOT scroll containers and the WINDOW
+  // scrolls, so alignTopInPane above is a silent no-op there and a row the author
+  // just moved drifted by the height of whatever it passed (a callout with children:
+  // ~-730px). The form[data-op] handler records anchors just before the swap and
+  // restores the winner with window.scrollBy. The gate is the scroller's computed
+  // style, never a width check, so it follows the CSS breakpoint by construction.
+  function editorBody() { return root.querySelector('[data-scope="editor"] .pane-body'); }
+  function paneScrolls() {
+    var body = editorBody();
+    return !!body && /^(auto|scroll|overlay)$/.test(getComputedStyle(body).overflowY);
+  }
+  // visualViewport, not innerHeight: with the soft keyboard open (Save from an edit
+  // form) a row behind the keyboard is not on-screen. A panned visual viewport
+  // (offsetTop > 0) is accepted as best effort -- the band is not shifted.
+  function viewportH() {
+    return (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  }
+  function onScreen(top) { return top >= 0 && top < viewportH(); }
+  // checkVisibility(), not rects alone: a closed <details> hides its content with
+  // content-visibility (Chromium 131+), and a row inside it keeps a STALE non-zero
+  // rect. Defence in depth with no dedicated test -- no seed re-collapses a
+  // tabs/columns slot whose hidden rows' stale rects fall in the viewport band.
+  function rendered(el) {
+    if (!el || !el.isConnected) return false;
+    var vis = el.checkVisibility ? el.checkVisibility()
+      : (!el.closest("details:not([open])") && el.getClientRects().length > 0);
+    return vis && el.getBoundingClientRect().height > 0;
+  }
+  function editorRow(id) {
+    return id ? root.querySelector('[data-scope="editor"] .el-row[data-element="' + id + '"]') : null;
+  }
+  // Head ops sit in .el-row__head, so the author can tap a visible control while the
+  // row's own top is a few px above the viewport; those keep the row when the CONTROL
+  // is on-screen. Save/delete keep it only when the row's top is. Any other op
+  // (element-paste, a paste-before MOVE) records no candidate 2.
+  var HEAD_OPS = ["element-move", "element-clip", "element-duplicate"];
+  var ROW_TOP_OPS = ["element-save", "element-delete"];
+  var CATCH_ALL = 5;
+  function pasteMode(form, submitter) {
+    var op = form.getAttribute("data-op");
+    if (op === "element-paste") {
+      return submitter && submitter.name === "mode" ? submitter.value : "";
+    }
+    if (op === "element-paste-before") {
+      return form.elements.mode ? form.elements.mode.value : "";
+    }
+    return "";
+  }
+
+  // Ordered candidates {id, top, primary}; after the swap the first one whose row
+  // still exists and is rendered wins. Measured, never scrolls. 200/409/422 share
+  // candidates 2-4 (untested beyond 200 -- no status branch here but candidate 1's).
+  function recordAnchors(form, submitter, status, opRow) {
+    var out = [];
+    var seen = {};
+    function push(id, top, primary) {
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      out.push({ id: id, top: top, primary: !!primary });
+    }
+    var op = form.getAttribute("data-op");
+    var mode = pasteMode(form, submitter);
+    var pasteMove = mode === "move";
+    // 1. A successful paste-move puts the moved element where the author's finger
+    //    was. Not on 409/422: nothing moved, and anchoring S to the form would jump
+    //    the page to wherever S still sits.
+    if (pasteMove && status === 200 && form.elements.element) {
+      push(form.elements.element.value, form.getBoundingClientRect().top, true);
+    }
+    // 2. The op's own row.
+    var head = HEAD_OPS.indexOf(op) !== -1 || (op === "element-paste-before" && mode === "copy");
+    if (opRow && rendered(opRow)) {
+      var rowTop = opRow.getBoundingClientRect().top;
+      if ((head && onScreen(form.getBoundingClientRect().top)) ||
+          (ROW_TOP_OPS.indexOf(op) !== -1 && onScreen(rowTop))) {
+        push(opRow.getAttribute("data-element"), rowTop, false);
+      }
+    }
+    // 3. Visible rows. A paste-move's clip subtree relocates with the move, and a
+    //    delete's subtree vanishes; either would waste the cap.
+    var skip = null;
+    if (pasteMove && form.elements.element) skip = editorRow(form.elements.element.value);
+    else if (op === "element-delete") skip = opRow;
+    var vh = viewportH();
+    var rows = root.querySelectorAll('[data-scope="editor"] .el-row[data-element]');
+    var caught = [];
+    for (var i = 0; i < rows.length && caught.length < CATCH_ALL; i++) {
+      var r = rows[i];
+      if (skip && skip.contains(r)) continue;
+      if (!rendered(r)) continue;
+      var t = r.getBoundingClientRect().top;
+      if (t >= vh) break;  // stacked layout: document order is vertical order
+      if (t >= 0) caught.push(r);
+    }
+    caught.forEach(function (r) { push(r.getAttribute("data-element"), r.getBoundingClientRect().top, false); });
+    // 4. A tabs/columns slot can re-collapse when the clip ends (cancel, paste-move),
+    //    taking every caught row with it; fall back to their container rows, innermost
+    //    first, at their current (possibly off-screen) tops. No test seeds this.
+    caught.forEach(function (r) {
+      if (!r.closest(SLOT_DETAILS)) return;
+      var a = r.parentElement && r.parentElement.closest(".el-row[data-element]");
+      while (a) {
+        if (!(skip && skip.contains(a))) push(a.getAttribute("data-element"), a.getBoundingClientRect().top, false);
+        a = a.parentElement && a.parentElement.closest(".el-row[data-element]");
+      }
+    });
+    return out;
+  }
+
+  // Returns true when the winning anchor was the paste-move one (candidate 1).
+  function keepInPlace(anchors) {
+    for (var i = 0; i < anchors.length; i++) {
+      var row = editorRow(anchors[i].id);
+      if (!rendered(row)) continue;
+      var dy = row.getBoundingClientRect().top - anchors[i].top;
+      if (Math.abs(dy) >= 1) window.scrollBy(0, dy);  // clamped by the browser: best effort
+      return anchors[i].primary;
+    }
+    return false;
+  }
+
+  // Safety net: a focus row left ENTIRELY off-screen (a create pushed out of view, an
+  // op with no anchor) is brought to the pane padding, as alignTopInPane would on a
+  // scrolling pane. A partly visible row is left alone.
+  function revealFocusRow(row) {
+    if (!rendered(row)) return;
+    var b = row.getBoundingClientRect();
+    if (!(b.bottom <= 0 || b.top >= viewportH())) return;
+    var body = editorBody();
+    var margin = (body && parseFloat(getComputedStyle(body).paddingTop)) || 0;
+    var delta = b.top - margin;
+    if (Math.abs(delta) >= 1) window.scrollBy(0, delta);
+  }
+
   // --- Reveal a nested target's hiding ancestors ---------------------------------
   // Collection runs OUTWARD (target -> [data-scope="preview"]); reveal runs INWARD
   // (outermost first). Order is load-bearing, not cosmetic: select() calls
@@ -499,8 +634,14 @@
     // browser's own scroll restoration otherwise jumps to the wrong place.
     var opRow = form.closest(".el-row[data-element]");
     var keepId = opRow ? opRow.getAttribute("data-element") : null;
-    post(form, e.submitter).then(function (res) {
+    // Not `submitter`: the "Try it" branch above declares that name with a
+    // _libliSubmitter fallback that does not apply to these forms.
+    var opSubmitter = e.submitter || null;
+    post(form, opSubmitter).then(function (res) {
       if (res.status === 200 || res.status === 409 || res.status === 422) {
+        // Measured on the OLD DOM just before the swap (not at tap time), so a scroll
+        // the author made while the request was in flight is respected.
+        var anchors = recordAnchors(form, opSubmitter, res.status, opRow);
         applyFragments(res.text);
         if (res.status === 409) flash(msg("conflict", "This changed elsewhere — reloaded to the latest."));
         // What the response SAYS it wrote wins over what the DOM guessed. A create's
@@ -513,9 +654,21 @@
         // Read AFTER applyFragments: the attribute is on the pane the swap installed.
         var pane = root.querySelector('[data-scope="editor"]');
         var focusId = (pane && pane.getAttribute("data-saved-element")) || keepId;
-        if (focusId) {
-          alignTopInPane(root.querySelector('.el-row[data-element="' + focusId + '"]'));
-          scrollPreviewTo(focusId);  // re-align the preview to the element, not reset to top
+        if (paneScrolls()) {
+          if (focusId) {
+            alignTopInPane(root.querySelector('.el-row[data-element="' + focusId + '"]'));
+            scrollPreviewTo(focusId);  // re-align the preview to the element, not reset to top
+          }
+        } else {
+          // Stacked: the window scrolls. Duplicate and update-save reach here through
+          // the same candidate code as the tested ops, with no dedicated test.
+          var primaryHeld = keepInPlace(anchors);
+          // A held paste-move already sits under the finger; the net would drag it
+          // off-screen when its target row (paste-before) lands below the viewport.
+          if (!primaryHeld && focusId) revealFocusRow(editorRow(focusId));
+          // No-op here (the preview pane does not scroll either). Never redirect it to
+          // the window: in stacked split mode it would drag the page to the preview.
+          if (focusId) scrollPreviewTo(focusId);
         }
       }
     });
