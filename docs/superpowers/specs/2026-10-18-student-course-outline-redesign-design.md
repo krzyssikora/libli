@@ -194,6 +194,17 @@ it), so the nav landmark holds only the tree and no `.outline-tree` descendant r
 </div>
 ```
 
+**`[hidden]` must beat author `display` rules** (the app.css pattern of `.btn[hidden]`,
+`.menu__panel[hidden]`, …): add `.outline-list__head[hidden] { display: none; }` and
+`.outline__toggle-all[hidden] { display: none; }`, declared after their display rules, with a
+comment. The toggle loses `btn` and with it `.btn[hidden]`, which is today the only thing keeping
+it hidden without JS. Tests: with `section_count == 0` the header computes `display: none`; a
+toggle carrying `hidden` computes `display: none` (deleting either rule must turn a test red).
+
+The existing `.outline__toggle-all:disabled` rules and their comment (which justify themselves by
+`.btn`'s cursor and `.btn--ghost:hover` fill) are rewritten for the text button: under a tag filter
+it reads inert (muted colour, `cursor: default`) and its hover (colour/underline) does not activate.
+
 `.outline-list__head` always renders (T18, `test_toggle_all_stays_hidden_when_there_are_no_groups`,
 asserts the toggle button has **count 1** and is hidden). When `section_count == 0` the header
 element itself carries the `hidden` attribute (no "Działy" label, takes no space), so the button
@@ -234,7 +245,7 @@ assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) val
 
 | state | condition | drawing | sr text |
 |---|---|---|---|
-| done | `required_total > 0 and required_done == required_total` | filled amber circle, dark tick | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
+| done | `required_total > 0 and required_done == required_total` | circle filled with `--glance-fill`, tick stroked in `--text-inverse` (light tick on the darkened amber in light mode, dark tick on the light amber in dark mode — ≥ 3:1 both ways; checked in both screenshots) | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
 | in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0`; the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
 | not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nierozpoczęte" / "Not started" |
 
@@ -273,7 +284,11 @@ or later source order, stated in a CSS comment).
 Unchanged content: the `<a class="outline-unit">` link with title, unit kind chip, ✓ done badge;
 then tag chips, the tag-edit affordance, and the notes badge as siblings. Additions:
 
-- **Quiz rows (D6):** a quiz icon before the title and a "QUIZ" label (teal, D9). The label **is**
+- **Quiz rows (D6):** a quiz icon before the title and a "QUIZ" label (teal, D9). The icon is the
+  mockup's clipboard-with-tick line icon, added as a symbol to the existing sprite
+  (`templates/courses/manage/_icon_sprite.html` if the outline page includes it, else inline SVG
+  in the partial): monochrome, `stroke="currentColor"`, coloured teal via CSS, `aria-hidden="true"`
+  (the chip announces the kind), in the same 20×20 box as the status circle so titles align. The label **is**
   the existing chip: `unit_marker` returns `MARKER_QUIZ` for every quiz unit and
   `_unit_kind_chip.html` renders `span.badge.unit-kind-chip.unit-kind-chip--quiz` "Quiz". It is
   restyled only under the outline row selector (`.outline-unit .unit-kind-chip--quiz`): teal,
@@ -287,7 +302,12 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   (`item.node.pk == resume.node.pk and resume.state == "resume"`, at any depth — the lesson the
   student is actually in, which is usually at depth ≥ 2 under the highlighted chapter); otherwise
   an empty ring. `current_row_pk` stays the single source of the highlight; it is not used for the
-  unit ring.
+  unit ring. Precedence for unit rows: done (`item.completed`) first, then in progress, then not
+  started — a completed lesson that still has saved practice state draws the done circle (test).
+- **Context the partial reads.** `_outline_node.html` reads `resume` and `current_row_pk` from the
+  inherited context: the recursive `{% include %}` must keep not using `only`. When they are absent
+  (T11's bare `render_to_string`), no row is current and no resume ring is drawn — and the bare
+  render must not raise.
   It is purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
   `aria-label`) already announces completion. Quiz rows get the quiz icon instead of a circle.
   A unit whose `unit_type` is unset is treated as a lesson row here (gets the circle), so every
