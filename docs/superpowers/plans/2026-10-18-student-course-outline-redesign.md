@@ -24,6 +24,8 @@
 - Test runs: start the DB first — `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`; run with `uv run pytest <files>` (add `-m e2e` for Playwright files); **never pass `-q`**; read the summary line, not the exit code. One pytest run at a time.
 - Owner rule (TDD with mutants): every new assertion is shown RED first (on the pre-change code, or against a hand-made mutant chosen from the failure mode), then GREEN. Revert a mutant by editing the file back by hand — never `git checkout`/`git restore`.
 - After any CSS edit run every `tests/test_*css*.py`.
+- State-specific rendering tests fake the resume with `monkeypatch.setattr("courses.views.build_resume", lambda c, u, t: {"node": unit, "state": s, "ancestors": []})` — the patch target is `courses.views`, not `courses.rollups` (views imports the name); the client must be an **enrolled** student (`EnrollmentFactory`), or the view never calls it; `node` must be a real unit in that course's tree. Pattern: `tests/test_courses_views.py::test_each_state_renders_its_own_eyebrow`.
+- Known-red windows (do not "fix" early): the two T11 student tests are red from Task 2 until Task 7 (they assert Polish text); `test_e2e_outline_tree.py`'s reset click/keyboard and head-button tests and `test_e2e_outline_phone_layout.py` are red from Tasks 2/4 until Tasks 5/6. Each task's run step deselects exactly the ones not yet due.
 - `ruff check --no-cache` and `ruff format --check` on every touched `.py`.
 - Superseded existing assertions are changed **only** as listed in spec §6's table; every other existing assertion stays as is. List each superseded test in the commit message of the task that changes it.
 
@@ -98,7 +100,8 @@ def test_done_chapter_with_open_quiz_target_stays_done_and_current():
     assert chapter["ring"] == "done" and p["current_row_pk"] == chapter_node.pk
 
 def test_arc_floor_applies_to_every_in_progress_arc():
-    # 1/40 chapter: progress_width == 3 (clamped), arc_pct == 9 ; 20/40 -> arc_pct == 50
+    # 1/40 chapter: progress_width == _progress_width(1, 40) == 2 (ROUND_HALF_EVEN), arc_pct == 9 ; 20/40 -> arc_pct == 50
+    # expected widths always come from _progress_width as it stands, never hand arithmetic
     assert isinstance(chapter["arc_pct"], int)
 
 def test_unit_rings():
@@ -129,18 +132,19 @@ git commit -m "feat(outline): presentation data for cards, rings and the course 
 
 **Files:**
 - Modify: `templates/courses/_outline_node.html` (container arms only)
-- Test: `tests/test_outline_cards.py` (new); superseded: `tests/test_outline_collapsible.py::test_reset_link_is_a_sibling_of_details_not_inside_the_summary`, `tests/test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje`, `::test_rt_t11_childless_outline_branch_chip_reads_lekcje`
+- Test: `tests/test_outline_cards.py` (new); superseded: `tests/test_outline_collapsible.py::test_reset_link_is_a_sibling_of_details_not_inside_the_summary`
 
 **Interfaces:**
 - Consumes (Task 1): item keys `card_number`, `progress_width`, `arc_pct`, `ring`; context `current_row_pk`, `resume`, `arc_floor_pct`.
 - Produces — DOM contract later tasks style and test:
-  - card `<li>`: classes `outline-node outline-node--{kind} outline-node--card`; summary children in order: `span.outline-card__num[aria-hidden=true]`, `span.outline-node__title#node-title-{pk}`, then (only when `required_total > 0` or `additional_done`) `span.outline-card__meta` containing `span.outline-card__bar[aria-hidden=true] > span.outline-card__fill[style="width: N%"]` (fill omitted when `progress_width` is None), `span.outline-count` (see below) and the "+N" chip; then the chevron `svg.outline-node__chevron` **last**.
+  - card `<li>` (only when `item.depth == 0 and item.children` — a childless depth-0 bare dict is never a card): classes `outline-node outline-node--{kind} outline-node--card`; summary children in order: `span.outline-card__num[aria-hidden=true]`, `span.outline-node__title#node-title-{pk}`, then (only when `required_total > 0` or `additional_done`) `span.outline-card__meta` containing `span.outline-card__bar[aria-hidden=true] > span.outline-card__fill[style="width: N%"]` (fill omitted when `progress_width` is None), `span.outline-count` (see below) and the "+N" chip; then the chevron `svg.outline-node__chevron` **last**.
   - depth-1 container summary children: `span.outline-ring.outline-ring--{done|progress|none}` (or empty `span.outline-ring` slot when `ring` is None), title `#node-title-{pk}`, `span.outline-count`, `span.visually-hidden.outline-status` (status word; absent when `ring` is None), "+N" chip, chevron last. Summary gets `class="outline-node__head is-current" aria-current="step"` only when `node.pk == current_row_pk`.
   - depth ≥ 2 container summary: chevron first, title, `span.outline-count`, "+N" chip (no ring).
   - `span.outline-count` = `<span class="outline-count__short" aria-hidden="true">{{ done }}/{{ total }}</span><span class="outline-count__long visually-hidden" lang="…">{% blocktrans %}{{ done }} of {{ counter }} lesson…{% endblocktrans %}</span>`; on cards the long span is NOT `visually-hidden` (CSS swaps at ≤ 640px, Task 6) — give it class `outline-count__long` only.
   - "⋯" menu (when `item.has_state`), a sibling directly after the `<details>`: `<details class="outline-menu"><summary class="outline-menu__button" aria-label="{% trans 'More actions' %}" aria-describedby="node-title-{pk}" lang="…">⋯</summary><div class="outline-menu__panel"><a class="outline-node__reset outline-menu__item" href="…unchanged…" title="…" aria-label="…">{% trans "Start fresh" %}</a></div></details>`.
   - ring SVG: 20×20 `viewBox="0 0 20 20"`, track `circle.outline-ring__track` r=8; progress adds `circle.outline-ring__arc pathLength="100" stroke-dasharray="{{ item.arc_pct|unlocalize }} 100"`; done = `circle.outline-ring__fill` r=9 + `path.outline-ring__tick`.
   - childless arm (`div.outline-node__head`): title, `span.outline-count`, menu at the end; no badge/bar/ring/chevron; must not raise when `card_number`/`progress_width`/`ring`/`has_state` are missing.
+- Bars and `span.outline-count` render only when `required_total > 0`, at every depth (no "0/0", no empty track on an all-quiz node).
 - No `.rollup` "lessons: %(done)s/%(total)s" chip remains in this template (the msgid stays in the catalogue — the teacher page `_breakdown_node.html` uses it).
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_outline_cards.py` (BeautifulSoup over `client.get(course_outline)`; English UI):
@@ -165,7 +169,7 @@ def test_depth1_row_ring_classes_and_status_word():      # done/progress/none + 
 def test_all_quiz_row_has_an_empty_ring_slot_and_no_status_word():
 def test_depth1_summary_accessible_text_starts_with_title_then_count():
     assert summary.get_text(" ", strip=True).startswith("Chapter A 1/2 1 of 2 lessons")
-def test_exactly_one_current_row_with_aria_current():    # three target shapes, via monkeypatched build_resume
+def test_exactly_one_current_row_with_aria_current():    # shape "under a depth-1 container" only (unit shapes: Task 3)
     assert len(soup.select('[aria-current="step"]')) == len(soup.select(".is-current")) == 1
 def test_no_current_row_in_start_state():
 def test_depth2_head_has_count_pair_and_no_ring_or_chip():
@@ -177,21 +181,30 @@ def test_every_aria_describedby_resolves():
     ids = {el["id"] for el in soup.select("[id]")}
     assert all(el["aria-describedby"] in ids for el in soup.select("[aria-describedby]"))
 def test_arc_dasharray_is_an_integer_pair():              # "9 100" for a 0-done has_state row
-def test_childless_arm_renders_from_a_bare_dict():       # render_to_string with no card_number/ring keys
+def test_childless_arm_renders_from_a_bare_dict():       # render_to_string with no card_number/ring keys; depth 0
+    assert "outline-node--card" not in html and "outline-card__num" not in html
+def test_no_bar_or_count_when_no_required_lessons():     # card with only a done optional lesson: meta row has the +N chip, no bar, no count; all-quiz depth-1 row: no count
+@pytest.mark.parametrize("source", ["saved_state", "bare_visit", "quiz_in_progress"])
+def test_resume_from_each_real_source_lights_the_current_row(source):
+    # real build_resume, enrolled student; seed UnitProgress(element_state={...}) / UnitProgress(element_state={}) / QuizSubmissionFactory(status=IN_PROGRESS)
+    row = soup.select_one("summary.is-current")
+    assert "outline-ring--progress" in row.select_one(".outline-ring")["class"]
+    assert row.select_one(".outline-status").get_text(strip=True) == "In progress"
+def test_every_li_keeps_its_node_id_and_filtered_cards_are_hidden():   # #node-N on every li; ?tags= hides a card li with [hidden]
 ```
 
-- [ ] **Step 2: Run** `uv run pytest tests/test_outline_cards.py` — expected: FAIL (no `li.outline-node--card`).
+- [ ] **Step 2: Run** `uv run pytest tests/test_outline_cards.py` — expected: FAIL (no `li.outline-node--card`). (From this task on, the e2e tests named under Known-red windows are expected red until Tasks 5/6; this task runs no e2e.)
 
 - [ ] **Step 3: Implement** the Interfaces DOM contract in `_outline_node.html`. Add `{% load l10n %}` and `{% get_current_language as LANGUAGE_CODE %}` at the top. Card vs row vs deeper is decided by `item.depth` (0 / 1 / ≥ 2). Keep `id="node-{pk}"`, `data-node`, `data-depth`, the D1/D8 `open` logic and the `{% comment %}` blocks (update their wording where they mention the moved reset link). New strings in English with `{% trans %}`/`{% blocktrans count counter=… %}`: "%(done)s of %(counter)s lesson" / "…lessons"; "Not started"; reuse "Completed", "In progress", "More actions", "Start fresh", "additional".
 
-- [ ] **Step 4: Update the superseded tests** (spec §6 table rows): `test_reset_link_is_a_sibling_of_details_not_inside_the_summary` → select the first `summary.outline-node__head` with BeautifulSoup, assert the reset link is inside `details.outline-menu` and that menu is the `<details>`' next sibling; both T11 student tests → assert the card head's `.outline-count__long` "1 of 2 lessons" / `.outline-count__short` "1/2" (and "0 of 1" / "0/1"), no "lessons:" chip. Leave `test_rt_t11_teacher_chip_reads_lekcje` and `test_rt_t11_catalogs_drop_the_unused_msgids` untouched.
+- [ ] **Step 4: Update the superseded tests** (spec §6 table rows): `test_reset_link_is_a_sibling_of_details_not_inside_the_summary` → select the first `summary.outline-node__head` with BeautifulSoup, assert the reset link is inside `details.outline-menu` and that menu is the `<details>`' next sibling; the two T11 student tests render under a Polish UI, so they are updated in **Task 7** (Polish text); until then deselect them.
 
-- [ ] **Step 5: Run** `uv run pytest tests/test_outline_cards.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py tests/test_publish_outline.py tests/test_analytics_student_page.py tests/test_title_math_markers.py` — expected: all PASS. Falsify: remove `aria-hidden` from the badge → `test_root_containers_render_as_numbered_cards` RED; restore.
+- [ ] **Step 5: Run** `uv run pytest tests/test_outline_cards.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py tests/test_publish_outline.py tests/test_analytics_student_page.py tests/test_title_math_markers.py --deselect tests/test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje --deselect tests/test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` — expected: all PASS. Falsify: remove `aria-hidden` from the badge → `test_root_containers_render_as_numbered_cards` RED; restore.
 
-- [ ] **Step 6: Commit** (message lists the three superseded tests)
+- [ ] **Step 6: Commit** (message lists the superseded test and the two T11 tests left red until Task 7)
 
 ```bash
-git add templates/courses/_outline_node.html tests/test_outline_cards.py tests/test_outline_collapsible.py tests/test_analytics_student_page.py
+git add templates/courses/_outline_node.html tests/test_outline_cards.py tests/test_outline_collapsible.py
 git commit -m "feat(outline): card, row and menu markup for containers"
 ```
 
@@ -223,6 +236,7 @@ def test_completed_lesson_with_saved_state_draws_done():
 def test_resume_target_lesson_at_depth2_draws_progress_but_is_not_current():
     assert "outline-ring--progress" in ring["class"] and "is-current" not in a["class"]
 def test_root_and_depth1_unit_targets_are_current_and_draw_progress():   # lesson targets, state "resume"
+    assert len(soup.select('[aria-current="step"]')) == len(soup.select(".is-current")) == 1
 def test_unit_row_keeps_chips_badges_and_links(): # ✓ badge aria-label, tag chip, edit-tags href, notes badge
 ```
 
@@ -244,14 +258,14 @@ git commit -m "feat(outline): unit row status rings, quiz icon and highlight"
 ### Task 4: Course head, list header and the start button
 
 **Files:**
-- Modify: `templates/courses/outline.html`, `templates/courses/_resume_card.html`
+- Modify: `templates/courses/outline.html`, `templates/courses/_resume_card.html`, `courses/views.py` (label helper + context key)
 - Test: `tests/test_outline_head.py` (new); superseded in `tests/test_courses_views.py` (`test_each_state_renders_its_own_eyebrow` start case, `test_card_links_to_quiz_unit_for_a_quiz_target`, `test_card_links_to_lesson_unit_for_a_lesson_target`, `test_eyebrow_carries_the_active_ui_language`, `test_resume_card_renders_its_path_separator_and_affordance`) and `tests/test_title_math_markers.py::test_resume_card_title_and_crumbs_are_marked`
 
 **Interfaces:**
 - Consumes (Task 1): context `course_done`, `course_total`, `course_progress_width`, `section_count`; existing `resume`, `has_saved_work`.
 - Produces (DOM, styled in Task 5):
   - `header.outline__head` > `h1.outline__title#outline-title`; `div.outline__progress` (only when `course_total > 0`) > `div.outline__bar[aria-hidden=true]` (> `span.outline__fill[style="width: N%"]` when width not None) + `span.outline__progress-label[lang]`; then the resume include; then `div.outline__actions` > `a.btn.btn--ghost.btn--small.outline__results`, `a.btn.btn--ghost.btn--small.outline__notes`, and when `has_saved_work` a `details.outline-menu` whose summary has `aria-describedby="outline-title"` and whose item is `a.outline__reset.outline-menu__item` (no `btn` classes; href unchanged).
-  - D1 label: done > 0 → `{% blocktrans count counter=course_total %}{{ done }} of {{ counter }} lesson completed{% plural %}…lessons completed{% endblocktrans %}`; done == 0 → composition msgid `"%(lessons)s %(sections)s"` of the lessons fragment and, only when `section_count > 0`, the "in %(counter)s topic(s)" fragment (empty string otherwise).
+  - D1 label is built in the view (the request's language is already active there): `_progress_label(done: int, total: int, sections: int) -> str` in `courses/views.py`, context key `progress_label`. done > 0 → `ngettext("%(done)s of %(counter)s lesson completed", "%(done)s of %(counter)s lessons completed", total) % {...}`; done == 0 → `ngettext("%(counter)s lesson", "%(counter)s lessons", total) % {...}`, and when `sections > 0` the composition `gettext("%(lessons)s %(sections)s") % {"lessons": …, "sections": ngettext("in %(counter)s topic", "in %(counter)s topics", sections) % {...}}` — no trailing space when `sections == 0` (tests compare exact stripped text). The template only prints `{{ progress_label }}`.
   - `div.outline-list__head` placed directly **before** `<nav class="outline-tree">` (after the tag filter bar), with `hidden` when `section_count == 0`; children `span.outline-list__count[lang]` "Topics · N" (only when `section_count > 0`) and `<button type="button" class="outline__toggle-all" hidden data-outline-toggle-all data-label-expand="…" data-label-collapse="…">` — `hidden` must precede `data-outline-toggle-all` (`test_header_button_and_nav_attributes` splits on it).
   - `_resume_card.html`: `{% if resume.state == "start" %}` → `a.btn.btn--primary.outline__start[lang]` "Start the first lesson" + `svg.outline__start-arrow.icon[aria-hidden=true]` chevron path, href = the card's existing quiz/lesson branch; `{% else %}` the card, whose eyebrow loses its `start`/else arm.
 
@@ -301,7 +315,7 @@ git commit -m "feat(outline): course progress head, list header and start button
 
 **Interfaces:**
 - Consumes: Task 2 and Task 4 DOM.
-- Produces: CSS rules named above; desktop head grid areas `"title actions" "progress actions" "next next"` (actions `align-self: end`); phone single column in DOM order; `.outline-list__head[hidden], .outline__toggle-all[hidden] { display: none; }` declared after their display rules with a comment; `.outline-menu { position: relative; grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }`, `.outline-menu__panel { position: absolute; top: 100%; right: 0; z-index: … }`, summary 32×32 (44×44 at ≤ 640px), `list-style: none` + hidden `::-webkit-details-marker`; `.outline-menu__item` full-width, ≥ 44px tall at ≤ 640px, hover `--surface-sunken` + `--danger` text. Remove the old `.outline-node__reset` inline-link declarations (grid placement moves to `.outline-menu`) and PR #397's `:has(> .outline-node__reset)` 7.5rem rule + its comment.
+- Produces: CSS rules named above; desktop head grid areas `"title actions" "progress actions" "next next"` (actions `align-self: end`); phone single column in DOM order; `.outline-list__head[hidden], .outline__toggle-all[hidden] { display: none; }` declared after their display rules with a comment; `.outline-menu { position: relative; }` plus `.outline-node > .outline-menu { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }` (the course-head menu in `.outline__actions` is not grid-placed), `.outline-menu__panel { position: absolute; top: 100%; right: 0; z-index: … }`, summary 32×32 (44×44 at ≤ 640px), `list-style: none` + hidden `::-webkit-details-marker`; `.outline-menu__item` full-width, ≥ 44px tall at ≤ 640px, hover `--surface-sunken` + `--danger` text. Remove the old `.outline-node__reset` inline-link declarations (grid placement moves to `.outline-menu`) and PR #397's `:has(> .outline-node__reset)` 7.5rem rule + its comment.
 
 - [ ] **Step 1: Write the failing e2e tests** (pattern: `tests/test_e2e_editor_crumb_phone.py` / `tests/test_e2e_outline_phone_layout.py` — real login, PL via `form.lang-switch button[value='pl']` where wording matters):
 
@@ -316,6 +330,7 @@ def test_menu_targets_are_44px_on_a_phone():
 def test_menu_reset_link_reaches_the_confirm_page():
 def test_menu_keyboard_path():                    # superseded ~:644: Tab -> menu summary; Enter; Tab -> a.outline-node__reset
 def test_filter_hiding_every_card_keeps_the_page_intact():   # Review Focus 2
+def test_opening_a_menu_does_not_touch_the_stored_fold_state():   # localStorage libli_outline_open:<slug> equal before/after open+close of a card menu
 ```
 
 - [ ] **Step 2: Run** `uv run pytest tests/test_e2e_outline_head.py -m e2e` — expected: FAIL (layout not styled).
@@ -324,7 +339,7 @@ def test_filter_hiding_every_card_keeps_the_page_intact():   # Review Focus 2
 
 - [ ] **Step 4: Update the superseded e2e tests** per spec §6 (head buttons → `.outline__actions` children incl. the ⋯ summary, keep the align-self mutant; reset click/keyboard via the menu; desktop head line → actions in the top row right of the title column).
 
-- [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py -m e2e` and every `tests/test_*css*.py` — expected: PASS. Falsify: delete `.outline__toggle-all[hidden]` rule → `test_toggle_hidden_rules_beat_display` RED; make the panel `position: static` → `test_menu_opens_out_of_flow_without_reflow` RED; restore both by hand.
+- [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py -m e2e --deselect tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (rewritten in Task 6; expected red here) and every `tests/test_*css*.py` — expected: PASS. Falsify: delete `.outline__toggle-all[hidden]` rule → `test_toggle_hidden_rules_beat_display` RED; make the panel `position: static` → `test_menu_opens_out_of_flow_without_reflow` RED; restore both by hand.
 
 - [ ] **Step 6: Commit**
 
@@ -402,7 +417,7 @@ git commit -m "style(outline): part cards, status rings and type scale"
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po`, `locale/en/LC_MESSAGES/django.po`, both `django.mo`
-- Test: `tests/test_outline_i18n.py` (new)
+- Test: `tests/test_outline_i18n.py` (new); superseded: `tests/test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje`, `::test_rt_t11_childless_outline_branch_chip_reads_lekcje`
 
 **Interfaces:**
 - Consumes: msgids from Tasks 2 and 4.
@@ -425,12 +440,14 @@ def test_svg_and_style_numbers_have_no_decimal_comma():               # 0-done p
 
 - [ ] **Step 3: Implement:** run `uv run python manage.py makemessages -l pl -l en` (without `--no-obsolete`), fill the new Polish `msgstr`s, clear any `#, fuzzy` pre-fill on the new entries (both the flag and the wrong `msgstr`), then `uv run python manage.py compilemessages`.
 
-- [ ] **Step 4: Run** `uv run pytest tests/test_outline_i18n.py tests/test_analytics_student_page.py tests/test_courses_views.py` — expected: PASS (incl. `test_rt_t11_catalogs_drop_the_unused_msgids`). Falsify: render a float `{{ 8.33 }}` style without `unlocalize` in a scratch copy of the arc attribute → `test_svg_and_style_numbers_have_no_decimal_comma` RED; restore.
+- [ ] **Step 3b: Update the T11 student tests** (spec §6): `test_rt_t11_student_outline_chip_reads_lekcje` → on the card heads, `.outline-count__long` "1 z 2 lekcji" / `.outline-count__short` "1/2" ("Czesc pierwsza") and "0 z 1 lekcji" / "0/1" ("Czesc druga"), and no `.rollup` containing "lekcje:" anywhere on the page; `test_rt_t11_childless_outline_branch_chip_reads_lekcje` → `div.outline-node__head .outline-count__long` "1 z 2 lekcji", `.outline-count__short` "1/2", no `.rollup`. Leave `test_rt_t11_teacher_chip_reads_lekcje` and `test_rt_t11_catalogs_drop_the_unused_msgids` untouched.
+
+- [ ] **Step 4: Run** `uv run pytest tests/test_outline_i18n.py tests/test_analytics_student_page.py tests/test_courses_views.py` — expected: PASS (incl. `test_rt_t11_catalogs_drop_the_unused_msgids`). Falsify: temporarily stamp `item["arc_pct"] = 8.33` in `_outline_presentation` **and** drop `|unlocalize` from the arc's `stroke-dasharray` in `_outline_node.html` → `test_svg_and_style_numbers_have_no_decimal_comma` RED ("8,33 100"); restore both by hand.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add locale/ tests/test_outline_i18n.py
+git add locale/ tests/test_outline_i18n.py tests/test_analytics_student_page.py
 git commit -m "i18n(outline): Polish strings for the course outline redesign"
 ```
 
