@@ -427,6 +427,11 @@ two levels the mockup draws, and kept below them:
 | Level | Size | Weight |
 |---|---|---|
 | card title (depth 0, any kind) | 1.125rem phone / 1.25rem desktop | 600 |
+| depth-1 row title (container or unit) | .9375rem (15px) | 500; 600 when `is-current` |
+| depth ≥ 2 container heads | unchanged kind-based scale (chapter 1.1rem, section .75rem uppercase 700) | unchanged |
+| unit rows at depth ≥ 2 | unchanged | 400 (today's `.outline-unit` weight) |
+| root-level unit rows (depth 0, a course with units at the root) | depth-1 row scale (.9375rem) | 500 — plain rows on the page background, no card chrome, between the cards |
+
 
 Card titles must beat **every** kind-based title rule (e.g. the (0,4,0)
 `.outline-node--section > .outline-node__group > .outline-node__head .outline-node__title`) and
@@ -435,12 +440,10 @@ reset what those rules set: `text-transform: none`, `letter-spacing: normal`,
 tiny grey uppercase ones. Same contract as the depth-1 override (specificity or order, with a CSS
 comment). Test: a top-level **section** card's title computes to the card size, weight 600, no
 uppercase, primary colour (mutant: drop the override).
-| depth-1 row title (container or unit) | .9375rem (15px) | 500; 600 when `is-current` |
-| depth ≥ 2 container heads | unchanged kind-based scale (chapter 1.1rem, section .75rem uppercase 700) | unchanged |
-| unit rows at depth ≥ 2 | unchanged | 400 (today's `.outline-unit` weight) |
-| root-level unit rows (depth 0, a course with units at the root) | depth-1 row scale (.9375rem) | 500 — plain rows on the page background, no card chrome, between the cards |
 
 So the "bold everywhere" of §1 is removed at depth 1, where most of the bold was.
+
+**Summary padding.** Card heads and row summaries inside a card get `padding-inline: var(--space-2)` so the hover tint has room; the ⋯ reservation is added on top of it.
 
 **Hover inside cards.** Today `summary.outline-node__head:hover` paints `--surface-raised`, which
 is the card surface, so hover would vanish. Heads and unit rows inside a card hover with
@@ -621,7 +624,7 @@ list them in the PR; no other existing assertion may be changed):
 | `test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje` | `summary .rollup` == "lekcje: 1/2" on the student outline (O12) | the parts are top-level, i.e. cards: the card head's long count reads "1 z 2 lekcji" and its short count "1/2" ("Czesc pierwsza"), and "0 z 1 lekcji" / "0/1" ("Czesc druga"); no `.rollup` "lekcje:" chip on the student outline |
 | `test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` | childless arm `.outline-node__head .rollup` == "lekcje: 1/2" | the childless arm renders the same count pair as a depth-1 row (§3.4) |
 | `test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level` | 4 `.outline__head > .btn` on one top | "Moje wyniki", "Moje notatki" and the "⋯" summary inside `.outline__actions` share one vertical level; keep its align-self mutant |
-| `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line; course title alone on its line with `.outline__head > .btn` beneath; nothing reserved on a head without a reset link | at 360/412: no horizontal scroll; on a card head the title starts on the badge's line, right of the badge; the bar + count row sits directly below the title inside the card (§3.2 phone grid); the h1 is alone on its line — the bar, the resume card / start button and every `.outline__actions` child (incl. the "⋯" summary) start below the h1's bottom, with the actions locator count asserted `== 3` (or `== 2` without saved work) so the loop cannot pass empty; **reservation**: on a card head without a menu the chevron's right edge reaches the summary's right edge (±2px), on a card head with a menu the chevron ends ≥ 44px before the row end and the "⋯" summary overlaps neither the chevron nor the count (mutants: drop the `:has()` qualifier; delete the rule) |
+| `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line; course title alone on its line with `.outline__head > .btn` beneath; nothing reserved on a head without a reset link | at 360/412: no horizontal scroll; on a card head the title starts on the badge's line, right of the badge; the bar + count row sits directly below the title inside the card (§3.2 phone grid); the h1 is alone on its line — the bar, the resume card / start button and every `.outline__actions` child (incl. the "⋯" summary) start below the h1's bottom, with the actions locator count asserted `== 3` (or `== 2` without saved work) so the loop cannot pass empty; **reservation**: on a card head without a menu the chevron's right edge reaches the summary's **content-box** right edge (its right edge minus computed `padding-inline-end`, ±2px), on a card head with a menu the chevron ends ≥ 44px before the row end and the "⋯" summary overlaps neither the chevron nor the count (mutants: drop the `:has()` qualifier; delete the rule) |
 | `test_e2e_outline_phone_layout.py::test_outline_head_stays_on_one_line_on_desktop` | 4 head buttons on the h1's line at 1280 | at 1280: the actions sit in the top row, right of the title column, bottom-aligned with the bar (D1 puts the title alone in its column) |
 
 Line numbers are approximate; the plan locates each by content.
