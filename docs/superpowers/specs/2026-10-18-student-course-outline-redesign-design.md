@@ -295,8 +295,8 @@ Unchanged content: the `<a class="outline-unit">` link with title, unit kind chi
 then tag chips, the tag-edit affordance, and the notes badge as siblings. Additions:
 
 - **Quiz rows (D6):** a quiz icon before the title and a "QUIZ" label (teal, D9). The icon is the
-  mockup's clipboard-with-tick line icon, added as a symbol to the existing sprite
-  (inline SVG in `_outline_node.html` — `outline.html` does not include the manage sprite, and must not start to): monochrome, `stroke="currentColor"`, coloured teal via CSS, `aria-hidden="true"`
+  mockup's clipboard-with-tick line icon as an inline `<svg>` in `_outline_node.html`
+  (`outline.html` does not include the manage sprite, and must not start to): monochrome, `stroke="currentColor"`, coloured teal via CSS, `aria-hidden="true"`
   (the chip announces the kind), in the same 20×20 box as the status circle so titles align. The label **is**
   the existing chip: `unit_marker` returns `MARKER_QUIZ` for every quiz unit and
   `_unit_kind_chip.html` renders `span.badge.unit-kind-chip.unit-kind-chip--quiz` "Quiz". It is
@@ -313,21 +313,21 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   an empty ring. `current_row_pk` stays the single source of the highlight; it is not used for the
   unit ring. Precedence for unit rows: done (`item.completed`) first, then in progress, then not
   started — a completed lesson that still has saved practice state draws the done circle (test).
-- **Context the partial reads.** `_outline_node.html` reads `resume` and `current_row_pk` from the
-  inherited context: the recursive `{% include %}` must keep not using `only`. When they are absent
-  (T11's bare `render_to_string`), no row is current and no resume ring is drawn — and the bare
-  render must not raise.
   It is purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
   `aria-label`) already announces completion. Quiz rows get the quiz icon instead of a circle.
   A unit whose `unit_type` is unset is treated as a lesson row here (gets the circle), so every
   unit row has a same-width leading glyph and titles stay aligned.
+- **Context the partial reads.** `_outline_node.html` reads `resume` and `current_row_pk` from the
+  inherited context: the recursive `{% include %}` must keep not using `only`. When they are absent
+  (T11's bare `render_to_string`), no row is current and no resume ring is drawn — and the bare
+  render must not raise.
 - Rows are ≥ 44px tall at ≤ 640px (D7) via `min-height` on `.outline-unit` and on container heads;
   desktop keeps today's denser rows.
 
 ### 3.6 Resume card / start button (D2)
 
 `_resume_card.html` gains a branch: when `resume.state == "start"`, render
-`<a class="btn btn--primary outline__start" lang="{{ LANGUAGE_CODE }}" href="…">Zacznij pierwszą lekcję<svg … aria-hidden="true">→</svg></a>`
+`<a class="btn btn--primary outline__start" lang="{{ LANGUAGE_CODE }}" href="…">Zacznij pierwszą lekcję<svg class="outline__start-arrow icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
 instead of the card. The `href` reuses the card's existing branch verbatim (`quiz_unit` when
 `resume.node.unit_type == 'quiz'`, else `lesson_unit`). The msgid carries no arrow; the arrow reuses the card chevron's SVG path but with its own class
 `outline__start-arrow` (inline, `aria-hidden`) — never `resume__arrow`, which is absolutely
@@ -402,6 +402,11 @@ apart by their row; the course menu's points at the h1 (`id="outline-title"`). A
 asserts every `aria-describedby` on the page resolves to an existing id. The item names stay "Zacznij od nowa" as
 today.
 
+The grid-placement declarations of today's `.outline-node__reset` rule (`grid-column: 2;
+grid-row: 1; justify-self: end; align-self: baseline`) move to `.outline-menu`; its inline-link
+styling (underline, `margin-left`, `.8rem`) is removed or overridden by `.outline-menu__item`; the
+danger colour on hover stays.
+
 The reset link inside the menu keeps its existing class (`outline-node__reset` for containers,
 `outline__reset` for the course), `href`, `title` and `aria-label`, so its URL contract and
 its selectors are unchanged; only its parent changes.
@@ -422,6 +427,14 @@ two levels the mockup draws, and kept below them:
 | Level | Size | Weight |
 |---|---|---|
 | card title (depth 0, any kind) | 1.125rem phone / 1.25rem desktop | 600 |
+
+Card titles must beat **every** kind-based title rule (e.g. the (0,4,0)
+`.outline-node--section > .outline-node__group > .outline-node__head .outline-node__title`) and
+reset what those rules set: `text-transform: none`, `letter-spacing: normal`,
+`color: var(--text-primary)` — so a course whose roots are sections gets normal card titles, not
+tiny grey uppercase ones. Same contract as the depth-1 override (specificity or order, with a CSS
+comment). Test: a top-level **section** card's title computes to the card size, weight 600, no
+uppercase, primary colour (mutant: drop the override).
 | depth-1 row title (container or unit) | .9375rem (15px) | 500; 600 when `is-current` |
 | depth ≥ 2 container heads | unchanged kind-based scale (chapter 1.1rem, section .75rem uppercase 700) | unchanged |
 | unit rows at depth ≥ 2 | unchanged | 400 (today's `.outline-unit` weight) |
