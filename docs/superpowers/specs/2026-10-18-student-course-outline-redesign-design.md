@@ -48,19 +48,28 @@ question, stated as the visible consequence for a student.
   non-enrolled viewers (authors, teachers, staff previewing) and when every unit is done — then
   neither card nor button renders, as today.
 - **D1 counts.** "Lessons" means what the page already counts: `required_total` / `required_done`
-  (obligatory lesson units; quizzes and optional lessons excluded). The course totals are the sums
-  over the outline roots. "Działy" (D1, D8) = the number of top-level **containers** (§3.2).
+  (obligatory lesson units; quizzes and optional lessons excluded). The course totals come from the
+  existing `_course_required_totals(tree)` (courses/rollups.py), the one place that sum lives.
+  "Działy" (D1, D8) = the number of top-level **containers** (§3.2).
   The D1 label switches to the "nothing done yet" form when `required_done == 0`, independent of
-  the resume state.
+  the resume state. When the course has no top-level containers (`section_count == 0`), the
+  "nothing done yet" form drops the "w N działach" fragment and reads just "199 lekcji".
+- **D2 target kind.** `build_resume`'s `start` target is the first open unit, which can be a quiz
+  or an optional lesson. The button keeps the D2 wording in every case (protected) and reuses the
+  card's quiz/lesson URL branch.
 - **D3a "part card".** Every top-level container is a card (§3.2), so "part" = top-level
   container. D3 says reset moves into "⋯" menus; the same rule is applied to every container row
   that offers a reset today (chapters and deeper), so no "Zacznij od nowa" text link remains
   anywhere on the page. Each gets a "⋯" only when that container `has_state`.
 - **D5 "chapter rows".** = the direct children of a card that are containers. Direct children that
   are units (e.g. a part-level "Podsumowanie" quiz) render as unit rows (§3.5) in the same list.
-  "The in-progress row" = the chapter row containing the resume target when `resume.state` is
-  `resume`, `next` or `gap` (at most one row on the page). It is the row the student will open
-  next; partially-done rows elsewhere get the partial ring but no highlight.
+  "The in-progress row" = the one row on the page that leads to the resume target, only when
+  `resume.state` is `resume`, `next` or `gap`:
+  - target under a depth-1 container → that depth-1 container row;
+  - target is itself a depth-1 unit (a direct child of a card) → that unit row;
+  - target is a root-level unit (no card) → that unit row.
+  So in those three states exactly one row is highlighted; in `start` or when `resume` is `None`,
+  none is. Partially-done rows elsewhere get the partial ring but no highlight.
 - **D6.** Applies to every quiz unit row (`unit_type == "quiz"`), wherever it sits, not only to
   units titled "Podsumowanie".
 
@@ -80,7 +89,7 @@ Replaces today's `.outline__head` row:
 <header class="outline__head">
   <h1 class="outline__title">…course title…</h1>
   <div class="outline__progress">           ← D1
-    <div class="outline__bar" role="img" aria-label="…">fill</div>
+    <div class="outline__bar" aria-hidden="true">fill</div>
     <span class="outline__progress-label">…</span>
   </div>
   {resume card | D2 start button | nothing}  ← D2
@@ -92,8 +101,17 @@ Replaces today's `.outline__head` row:
 </header>
 ```
 
-- Title on its own line at every width (D1). Desktop: title + bar on the left, actions on the
-  right of the same block (mockup desktop frame); phone: stacked, actions in one row (mockup).
+- Title on its own line at every width (D1).
+- Desktop (≥ 641px): a two-column top row — left column = title, then the bar + label; right
+  column = the actions, bottom-aligned with the bar (mockup desktop frame). The resume card or
+  start button sits below that row: the card spans the full head width (as today); the start
+  button is auto-width, left-aligned.
+- Phone (≤ 640px): one column — title, bar + label, resume card / start button (both full width),
+  actions in one row ("Moje wyniki" and "Moje notatki" share the width equally, "⋯" fixed square).
+- When neither card nor button renders, the head is just the top row (desktop) / title, bar,
+  actions (phone).
+- The course bar is `aria-hidden="true"`; the visible label next to it is the accessible text
+  (no `role="img"`, no duplicate announcement). Same for card bars (§3.2).
 - The resume card moves from below the head into it (between the progress bar and the actions);
   its markup and states are unchanged apart from the `start` branch (§3.6).
 - Course-level reset keeps its URL (`courses:progress_reset_course` with `?next=`) and its
@@ -149,10 +167,17 @@ a plain text button (accent colour, no border) instead of `btn btn--ghost btn--s
 
 ### 3.4 Rows inside a card: containers (D5)
 
-A container child of a card (chapter, or section directly under a part) renders as a row:
-status circle, title, count "1/10", and (if it has children) the existing `<details>` disclosure
-— tapping the row unfolds its own children **in place** inside the card (D5). It keeps its own
-"⋯" when `has_state` (§2.1).
+A container child of a card (depth 1: a chapter, or a section directly under a part) renders as a
+row, in this order: status circle, title, count "1/10" (muted, no chip border), "+N dodatkowe" chip
+when `additional_done`, small chevron at the row end; the row is the existing `<details>` summary,
+so tapping it unfolds its own children **in place** inside the card (D5). Its "⋯" (when
+`has_state`, §2.1) is a sibling of the `<details>`, grid-placed after the chevron.
+
+**Containers at depth ≥ 2** (sections inside a chapter, …) keep today's head layout — chevron at
+the start, title (uppercase micro-type for sections, as today) — with two changes: today's
+bordered "lessons: X/Y" chip becomes the same muted "X/Y" count as depth-1 rows, and their reset
+moves into a "⋯" at the row end. No status circle at depth ≥ 2. The "+N dodatkowe" chip stays.
+After this change no "lessons: X/Y" chip remains anywhere on the page.
 
 Status circle (inline SVG, `aria-hidden`; a visually-hidden status word follows it):
 
@@ -162,11 +187,13 @@ Status circle (inline SVG, `aria-hidden`; a visually-hidden status word follows 
 | in progress | `0 < required_done < required_total` | track ring + amber arc of `required_done/required_total` | "W toku" / "In progress" |
 | not started | `required_done == 0` | empty ring | "Nierozpoczęte" / "Not started" |
 
-A container with `required_total == 0` gets the empty ring and no count.
+A container with `required_total == 0` gets **no circle** (and no status word) and no count — an
+empty ring would wrongly read "not started" for a finished all-quiz chapter.
 
-Highlight: the row whose subtree contains the resume target (§2.1) gets `is-current`
-(sunken background, semi-bold title). Computed in the view (§4) — no template recursion over the
-tree to find it.
+Highlight: the one row defined in §2.1 (D5) gets `is-current` (sunken background, semi-bold
+title). The template decides it **only** by comparing the row's pk with `current_row_pk` from the
+view (§4) — never by reading `contains_current`, which `build_resume` stamps in every state,
+`start` included.
 
 Deeper levels (sections under a chapter, then units) keep today's nested-list presentation (left
 hairline rule, uppercase section headings, unit rows), restyled only enough to sit inside the card
@@ -181,17 +208,19 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   unit kind chip (`_unit_kind_chip.html`) is the marker system for unit kinds; if it already emits
   a quiz chip the "QUIZ" label is that chip restyled, not a second label. (Plan must check what
   `unit_marker` returns for a quiz unit and pick one — never render two quiz labels.)
-- **Lesson rows inside a card:** a status circle at the start (done = filled with tick; not done =
-  empty ring), replacing nothing — the ✓ badge stays for done rows, since the outline's existing
-  completion tests key on it.
+- **Lesson unit rows** (every `unit_type == "lesson"` row, inside a card at any depth and at the
+  root): a status circle at the start (done = filled with tick; not done = empty ring). It is
+  purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
+  `aria-label`) already announces completion. Quiz rows get the quiz icon instead of a circle.
 - Rows are ≥ 44px tall at ≤ 640px (D7) via `min-height` on `.outline-unit` and on container heads;
   desktop keeps today's denser rows.
 
 ### 3.6 Resume card / start button (D2)
 
 `_resume_card.html` gains a branch: when `resume.state == "start"`, render
-`<a class="btn btn--primary outline__start" href="…same target URL…">Zacznij pierwszą lekcję →</a>`
-instead of the card. New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
+`<a class="btn btn--primary outline__start" href="…">Zacznij pierwszą lekcję →</a>` instead of the
+card. The `href` reuses the card's existing branch verbatim (`quiz_unit` when
+`resume.node.unit_type == 'quiz'`, else `lesson_unit`). New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
 "Start the course" msgid becomes unused in this template; leave it in the catalogue only if another
 template still uses it (grep), otherwise let `makemessages` mark it obsolete.
 
@@ -211,6 +240,19 @@ No behaviour change is intended. The file must keep working with:
   `<details>` menu that stays open until re-clicked is acceptable); spec leaves the choice to the
   plan, but no global keydown handler that interferes with the editor (this page has none).
 
+**Menu layout.** The `<details class="outline-menu">` wrapper is `position: relative` and sits at
+the row's end (after the chevron on card heads and depth-1 rows; at the end of depth ≥ 2 heads and
+in the course head's action row). Its `<summary>` is the "⋯" button: ≥ 44×44px at ≤ 640px
+(D7 applies to it), 32×32px on desktop. The open panel is **out of flow**: `position: absolute`,
+`top: 100%`, `right: 0` (right-aligned to the button, so it grows leftwards and never past the
+viewport's right edge), `z-index` above the card, `--surface-raised` + `--border-default` +
+`--shadow-md`, `min-width` fitting "Zacznij od nowa". Menu items are ≥ 44px tall at ≤ 640px.
+Opening a menu must not change any row's height or cause horizontal scroll.
+
+The reset link inside the menu keeps its existing class (`outline-node__reset` for containers,
+`outline__reset` for the course), `href`, `title` and `aria-label`, so its URL contract and
+its selectors are unchanged; only its parent changes.
+
 ### 3.8 Styling
 
 All tokens from `core/static/core/css/tokens.css`; no new colours. Card = `--surface-raised`,
@@ -221,25 +263,51 @@ judged separately in screenshots.
 
 The phone breakpoint is the one PR #397 introduced (`max-width: 640px`).
 
+### 3.9 Strings (msgids, plural drivers, Polish forms)
+
+All new strings go through `{% trans %}` / `{% blocktrans %}` with English msgids; `pl` and `en`
+catalogues updated, `.mo` regenerated.
+
+| Where | English msgid | Plural driver | Polish |
+|---|---|---|---|
+| D1, some done | "%(done)s of %(counter)s lesson completed" / "…lessons completed" | `counter` = course total | "%(done)s z %(counter)s lekcji ukończonych" (all three forms identical: "z" takes the genitive) |
+| D1, nothing done — lessons fragment | "%(counter)s lesson" / "%(counter)s lessons" | lesson total | "%(counter)s lekcja" / "lekcje" / "lekcji" |
+| D1, nothing done — sections fragment | "in %(counter)s topic" / "in %(counter)s topics" | `section_count` | locative: "w %(counter)s dziale" / "w %(counter)s działach" / "w %(counter)s działach" |
+| D1, nothing done — composition | "%(lessons)s %(sections)s" (no plural; lets a translator reorder) | — | "%(lessons)s %(sections)s" |
+| card count, long (≥ 641px, accessible) | "%(done)s of %(counter)s lesson" / "…lessons" | `counter` = card total | "%(done)s z %(counter)s lekcji" (identical forms) |
+| card count, short (≤ 640px, `aria-hidden`) | not translated: "{{ done }}/{{ total }}" | — | — |
+| D8 | "Topics · %(n)s" | none (a label) | "Działy · %(n)s" |
+| D2 | "Start the first lesson" | — | "Zacznij pierwszą lekcję" |
+| "⋯" `aria-label` | "More actions" | — | "Więcej działań" |
+| status words (§3.4) | reuse existing "Completed"; new "In progress", "Not started" | — | "Ukończone", "W toku", "Nierozpoczęte" |
+
+English uses "topic" for "dział" because "section" and "part" are already node kinds in the UI.
+The plan must grep the catalogue for each msgid first and reuse an existing entry (with its
+context) rather than adding a duplicate.
+
 ## 4. Data flow
 
 `course_outline` (courses/views.py) already builds `outline` (with rollups and `has_state`),
 `resume`, `has_saved_work`, `note_counts`, tag data. It adds, computed in Python (no new queries):
 
-- `course_done` / `course_total`: sums of `required_done` / `required_total` over the roots;
+- `course_done` / `course_total`: from `_course_required_totals(outline)` — do not re-sum;
 - `section_count` (the "N" of D1/D8): number of roots with `is_unit == False`;
 - per root container, its 1-based card number — stamped into the outline dicts as
   `item["card_number"]` (additive key, like `depth`; other consumers of `build_outline` ignore it
   because the stamping happens in the view on the view's own tree);
-- the pk of the depth-1 container whose subtree contains `resume.node` when
-  `resume.state in {"resume", "next", "gap"}` → `current_row_pk` (reuse
-  `_stamp_current_chain`/`contains_current` if it is already stamped on this tree by
-  `build_resume`; otherwise a pure dict walk);
+- `current_row_pk`: the pk of the one row defined in §2.1 (D5) — the depth-1 container whose
+  subtree contains `resume.node`, else `resume.node` itself when it is a depth-1 or root-level
+  unit — and `None` unless `resume.state in {"resume", "next", "gap"}`. A pure dict walk over the
+  view's tree (the view may read `contains_current`, which `build_resume` stamped, but the
+  template reads only `current_row_pk`);
 - per container, its status (`done` / `progress` / `none`) and arc length, derived in the template
   from `required_done`/`required_total` or stamped in the view — plan's choice, no queries either way.
 
-Bar widths: `round(100 * done / total)`; `None` when `total == 0` (no bar). Follow the glance
-convention: never test widths by truthiness.
+Bar widths come from the existing `_progress_width(done, total)` (courses/rollups.py): `None`
+when nothing is done or `total == 0`, 100 only when `done == total`, otherwise clamped to 1..99 so
+an unfinished course never looks full. Rendering: `total == 0` → no bar at all; `total > 0` and
+width `None` → the empty track (the D1 "nothing done" head still shows a bar); otherwise the fill
+at that width. Never test widths by truthiness (0 never occurs, but `None` and a number differ).
 
 ## 5. Error handling and edge cases
 
@@ -274,29 +342,46 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
 `tests/test_*css*.py` after CSS edits.
 
 **Server-rendered (pytest + BeautifulSoup):**
-- course head: title, bar `aria-label`, D1 label in both forms (nothing done / some done), plural
-  forms in pl;
-- D2: `start` state renders the primary button with the target URL and no card; `resume`/`next`/
-  `gap` render the card with unchanged eyebrow text; non-enrolled viewer renders neither;
+- course head: title, bar `aria-hidden`, D1 label in both forms (nothing done / some done), the
+  `section_count == 0` form, pl plural forms (1 / 2 / 5 lessons; 1 / 2 / 5 działy in the locative);
+- D2: `start` state renders the primary button with the target URL and no card — once with a
+  lesson as the first open unit, once with a quiz (href = `quiz_unit`); `resume`/`next`/`gap`
+  render the card with unchanged eyebrow text; non-enrolled viewer renders neither;
 - D3/D3a: no visible "Zacznij od nowa" text link outside a "⋯" menu; course menu present iff
   `has_saved_work`; a card/row menu present iff that node `has_state`; reset hrefs unchanged;
 - D4: card numbering skips top-level units; bar width/count; no bar when total is 0; "+N dodatkowe"
   still rendered;
-- D5: status class per state for done / progress / none; exactly one `is-current` row, on the row
-  containing the resume target, none when `resume` is `start`/`None`;
+- D5: status class per state for done / progress / none, and no circle when `required_total == 0`;
+  exactly one `is-current` row in each of the three target shapes of §2.1 (under a depth-1
+  container; a depth-1 unit; a root-level unit), none when `resume` is `start`/`None`;
+- depth ≥ 2 heads: muted "X/Y" count, no "lessons: X/Y" chip anywhere on the page;
 - D6: a quiz unit row has the quiz icon and exactly one quiz label;
 - D8: "Działy · N" count; toggle button attributes unchanged;
 - regression: tag filter `hidden` on cards/rows; `#node-N` ids on every `<li>`; notes badge, tag
   chips, tag-edit link, kind chip, ✓ badge still present on unit rows.
 
 **e2e (Playwright, real UI, Polish UI via the header switch):**
-- phone 360/412: no horizontal scroll; every unit row and container head ≥ 44px tall (D7); a long
-  part title wraps inside the card beside its badge; tapping a chapter unfolds its lessons inside
-  the card (D5); "⋯" opens and its reset link navigates to the confirm page;
+- phone 360/412: no horizontal scroll; every unit row, container head, "⋯" button and open-menu
+  item ≥ 44px tall (D7); a long part title wraps inside the card beside its badge; tapping a
+  chapter unfolds its lessons inside the card (D5); "⋯" opens without changing any row's height or
+  causing horizontal scroll, and its reset link navigates to the confirm page;
 - desktop 1280: card head on one line (badge, title, bar, count, chevron);
 - expand-all / collapse-all still toggles every card and chapter, label flips;
 - tag filter hides a card whose units are all filtered out, and shows it again on clear;
 - deep link `#node-<chapter>` opens its card and highlights the row.
+
+**Existing assertions this design legitimately supersedes** (update each to the replacement and
+list them in the PR; no other existing assertion may be changed):
+
+| Test | Pins today | Replacement |
+|---|---|---|
+| `test_courses_views.py` ~:427 | `("start", "Start the course")` eyebrow | `start` renders the D2 button "Start the first lesson"; the other three states unchanged |
+| `test_e2e_outline_tree.py` ~:169 | "lessons: 0/1" rollup text | the card/row count text (§3.9) |
+| `test_e2e_outline_tree.py` ~:625–651 | a visible `a.outline-node__reset` clicked/focused directly | open the row's "⋯" first, then the same `a.outline-node__reset` |
+| `test_outline_collapsible.py` ~:84–85 | `outline-node__reset` as a direct sibling of the `<details>` | the link inside `details.outline-menu`, which is the sibling |
+| `test_e2e_outline_phone_layout.py` (PR #397) | heading geometry of the pre-card layout | the same intent (no horizontal scroll, title beside its badge/chevron) asserted on the card layout |
+
+Line numbers are approximate; the plan locates each by content.
 
 **Existing suites that must stay green:** `test_outline_collapsible.py`, `test_outline_anchors.py`,
 `test_tags_outline.py`, `test_publish_outline.py`, `test_resume_target.py`, `test_courses_views.py`,
