@@ -128,7 +128,15 @@ def test_overlay_image_can_only_shrink():
     source = COURSES_CSS.read_text(encoding="utf-8")
     assert ".imgzoom__img { max-width: 100%; max-height: 100%;" in source
     # No 100vw anywhere in the overlay block: vw includes the classic scrollbar.
-    block = source[source.index(".imgzoom-trigger") :]
+    # The block runs from its section header to the next section (the unit
+    # strip); every later imgzoom rule would have to sit inside it, so the slice
+    # still covers the whole overlay without reading unrelated rules after it
+    # (the print-maths rule uses 100vw on purpose: on paper vw IS the column).
+    start = source.index("Click-to-enlarge images.")
+    end = source.index("/* Unit strip:", start)
+    block = source[start:end]
+    assert ".imgzoom[open] {" in block and ".imgzoom__img {" in block
+    assert "imgzoom" not in source[end:], "an imgzoom rule escaped the overlay block"
     assert "100vw" not in block
 
 
