@@ -139,7 +139,11 @@ card is the existing `<li class="outline-node outline-node--{kind}">` with a new
 Card head (`<summary class="outline-node__head">`):
 
 1. number badge `outline-card__num` — 1-based position among top-level **containers** in render
-   order (top-level units are skipped by the count); teal on `--primary-subtle` (D9);
+   order (top-level units are skipped by the count); teal on `--primary-subtle` (D9). It is a
+   decorative position marker: `aria-hidden="true"`, so the card's accessible name starts with
+   the title. Numbers are stamped server-side over all root containers and stay **stable under a
+   tag filter** — when a filter hides card 2 the visible cards read 1, 3, …; the gap is accepted
+   (the number is the card's place in the course, not in the filtered view);
 2. title (existing `.outline-node__title`, wraps inside the card — D4);
 3. progress bar `outline-card__bar` (amber fill on a light track, D9) + count. Count text: phone
    "18/62"; ≥ 641px "18 z 62 lekcji". Two spans: the long form is always in the accessibility
@@ -202,7 +206,10 @@ the same pair and no status word.
 `_outline_node.html`): same count pair as a depth-1 row, its reset moved into a "⋯" at the end of
 the div head; no chevron (nothing to fold), no circle at depth ≥ 2.
 
-Status circle (inline SVG, `aria-hidden`; a visually-hidden status word follows it):
+Status circle (inline SVG, `aria-hidden`). Its visually-hidden status word is placed **after the
+title and the count pair** in DOM order (not next to the circle), so a summary's accessible name
+starts with the title — e.g. "Chapter A 0 z 1 lekcji Nierozpoczęte". This keeps the existing T6
+assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) valid unchanged.
 
 | state | condition | drawing | sr text |
 |---|---|---|---|
@@ -257,7 +264,12 @@ a Polish UI would read the label in an English voice).
 **UI-language `lang` rule.** Every new UI string rendered inside the outline section — the D1
 label, "Działy · N", the card/row counts, the status words, the start button, the "⋯" label —
 carries `lang="{{ LANGUAGE_CODE }}"` on its element. Author content (titles) keeps the course
-language it inherits. New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
+language it inherits. `django.template.context_processors.i18n` is not enabled, so
+`LANGUAGE_CODE` is not in the context by default: `outline.html` (head + list header) **and**
+`_outline_node.html` itself (so a bare `render_to_string` of the partial, as T11 does, also works)
+must each call `{% get_current_language as LANGUAGE_CODE %}`, like `_resume_card.html` does.
+A server test asserts a row count / status word carries `lang="pl"` (non-empty) on an `en` course
+viewed with a Polish UI. New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
 "Start the course" msgid becomes unused in this template; leave it in the catalogue only if another
 template still uses it (grep), otherwise let `makemessages` mark it obsolete.
 
@@ -372,8 +384,10 @@ at that width. Never test widths by truthiness (0 never occurs, but `None` and a
 
 - **No visible units:** `resume` is `None`, `required_total == 0` → no card/button, no bar, no
   label, no cards.
-- **Everything done:** `resume` is `None` → no card/button; full bar and the done-form label
-  ("199 z 199 lekcji ukończonych").
+- **Every visible unit completed** (quizzes and optional lessons too): `resume` is `None` → no
+  card/button; full bar and the done-form label ("199 z 199 lekcji ukończonych").
+- **All required lessons done, a quiz or optional lesson still open:** full bar and the done-form
+  label, and the resume card still renders (`build_resume` targets the open unit).
 - **`required_total == 0`** (a course of only quizzes/optional lessons): no course bar and no
   progress label at all (the head shows title, next step, actions). Card bars/counts are omitted
   the same way. No "0 lekcji" text is ever rendered.
@@ -413,6 +427,8 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
 - status circle boundary: a highlighted row in `resume` with `required_done == 0` and saved work
   reads "W toku"; a highlighted untouched row in `next` reads "Nierozpoczęte";
 - row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
+- accessible names start with the title: card summary (badge `aria-hidden`) and depth-1 summary
+  (status word after title + count);
 - D3/D3a: no visible "Zacznij od nowa" text link outside a "⋯" menu; course menu present iff
   `has_saved_work`; a card/row menu present iff that node `has_state`; reset hrefs unchanged;
 - D4: card numbering skips top-level units; bar width/count; no bar when total is 0; "+N dodatkowe"
@@ -452,7 +468,7 @@ list them in the PR; no other existing assertion may be changed):
 | `test_courses_views.py::test_eyebrow_carries_the_active_ui_language` | card eyebrow `lang` in `start` | seed progress → `next`; same `lang` assertion on the eyebrow |
 | `test_courses_views.py::test_resume_card_renders_its_path_separator_and_affordance` | card separator + chevron in `start` | seed progress → `next`; same assertions |
 | `test_title_math_markers.py::test_resume_card_title_and_crumbs_are_marked` | `span.resume__title` / `span.resume__crumb` marked in `start` | seed progress → `next`; the math-marker and crumb coverage of the card must survive in a non-start state |
-| `test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje` | `summary .rollup` == "lekcje: 1/2" on the student outline (O12) | the depth-1 row's accessible count reads "1 z 2 lekcji" and its visible count "1/2"; no `.rollup` "lekcje:" chip on the student outline |
+| `test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje` | `summary .rollup` == "lekcje: 1/2" on the student outline (O12) | the parts are top-level, i.e. cards: the card head's long count reads "1 z 2 lekcji" and its short count "1/2" ("Czesc pierwsza"), and "0 z 1 lekcji" / "0/1" ("Czesc druga"); no `.rollup` "lekcje:" chip on the student outline |
 | `test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` | childless arm `.outline-node__head .rollup` == "lekcje: 1/2" | the childless arm renders the same count pair as a depth-1 row (§3.4) |
 | `test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level` | 4 `.outline__head > .btn` on one top | "Moje wyniki", "Moje notatki" and the "⋯" summary inside `.outline__actions` share one vertical level; keep its align-self mutant |
 | `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line | no horizontal scroll at 360/412; on a card head the title starts on the badge's line, right of the badge (chevron now at the row end); the card count sits on the title's line or directly below it inside the card — never as an orphan line before the next card |
