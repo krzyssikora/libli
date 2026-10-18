@@ -234,8 +234,10 @@ summary's accessible name still says "lessons" (today it says "lekcje: 1/10"). D
 the same pair and no status word.
 
 **Childless container arm** (`div.outline-node__head`, the fallback branch of
-`_outline_node.html`): same count pair as a depth-1 row, its reset moved into a "⋯" at the end of
-the div head; no chevron (nothing to fold), no circle at depth ≥ 2.
+`_outline_node.html`): at **every** depth it renders the plain depth-1-style count pair (no badge,
+no bar, no circle, no card class), its reset moved into a "⋯" at the end of the div head; no
+chevron (nothing to fold). It must render safely when `card_number`, `progress_width` or
+`has_state` are missing from the item (T11 renders a bare dict).
 
 Status circle (inline SVG, `aria-hidden`). Its visually-hidden status word is placed **after the
 title and the count pair, before the "+N dodatkowe" chip** in DOM order (not next to the circle),
@@ -258,12 +260,14 @@ circle and no status word. A highlighted row in `next`/`gap` that the student ha
 which is accurate (it is the next thing to start). Tests pin both.
 
 A container with `required_total == 0` gets **no circle** (and no status word) and no count — an
-empty ring would wrongly read "not started" for a finished all-quiz chapter.
+empty ring would wrongly read "not started" for a finished all-quiz chapter. Its 20×20 slot is
+still reserved (an empty `aria-hidden` box) so its title aligns with its siblings'.
 
 Highlight: the one row defined in §2.1 (D5) gets `is-current` (sunken background, semi-bold
 title). The class goes on the row element itself, never on the `<li>` (which would paint the whole
 unfolded subtree): on `summary.outline-node__head` for a container row, on `a.outline-unit` for a
-unit row. Tests count `.is-current` on those two selectors. The template decides it **only** by comparing the row's pk with `current_row_pk` from the
+unit row. The same element gets `aria-current="step"` so screen-reader users get the cue too.
+Tests count `.is-current` and `[aria-current="step"]` on those two selectors (equal, ≤ 1). The template decides it **only** by comparing the row's pk with `current_row_pk` from the
 view (§4) — never by reading `contains_current`, which `build_resume` stamps in every state,
 `start` included.
 
@@ -492,7 +496,9 @@ at that width. Never test widths by truthiness (0 never occurs, but `None` and a
 - **Tag filter:** `outline_with_tags` sets `tag_hidden`; hidden nodes carry `[hidden]`. Cards are
   `<li>`s, so `.outline-node[hidden] { display: none; }` must keep winning over the card's display
   rule — keep the specificity/order contract documented in app.css (the grid rule stays declared
-  above `[hidden]`). "Działy · N" is server-computed and does not change under a JS filter (accepted).
+  above `[hidden]`). "Działy · N" counts all root containers and does not change under a filter —
+  neither a JS filter nor a filtered page load (`?tags=`, where `outline_with_tags` marks
+  `tag_hidden` without pruning). Accepted: N is the course's size, like the stable card numbers.
 - **No-JS:** cards and chapters fold with native `<details>`; "⋯" menus are `<details>` too, so the
   reset links stay reachable without JS. The toggle-all button stays `hidden` without JS (as today).
 - **Internal links (`#node-N`):** `:target` highlight must land on the card head / row head, and
