@@ -173,8 +173,9 @@ Card head (`<summary class="outline-node__head">`):
 **Card head grid.** Wide (≥ 900px): one row — badge, title, bar, count, (+N chip), chevron,
 then the "⋯" when present (mockup desktop frame). The title is the **only** flexible column
 (`minmax(0, 1fr)`); the bar is a fixed 12.5rem track; the long count column is `minmax(7.5rem, max-content)` with
-`white-space: nowrap` (7.5rem fits "199 z 199 lekcji" / "199 of 199 lessons", so bars start at the
-same x on every card), so a long title wraps instead of squeezing the bar. The "+N" chip shares the
+`white-space: nowrap` (7.5rem fits "199 z 199 lekcji" / "199 of 199 lessons", so bars align across cards that have
+no "+N" chip and no menu; a chip or a menu shifts that card's bar left — accepted, and no test
+compares bar x), so a long title wraps instead of squeezing the bar. The "+N" chip shares the
 count's cell (count and chip in one inline-flex), so an absent chip leaves no empty track. Column
 template of the **summary** (exactly five tracks): badge | title `minmax(0,1fr)` | bar `12.5rem` |
 count-cell | chevron. The "⋯" is **not** a summary track: it sits in the `<li>` grid's column 2,
@@ -197,7 +198,10 @@ name). It is grid-placed onto the head row exactly like today's `.outline-node__
 card head reserves space for it only when present (generalising PR #397's `:has()` rule).
 
 Top-level **units** (a course with units at the root) are not cards and get no number; they render
-as unit rows (§3.5) in the list, in order, between cards.
+as unit rows (§3.5) in the list, in order, between cards. The existing root `--space-6` bottom
+margin becomes card-only (`.outline-tree > ul > .outline-node--card`); consecutive root unit rows
+sit flush like unit rows inside a card, and a run of them has `--space-6` after its last row
+before the next card.
 
 Open/closed defaults are unchanged: every card (`data-depth="0"`) renders `open` server-side, as
 today's top-level groups do, and `outline_tree.js` then restores the student's stored partition.
