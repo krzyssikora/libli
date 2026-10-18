@@ -67,6 +67,10 @@ question, stated as the visible consequence for a student.
 - **Non-enrolled viewers** (authors, teachers, staff previewing): the progress UI renders from
   their own (normally empty) progress — empty course bar, "N lekcji w M działach", empty card bars
   and rings — exactly as today's "lekcje: 0/N" chips do. Not gated on enrolment.
+- **Visit-only rings.** A chapter whose lessons were only opened (a `UnitProgress` row with empty
+  `element_state`, not completed) and that is not the current row reads "Nie rozpoczęto".
+  Accepted: rings key on completed required lessons and saved state; a visit alone lights only the
+  current row. No extra query.
 - **Required-only rings.** A chapter whose student finished only quizzes or optional lessons (no
   saved element state) shows the empty ring and "Nie rozpoczęto", while its rows show ✓ / a
   "+N dodatkowe" chip. Accepted: rings and bars count required lessons, exactly as D1's counts do.
@@ -172,13 +176,17 @@ then the "⋯" when present (mockup desktop frame). The title is the **only** fl
 `white-space: nowrap` (7.5rem fits "199 z 199 lekcji" / "199 of 199 lessons", so bars start at the
 same x on every card), so a long title wraps instead of squeezing the bar. The "+N" chip shares the
 count's cell (count and chip in one inline-flex), so an absent chip leaves no empty track. Column
-template: badge | title `minmax(0,1fr)` | bar `12.5rem` | count-cell | chevron | menu `auto`.
+template of the **summary** (exactly five tracks): badge | title `minmax(0,1fr)` | bar `12.5rem` |
+count-cell | chevron. The "⋯" is **not** a summary track: it sits in the `<li>` grid's column 2,
+row 1, over the summary's `padding-inline-end` reservation (§3.7).
 Chevrons line up across cards **without** a menu (1280 e2e compares two such cards' chevron x);
 a card **with** a menu has its chevron shifted left by the menu width — accepted. Below 900px the card head uses the two-row grid described next
 (only the card head; the rest of the page switches at 640px as stated elsewhere), so the title
 column never collapses to a sliver at tablet widths. Two-row grid (< 900px, and phones): two rows — row 1: badge,
-title, chevron (and the "⋯" beside it when present); row 2: bar + count (+N chip), starting under
-the title's left edge. The badge, chevron and "⋯" align to the **first** title line, not to the
+title, chevron (the "⋯", when present, again sits in the `<li>` grid over the reservation, beside
+the chevron); row 2: bar `minmax(0, 1fr)` + count cell `max-content` at its end (+N chip in that
+cell), starting under the title's left edge (360px assertion: the bar has non-zero width and does
+not overflow the card). The badge, chevron and "⋯" align to the **first** title line, not to the
 centre of a wrapped title (mockup phone frames). Row 2's wrapper renders only when it has content
 (a bar, i.e. `required_total > 0`, or a "+N" chip); otherwise the card head is a single row with
 no empty band or row-gap (server assertion: no row-2 wrapper on an all-quiz card).
@@ -461,6 +469,10 @@ So the "bold everywhere" of §1 is removed at depth 1, where most of the bold wa
 
 **Summary padding.** Card heads and row summaries inside a card get `padding-inline: var(--space-2)` so the hover tint has room; the ⋯ reservation is added on top of it.
 
+**Hover on the highlighted row.** An `is-current` row (summary, or the unit `<a>` and its `<li>`
+band) gets no hover repaint — it keeps the full `--surface-sunken`, inside or outside a card.
+Screenshot checklist includes hovering it.
+
 **Hover inside cards.** Today `summary.outline-node__head:hover` paints `--surface-raised`, which
 is the card surface, so hover would vanish. Heads and unit rows inside a card hover with
 `color-mix(in srgb, var(--surface-sunken) 50%, var(--surface-raised))` — visibly different from
@@ -521,6 +533,11 @@ context) rather than adding a duplicate.
 - per container (every depth — cards use it for the bar, depth-1 rows for the arc),
   `item["progress_width"] = _progress_width(required_done, required_total)` (additive key) — the
   template never re-implements the clamp;
+- per container, `item["arc_pct"] = max(progress_width or 0, ARC_FLOOR_PCT)` (integer;
+  `ARC_FLOOR_PCT = 9`, one shared constant in the view); unit rings at the minimum arc use the
+  same constant, passed in context as `arc_floor_pct` — never a second literal. The arc circle
+  carries `pathLength="100"`, so `stroke-dasharray="{{ arc_pct|unlocalize }} 100"` stays integer
+  (no 2πr floats);
 - `course_progress_width = _progress_width(course_done, course_total)` for the D1 bar (server test
   for its `None`, partial-clamped and 100 cases);
 - per root container, its 1-based card number — stamped into the outline dicts as
