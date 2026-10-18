@@ -578,6 +578,11 @@ input[type=number] {
    takes its baseline from the svg's bottom edge -- so the icon buttons rode ~2px above
    the text-only ones. Centre every head button so the row reads as one level. */
 .outline__head > .btn { align-self: center; }
+/* Phone: the title takes its own line and the buttons pack from the left beneath it. */
+@media (max-width: 640px) {
+  .outline__title { flex-basis: 100%; }
+  .outline__results { margin-left: 0; }
+}
 
 /* Resume card: the one thing a returning student should be able to hit without
    reading the tree. Ground it on --surface-raised and cut the border against THAT,
@@ -636,6 +641,9 @@ input[type=number] {
 /* structural headings, by depth */
 .outline-node__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
 .outline-node__title { color: var(--text-primary); font-weight: 600; }
+/* Zero basis: a long title wraps BESIDE its chevron instead of dropping below it,
+   and the rollup chip keeps its place at the row's end. */
+.outline-node__head > .outline-node__title { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
 .outline-node--part > .outline-node__head .outline-node__title,
 .outline-node--part > .outline-node__group > .outline-node__head .outline-node__title { font-size: 1.35rem; }
 .outline-node--chapter > .outline-node__head .outline-node__title,
@@ -721,8 +729,9 @@ input[type=number] {
    98.578125px at .8rem (en "Start fresh" 63.59375px), plus the reset link's
    own margin-left: var(--space-2) clearance (~13.4px), rounded up.
    Re-measure if either translation changes. */
-summary.outline-node__head {
-  cursor: pointer; list-style: none;
+summary.outline-node__head { cursor: pointer; list-style: none; }
+/* Reserved only where the link exists: on a phone 7.5rem is a third of the row. */
+.outline-node:has(> .outline-node__reset) > .outline-node__group > summary.outline-node__head {
   padding-inline-end: 7.5rem;
 }
 summary.outline-node__head::-webkit-details-marker { display: none; }
