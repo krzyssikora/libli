@@ -86,6 +86,8 @@ from courses.quiz import rehydrate  # noqa: F401
 from courses.quiz import reveal_list_template
 from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
+from courses.rollups import _course_required_totals
+from courses.rollups import _progress_width
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.rollups import build_resume
@@ -674,6 +676,83 @@ def my_courses(request):
     )
 
 
+ARC_FLOOR_PCT = 9
+
+
+def _contains_pk(item, pk):
+    return any(k["node"].pk == pk or _contains_pk(k, pk) for k in item["children"])
+
+
+def _current_row_pk(outline, resume):
+    """pk of the outline row the "you are here" highlight sits on (spec 2.1 D5).
+
+    The depth-1 container holding the resume target, or the target itself when it
+    is a unit at depth 0 or 1. Pure dict walk; never reads contains_current."""
+    if not resume or resume["state"] not in {"resume", "next", "gap"}:
+        return None
+    target = resume["node"].pk
+    for root in outline:
+        if root["node"].pk == target:
+            return target
+        for child in root["children"]:
+            if child["node"].pk == target:
+                return target
+            if not child["is_unit"] and _contains_pk(child, target):
+                return child["node"].pk
+    return None
+
+
+def _stamp_rings(items, resume, current_row_pk):
+    resume_state = resume["state"] if resume else None
+    resume_pk = resume["node"].pk if resume else None
+    for d in items:
+        pk = d["node"].pk
+        if d["is_unit"]:
+            if d["node"].unit_type == ContentNode.UnitType.QUIZ:
+                d["ring"] = None
+            elif d["completed"]:
+                d["ring"] = "done"
+            elif d["has_state"] or (resume_state == "resume" and pk == resume_pk):
+                d["ring"] = "progress"
+            else:
+                d["ring"] = "none"
+            continue
+        _stamp_rings(d["children"], resume, current_row_pk)
+        width = _progress_width(d["required_done"], d["required_total"])
+        d["progress_width"] = width
+        d["arc_pct"] = max(width or 0, ARC_FLOOR_PCT)
+        if d["required_total"] == 0:
+            d["ring"] = None
+        elif d["required_done"] == d["required_total"]:
+            d["ring"] = "done"
+        elif (
+            d["required_done"] > 0
+            or d["has_state"]
+            or (pk == current_row_pk and resume_state == "resume")
+        ):
+            d["ring"] = "progress"
+        else:
+            d["ring"] = "none"
+
+
+def _outline_presentation(outline, resume):
+    """Presentation data for the outline page; stamps cards, rings and arcs in place."""
+    done, total = _course_required_totals(outline)
+    current_row_pk = _current_row_pk(outline, resume)
+    _stamp_rings(outline, resume, current_row_pk)
+    cards = [d for d in outline if not d["is_unit"] and d["children"]]
+    for number, d in enumerate(cards, start=1):
+        d["card_number"] = number
+    return {
+        "course_done": done,
+        "course_total": total,
+        "course_progress_width": _progress_width(done, total),
+        "section_count": len(cards),
+        "current_row_pk": current_row_pk,
+        "arc_floor_pct": ARC_FLOOR_PCT,
+    }
+
+
 @login_required
 def course_outline(request, slug):
     course = get_object_or_404(Course, slug=slug)
@@ -707,10 +786,12 @@ def course_outline(request, slug):
         if is_enrolled(request.user, course)
         else None
     )
+    presentation = _outline_presentation(outline, resume)
     return render(
         request,
         "courses/outline.html",
         {
+            **presentation,
             "course": course,
             "outline": outline,
             "note_counts": note_counts_for_outline(request.user, course),
