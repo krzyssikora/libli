@@ -272,7 +272,9 @@ still reserved (an empty `aria-hidden` box) so its title aligns with its sibling
 Highlight: the one row defined in §2.1 (D5) gets `is-current` (sunken background, semi-bold
 title). The class goes on the row element itself, never on the `<li>` (which would paint the whole
 unfolded subtree): on `summary.outline-node__head` for a container row, on `a.outline-unit` for a
-unit row. The same element gets `aria-current="step"` so screen-reader users get the cue too.
+unit row. For a unit row the sunken highlight **background** is painted on the unit `<li>`
+(`.outline-node--unit:has(> .outline-unit.is-current)`) so the sibling tag chips, tag-edit icon
+and notes badge sit inside the band; the class itself stays on the `<a>`. The same element gets `aria-current="step"` so screen-reader users get the cue too.
 Tests count `.is-current` and `[aria-current="step"]` on those two selectors (equal, ≤ 1). The template decides it **only** by comparing the row's pk with `current_row_pk` from the
 view (§4) — never by reading `contains_current`, which `build_resume` stamps in every state,
 `start` included.
@@ -305,6 +307,9 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   `_lesson_article.html`, `_quiz_article.html` and `_resume_card.html`, which must keep their
   current look — a test asserts the resume card's quiz chip keeps its computed style (colour,
   text-transform). Never a second quiz label.
+- **Leading glyph placement.** The status circle or quiz icon is the **first child of
+  `a.outline-unit`**, before `.outline-unit__title`, `aria-hidden` — so it shares the link's tap
+  target, hover tint and highlight, and titles align across rows inside and outside cards.
 - **Lesson unit rows** (every `unit_type == "lesson"` row, inside a card at any depth and at the
   root): a status circle at the start — done = filled with tick; **in progress** = partial ring at
   the minimum arc when the unit `has_state` or **is the resume target itself**
@@ -459,6 +464,13 @@ print-media screenshot (≈ 3.4:1 dark ink on darkened amber, passes).
 course bar, card bars and status circles get forced-colours rules: track = `1px solid CanvasText`
 border on a transparent background, fill / arc / done circle = `Highlight`
 (`forced-color-adjust: none` on the fill), tick = `Canvas`.
+
+The status circles are inline SVG, so the box rules above do not reach them. They get their own
+contract: `forced-color-adjust: none` on the circle `<svg>`, then track ring `stroke: CanvasText`,
+arc and done-circle `fill`/`stroke: Highlight`, tick `stroke: Canvas` — so done / in progress /
+not started stay distinguishable for sighted forced-colours users (the status words are
+screen-reader-only). One check under emulated `forced-colors: active` (computed style or
+screenshot) shows the three states differ.
 
 ### 3.9 Strings (msgids, plural drivers, Polish forms)
 
