@@ -60,6 +60,10 @@ question, stated as the visible consequence for a student.
   progress bar + count; the teacher page keeps „lekcje: X/Y" (O6 untouched). **Owner confirmed
   2026-10-19: "yes, student only"** — the two pages stop sharing one chip wording, by decision.
   PROTECTED like D1–D10.
+- **D1 × D2 independence edge.** `start` requires every resume source empty; legacy data (a
+  completed `UnitProgress` with NULL `completed_at`) could give `start` while `required_done > 0`,
+  showing "Zacznij pierwszą lekcję" beside "N z M lekcji ukończonych". Accepted, no guard: both
+  signals are each correct for their own input.
 - **D2 target kind.** `build_resume`'s `start` target is the first open unit, which can be a quiz
   or an optional lesson. The button keeps the D2 wording in every case (protected) and reuses the
   card's quiz/lesson URL branch.
@@ -164,7 +168,9 @@ instead of squeezing the bar. Below 900px the card head uses the two-row grid de
 column never collapses to a sliver at tablet widths. Two-row grid (< 900px, and phones): two rows — row 1: badge,
 title, chevron (and the "⋯" beside it when present); row 2: bar + count (+N chip), starting under
 the title's left edge. The badge, chevron and "⋯" align to the **first** title line, not to the
-centre of a wrapped title (mockup phone frames).
+centre of a wrapped title (mockup phone frames). Row 2's wrapper renders only when it has content
+(a bar, i.e. `required_total > 0`, or a "+N" chip); otherwise the card head is a single row with
+no empty band or row-gap (server assertion: no row-2 wrapper on an all-quiz card).
 
 The card's "⋯" menu (D3a) is a **sibling** of the `<details>`, never inside `<summary>` (same reason
 as today's D9 reset link: a focusable control inside a button-role summary corrupts its accessible
@@ -242,20 +248,20 @@ chevron (nothing to fold). It must render safely when `card_number`, `progress_w
 Status circle (inline SVG, `aria-hidden`). Its visually-hidden status word is placed **after the
 title and the count pair, before the "+N dodatkowe" chip** in DOM order (not next to the circle),
 so the DOM order is: circle, title, count pair, status word, chip, chevron; a summary's accessible
-name starts with the title — e.g. "Chapter A 0 z 1 lekcji Nierozpoczęte +2 dodatkowe". This keeps the existing T6
+name starts with the title — e.g. "Chapter A 0 z 1 lekcji Nie rozpoczęto +2 dodatkowe". This keeps the existing T6
 assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) valid unchanged.
 
 | state | condition | drawing | sr text |
 |---|---|---|---|
-| done | `required_total > 0 and required_done == required_total` | circle filled with `--glance-fill`, tick stroked in `--text-inverse` (light tick on the darkened amber in light mode, dark tick on the light amber in dark mode — ≥ 3:1 both ways; checked in both screenshots) | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
+| done | `required_total > 0 and required_done == required_total` | circle filled with `--glance-fill`, tick stroked in `--text-inverse` (light tick on the darkened amber in light mode, dark tick on the light amber in dark mode — ≥ 3:1 both ways; checked in both screenshots) | "Ukończono" / "Completed" (existing bare msgid, §3.9) |
 | in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0`; the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
-| not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nierozpoczęte" / "Not started" |
+| not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nie rozpoczęto" / "Not started" |
 
 Precedence: "no circle" (`required_total == 0`) first, then `done`, then the in-progress
 conditions, then not started. So a highlighted row in state `resume` with
 `0 < required_total` and `required_done < required_total` always reads "in progress"; a
 highlighted `resume` row whose required lessons are all done (the in-flight unit is an open quiz or
-optional lesson) reads "Ukończone" and is still `is-current`; an all-quiz highlighted row has no
+optional lesson) reads "Ukończono" and is still `is-current`; an all-quiz highlighted row has no
 circle and no status word. A highlighted row in `next`/`gap` that the student has not touched reads "not started",
 which is accurate (it is the next thing to start). Tests pin both.
 
@@ -290,8 +296,7 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
 
 - **Quiz rows (D6):** a quiz icon before the title and a "QUIZ" label (teal, D9). The icon is the
   mockup's clipboard-with-tick line icon, added as a symbol to the existing sprite
-  (`templates/courses/manage/_icon_sprite.html` if the outline page includes it, else inline SVG
-  in the partial): monochrome, `stroke="currentColor"`, coloured teal via CSS, `aria-hidden="true"`
+  (inline SVG in `_outline_node.html` — `outline.html` does not include the manage sprite, and must not start to): monochrome, `stroke="currentColor"`, coloured teal via CSS, `aria-hidden="true"`
   (the chip announces the kind), in the same 20×20 box as the status circle so titles align. The label **is**
   the existing chip: `unit_marker` returns `MARKER_QUIZ` for every quiz unit and
   `_unit_kind_chip.html` renders `span.badge.unit-kind-chip.unit-kind-chip--quiz` "Quiz". It is
@@ -339,7 +344,9 @@ language it inherits. `django.template.context_processors.i18n` is not enabled, 
 must each call `{% get_current_language as LANGUAGE_CODE %}`, like `_resume_card.html` does.
 A server test asserts a row count / status word carries `lang="pl"` (non-empty) on an `en` course
 viewed with a Polish UI. New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
-"Start the course" msgid becomes unused in this template; leave it in the catalogue only if another
+eyebrow's `{% else %}` ("Start the course") arm is **removed** — the card now renders only for
+`resume`/`next`/`gap`, so the eyebrow covers those three — and the "Start the course" msgid becomes
+unused in this template; leave it in the catalogue only if another
 template still uses it (grep), otherwise let `makemessages` mark it obsolete.
 
 ### 3.7 JavaScript (`outline_tree.js`)
@@ -357,6 +364,11 @@ No behaviour change is intended. The file must keep working with:
 - Closing an open "⋯" menu on outside click / Escape is a small additive handler (or none — a
   `<details>` menu that stays open until re-clicked is acceptable); spec leaves the choice to the
   plan, but no global keydown handler that interferes with the editor (this page has none).
+
+Menu `<details>` also fire `toggle`, which reaches the tree's capture-phase
+`toggle` → `syncLabel` listener on every menu open/close. Harmless, because `syncLabel` reads only
+the `groups` array captured from `.outline-node__group`; it must stay that way (never re-query a
+generic `details` selector), noted in a JS comment.
 
 **Menu layout.** The `<details class="outline-menu">` wrapper is `position: relative` and sits at
 the row's end (after the chevron on card heads and depth-1 rows; at the end of depth ≥ 2 heads and
@@ -422,6 +434,11 @@ is the card surface, so hover would vanish. Heads and unit rows inside a card ho
 `color-mix(in srgb, var(--surface-sunken) 50%, var(--surface-raised))` — visibly different from
 both the card and the full `--surface-sunken` of `is-current`. Checked in the screenshots.
 
+**`--text-inverse` consumer.** The done tick is a new consumer of `--text-inverse` (on the amber
+fill, not on `--primary`). The tokens.css print-block comment that says `--text-inverse` is only
+ever used on `--primary` is updated to list the outline tick; the done circle is included in the
+print-media screenshot (≈ 3.4:1 dark ink on darkened amber, passes).
+
 **Forced colours.** Like the glance bars (app.css `@media (forced-colors: active)` block), the
 course bar, card bars and status circles get forced-colours rules: track = `1px solid CanvasText`
 border on a transparent background, fill / arc / done circle = `Highlight`
@@ -443,11 +460,13 @@ catalogues updated, `.mo` regenerated.
 | D8 | "Topics · %(n)s" | none (a label) | "Działy · %(n)s" |
 | D2 | "Start the first lesson" | — | "Zacznij pierwszą lekcję" |
 | "⋯" `aria-label` | reuse existing "More actions" | — | existing "Więcej akcji" (unchanged; shared with the editor tree) |
-| status words (§3.4) | "Completed", "In progress", "Not started", all with msgctxt "outline status" | — | "Ukończone", "W toku", "Nierozpoczęte" |
+| status words (§3.4) | reuse existing bare "Completed" and "In progress"; new "Not started" | — | "Ukończono" (existing), "W toku" (existing), "Nie rozpoczęto" (new) |
 
-The status words carry a context because the bare msgid "Completed" already exists as
-"Ukończono" (✓ badge in three templates) and must not change; the context gives the adjective form
-without touching that entry. "In progress" exists bare as "W toku"; the context entry repeats it.
+The status words use the **impersonal** Polish forms ("Ukończono", "W toku", "Nie rozpoczęto"),
+not adjectives: they follow a part/chapter/section title of any grammatical gender, and an
+adjective ("Ukończone") would disagree with most of them. This also lets "Completed" and
+"In progress" reuse their existing bare entries unchanged (no msgctxt); only "Not started" is new.
+Screen-reader-only text.
 
 English uses "topic" for "dział" because "section" and "part" are already node kinds in the UI.
 The plan must grep the catalogue for each msgid first and reuse an existing entry (with its
@@ -531,10 +550,10 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
 - status circle boundary: a highlighted row in `resume` with `required_done == 0` reads "W toku"
   in all three ways `resume` arises — saved practice work; a bare lesson visit (a `UnitProgress`
   row with empty `element_state`); an in-progress quiz submission — and a highlighted untouched
-  row in `next` reads "Nierozpoczęte"; for the depth-1-unit and root-unit target shapes in
+  row in `next` reads "Nie rozpoczęto"; for the depth-1-unit and root-unit target shapes in
   `resume`, the highlighted unit row draws the partial ring (class pinned), not the empty one —
   both fixtures use a **lesson** as the in-flight target (bare visit or saved state), since quiz
-  rows draw no circle; a done chapter whose in-flight unit is an open quiz reads "Ukończone" and
+  rows draw no circle; a done chapter whose in-flight unit is an open quiz reads "Ukończono" and
   is still `is-current`; a lesson at depth 2 under a chapter, bare visit, `resume` state: the
   chapter reads "W toku" and the lesson row draws the partial-ring class (not `is-current`);
 - row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
