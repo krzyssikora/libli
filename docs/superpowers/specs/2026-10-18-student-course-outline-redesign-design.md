@@ -153,6 +153,12 @@ Card head (`<summary class="outline-node__head">`):
 4. the "+N dodatkowe" rollup chip when `additional_done` (unchanged text and condition);
 5. chevron, at the end of the row (rotates 90° when open, as today).
 
+**Card head grid.** Desktop (≥ 641px): one row — badge, title, bar, count, (+N chip), chevron,
+then the "⋯" when present (mockup desktop frame). Phone (≤ 640px): two rows — row 1: badge,
+title, chevron (and the "⋯" beside it when present); row 2: bar + count (+N chip), starting under
+the title's left edge. The badge, chevron and "⋯" align to the **first** title line, not to the
+centre of a wrapped title (mockup phone frames).
+
 The card's "⋯" menu (D3a) is a **sibling** of the `<details>`, never inside `<summary>` (same reason
 as today's D9 reset link: a focusable control inside a button-role summary corrupts its accessible
 name). It is grid-placed onto the head row exactly like today's `.outline-node__reset`, and the
@@ -207,8 +213,9 @@ the same pair and no status word.
 the div head; no chevron (nothing to fold), no circle at depth ≥ 2.
 
 Status circle (inline SVG, `aria-hidden`). Its visually-hidden status word is placed **after the
-title and the count pair** in DOM order (not next to the circle), so a summary's accessible name
-starts with the title — e.g. "Chapter A 0 z 1 lekcji Nierozpoczęte". This keeps the existing T6
+title and the count pair, before the "+N dodatkowe" chip** in DOM order (not next to the circle),
+so the DOM order is: circle, title, count pair, status word, chip, chevron; a summary's accessible
+name starts with the title — e.g. "Chapter A 0 z 1 lekcji Nierozpoczęte +2 dodatkowe". This keeps the existing T6
 assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) valid unchanged.
 
 | state | condition | drawing | sr text |
@@ -298,6 +305,10 @@ in the course head's action row). Its `<summary>` is the "⋯" button: ≥ 44×4
 `top: 100%`, `right: 0` (right-aligned to the button, so it grows leftwards and never past the
 viewport's right edge), `z-index` above the card, `--surface-raised` + `--border-default` +
 `--shadow-md`, `min-width` fitting "Zacznij od nowa". Menu items are ≥ 44px tall at ≤ 640px.
+The menu's `<summary>` gets `list-style: none` and a hidden `::-webkit-details-marker` (as
+`summary.outline-node__head` does), so no UA triangle appears beside "⋯" or widens the square;
+checked in the 360 and 1280 screenshots.
+
 Opening a menu must not change any row's height or cause horizontal scroll. Cards, rows and the
 list must not set `overflow: hidden`/`clip` or create a stacking context (`transform`, `filter`,
 `isolation`) that would clip or trap the panel — a closed last card's menu has to spill below it.
@@ -339,7 +350,7 @@ catalogues updated, `.mo` regenerated.
 
 | Where | English msgid | Plural driver | Polish |
 |---|---|---|---|
-| D1, some done | "%(done)s of %(counter)s lesson completed" / "…lessons completed" | `counter` = course total | "%(done)s z %(counter)s lekcji ukończonych" (all three forms identical: "z" takes the genitive) |
+| D1, some done | "%(done)s of %(counter)s lesson completed" / "…lessons completed" | `counter` = course total | one: "%(done)s z %(counter)s lekcji ukończonej"; few / many: "%(done)s z %(counter)s lekcji ukończonych" ("z" takes the genitive; the participle agrees with the total) |
 | D1, nothing done — lessons fragment | "%(counter)s lesson" / "%(counter)s lessons" | lesson total | "%(counter)s lekcja" / "lekcje" / "lekcji" |
 | D1, nothing done — sections fragment | "in %(counter)s topic" / "in %(counter)s topics" | `section_count` | locative: "w %(counter)s dziale" / "w %(counter)s działach" / "w %(counter)s działach" |
 | D1, nothing done — composition | "%(lessons)s %(sections)s" (no plural; lets a translator reorder) | — | "%(lessons)s %(sections)s" |
@@ -477,7 +488,7 @@ list them in the PR; no other existing assertion may be changed):
 | `test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje` | `summary .rollup` == "lekcje: 1/2" on the student outline (O12) | the parts are top-level, i.e. cards: the card head's long count reads "1 z 2 lekcji" and its short count "1/2" ("Czesc pierwsza"), and "0 z 1 lekcji" / "0/1" ("Czesc druga"); no `.rollup` "lekcje:" chip on the student outline |
 | `test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` | childless arm `.outline-node__head .rollup` == "lekcje: 1/2" | the childless arm renders the same count pair as a depth-1 row (§3.4) |
 | `test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level` | 4 `.outline__head > .btn` on one top | "Moje wyniki", "Moje notatki" and the "⋯" summary inside `.outline__actions` share one vertical level; keep its align-self mutant |
-| `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line | no horizontal scroll at 360/412; on a card head the title starts on the badge's line, right of the badge (chevron now at the row end); the card count sits on the title's line or directly below it inside the card — never as an orphan line before the next card |
+| `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line; course title alone on its line with `.outline__head > .btn` beneath; nothing reserved on a head without a reset link | at 360/412: no horizontal scroll; on a card head the title starts on the badge's line, right of the badge; the bar + count row sits directly below the title inside the card (§3.2 phone grid); the h1 is alone on its line — the bar, the resume card / start button and every `.outline__actions` child (incl. the "⋯" summary) start below the h1's bottom, with the actions locator count asserted `== 3` (or `== 2` without saved work) so the loop cannot pass empty; **reservation**: on a card head without a menu the chevron's right edge reaches the summary's right edge (±2px), on a card head with a menu the chevron ends ≥ 44px before the row end and the "⋯" summary overlaps neither the chevron nor the count (mutants: drop the `:has()` qualifier; delete the rule) |
 | `test_e2e_outline_phone_layout.py::test_outline_head_stays_on_one_line_on_desktop` | 4 head buttons on the h1's line at 1280 | at 1280: the actions sit in the top row, right of the title column, bottom-aligned with the bar (D1 puts the title alone in its column) |
 
 Line numbers are approximate; the plan locates each by content.
