@@ -110,6 +110,11 @@ Replaces today's `.outline__head` row:
   actions in one row ("Moje wyniki" and "Moje notatki" share the width equally, "⋯" fixed square).
 - When neither card nor button renders, the head is just the top row (desktop) / title, bar,
   actions (phone).
+- **DOM order is fixed:** title, progress, resume card / start button, actions — the phone visual
+  order (mockup). Desktop places the actions into the top row's right column with CSS grid areas,
+  so on desktop the tab order (card before actions) differs from the reading order (actions appear
+  above the card). Accepted: both are adjacent, few controls, and the primary next step comes
+  first in tab order.
 - The course bar is `aria-hidden="true"`; the visible label next to it is the accessible text
   (no `role="img"`, no duplicate announcement). Same for card bars (§3.2).
 - The resume card moves from below the head into it (between the progress bar and the actions);
@@ -131,8 +136,9 @@ Card head (`<summary class="outline-node__head">`):
    order (top-level units are skipped by the count); teal on `--primary-subtle` (D9);
 2. title (existing `.outline-node__title`, wraps inside the card — D4);
 3. progress bar `outline-card__bar` (amber fill on a light track, D9) + count. Count text: phone
-   "18/62"; ≥ 641px "18 z 62 lekcji" (two spans toggled by CSS; the long form is the accessible
-   one, the short form `aria-hidden`). A container with `required_total == 0` shows no bar and no
+   "18/62"; ≥ 641px "18 z 62 lekcji". Two spans: the long form is always in the accessibility
+   tree — at ≤ 640px it is **visually hidden** with the existing `.visually-hidden` pattern, never
+   `display: none` — and the short form is `aria-hidden` and shown only at ≤ 640px. A container with `required_total == 0` shows no bar and no
    count (as today, where the rollup chip is omitted);
 4. the "+N dodatkowe" rollup chip when `additional_done` (unchanged text and condition);
 5. chevron, at the end of the row (rotates 90° when open, as today).
@@ -183,7 +189,7 @@ Status circle (inline SVG, `aria-hidden`; a visually-hidden status word follows 
 
 | state | condition | drawing | sr text |
 |---|---|---|---|
-| done | `required_total > 0 and required_done == required_total` | filled amber circle, dark tick | "Ukończone" / "Completed" (existing msgid) |
+| done | `required_total > 0 and required_done == required_total` | filled amber circle, dark tick | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
 | in progress | `0 < required_done < required_total` | track ring + amber arc of `required_done/required_total` | "W toku" / "In progress" |
 | not started | `required_done == 0` | empty ring | "Nierozpoczęte" / "Not started" |
 
@@ -191,7 +197,9 @@ A container with `required_total == 0` gets **no circle** (and no status word) a
 empty ring would wrongly read "not started" for a finished all-quiz chapter.
 
 Highlight: the one row defined in §2.1 (D5) gets `is-current` (sunken background, semi-bold
-title). The template decides it **only** by comparing the row's pk with `current_row_pk` from the
+title). The class goes on the row element itself, never on the `<li>` (which would paint the whole
+unfolded subtree): on `summary.outline-node__head` for a container row, on `a.outline-unit` for a
+unit row. Tests count `.is-current` on those two selectors. The template decides it **only** by comparing the row's pk with `current_row_pk` from the
 view (§4) — never by reading `contains_current`, which `build_resume` stamps in every state,
 `start` included.
 
@@ -231,7 +239,7 @@ No behaviour change is intended. The file must keep working with:
 - the toggle button moved into `.outline-list__head` (it is found by `[data-outline-toggle-all]`,
   so no change expected);
 - "⋯" menus: implemented as `<details class="outline-menu">` with a `<summary>` "⋯" button
-  (`aria-label` "Więcej działań" / "More actions") and a link inside. They are **not**
+  (`aria-label` "More actions" / "Więcej akcji", the existing entry) and a link inside. They are **not**
   `.outline-node__group`, so the partition/expand-all logic ignores them — the selector
   `.outline-node__group` must stay scoped so a menu never counts as a group. A click inside a
   menu's summary must not trigger the outline's persistence write (`closest("summary.outline-node__head")`
@@ -247,7 +255,20 @@ in the course head's action row). Its `<summary>` is the "⋯" button: ≥ 44×4
 `top: 100%`, `right: 0` (right-aligned to the button, so it grows leftwards and never past the
 viewport's right edge), `z-index` above the card, `--surface-raised` + `--border-default` +
 `--shadow-md`, `min-width` fitting "Zacznij od nowa". Menu items are ≥ 44px tall at ≤ 640px.
-Opening a menu must not change any row's height or cause horizontal scroll.
+Opening a menu must not change any row's height or cause horizontal scroll. Cards, rows and the
+list must not set `overflow: hidden`/`clip` or create a stacking context (`transform`, `filter`,
+`isolation`) that would clip or trap the panel — a closed last card's menu has to spill below it.
+
+Space for the menu on a head row is reserved only where the menu exists:
+`.outline-node:has(> .outline-menu) > .outline-node__group > summary.outline-node__head` reserves
+the "⋯" button's width plus a gap (44px + `--space-2` at ≤ 640px, 32px + `--space-2` on desktop).
+PR #397's `:has(> .outline-node__reset)` rule and its 7.5rem measured-width comment become
+obsolete and are removed.
+
+The course-level reset inside the menu drops its `btn btn--ghost btn--small` classes and keeps only
+`outline__reset` plus a shared menu-item class (`outline-menu__item`); container resets keep
+`outline-node__reset` plus `outline-menu__item`. Menu items look like menu entries (full-width row,
+hover = `--surface-sunken`, danger colour on hover as today's reset link), not buttons.
 
 The reset link inside the menu keeps its existing class (`outline-node__reset` for containers,
 `outline__reset` for the course), `href`, `title` and `aria-label`, so its URL contract and
@@ -278,8 +299,12 @@ catalogues updated, `.mo` regenerated.
 | card count, short (≤ 640px, `aria-hidden`) | not translated: "{{ done }}/{{ total }}" | — | — |
 | D8 | "Topics · %(n)s" | none (a label) | "Działy · %(n)s" |
 | D2 | "Start the first lesson" | — | "Zacznij pierwszą lekcję" |
-| "⋯" `aria-label` | "More actions" | — | "Więcej działań" |
-| status words (§3.4) | reuse existing "Completed"; new "In progress", "Not started" | — | "Ukończone", "W toku", "Nierozpoczęte" |
+| "⋯" `aria-label` | reuse existing "More actions" | — | existing "Więcej akcji" (unchanged; shared with the editor tree) |
+| status words (§3.4) | "Completed", "In progress", "Not started", all with msgctxt "outline status" | — | "Ukończone", "W toku", "Nierozpoczęte" |
+
+The status words carry a context because the bare msgid "Completed" already exists as
+"Ukończono" (✓ badge in three templates) and must not change; the context gives the adjective form
+without touching that entry. "In progress" exists bare as "W toku"; the context entry repeats it.
 
 English uses "topic" for "dział" because "section" and "part" are already node kinds in the UI.
 The plan must grep the catalogue for each msgid first and reuse an existing entry (with its
@@ -311,8 +336,10 @@ at that width. Never test widths by truthiness (0 never occurs, but `None` and a
 
 ## 5. Error handling and edge cases
 
-- **No visible units / everything done:** `resume` is `None`; no card/button. Progress label shows
-  the done form ("199 z 199 lekcji ukończonych").
+- **No visible units:** `resume` is `None`, `required_total == 0` → no card/button, no bar, no
+  label, no cards.
+- **Everything done:** `resume` is `None` → no card/button; full bar and the done-form label
+  ("199 z 199 lekcji ukończonych").
 - **`required_total == 0`** (a course of only quizzes/optional lessons): no course bar and no
   progress label at all (the head shows title, next step, actions). Card bars/counts are omitted
   the same way. No "0 lekcji" text is ever rendered.
@@ -331,8 +358,8 @@ at that width. Never test widths by truthiness (0 never occurs, but `None` and a
 - **Print:** the outline page has no print stylesheet today; cards must not regress printing
   (no dark backgrounds forced, `<details>` content printed as the browser does today). Verify with
   one print-media screenshot; no new print rules unless something breaks.
-- **RTL / i18n:** Polish plural forms for every count message (`ngettext` / `blocktrans count`):
-  "lekcja/lekcje/lekcji", "dział/działy/działów". English likewise.
+- **i18n:** Polish plural forms for every count message (`ngettext` / `blocktrans count`), exactly
+  as listed in §3.9 (the "działy" fragment is locative). English likewise.
 
 ## 6. Testing
 
@@ -364,7 +391,9 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
 - phone 360/412: no horizontal scroll; every unit row, container head, "⋯" button and open-menu
   item ≥ 44px tall (D7); a long part title wraps inside the card beside its badge; tapping a
   chapter unfolds its lessons inside the card (D5); "⋯" opens without changing any row's height or
-  causing horizontal scroll, and its reset link navigates to the confirm page;
+  causing horizontal scroll, and its reset link navigates to the confirm page; the open menu of
+  the **last** card is fully visible (not clipped); at 360px the card's long count span is in the
+  accessibility tree (computed `display` is not `none`);
 - desktop 1280: card head on one line (badge, title, bar, count, chevron);
 - expand-all / collapse-all still toggles every card and chapter, label flips;
 - tag filter hides a card whose units are all filtered out, and shows it again on clear;
@@ -379,7 +408,14 @@ list them in the PR; no other existing assertion may be changed):
 | `test_e2e_outline_tree.py` ~:169 | "lessons: 0/1" rollup text | the card/row count text (§3.9) |
 | `test_e2e_outline_tree.py` ~:625–651 | a visible `a.outline-node__reset` clicked/focused directly | open the row's "⋯" first, then the same `a.outline-node__reset` |
 | `test_outline_collapsible.py` ~:84–85 | `outline-node__reset` as a direct sibling of the `<details>` | the link inside `details.outline-menu`, which is the sibling |
-| `test_e2e_outline_phone_layout.py` (PR #397) | heading geometry of the pre-card layout | the same intent (no horizontal scroll, title beside its badge/chevron) asserted on the card layout |
+| `test_courses_views.py::test_card_links_to_quiz_unit_for_a_quiz_target` | `a.resume` href for a fresh student (`start`) | seed one completed earlier unit so the state is `next`, keep the card href assertion; add the same assertion on the D2 button in `start` |
+| `test_courses_views.py::test_card_links_to_lesson_unit_for_a_lesson_target` | same, lesson target | same treatment |
+| `test_courses_views.py::test_eyebrow_carries_the_active_ui_language` | card eyebrow `lang` in `start` | seed progress → `next`; same `lang` assertion on the eyebrow |
+| `test_courses_views.py::test_resume_card_renders_its_path_separator_and_affordance` | card separator + chevron in `start` | seed progress → `next`; same assertions |
+| `test_title_math_markers.py::test_resume_card_title_and_crumbs_are_marked` | `span.resume__title` / `span.resume__crumb` marked in `start` | seed progress → `next`; the math-marker and crumb coverage of the card must survive in a non-start state |
+| `test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level` | 4 `.outline__head > .btn` on one top | "Moje wyniki", "Moje notatki" and the "⋯" summary inside `.outline__actions` share one vertical level; keep its align-self mutant |
+| `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line | no horizontal scroll at 360/412; on a card head the title starts on the badge's line, right of the badge (chevron now at the row end); the card count sits on the title's line or directly below it inside the card — never as an orphan line before the next card |
+| `test_e2e_outline_phone_layout.py::test_outline_head_stays_on_one_line_on_desktop` | 4 head buttons on the h1's line at 1280 | at 1280: the actions sit in the top row, right of the title column, bottom-aligned with the bar (D1 puts the title alone in its column) |
 
 Line numbers are approximate; the plan locates each by content.
 
