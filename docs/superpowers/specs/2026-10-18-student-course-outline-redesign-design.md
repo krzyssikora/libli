@@ -64,6 +64,9 @@ question, stated as the visible consequence for a student.
   completed `UnitProgress` with NULL `completed_at`) could give `start` while `required_done > 0`,
   showing "Zacznij pierwszą lekcję" beside "N z M lekcji ukończonych". Accepted, no guard: both
   signals are each correct for their own input.
+- **Non-enrolled viewers** (authors, teachers, staff previewing): the progress UI renders from
+  their own (normally empty) progress — empty course bar, "N lekcji w M działach", empty card bars
+  and rings — exactly as today's "lekcje: 0/N" chips do. Not gated on enrolment.
 - **D2 target kind.** `build_resume`'s `start` target is the first open unit, which can be a quiz
   or an optional lesson. The button keeps the D2 wording in every case (protected) and reuses the
   card's quiz/lesson URL branch.
@@ -147,7 +150,8 @@ Card head (`<summary class="outline-node__head">`):
 1. number badge `outline-card__num` — 1-based position among top-level **containers** in render
    order (top-level units are skipped by the count); teal on `--primary-subtle` (D9). It is a
    decorative position marker: `aria-hidden="true"`, so the card's accessible name starts with
-   the title. Numbers are stamped server-side over all root containers and stay **stable under a
+   the title. Numbers are stamped server-side over all root containers **with children** (a childless root is
+   unreachable on the student path, since `build_outline` prunes it, and gets no number) and stay **stable under a
    tag filter** — when a filter hides card 2 the visible cards read 1, 3, …; the gap is accepted
    (the number is the card's place in the course, not in the filtered view);
 2. title (existing `.outline-node__title`, wraps inside the card — D4);
@@ -161,9 +165,13 @@ Card head (`<summary class="outline-node__head">`):
 
 **Card head grid.** Wide (≥ 900px): one row — badge, title, bar, count, (+N chip), chevron,
 then the "⋯" when present (mockup desktop frame). The title is the **only** flexible column
-(`minmax(0, 1fr)`); the bar is a fixed 12.5rem track; the long count column is `max-content` with
-`white-space: nowrap` (fits "199 z 199 lekcji" / "199 of 199 lessons"), so a long title wraps
-instead of squeezing the bar. Below 900px the card head uses the two-row grid described next
+(`minmax(0, 1fr)`); the bar is a fixed 12.5rem track; the long count column is `minmax(7.5rem, max-content)` with
+`white-space: nowrap` (7.5rem fits "199 z 199 lekcji" / "199 of 199 lessons", so bars start at the
+same x on every card), so a long title wraps instead of squeezing the bar. The "+N" chip shares the
+count's cell (count and chip in one inline-flex), so an absent chip leaves no empty track. Column
+template: badge | title `minmax(0,1fr)` | bar `12.5rem` | count-cell | chevron | menu `auto`.
+Chevrons line up across cards **without** a menu (1280 e2e compares two such cards' chevron x);
+a card **with** a menu has its chevron shifted left by the menu width — accepted. Below 900px the card head uses the two-row grid described next
 (only the card head; the rest of the page switches at 640px as stated elsewhere), so the title
 column never collapses to a sliver at tablet widths. Two-row grid (< 900px, and phones): two rows — row 1: badge,
 title, chevron (and the "⋯" beside it when present); row 2: bar + count (+N chip), starting under
@@ -254,7 +262,7 @@ assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) val
 | state | condition | drawing | sr text |
 |---|---|---|---|
 | done | `required_total > 0 and required_done == required_total` | circle filled with `--glance-fill`, tick stroked in `--text-inverse` (light tick on the darkened amber in light mode, dark tick on the light amber in dark mode — ≥ 3:1 both ways; checked in both screenshots) | "Ukończono" / "Completed" (existing bare msgid, §3.9) |
-| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0`; the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
+| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), drawn as `max(progress_width or 0, 8.33)` percent — the ≈ 1/12 minimum applies to **every** in-progress arc (a 1/40 chapter must not look emptier than a 0-done chapter with saved work), still below a closed ring; server/e2e assertion on a 1/40 fixture (mutant: drop the floor); the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
 | not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nie rozpoczęto" / "Not started" |
 
 Precedence: "no circle" (`required_total == 0`) first, then `done`, then the in-progress
