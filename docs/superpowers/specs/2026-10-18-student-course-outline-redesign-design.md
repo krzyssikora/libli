@@ -93,7 +93,7 @@ Replaces today's `.outline__head` row:
 
 ```
 <header class="outline__head">
-  <h1 class="outline__title">…course title…</h1>
+  <h1 class="outline__title" id="outline-title">…course title…</h1>
   <div class="outline__progress">           ← D1
     <div class="outline__bar" aria-hidden="true">fill</div>
     <span class="outline__progress-label">…</span>
@@ -155,10 +155,13 @@ Card head (`<summary class="outline-node__head">`):
 4. the "+N dodatkowe" rollup chip when `additional_done` (unchanged text and condition);
 5. chevron, at the end of the row (rotates 90° when open, as today).
 
-**Card head grid.** Desktop (≥ 641px): one row — badge, title, bar, count, (+N chip), chevron,
+**Card head grid.** Wide (≥ 900px): one row — badge, title, bar, count, (+N chip), chevron,
 then the "⋯" when present (mockup desktop frame). The title is the **only** flexible column
-(`minmax(0, 1fr)`); the bar is a fixed 12.5rem track and the long count a fixed-width column
-(≈ 6rem), so a long title wraps instead of squeezing the bar. Phone (≤ 640px): two rows — row 1: badge,
+(`minmax(0, 1fr)`); the bar is a fixed 12.5rem track; the long count column is `max-content` with
+`white-space: nowrap` (fits "199 z 199 lekcji" / "199 of 199 lessons"), so a long title wraps
+instead of squeezing the bar. Below 900px the card head uses the two-row grid described next
+(only the card head; the rest of the page switches at 640px as stated elsewhere), so the title
+column never collapses to a sliver at tablet widths. Two-row grid (< 900px, and phones): two rows — row 1: badge,
 title, chevron (and the "⋯" beside it when present); row 2: bar + count (+N chip), starting under
 the title's left edge. The badge, chevron and "⋯" align to the **first** title line, not to the
 centre of a wrapped title (mockup phone frames).
@@ -190,6 +193,11 @@ it), so the nav landmark holds only the tree and no `.outline-tree` descendant r
   <button data-outline-toggle-all class="outline__toggle-all">Rozwiń wszystko</button>
 </div>
 ```
+
+`.outline-list__head` always renders (T18, `test_toggle_all_stays_hidden_when_there_are_no_groups`,
+asserts the toggle button has **count 1** and is hidden). When `section_count == 0` the header
+element itself carries the `hidden` attribute (no "Działy" label, takes no space), so the button
+inside it is present and hidden — T18 passes unchanged.
 
 The toggle keeps every existing attribute and behaviour (`hidden` until JS reveals it,
 `data-label-expand`/`data-label-collapse`, disabled under a tag filter). Only its styling changes:
@@ -275,8 +283,11 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   text-transform). Never a second quiz label.
 - **Lesson unit rows** (every `unit_type == "lesson"` row, inside a card at any depth and at the
   root): a status circle at the start — done = filled with tick; **in progress** = partial ring at
-  the minimum arc when the unit `has_state` or is the `resume`-state `current_row_pk` (so a
-  highlighted unit row in `resume` matches D5 like a container row does); otherwise an empty ring.
+  the minimum arc when the unit `has_state` or **is the resume target itself**
+  (`item.node.pk == resume.node.pk and resume.state == "resume"`, at any depth — the lesson the
+  student is actually in, which is usually at depth ≥ 2 under the highlighted chapter); otherwise
+  an empty ring. `current_row_pk` stays the single source of the highlight; it is not used for the
+  unit ring.
   It is purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
   `aria-label`) already announces completion. Quiz rows get the quiz icon instead of a circle.
   A unit whose `unit_type` is unset is treated as a lesson row here (gets the circle), so every
@@ -351,7 +362,8 @@ hover = `--surface-sunken`, danger colour on hover as today's reset link), not b
 
 Each container's menu `<summary>` carries `aria-describedby` pointing at its row's title
 (the title span gets `id="node-title-{{ pk }}"`), so the many "Więcej akcji" buttons are told
-apart by their row; the course menu's points at the h1. The item names stay "Zacznij od nowa" as
+apart by their row; the course menu's points at the h1 (`id="outline-title"`). A server test
+asserts every `aria-describedby` on the page resolves to an existing id. The item names stay "Zacznij od nowa" as
 today.
 
 The reset link inside the menu keeps its existing class (`outline-node__reset` for containers,
@@ -497,7 +509,8 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
   `resume`, the highlighted unit row draws the partial ring (class pinned), not the empty one —
   both fixtures use a **lesson** as the in-flight target (bare visit or saved state), since quiz
   rows draw no circle; a done chapter whose in-flight unit is an open quiz reads "Ukończone" and
-  is still `is-current`;
+  is still `is-current`; a lesson at depth 2 under a chapter, bare visit, `resume` state: the
+  chapter reads "W toku" and the lesson row draws the partial-ring class (not `is-current`);
 - row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
 - accessible names start with the title: card summary (badge `aria-hidden`) and depth-1 summary
   (status word after title + count);
@@ -521,6 +534,8 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
   causing horizontal scroll, and its reset link navigates to the confirm page; the open menu of
   the **last** card is fully visible (not clipped); at 360px the card's long count span is in the
   accessibility tree (computed `display` is not `none`);
+- 700px: the card head is two-row and the title column is at least 60% of the card's inner width;
+  the long count with a three-digit total stays on one line;
 - desktop 1280: on a card with a **short** title, badge, the title's first line, bar, count and
   chevron overlap vertically (one line); on a card with a long title, the title wraps while the
   badge and chevron stay on its first line;
