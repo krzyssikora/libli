@@ -79,8 +79,10 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     <span class="editor-crumb__path">
       {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> <span data-math-title>{{ a.title }}</span>{% endfor %}
     </span>
-    {% if can_view_live %}<a class="editor-crumb__live" href="{% if unit_is_quiz %}{% url 'courses:quiz_unit' slug=course.slug node_pk=unit.pk %}{% else %}{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}{% endif %}" target="_blank" rel="noopener">{% translate "View live" %}<span class="visually-hidden">&nbsp;{% translate "(opens in a new tab)" %}</span></a>{% endif %}
-    <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
+    <span class="editor-crumb__actions">
+    {% if can_view_live %}<a class="btn btn--ghost btn--small editor-crumb__live" href="{% if unit_is_quiz %}{% url 'courses:quiz_unit' slug=course.slug node_pk=unit.pk %}{% else %}{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}{% endif %}" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ic-external"/></svg>{% translate "View live" %}<span class="visually-hidden">&nbsp;{% translate "(opens in a new tab)" %}</span></a>{% endif %}
+    <a class="btn btn--ghost btn--small editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-image"/></svg>{% trans "Media library" %}</a>
+    </span>
   </p>
   <div class="editor-head">
     <h1 class="editor-head__title" data-math-title>{{ unit.title }}</h1>
