@@ -116,6 +116,8 @@ Replaces today's `.outline__head` row:
   actions in one row ("Moje wyniki" and "Moje notatki" share the width equally, "⋯" fixed square).
 - When neither card nor button renders, the head is just the top row (desktop) / title, bar,
   actions (phone).
+- When the progress block is absent (`required_total == 0`), the desktop actions align to the
+  title's last line (bottom of the left column).
 - **DOM order is fixed:** title, progress, resume card / start button, actions — the phone visual
   order (mockup). Desktop places the actions into the top row's right column with CSS grid areas,
   so on desktop the tab order (card before actions) differs from the reading order (actions appear
@@ -154,7 +156,9 @@ Card head (`<summary class="outline-node__head">`):
 5. chevron, at the end of the row (rotates 90° when open, as today).
 
 **Card head grid.** Desktop (≥ 641px): one row — badge, title, bar, count, (+N chip), chevron,
-then the "⋯" when present (mockup desktop frame). Phone (≤ 640px): two rows — row 1: badge,
+then the "⋯" when present (mockup desktop frame). The title is the **only** flexible column
+(`minmax(0, 1fr)`); the bar is a fixed 12.5rem track and the long count a fixed-width column
+(≈ 6rem), so a long title wraps instead of squeezing the bar. Phone (≤ 640px): two rows — row 1: badge,
 title, chevron (and the "⋯" beside it when present); row 2: bar + count (+N chip), starting under
 the title's left edge. The badge, chevron and "⋯" align to the **first** title line, not to the
 centre of a wrapped title (mockup phone frames).
@@ -223,11 +227,15 @@ assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) val
 | state | condition | drawing | sr text |
 |---|---|---|---|
 | done | `required_total > 0 and required_done == required_total` | filled amber circle, dark tick | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
-| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc of `required_done/required_total`, with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0` | "W toku" / "In progress" |
+| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0`; the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
 | not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nierozpoczęte" / "Not started" |
 
-So a highlighted row in state `resume` (the student is mid-lesson there) always reads "in
-progress". A highlighted row in `next`/`gap` that the student has not touched reads "not started",
+Precedence: "no circle" (`required_total == 0`) first, then `done`, then the in-progress
+conditions, then not started. So a highlighted row in state `resume` with
+`0 < required_total` and `required_done < required_total` always reads "in progress"; a
+highlighted `resume` row whose required lessons are all done (the in-flight unit is an open quiz or
+optional lesson) reads "Ukończone" and is still `is-current`; an all-quiz highlighted row has no
+circle and no status word. A highlighted row in `next`/`gap` that the student has not touched reads "not started",
 which is accurate (it is the next thing to start). Tests pin both.
 
 A container with `required_total == 0` gets **no circle** (and no status word) and no count — an
@@ -257,10 +265,14 @@ or later source order, stated in a CSS comment).
 Unchanged content: the `<a class="outline-unit">` link with title, unit kind chip, ✓ done badge;
 then tag chips, the tag-edit affordance, and the notes badge as siblings. Additions:
 
-- **Quiz rows (D6):** a quiz icon before the title and a "QUIZ" label (teal, D9). The existing
-  unit kind chip (`_unit_kind_chip.html`) is the marker system for unit kinds; if it already emits
-  a quiz chip the "QUIZ" label is that chip restyled, not a second label. (Plan must check what
-  `unit_marker` returns for a quiz unit and pick one — never render two quiz labels.)
+- **Quiz rows (D6):** a quiz icon before the title and a "QUIZ" label (teal, D9). The label **is**
+  the existing chip: `unit_marker` returns `MARKER_QUIZ` for every quiz unit and
+  `_unit_kind_chip.html` renders `span.badge.unit-kind-chip.unit-kind-chip--quiz` "Quiz". It is
+  restyled only under the outline row selector (`.outline-unit .unit-kind-chip--quiz`): teal,
+  `text-transform: uppercase` in CSS, so the "Quiz" msgid is untouched. The same partial is used by
+  `_lesson_article.html`, `_quiz_article.html` and `_resume_card.html`, which must keep their
+  current look — a test asserts the resume card's quiz chip keeps its computed style (colour,
+  text-transform). Never a second quiz label.
 - **Lesson unit rows** (every `unit_type == "lesson"` row, inside a card at any depth and at the
   root): a status circle at the start — done = filled with tick; **in progress** = partial ring at
   the minimum arc when the unit `has_state` or is the `resume`-state `current_row_pk` (so a
@@ -337,6 +349,11 @@ The course-level reset inside the menu drops its `btn btn--ghost btn--small` cla
 `outline-node__reset` plus `outline-menu__item`. Menu items look like menu entries (full-width row,
 hover = `--surface-sunken`, danger colour on hover as today's reset link), not buttons.
 
+Each container's menu `<summary>` carries `aria-describedby` pointing at its row's title
+(the title span gets `id="node-title-{{ pk }}"`), so the many "Więcej akcji" buttons are told
+apart by their row; the course menu's points at the h1. The item names stay "Zacznij od nowa" as
+today.
+
 The reset link inside the menu keeps its existing class (`outline-node__reset` for containers,
 `outline__reset` for the course), `href`, `title` and `aria-label`, so its URL contract and
 its selectors are unchanged; only its parent changes.
@@ -360,6 +377,7 @@ two levels the mockup draws, and kept below them:
 | depth-1 row title (container or unit) | .9375rem (15px) | 500; 600 when `is-current` |
 | depth ≥ 2 container heads | unchanged kind-based scale (chapter 1.1rem, section .75rem uppercase 700) | unchanged |
 | unit rows at depth ≥ 2 | unchanged | 400 (today's `.outline-unit` weight) |
+| root-level unit rows (depth 0, a course with units at the root) | depth-1 row scale (.9375rem) | 500 — plain rows on the page background, no card chrome, between the cards |
 
 So the "bold everywhere" of §1 is removed at depth 1, where most of the bold was.
 
@@ -406,8 +424,9 @@ context) rather than adding a duplicate.
 
 - `course_done` / `course_total`: from `_course_required_totals(outline)` — do not re-sum;
 - `section_count` (the "N" of D1/D8): number of roots with `is_unit == False`;
-- per root container, `item["progress_width"] = _progress_width(required_done, required_total)`
-  (additive key) — the template never re-implements the clamp;
+- per container (every depth — cards use it for the bar, depth-1 rows for the arc),
+  `item["progress_width"] = _progress_width(required_done, required_total)` (additive key) — the
+  template never re-implements the clamp;
 - `course_progress_width = _progress_width(course_done, course_total)` for the D1 bar (server test
   for its `None`, partial-clamped and 100 cases);
 - per root container, its 1-based card number — stamped into the outline dicts as
@@ -475,7 +494,10 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
   in all three ways `resume` arises — saved practice work; a bare lesson visit (a `UnitProgress`
   row with empty `element_state`); an in-progress quiz submission — and a highlighted untouched
   row in `next` reads "Nierozpoczęte"; for the depth-1-unit and root-unit target shapes in
-  `resume`, the highlighted unit row draws the partial ring (class pinned), not the empty one;
+  `resume`, the highlighted unit row draws the partial ring (class pinned), not the empty one —
+  both fixtures use a **lesson** as the in-flight target (bare visit or saved state), since quiz
+  rows draw no circle; a done chapter whose in-flight unit is an open quiz reads "Ukończone" and
+  is still `is-current`;
 - row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
 - accessible names start with the title: card summary (badge `aria-hidden`) and depth-1 summary
   (status word after title + count);
