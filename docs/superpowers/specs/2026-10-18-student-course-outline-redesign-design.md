@@ -67,6 +67,9 @@ question, stated as the visible consequence for a student.
 - **Non-enrolled viewers** (authors, teachers, staff previewing): the progress UI renders from
   their own (normally empty) progress — empty course bar, "N lekcji w M działach", empty card bars
   and rings — exactly as today's "lekcje: 0/N" chips do. Not gated on enrolment.
+- **Required-only rings.** A chapter whose student finished only quizzes or optional lessons (no
+  saved element state) shows the empty ring and "Nie rozpoczęto", while its rows show ✓ / a
+  "+N dodatkowe" chip. Accepted: rings and bars count required lessons, exactly as D1's counts do.
 - **D2 target kind.** `build_resume`'s `start` target is the first open unit, which can be a quiz
   or an optional lesson. The button keeps the D2 wording in every case (protected) and reuses the
   card's quiz/lesson URL branch.
@@ -262,7 +265,7 @@ assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) val
 | state | condition | drawing | sr text |
 |---|---|---|---|
 | done | `required_total > 0 and required_done == required_total` | circle filled with `--glance-fill`, tick stroked in `--text-inverse` (light tick on the darkened amber in light mode, dark tick on the light amber in dark mode — ≥ 3:1 both ways; checked in both screenshots) | "Ukończono" / "Completed" (existing bare msgid, §3.9) |
-| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), drawn as `max(progress_width or 0, 8.33)` percent — the ≈ 1/12 minimum applies to **every** in-progress arc (a 1/40 chapter must not look emptier than a 0-done chapter with saved work), still below a closed ring; server/e2e assertion on a 1/40 fixture (mutant: drop the floor); the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
+| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc whose length is `_progress_width(required_done, required_total)` percent (the bars' 1..99 clamp, so an unfinished row never looks closed), drawn as `item["arc_pct"] = max(progress_width or 0, 9)` percent — an **integer stamped in the view** (9 ≈ 1/12 rounded up) — the ≈ 1/12 minimum applies to **every** in-progress arc (a 1/40 chapter must not look emptier than a 0-done chapter with saved work), still below a closed ring; server/e2e assertion on a 1/40 fixture (mutant: drop the floor); the view stamps `item["progress_width"]` on every container for this | "W toku" / "In progress" |
 | not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nie rozpoczęto" / "Not started" |
 
 Precedence: "no circle" (`required_total == 0`) first, then `done`, then the in-progress
@@ -530,6 +533,14 @@ context) rather than adding a duplicate.
   template reads only `current_row_pk`);
 - per container, its status (`done` / `progress` / `none`) and arc length, derived in the template
   from `required_done`/`required_total` or stamped in the view — plan's choice, no queries either way.
+
+**No localized numbers in SVG/CSS.** Django localizes `{{ number }}` output, so under a Polish UI a
+float renders with a decimal comma ("8,33") — an invalid SVG/CSS length (the trap
+`_dragtoimagequestionelement_controls.html` already guards with `|unlocalize`). Every numeric value
+written into an SVG attribute or a `style` (bar widths, `arc_pct`, dasharray) is an **integer
+stamped in the view**, and is still emitted with `|unlocalize` as a belt-and-braces guard. Server
+test: with the pl UI active, a 0-done in-progress row's arc attribute and a partial bar's `style`
+contain no comma (mutant: stamp a float without `unlocalize`).
 
 Bar widths come from the existing `_progress_width(done, total)` (courses/rollups.py): `None`
 when nothing is done or `total == 0`, 100 only when `done == total`, otherwise clamped to 1..99 so
