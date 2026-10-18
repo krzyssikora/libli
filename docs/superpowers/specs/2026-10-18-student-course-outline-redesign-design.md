@@ -57,9 +57,9 @@ question, stated as the visible consequence for a student.
 - **Earlier owner decisions O6/O12** (`2026-09-17-analytics-results-table-design.md`): O12 made
   the student outline's chip read „lekcje: 1/2", the same wording as the teacher breakdown chip
   (O6). D4/D5 (approved 2026-10-18) replace that chip on the **student outline only** with a
-  progress bar + count; the teacher page keeps „lekcje: X/Y" (O6 untouched). **Owner confirmation
-  requested 2026-10-18** — the visible consequence is that the two pages stop sharing one chip
-  wording. Until confirmed, this row is the plan's assumption.
+  progress bar + count; the teacher page keeps „lekcje: X/Y" (O6 untouched). **Owner confirmed
+  2026-10-19: "yes, student only"** — the two pages stop sharing one chip wording, by decision.
+  PROTECTED like D1–D10.
 - **D2 target kind.** `build_resume`'s `start` target is the first open unit, which can be a quiz
   or an optional lesson. The button keeps the D2 wording in every case (protected) and reuses the
   card's quiz/lesson URL branch.
