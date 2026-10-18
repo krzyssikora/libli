@@ -25,7 +25,7 @@
 - Owner rule (TDD with mutants): every new assertion is shown RED first (on the pre-change code, or against a hand-made mutant chosen from the failure mode), then GREEN. Revert a mutant by editing the file back by hand — never `git checkout`/`git restore`.
 - After any CSS edit run every `tests/test_*css*.py`.
 - State-specific rendering tests fake the resume with `monkeypatch.setattr("courses.views.build_resume", lambda c, u, t: {"node": unit, "state": s, "ancestors": []})` — the patch target is `courses.views`, not `courses.rollups` (views imports the name); the client must be an **enrolled** student (`EnrollmentFactory`), or the view never calls it; `node` must be a real unit in that course's tree. Pattern: `tests/test_courses_views.py::test_each_state_renders_its_own_eyebrow`.
-- Known-red windows (do not "fix" early): the two T11 student tests are red from Task 2 until Task 7 (they assert Polish text); `test_e2e_outline_tree.py`'s reset click/keyboard and head-button tests and `test_e2e_outline_phone_layout.py` are red from Tasks 2/4 until Tasks 5/6. Each task's run step deselects exactly the ones not yet due.
+- Known-red windows (do not "fix" early): the two T11 student tests are red from Task 2 until Task 7 (they assert Polish text); `test_e2e_outline_tree.py::test_start_fresh_link_does_not_disturb_the_fold_state` and `::test_head_buttons_share_one_vertical_level` and `test_e2e_outline_phone_layout.py` are red from Tasks 2/4 until Tasks 5/6. Each task's run step deselects exactly the ones not yet due.
 - `ruff check --no-cache` and `ruff format --check` on every touched `.py`.
 - Superseded existing assertions are changed **only** as listed in spec §6's table; every other existing assertion stays as is. List each superseded test in the commit message of the task that changes it.
 
@@ -137,7 +137,7 @@ git commit -m "feat(outline): presentation data for cards, rings and the course 
 **Interfaces:**
 - Consumes (Task 1): item keys `card_number`, `progress_width`, `arc_pct`, `ring`; context `current_row_pk`, `resume`, `arc_floor_pct`.
 - Produces — DOM contract later tasks style and test:
-  - card `<li>` (only when `item.depth == 0 and item.children` — a childless depth-0 bare dict is never a card): classes `outline-node outline-node--{kind} outline-node--card`; summary children in order: `span.outline-card__num[aria-hidden=true]`, `span.outline-node__title#node-title-{pk}`, then (only when `required_total > 0` or `additional_done`) `span.outline-card__meta` containing `span.outline-card__bar[aria-hidden=true] > span.outline-card__fill[style="width: N%"]` (fill omitted when `progress_width` is None), `span.outline-count` (see below) and the "+N" chip; then the chevron `svg.outline-node__chevron` **last**.
+  - card `<li>` (only when `item.depth == 0 and item.children` — a childless depth-0 bare dict is never a card): classes `outline-node outline-node--{kind} outline-node--card`; summary children in order: `span.outline-card__num[aria-hidden=true]`, `span.outline-node__title#node-title-{pk}`, then (only when `required_total > 0` or `additional_done`) `span.outline-card__meta` containing `span.outline-card__bar[aria-hidden=true] > span.outline-card__fill[style="width: N%"]` (fill omitted when `progress_width` is None) and **one** `span.outline-card__countcell` wrapping `span.outline-count` (see below) and the "+N" chip (the count and chip share one grid cell — spec §3.2); then the chevron `svg.outline-node__chevron` **last**.
   - depth-1 container summary children: `span.outline-ring.outline-ring--{done|progress|none}` (or empty `span.outline-ring` slot when `ring` is None), title `#node-title-{pk}`, `span.outline-count`, `span.visually-hidden.outline-status` (status word; absent when `ring` is None), "+N" chip, chevron last. Summary gets `class="outline-node__head is-current" aria-current="step"` only when `node.pk == current_row_pk`.
   - depth ≥ 2 container summary: chevron first, title, `span.outline-count`, "+N" chip (no ring).
   - `span.outline-count` = `<span class="outline-count__short" aria-hidden="true">{{ done }}/{{ total }}</span><span class="outline-count__long visually-hidden" lang="…">{% blocktrans %}{{ done }} of {{ counter }} lesson…{% endblocktrans %}</span>`; on cards the long span is NOT `visually-hidden` (CSS swaps at ≤ 640px, Task 6) — give it class `outline-count__long` only.
@@ -163,7 +163,8 @@ def test_card_bar_width_and_counts():                     # part with 1/4 requir
 
 def test_card_with_nothing_done_has_an_empty_track(): # .outline-card__bar present, no .outline-card__fill
 def test_all_quiz_card_has_no_bar_count_or_meta_row(): # no .outline-card__meta at all
-def test_additional_chip_still_renders():               # "+1 additional" inside .outline-card__meta
+def test_additional_chip_still_renders():               # "+1 additional" inside .outline-card__countcell, next to .outline-count
+def test_card_meta_has_exactly_two_children():          # .outline-card__bar and .outline-card__countcell
 def test_chevron_is_the_last_child_of_a_card_summary():
 def test_depth1_row_ring_classes_and_status_word():      # done/progress/none + "Completed"/"In progress"/"Not started"
 def test_all_quiz_row_has_an_empty_ring_slot_and_no_status_word():
@@ -186,7 +187,10 @@ def test_childless_arm_renders_from_a_bare_dict():       # render_to_string with
 def test_no_bar_or_count_when_no_required_lessons():     # card with only a done optional lesson: meta row has the +N chip, no bar, no count; all-quiz depth-1 row: no count
 @pytest.mark.parametrize("source", ["saved_state", "bare_visit", "quiz_in_progress"])
 def test_resume_from_each_real_source_lights_the_current_row(source):
-    # real build_resume, enrolled student; seed UnitProgress(element_state={...}) / UnitProgress(element_state={}) / QuizSubmissionFactory(status=IN_PROGRESS)
+    # real build_resume, enrolled student. Fixture: part > chapter > [lesson L1 (not done), target T]; T = lesson with
+    # UnitProgress(element_state={"1": {}}) / lesson with UnitProgress(element_state={}) / quiz with
+    # QuizSubmissionFactory(status=IN_PROGRESS) — L1 keeps the chapter's required_total > 0 and not done.
+    # First assert r.context["resume"]["state"] == "resume" (guards the fixture), then:
     row = soup.select_one("summary.is-current")
     assert "outline-ring--progress" in row.select_one(".outline-ring")["class"]
     assert row.select_one(".outline-status").get_text(strip=True) == "In progress"
@@ -264,9 +268,9 @@ git commit -m "feat(outline): unit row status rings, quiz icon and highlight"
 **Interfaces:**
 - Consumes (Task 1): context `course_done`, `course_total`, `course_progress_width`, `section_count`; existing `resume`, `has_saved_work`.
 - Produces (DOM, styled in Task 5):
-  - `header.outline__head` > `h1.outline__title#outline-title`; `div.outline__progress` (only when `course_total > 0`) > `div.outline__bar[aria-hidden=true]` (> `span.outline__fill[style="width: N%"]` when width not None) + `span.outline__progress-label[lang]`; then the resume include; then `div.outline__actions` > `a.btn.btn--ghost.btn--small.outline__results`, `a.btn.btn--ghost.btn--small.outline__notes`, and when `has_saved_work` a `details.outline-menu` whose summary has `aria-describedby="outline-title"` and whose item is `a.outline__reset.outline-menu__item` (no `btn` classes; href unchanged).
+  - `header.outline__head` (the element changes from today's `<div>`; grep `tests/` and `*.css` for `div.outline__head` first and keep any selector working) > `h1.outline__title#outline-title`; `div.outline__progress` (only when `course_total > 0`) > `div.outline__bar[aria-hidden=true]` (> `span.outline__fill[style="width: N%"]` when width not None) + `span.outline__progress-label[lang]`; then the resume include; then `div.outline__actions` > `a.btn.btn--ghost.btn--small.outline__results`, `a.btn.btn--ghost.btn--small.outline__notes`, and when `has_saved_work` a `details.outline-menu` whose summary has `aria-describedby="outline-title"` and whose item is `a.outline__reset.outline-menu__item` (no `btn` classes; href unchanged).
   - D1 label is built in the view (the request's language is already active there): `_progress_label(done: int, total: int, sections: int) -> str` in `courses/views.py`, context key `progress_label`. done > 0 → `ngettext("%(done)s of %(counter)s lesson completed", "%(done)s of %(counter)s lessons completed", total) % {...}`; done == 0 → `ngettext("%(counter)s lesson", "%(counter)s lessons", total) % {...}`, and when `sections > 0` the composition `gettext("%(lessons)s %(sections)s") % {"lessons": …, "sections": ngettext("in %(counter)s topic", "in %(counter)s topics", sections) % {...}}` — no trailing space when `sections == 0` (tests compare exact stripped text). The template only prints `{{ progress_label }}`.
-  - `div.outline-list__head` placed directly **before** `<nav class="outline-tree">` (after the tag filter bar), with `hidden` when `section_count == 0`; children `span.outline-list__count[lang]` "Topics · N" (only when `section_count > 0`) and `<button type="button" class="outline__toggle-all" hidden data-outline-toggle-all data-label-expand="…" data-label-collapse="…">` — `hidden` must precede `data-outline-toggle-all` (`test_header_button_and_nav_attributes` splits on it).
+  - `div.outline-list__head` placed directly **before** `<nav class="outline-tree">` (after the tag filter bar), with `hidden` when `section_count == 0`; children `span.outline-list__count[lang]` = `{% blocktrans with n=section_count %}Topics · {{ n }}{% endblocktrans %}` (only when `section_count > 0`) and `<button type="button" class="outline__toggle-all" hidden data-outline-toggle-all data-label-expand="…" data-label-collapse="…">` — `hidden` must precede `data-outline-toggle-all` (`test_header_button_and_nav_attributes` splits on it).
   - `_resume_card.html`: `{% if resume.state == "start" %}` → `a.btn.btn--primary.outline__start[lang]` "Start the first lesson" + `svg.outline__start-arrow.icon[aria-hidden=true]` chevron path, href = the card's existing quiz/lesson branch; `{% else %}` the card, whose eyebrow loses its `start`/else arm.
 
 - [ ] **Step 1: Write the failing tests:**
@@ -292,7 +296,7 @@ def test_author_preview_shows_progress_ui_but_no_next_step():   # Review Focus 5
 
 - [ ] **Step 2: Run** `uv run pytest tests/test_outline_head.py` — expected: FAIL.
 
-- [ ] **Step 3: Implement** per Interfaces; add `{% load l10n %}` and `{% get_current_language as LANGUAGE_CODE %}` to `outline.html`. New English msgids: "%(done)s of %(counter)s lesson completed" (plural), "%(counter)s lesson" (plural), "in %(counter)s topic" (plural), "%(lessons)s %(sections)s", "Topics · %(n)s", "Start the first lesson".
+- [ ] **Step 3: Implement** per Interfaces; add `from django.utils.translation import ngettext` to `courses/views.py` (it imports only `gettext as _` today); add `{% load l10n %}` and `{% get_current_language as LANGUAGE_CODE %}` to `outline.html`. New English msgids: "%(done)s of %(counter)s lesson completed" (plural), "%(counter)s lesson" (plural), "in %(counter)s topic" (plural), "%(lessons)s %(sections)s", "Topics · %(n)s", "Start the first lesson".
 
 - [ ] **Step 4: Update the superseded tests** exactly per spec §6: the `start` row of `test_each_state_renders_its_own_eyebrow` becomes a separate assertion that `start` renders `a.outline__start` "Start the first lesson" and no `a.resume`; the four card tests and the math-marker test seed one completed earlier unit (`UnitProgressFactory(..., completed=True, completed_at=…)`) so the state is `next`, keeping their card assertions; the two href tests also assert the same href on the start button in `start`.
 
@@ -301,7 +305,7 @@ def test_author_preview_shows_progress_ui_but_no_next_step():   # Review Focus 5
 - [ ] **Step 6: Commit** (message lists the six superseded tests)
 
 ```bash
-git add templates/courses/outline.html templates/courses/_resume_card.html tests/test_outline_head.py tests/test_courses_views.py tests/test_title_math_markers.py
+git add courses/views.py templates/courses/outline.html templates/courses/_resume_card.html tests/test_outline_head.py tests/test_courses_views.py tests/test_title_math_markers.py
 git commit -m "feat(outline): course progress head, list header and start button"
 ```
 
@@ -311,7 +315,7 @@ git commit -m "feat(outline): course progress head, list header and start button
 
 **Files:**
 - Modify: `core/static/core/css/app.css` (Course outline block: `.outline__head` → grid, `.outline__progress`, `.outline__bar`, `.outline__fill`, `.outline__actions`, `.outline__start`, `.outline__start-arrow`, `.outline-list__head`, `.outline__toggle-all` text style + `:disabled` rewrite, `[hidden]` rules, `.outline-menu*`), `courses/static/courses/js/outline_tree.js` (comment + optional close handler)
-- Test: `tests/test_e2e_outline_head.py` (new); superseded: `tests/test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level`, the reset-link click/keyboard tests at ~:625–651, `tests/test_e2e_outline_phone_layout.py::test_outline_head_stays_on_one_line_on_desktop`
+- Test: `tests/test_e2e_outline_head.py` (new); superseded: `tests/test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level`, `test_start_fresh_link_does_not_disturb_the_fold_state` (click + keyboard, ~:574–655), `tests/test_e2e_outline_phone_layout.py::test_outline_head_stays_on_one_line_on_desktop`
 
 **Interfaces:**
 - Consumes: Task 2 and Task 4 DOM.
@@ -328,7 +332,6 @@ def test_toggle_hidden_rules_beat_display():       # header with section_count 0
 def test_menu_opens_out_of_flow_without_reflow():  # 360: row heights equal before/after open; no h-scroll; panel right edge <= viewport
 def test_menu_targets_are_44px_on_a_phone():
 def test_menu_reset_link_reaches_the_confirm_page():
-def test_menu_keyboard_path():                    # superseded ~:644: Tab -> menu summary; Enter; Tab -> a.outline-node__reset
 def test_filter_hiding_every_card_keeps_the_page_intact():   # Review Focus 2
 def test_opening_a_menu_does_not_touch_the_stored_fold_state():   # localStorage libli_outline_open:<slug> equal before/after open+close of a card menu
 ```
@@ -337,7 +340,7 @@ def test_opening_a_menu_does_not_touch_the_stored_fold_state():   # localStorage
 
 - [ ] **Step 3: Implement** the CSS per Interfaces; in `outline_tree.js` add a comment at the capture-phase `toggle` listener that menu `<details>` also fire it and `syncLabel` must keep reading only `groups`. Optional: close an open `.outline-menu` on outside click — if added, a single `document` `click` listener, no keydown handler.
 
-- [ ] **Step 4: Update the superseded e2e tests** per spec §6 (head buttons → `.outline__actions` children incl. the ⋯ summary, keep the align-self mutant; reset click/keyboard via the menu; desktop head line → actions in the top row right of the title column).
+- [ ] **Step 4: Update the superseded e2e tests** per spec §6 (head buttons → `.outline__actions` children incl. the ⋯ summary, keep the align-self mutant; `test_start_fresh_link_does_not_disturb_the_fold_state` rewritten **in place** — open the row's "⋯" before clicking `a.outline-node__reset`; keyboard path Tab from the collapsed summary → `details.outline-menu > summary`, Enter opens it, Tab → `a.outline-node__reset`; keep its route-abort mechanics and fold-state partition assertions; desktop head line → actions in the top row right of the title column).
 
 - [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py -m e2e --deselect tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (rewritten in Task 6; expected red here) and every `tests/test_*css*.py` — expected: PASS. Falsify: delete `.outline__toggle-all[hidden]` rule → `test_toggle_hidden_rules_beat_display` RED; make the panel `position: static` → `test_menu_opens_out_of_flow_without_reflow` RED; restore both by hand.
 
@@ -354,13 +357,13 @@ git commit -m "style(outline): course head, list header and ⋯ menus"
 
 **Files:**
 - Modify: `core/static/core/css/app.css` (cards, card head grid, `.outline-card__*`, `.outline-count*`, `.outline-ring*`, `.outline-quiz-icon`, `.outline-unit .unit-kind-chip--quiz`, type scale, hover, `is-current`, list rhythm, forced colours), `core/static/core/css/tokens.css` (print-block `--text-inverse` comment only)
-- Test: `tests/test_e2e_outline_cards.py` (new); superseded: `tests/test_e2e_outline_tree.py` ~:169 (rollup text) and `::test_nested_type_scale_and_guide_rule_survive_the_details_nesting` (T17), `tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone`
+- Test: `tests/test_e2e_outline_cards.py` (new); superseded: the comment in `tests/test_e2e_outline_tree.py::test_first_visit_opens_depth0_only` (~:169, mentions "lessons: 0/1"; comment only — no assertion depends on it) and `::test_nested_type_scale_and_guide_rule_survive_the_details_nesting` (T17), `tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone`
 
 **Interfaces:**
 - Consumes: Task 2 and Task 3 DOM.
 - Produces (values from spec §3.2, §3.4, §3.8):
   - `.outline-node--card`: `--surface-raised`, `1px solid var(--border-subtle)`, `--radius-lg`, padding `--space-4` (≤ 640px) / `--space-5`; no `overflow`, `transform`, `filter` or `isolation`. Keep the existing `.outline-node--part/--chapter/--section` grid rule declared **above** `.outline-node[hidden]`.
-  - Card summary grid ≥ 900px: `grid-template-columns: auto minmax(0,1fr) 12.5rem minmax(7.5rem, max-content) auto` (badge | title | bar | count cell | chevron) — the meta wrapper uses `display: contents` there; < 900px: two rows, row 2 = `.outline-card__meta` spanning under the title with bar `minmax(0,1fr)` + count `max-content`. Badge/chevron `align-self: start` (first title line).
+  - Card summary grid ≥ 900px: `grid-template-columns: auto minmax(0,1fr) 12.5rem minmax(7.5rem, max-content) auto` (badge | title | bar | count cell | chevron) — the meta wrapper uses `display: contents` there, so its two children (`.outline-card__bar`, `.outline-card__countcell`) fill the bar and count-cell tracks; < 900px: two rows **only when** `.outline-card__meta` exists (row 2 = the meta spanning under the title); a card without a meta row is a single row with no empty band or row-gap with bar `minmax(0,1fr)` + count `max-content`. Badge/chevron `align-self: start` (first title line).
   - Reservation: `.outline-node:has(> .outline-menu) > .outline-node__group > summary.outline-node__head { padding-inline-end: calc(32px + var(--space-2) + var(--space-2)); }` (44px at ≤ 640px); summaries inside cards `padding-inline: var(--space-2)`.
   - Count swap: `.outline-count__short` hidden ≥ 641px; at ≤ 640px `.outline-card .outline-count__long` gets the `.visually-hidden` declarations (never `display: none`).
   - Type scale table (spec §3.8) incl. card-title override resetting `text-transform: none; letter-spacing: normal; color: var(--text-primary)` with a specificity comment; depth-1 by position.
@@ -378,9 +381,11 @@ git commit -m "style(outline): course head, list header and ⋯ menus"
 def test_cards_fit_a_phone(width):  # no h-scroll; title starts on badge line right of badge; meta row below title; bar width > 0 and inside card; every row/head >= 44px
 def test_menu_space_is_reserved_only_where_a_menu_exists():  # content-box rule from spec §6 phone row; mutants: drop :has(), delete rule
 def test_long_count_stays_in_the_a11y_tree_on_a_phone():     # computed display != none at 360
+def test_all_quiz_card_head_is_one_row_on_a_tablet():          # 700: badge, title, chevron overlap vertically; head height ~ one title line
 def test_tablet_card_head_is_two_rows():                      # 700: title width >= 60% of card inner width; "199 of 199 lessons" one line
 def test_desktop_card_head_is_one_line():                      # 1280 short title: badge, title, bar, count, chevron overlap vertically; two menu-less cards' chevron x equal
 def test_long_title_wraps_with_badge_on_first_line():          # 1280
+def test_chip_card_keeps_its_chevron_on_the_first_row():       # 1280, card with a +N chip: chevron overlaps the title's first line vertically
 def test_tapping_a_chapter_unfolds_it_inside_the_card():       # D5
 def test_last_card_menu_is_not_clipped():
 def test_card_list_has_no_guide_rule_but_chapters_do():
@@ -400,7 +405,7 @@ def test_tag_filter_hides_and_restores_a_card():
 
 - [ ] **Step 3: Implement** the CSS per Interfaces and the tokens.css comment.
 
-- [ ] **Step 4: Update the superseded e2e tests** per spec §6 (rollup text at ~:169 → count text; T17 → 15px; `test_outline_fits_a_phone` → the card-layout assertions in the spec's row, incl. the `== 3` / `== 2` actions count).
+- [ ] **Step 4: Update the superseded e2e tests** per spec §6 (the ~:169 comment in `test_first_visit_opens_depth0_only` → describe the count pair; no assertion change; T17 → 15px; `test_outline_fits_a_phone` → the card-layout assertions in the spec's row, incl. the `== 3` / `== 2` actions count).
 
 - [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_cards.py tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py tests/test_e2e_tags.py tests/test_e2e_link_dialog.py -m e2e` and every `tests/test_*css*.py` — expected: PASS. Falsify the reservation mutants named in Step 1, the card-title override, and the forced-colours ring rule (each RED, then restored by hand).
 
