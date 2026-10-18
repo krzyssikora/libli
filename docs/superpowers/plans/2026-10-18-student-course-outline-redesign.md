@@ -66,10 +66,10 @@ Ring rules (spec §3.4, §3.5 — precedence top to bottom):
 def test_course_totals_and_width_come_from_the_rollups():          # 1 of 4 required done
     p = _outline_presentation(tree, None)
     assert (p["course_done"], p["course_total"]) == (1, 4)
-    assert p["course_progress_width"] == 25
+    assert p["course_progress_width"] == _progress_width(1, 4)  # 25
 
 def test_course_width_is_none_when_nothing_done_and_100_only_when_complete(): ...
-    # 0/4 -> None ; 4/4 -> 100 ; 39/40 -> 98 (clamped, not 100)
+    # 0/4 -> None ; 4/4 -> 100 ; 39/40 -> _progress_width(39, 40) (98: ROUND_HALF_EVEN of 97.5, not 100)
 
 def test_cards_are_numbered_over_root_containers_only():
     # roots: unit U0, part P1, unit U1, part P2
@@ -145,6 +145,8 @@ git commit -m "feat(outline): presentation data for cards, rings and the course 
   - ring SVG: 20×20 `viewBox="0 0 20 20"`, track `circle.outline-ring__track` r=8; progress adds `circle.outline-ring__arc pathLength="100" stroke-dasharray="{{ item.arc_pct|unlocalize }} 100"`; done = `circle.outline-ring__fill` r=9 + `path.outline-ring__tick`.
   - childless arm (`div.outline-node__head`): title, `span.outline-count`, menu at the end; no badge/bar/ring/chevron; must not raise when `card_number`/`progress_width`/`ring`/`has_state` are missing.
 - Bars and `span.outline-count` render only when `required_total > 0`, at every depth (no "0/0", no empty track on an all-quiz node).
+- **Every** `span.outline-node__title` in a container arm (all depths, both the `<details>` and the childless arm) carries `id="node-title-{pk}"`, because every container menu's `aria-describedby` points at it.
+- The "+N" chip keeps today's element and classes (`span.rollup.rollup--additional`, text "+N additional"); inside `.outline-card__countcell` and row heads its `margin-left: auto` is neutralised (Task 6). Tests that assert "no `.rollup`" mean no `.rollup` containing "lessons:" / "lekcje:".
 - No `.rollup` "lessons: %(done)s/%(total)s" chip remains in this template (the msgid stays in the catalogue — the teacher page `_breakdown_node.html` uses it).
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_outline_cards.py` (BeautifulSoup over `client.get(course_outline)`; English UI):
@@ -178,12 +180,13 @@ def test_depth2_head_has_count_pair_and_no_ring_or_chip():
 def test_reset_links_live_only_inside_menus():
     assert all(a.find_parent("details", class_="outline-menu") for a in soup.select("a.outline-node__reset"))
 def test_menu_present_iff_node_has_state_and_href_unchanged():
-def test_every_aria_describedby_resolves():
+def test_every_aria_describedby_resolves():           # fixture includes a depth-2 container with saved state
     ids = {el["id"] for el in soup.select("[id]")}
     assert all(el["aria-describedby"] in ids for el in soup.select("[aria-describedby]"))
 def test_arc_dasharray_is_an_integer_pair():              # "9 100" for a 0-done has_state row
 def test_childless_arm_renders_from_a_bare_dict():       # render_to_string with no card_number/ring keys; depth 0
     assert "outline-node--card" not in html and "outline-card__num" not in html
+    # with has_state=True in the bare dict: the menu's aria-describedby id exists in the fragment
 def test_no_bar_or_count_when_no_required_lessons():     # card with only a done optional lesson: meta row has the +N chip, no bar, no count; all-quiz depth-1 row: no count
 @pytest.mark.parametrize("source", ["saved_state", "bare_visit", "quiz_in_progress"])
 def test_resume_from_each_real_source_lights_the_current_row(source):
@@ -248,7 +251,7 @@ def test_unit_row_keeps_chips_badges_and_links(): # ✓ badge aria-label, tag ch
 
 - [ ] **Step 3: Implement** the unit arm per Interfaces.
 
-- [ ] **Step 4: Run** `uv run pytest tests/test_outline_unit_rows.py tests/test_outline_cards.py tests/test_tags_outline.py tests/test_courses_views.py tests/test_unit_marker.py tests/test_courses_progress.py` — expected: PASS. Falsify: key the unit highlight on `resume.node.pk` instead of `current_row_pk` → `test_resume_target_lesson_at_depth2_draws_progress_but_is_not_current` RED; restore.
+- [ ] **Step 4: Run** `uv run pytest tests/test_outline_unit_rows.py tests/test_outline_cards.py tests/test_tags_outline.py tests/test_courses_views.py tests/test_unit_marker.py tests/test_courses_progress.py tests/test_outline_anchors.py tests/test_outline_collapsible.py` — expected: PASS. Falsify: key the unit highlight on `resume.node.pk` instead of `current_row_pk` → `test_resume_target_lesson_at_depth2_draws_progress_but_is_not_current` RED; restore.
 
 - [ ] **Step 5: Commit**
 
@@ -281,7 +284,7 @@ def test_progress_label_some_done():        # "1 of 4 lessons completed"
 def test_progress_label_nothing_done():     # "4 lessons in 2 topics"
 def test_progress_label_without_containers(): # root units only -> "4 lessons", list head has hidden
 def test_no_progress_block_when_no_required_lessons():
-def test_course_bar_width_is_clamped():     # 39/40 -> "width: 98%"
+def test_course_bar_width_is_not_full_before_completion():     # 39/40 -> f"width: {_progress_width(39, 40)}%"
 def test_start_state_renders_the_button_not_the_card():   # lesson target -> lesson_unit href
 def test_start_button_links_to_quiz_unit_for_a_quiz():
 def test_start_button_accessible_name_has_no_arrow():
@@ -319,15 +322,15 @@ git commit -m "feat(outline): course progress head, list header and start button
 
 **Interfaces:**
 - Consumes: Task 2 and Task 4 DOM.
-- Produces: CSS rules named above; desktop head grid areas `"title actions" "progress actions" "next next"` (actions `align-self: end`); phone single column in DOM order; `.outline-list__head[hidden], .outline__toggle-all[hidden] { display: none; }` declared after their display rules with a comment; `.outline-menu { position: relative; }` plus `.outline-node > .outline-menu { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }` (the course-head menu in `.outline__actions` is not grid-placed), `.outline-menu__panel { position: absolute; top: 100%; right: 0; z-index: … }`, summary 32×32 (44×44 at ≤ 640px), `list-style: none` + hidden `::-webkit-details-marker`; `.outline-menu__item` full-width, ≥ 44px tall at ≤ 640px, hover `--surface-sunken` + `--danger` text. Remove the old `.outline-node__reset` inline-link declarations (grid placement moves to `.outline-menu`) and PR #397's `:has(> .outline-node__reset)` 7.5rem rule + its comment.
+- Produces: CSS rules named above; desktop head grid areas `"title actions" "progress actions" "next next"` (actions `align-self: end`); phone single column in DOM order; `.outline__actions { display: flex; align-items: center; gap: var(--space-2); }` — at ≤ 640px `.outline__actions > .btn { flex: 1 1 0; }` and its `.outline-menu` `flex: none` (a 44px square); remove the old `.outline__results { margin-left: auto; }` and its phone `margin-left: 0` override and `.outline__head > .btn { align-self: center; }`; `.outline__toggle-all { display: inline-flex; … }` and `.outline-list__head { display: flex; … }` are explicit author `display` rules — that is what the `[hidden]` rules below exist to beat (so their mutants can go RED); `.outline-list__head[hidden], .outline__toggle-all[hidden] { display: none; }` declared after their display rules with a comment; `.outline-menu { position: relative; }` plus `.outline-node > .outline-menu { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }` (the course-head menu in `.outline__actions` is not grid-placed), `.outline-menu__panel { position: absolute; top: 100%; right: 0; z-index: … }`, summary 32×32 (44×44 at ≤ 640px), `list-style: none` + hidden `::-webkit-details-marker`; `.outline-menu__item` full-width, ≥ 44px tall at ≤ 640px, hover `--surface-sunken` + `--danger` text. Remove the old `.outline-node__reset` inline-link declarations (grid placement moves to `.outline-menu`) and PR #397's `:has(> .outline-node__reset)` 7.5rem rule + its comment.
 
 - [ ] **Step 1: Write the failing e2e tests** (pattern: `tests/test_e2e_editor_crumb_phone.py` / `tests/test_e2e_outline_phone_layout.py` — real login, PL via `form.lang-switch button[value='pl']` where wording matters):
 
 ```python
 @pytest.mark.parametrize("width", [360, 412])
-def test_phone_head_stacks_in_dom_order(width):   # title, bar, card/button, actions; actions count == 3; no h-scroll
+def test_phone_head_stacks_in_dom_order(width):   # title, bar, card/button, actions; actions count == 3; no h-scroll;
+    # the three actions share one row (equal centre y), the two buttons' widths equal ±2px, the ⋯ summary square (w == h ±1px)
 def test_desktop_actions_sit_right_of_the_title_column():   # 1280: actions.x > title right; bottoms aligned with bar ±2px
-def test_actions_share_one_vertical_level():      # superseded T: results, notes, ⋯ summary centre y equal ±1px
 def test_toggle_hidden_rules_beat_display():       # header with section_count 0 and a hidden toggle compute display none
 def test_menu_opens_out_of_flow_without_reflow():  # 360: row heights equal before/after open; no h-scroll; panel right edge <= viewport
 def test_menu_targets_are_44px_on_a_phone():
@@ -340,7 +343,7 @@ def test_opening_a_menu_does_not_touch_the_stored_fold_state():   # localStorage
 
 - [ ] **Step 3: Implement** the CSS per Interfaces; in `outline_tree.js` add a comment at the capture-phase `toggle` listener that menu `<details>` also fire it and `syncLabel` must keep reading only `groups`. Optional: close an open `.outline-menu` on outside click — if added, a single `document` `click` listener, no keydown handler.
 
-- [ ] **Step 4: Update the superseded e2e tests** per spec §6 (head buttons → `.outline__actions` children incl. the ⋯ summary, keep the align-self mutant; `test_start_fresh_link_does_not_disturb_the_fold_state` rewritten **in place** — open the row's "⋯" before clicking `a.outline-node__reset`; keyboard path Tab from the collapsed summary → `details.outline-menu > summary`, Enter opens it, Tab → `a.outline-node__reset`; keep its route-abort mechanics and fold-state partition assertions; desktop head line → actions in the top row right of the title column).
+- [ ] **Step 4: Update the superseded e2e tests** per spec §6 (`test_head_buttons_share_one_vertical_level` → "My results", "My notes" and the ⋯ summary inside `.outline__actions` have equal **centre** y (±1px; tops may differ, the summary is 32px and `.btn--small` ~31px); its mutant becomes "drop `align-items: center` from `.outline__actions`" — the old `.outline__head > .btn { align-self: center; }` rule is removed; `test_start_fresh_link_does_not_disturb_the_fold_state` rewritten **in place** — open the row's "⋯" before clicking `a.outline-node__reset`; keyboard path Tab from the collapsed summary → `details.outline-menu > summary`, Enter opens it, Tab → `a.outline-node__reset`; keep its route-abort mechanics and fold-state partition assertions; desktop head line → actions in the top row right of the title column).
 
 - [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py -m e2e --deselect tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (rewritten in Task 6; expected red here) and every `tests/test_*css*.py` — expected: PASS. Falsify: delete `.outline__toggle-all[hidden]` rule → `test_toggle_hidden_rules_beat_display` RED; make the panel `position: static` → `test_menu_opens_out_of_flow_without_reflow` RED; restore both by hand.
 
@@ -371,7 +374,7 @@ git commit -m "style(outline): course head, list header and ⋯ menus"
   - Hover inside cards `color-mix(in srgb, var(--surface-sunken) 50%, var(--surface-raised))`; `is-current` = `--surface-sunken`, no hover repaint; unit band via `.outline-node--unit:has(> .outline-unit.is-current)`.
   - Rings: track `--border-default`, arc/fill `--glance-fill`, tick `--text-inverse`; quiz icon + `.outline-unit .unit-kind-chip--quiz` teal `--primary`, `text-transform: uppercase`.
   - D7 `min-height: 44px` on `.outline-unit` and container heads at ≤ 640px.
-  - `@media (forced-colors: active)`: bars `1px solid CanvasText`, fills `Highlight` with `forced-color-adjust: none`; `.outline-ring { forced-color-adjust: none; }` track `stroke: CanvasText`, arc/fill `Highlight`, tick `stroke: Canvas`.
+  - `@media (forced-colors: active)`: bars (`.outline__bar`, `.outline-card__bar`) `1px solid CanvasText`, fills (`.outline__fill`, `.outline-card__fill`) `Highlight` with `forced-color-adjust: none`; `.outline-ring { forced-color-adjust: none; }` track `stroke: CanvasText`, arc/fill `Highlight`, tick `stroke: Canvas`.
   - tokens.css: extend the print comment to name the outline done tick as a `--text-inverse` consumer.
 
 - [ ] **Step 1: Write the failing e2e tests:**
