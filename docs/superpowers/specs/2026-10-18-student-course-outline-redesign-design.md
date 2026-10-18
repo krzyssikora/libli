@@ -170,7 +170,9 @@ as unit rows (§3.5) in the list, in order, between cards.
 Open/closed defaults are unchanged: every card (`data-depth="0"`) renders `open` server-side, as
 today's top-level groups do, and `outline_tree.js` then restores the student's stored partition.
 (The phone mockup shows only the first card open, i.e. a stored state; the server default is not
-changed.)
+changed.) The stored partition wins even over the highlighted row: if the student folded the card
+holding `current_row_pk`, it stays folded and the highlight is out of sight until they open it —
+accepted (their explicit choice; the resume card / start button above still points there).
 
 ### 3.3 List header (D8)
 
@@ -338,6 +340,23 @@ judged separately in screenshots.
 
 The phone breakpoint is the one PR #397 introduced (`max-width: 640px`).
 
+**Type scale (mockup).** The kind-based title sizes are replaced by position-based ones for the
+two levels the mockup draws, and kept below them:
+
+| Level | Size | Weight |
+|---|---|---|
+| card title (depth 0, any kind) | 1.125rem phone / 1.25rem desktop | 600 |
+| depth-1 row title (container or unit) | .9375rem (15px) | 500; 600 when `is-current` |
+| depth ≥ 2 container heads | unchanged kind-based scale (chapter 1.1rem, section .75rem uppercase 700) | unchanged |
+| unit rows at depth ≥ 2 | unchanged | 400 (today's `.outline-unit` weight) |
+
+So the "bold everywhere" of §1 is removed at depth 1, where most of the bold was.
+
+**Hover inside cards.** Today `summary.outline-node__head:hover` paints `--surface-raised`, which
+is the card surface, so hover would vanish. Heads and unit rows inside a card hover with
+`color-mix(in srgb, var(--surface-sunken) 50%, var(--surface-raised))` — visibly different from
+both the card and the full `--surface-sunken` of `is-current`. Checked in the screenshots.
+
 **Forced colours.** Like the glance bars (app.css `@media (forced-colors: active)` block), the
 course bar, card bars and status circles get forced-colours rules: track = `1px solid CanvasText`
 border on a transparent background, fill / arc / done circle = `Highlight`
@@ -376,6 +395,8 @@ context) rather than adding a duplicate.
 
 - `course_done` / `course_total`: from `_course_required_totals(outline)` — do not re-sum;
 - `section_count` (the "N" of D1/D8): number of roots with `is_unit == False`;
+- per root container, `item["progress_width"] = _progress_width(required_done, required_total)`
+  (additive key) — the template never re-implements the clamp;
 - per root container, its 1-based card number — stamped into the outline dicts as
   `item["card_number"]` (additive key, like `depth`; other consumers of `build_outline` ignore it
   because the stamping happens in the view on the view's own tree);
@@ -464,7 +485,9 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
   causing horizontal scroll, and its reset link navigates to the confirm page; the open menu of
   the **last** card is fully visible (not clipped); at 360px the card's long count span is in the
   accessibility tree (computed `display` is not `none`);
-- desktop 1280: card head on one line (badge, title, bar, count, chevron);
+- desktop 1280: on a card with a **short** title, badge, the title's first line, bar, count and
+  chevron overlap vertically (one line); on a card with a long title, the title wraps while the
+  badge and chevron stay on its first line;
 - expand-all / collapse-all still toggles every card and chapter, label flips;
 - tag filter hides a card whose units are all filtered out, and shows it again on clear;
 - deep link `#node-<chapter>` opens its card and the chapter head carries the `:target` styling
@@ -478,7 +501,8 @@ list them in the PR; no other existing assertion may be changed):
 |---|---|---|
 | `test_courses_views.py` ~:427 | `("start", "Start the course")` eyebrow | `start` renders the D2 button "Start the first lesson"; the other three states unchanged |
 | `test_e2e_outline_tree.py` ~:169 | "lessons: 0/1" rollup text | the card/row count text (§3.9) |
-| `test_e2e_outline_tree.py` ~:625–651 | a visible `a.outline-node__reset` clicked/focused directly | open the row's "⋯" first, then the same `a.outline-node__reset` |
+| `test_e2e_outline_tree.py` ~:625–651 | a visible `a.outline-node__reset` clicked/focused directly; Tab from the collapsed summary focuses the reset link | click: open the row's "⋯" first, then click the same `a.outline-node__reset`. Keyboard: Tab from the collapsed summary focuses `details.outline-menu > summary`; Enter opens it; Tab then focuses `a.outline-node__reset` |
+| `test_e2e_outline_tree.py::test_nested_type_scale_and_guide_rule_survive_the_details_nesting` (T17) | depth-1 chapter title computes to 17.6px; depth-2 section title 12px uppercase | depth-1 chapter title computes to 15px (§3.8 type scale); depth-2 section title still 12px uppercase; guide-rule assertion unchanged |
 | `test_outline_collapsible.py` ~:84–85 | `outline-node__reset` as a direct sibling of the `<details>` | the link inside `details.outline-menu`, which is the sibling |
 | `test_courses_views.py::test_card_links_to_quiz_unit_for_a_quiz_target` | `a.resume` href for a fresh student (`start`) | seed one completed earlier unit so the state is `next`, keep the card href assertion; add the same assertion on the D2 button in `start` |
 | `test_courses_views.py::test_card_links_to_lesson_unit_for_a_lesson_target` | same, lesson target | same treatment |
