@@ -242,7 +242,15 @@ view (§4) — never by reading `contains_current`, which `build_resume` stamps 
 
 Deeper levels (sections under a chapter, then units) keep today's nested-list presentation (left
 hairline rule, uppercase section headings, unit rows), restyled only enough to sit inside the card
-(no extra card chrome, D7 heights on phones).
+(no extra card chrome, D7 heights on phones). The card's **own** child list
+(`.outline-node--card > .outline-node__group > ul`) drops the hairline rule and the `--space-4`
+indent — the card edge is the boundary (mockup); the rule and indent start one level down
+(a depth-1 chapter's `<ul>`, which T17 checks). An e2e/computed-style assertion pins both.
+
+A depth-1 row is styled **by position, not kind**: a section directly under a part renders like a
+chapter row — no uppercase, `--text-primary`, §3.8's depth-1 size/weight. The depth-1 rule must
+override the kind-based `.outline-node--section … .outline-node__title` rule (higher specificity
+or later source order, stated in a CSS comment).
 
 ### 3.5 Unit rows
 
@@ -254,8 +262,10 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   a quiz chip the "QUIZ" label is that chip restyled, not a second label. (Plan must check what
   `unit_marker` returns for a quiz unit and pick one — never render two quiz labels.)
 - **Lesson unit rows** (every `unit_type == "lesson"` row, inside a card at any depth and at the
-  root): a status circle at the start (done = filled with tick; not done = empty ring). It is
-  purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
+  root): a status circle at the start — done = filled with tick; **in progress** = partial ring at
+  the minimum arc when the unit `has_state` or is the `resume`-state `current_row_pk` (so a
+  highlighted unit row in `resume` matches D5 like a container row does); otherwise an empty ring.
+  It is purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
   `aria-label`) already announces completion. Quiz rows get the quiz icon instead of a circle.
   A unit whose `unit_type` is unset is treated as a lesson row here (gets the circle), so every
   unit row has a same-width leading glyph and titles stay aligned.
@@ -267,8 +277,9 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
 `_resume_card.html` gains a branch: when `resume.state == "start"`, render
 `<a class="btn btn--primary outline__start" lang="{{ LANGUAGE_CODE }}" href="…">Zacznij pierwszą lekcję<svg … aria-hidden="true">→</svg></a>`
 instead of the card. The `href` reuses the card's existing branch verbatim (`quiz_unit` when
-`resume.node.unit_type == 'quiz'`, else `lesson_unit`). The msgid carries no arrow; the arrow is
-the card's existing `aria-hidden` chevron SVG. `lang` is the UI language, as on the card's eyebrow
+`resume.node.unit_type == 'quiz'`, else `lesson_unit`). The msgid carries no arrow; the arrow reuses the card chevron's SVG path but with its own class
+`outline__start-arrow` (inline, `aria-hidden`) — never `resume__arrow`, which is absolutely
+positioned for the card. `lang` is the UI language, as on the card's eyebrow
 (the button sits inside `<section lang="{{ course.language }}">`; without it an English course with
 a Polish UI would read the label in an English voice).
 
@@ -397,6 +408,8 @@ context) rather than adding a duplicate.
 - `section_count` (the "N" of D1/D8): number of roots with `is_unit == False`;
 - per root container, `item["progress_width"] = _progress_width(required_done, required_total)`
   (additive key) — the template never re-implements the clamp;
+- `course_progress_width = _progress_width(course_done, course_total)` for the D1 bar (server test
+  for its `None`, partial-clamped and 100 cases);
 - per root container, its 1-based card number — stamped into the outline dicts as
   `item["card_number"]` (additive key, like `depth`; other consumers of `build_outline` ignore it
   because the stamping happens in the view on the view's own tree);
@@ -461,7 +474,8 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
 - status circle boundary: a highlighted row in `resume` with `required_done == 0` reads "W toku"
   in all three ways `resume` arises — saved practice work; a bare lesson visit (a `UnitProgress`
   row with empty `element_state`); an in-progress quiz submission — and a highlighted untouched
-  row in `next` reads "Nierozpoczęte";
+  row in `next` reads "Nierozpoczęte"; for the depth-1-unit and root-unit target shapes in
+  `resume`, the highlighted unit row draws the partial ring (class pinned), not the empty one;
 - row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
 - accessible names start with the title: card summary (badge `aria-hidden`) and depth-1 summary
   (status word after title + count);
