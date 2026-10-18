@@ -416,12 +416,12 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 
 /* --- WS3 editor page: panes, breadcrumb, head --- */
-.editor-crumb { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
-.editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
+.editor-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-4); }
+.editor-crumb__path { flex: 1 1 12rem; min-width: 0; color: var(--text-secondary); font-size: .9rem; }
 .editor-crumb__sep { color: var(--text-tertiary); }
-.editor-crumb__media { margin-left: auto; font-size: .85rem; white-space: nowrap; }
-.editor-crumb__live { margin-left: auto; font-size: .85rem; white-space: nowrap; }
-.editor-crumb__live + .editor-crumb__media { margin-left: 0; }
+/* View live + Media library: beside the path when they fit, on their own line on a phone. No nowrap: a label too long for the screen wraps inside its button instead of scrolling the page. */
+.editor-crumb__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.editor-crumb__actions .ic { width: 1rem; height: 1rem; flex: none; }
 .editor-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: var(--space-2) 0; }
 .editor-head__title { font-size: 1.1rem; margin: 0; }
 .type-toggle { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; }
