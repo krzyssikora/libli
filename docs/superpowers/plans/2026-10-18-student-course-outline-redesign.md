@@ -51,7 +51,7 @@
   - `ARC_FLOOR_PCT = 9` (module constant in `courses/views.py`).
   - `_outline_presentation(outline: list[dict], resume: dict | None) -> dict` returning `{"course_done": int, "course_total": int, "course_progress_width": int | None, "section_count": int, "current_row_pk": int | None, "arc_floor_pct": int}` and stamping, in place:
     - every container dict: `progress_width: int | None`, `arc_pct: int` (`max(progress_width or 0, ARC_FLOOR_PCT)`), `ring: None | "done" | "progress" | "none"`;
-    - every root container: `card_number: int` (1-based over roots with `is_unit == False`, in order);
+    - every root container **with children**: `card_number: int` (1-based over roots with `is_unit == False and children`, in order — a childless root gets none; unreachable via `build_outline`, which prunes it);
     - every unit dict: `ring: None | "done" | "progress" | "none"` (`None` for `unit_type == "quiz"`).
   - `course_outline` context gains all six returned keys.
 
@@ -74,7 +74,7 @@ def test_course_width_is_none_when_nothing_done_and_100_only_when_complete(): ..
 def test_cards_are_numbered_over_root_containers_only():
     # roots: unit U0, part P1, unit U1, part P2
     assert [d.get("card_number") for d in tree] == [None, 1, None, 2]
-    assert p["section_count"] == 2
+    assert p["section_count"] == 2   # counts roots with is_unit False AND children, same set as card_number
 
 def test_root_units_are_not_numbered_and_can_be_current():        # Review Focus 1
     p = _outline_presentation(tree, {"node": u0, "state": "next", "ancestors": []})
@@ -251,7 +251,7 @@ def test_unit_row_keeps_chips_badges_and_links(): # ✓ badge aria-label, tag ch
 
 - [ ] **Step 3: Implement** the unit arm per Interfaces.
 
-- [ ] **Step 4: Run** `uv run pytest tests/test_outline_unit_rows.py tests/test_outline_cards.py tests/test_tags_outline.py tests/test_courses_views.py tests/test_unit_marker.py tests/test_courses_progress.py tests/test_outline_anchors.py tests/test_outline_collapsible.py` — expected: PASS. Falsify: key the unit highlight on `resume.node.pk` instead of `current_row_pk` → `test_resume_target_lesson_at_depth2_draws_progress_but_is_not_current` RED; restore.
+- [ ] **Step 4: Run** `uv run pytest tests/test_outline_unit_rows.py tests/test_outline_cards.py tests/test_tags_outline.py tests/test_courses_views.py tests/test_unit_marker.py tests/test_courses_progress.py tests/test_outline_anchors.py tests/test_outline_collapsible.py tests/test_notes_views.py` — expected: PASS. Falsify: key the unit highlight on `resume.node.pk` instead of `current_row_pk` → `test_resume_target_lesson_at_depth2_draws_progress_but_is_not_current` RED; restore.
 
 - [ ] **Step 5: Commit**
 
@@ -303,7 +303,7 @@ def test_author_preview_shows_progress_ui_but_no_next_step():   # Review Focus 5
 
 - [ ] **Step 4: Update the superseded tests** exactly per spec §6: the `start` row of `test_each_state_renders_its_own_eyebrow` becomes a separate assertion that `start` renders `a.outline__start` "Start the first lesson" and no `a.resume`; the four card tests and the math-marker test seed one completed earlier unit (`UnitProgressFactory(..., completed=True, completed_at=…)`) so the state is `next`, keeping their card assertions; the two href tests also assert the same href on the start button in `start`.
 
-- [ ] **Step 5: Run** `uv run pytest tests/test_outline_head.py tests/test_courses_views.py tests/test_title_math_markers.py tests/test_outline_collapsible.py tests/test_resume_target.py tests/test_tags_outline.py tests/test_outline_anchors.py tests/test_publish_outline.py tests/test_title_math_assets.py tests/test_tags_notes_hub.py tests/test_analytics_student_page.py --deselect tests/test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje --deselect tests/test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` — expected: PASS. Falsify: move `hidden` after `data-outline-toggle-all` → `test_header_button_and_nav_attributes` RED; restore.
+- [ ] **Step 5: Run** `uv run pytest tests/test_outline_head.py tests/test_courses_views.py tests/test_title_math_markers.py tests/test_outline_collapsible.py tests/test_resume_target.py tests/test_tags_outline.py tests/test_outline_anchors.py tests/test_publish_outline.py tests/test_title_math_assets.py tests/test_tags_notes_hub.py tests/test_analytics_student_page.py tests/test_outline_cards.py tests/test_outline_unit_rows.py tests/test_outline_presentation.py --deselect tests/test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje --deselect tests/test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` — expected: PASS. Falsify: move `hidden` after `data-outline-toggle-all` → `test_header_button_and_nav_attributes` RED; restore.
 
 - [ ] **Step 6: Commit** (message lists the six superseded tests)
 
@@ -346,7 +346,7 @@ def test_opening_a_menu_does_not_touch_the_stored_fold_state():   # localStorage
 
 - [ ] **Step 4: Update the superseded e2e tests** per spec §6 (`test_head_buttons_share_one_vertical_level` → "My results", "My notes" and the ⋯ summary inside `.outline__actions` have equal **centre** y (±1px; tops may differ, the summary is 32px and `.btn--small` ~31px); its mutant becomes "drop `align-items: center` from `.outline__actions`" — the old `.outline__head > .btn { align-self: center; }` rule is removed; `test_start_fresh_link_does_not_disturb_the_fold_state` rewritten **in place** — open the row's "⋯" before clicking `a.outline-node__reset`; keyboard path Tab from the collapsed summary → `details.outline-menu > summary`, Enter opens it, Tab → `a.outline-node__reset`; keep its route-abort mechanics and fold-state partition assertions; desktop head line → actions in the top row right of the title column).
 
-- [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py -m e2e --deselect tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (rewritten in Task 6; expected red here) and every `tests/test_*css*.py` — expected: PASS. Falsify: delete `.outline__toggle-all[hidden]` → `test_toggle_hidden_rules_beat_display` RED; separately delete `.outline-list__head[hidden]` → RED on its `section_count == 0` header assertion; delete the `.outline__toggle-all:disabled` rules → `test_disabled_toggle_reads_inert_under_a_filter` RED; make the panel `position: static` → `test_menu_opens_out_of_flow_without_reflow` RED; restore both by hand.
+- [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py -m e2e --deselect tests/test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (rewritten in Task 6; expected red here) and every `tests/test_*css*.py` — expected: PASS. Falsify: delete `.outline__toggle-all[hidden]` → `test_toggle_hidden_rules_beat_display` RED; separately delete `.outline-list__head[hidden]` → RED on its `section_count == 0` header assertion; delete the `.outline__toggle-all:disabled` rules → `test_disabled_toggle_reads_inert_under_a_filter` RED; make the panel `position: static` → `test_menu_opens_out_of_flow_without_reflow` RED; apply each mutant **alone**, see RED, restore it by hand before the next; `git diff core/static/core/css/app.css` shows only the intended change at the end.
 
 - [ ] **Step 6: Commit**
 
@@ -414,7 +414,7 @@ def test_tag_filter_hides_and_restores_a_card():
 
 - [ ] **Step 4: Update the superseded e2e tests** per spec §6 (the ~:169 comment in `test_first_visit_opens_depth0_only` → describe the count pair; no assertion change; T17 → 15px; `test_outline_fits_a_phone` → the card-layout assertions in the spec's row, incl. the `== 3` / `== 2` actions count).
 
-- [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_cards.py tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py tests/test_e2e_tags.py tests/test_e2e_link_dialog.py -m e2e` and every `tests/test_*css*.py` — expected: PASS. Falsify the reservation mutants named in Step 1, the card-title override, and the forced-colours ring rule (each RED, then restored by hand).
+- [ ] **Step 5: Run** `uv run pytest tests/test_e2e_outline_cards.py tests/test_e2e_outline_head.py tests/test_e2e_outline_tree.py tests/test_e2e_outline_phone_layout.py tests/test_e2e_tags.py tests/test_e2e_link_dialog.py tests/test_e2e_unit_nav.py tests/test_e2e_results.py tests/test_e2e_catalog.py -m e2e` and every `tests/test_*css*.py` — expected: PASS. Falsify the reservation mutants named in Step 1, the card-title override, and the forced-colours ring rule (each RED, then restored by hand).
 
 - [ ] **Step 6: Commit** (message lists the three superseded tests)
 
@@ -469,7 +469,7 @@ git commit -m "i18n(outline): Polish strings for the course outline redesign"
 
 **Files:** none expected; fixes, if any, go in the file they belong to with their own failing test.
 
-- [ ] **Step 1:** Run every outline-related suite: `uv run pytest tests/test_outline_presentation.py tests/test_outline_cards.py tests/test_outline_unit_rows.py tests/test_outline_head.py tests/test_outline_i18n.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py tests/test_publish_outline.py tests/test_resume_target.py tests/test_courses_views.py tests/test_analytics_student_page.py tests/test_title_math_markers.py tests/test_unit_marker.py tests/test_courses_progress.py tests/test_title_math_assets.py tests/test_publish_call_sites.py tests/test_tags_notes_hub.py tests/test_i18n_po_health.py tests/test_access_taught_courses.py tests/test_node_permalink.py tests/test_error_pages.py tests/test_i18n_error_pages.py` + every `tests/test_*css*.py`, then the e2e set `tests/test_e2e_outline_*.py tests/test_e2e_tags.py tests/test_e2e_link_dialog.py tests/test_e2e_publish_toggle.py -m e2e`. Expected: all PASS (grep the summary line).
+- [ ] **Step 1:** Run every outline-related suite: `uv run pytest tests/test_outline_presentation.py tests/test_outline_cards.py tests/test_outline_unit_rows.py tests/test_outline_head.py tests/test_outline_i18n.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py tests/test_publish_outline.py tests/test_resume_target.py tests/test_courses_views.py tests/test_analytics_student_page.py tests/test_title_math_markers.py tests/test_unit_marker.py tests/test_courses_progress.py tests/test_title_math_assets.py tests/test_publish_call_sites.py tests/test_tags_notes_hub.py tests/test_i18n_po_health.py tests/test_access_taught_courses.py tests/test_node_permalink.py tests/test_error_pages.py tests/test_i18n_error_pages.py tests/test_notes_views.py` + every `tests/test_*css*.py`, then the e2e set `tests/test_e2e_outline_*.py tests/test_e2e_tags.py tests/test_e2e_link_dialog.py tests/test_e2e_publish_toggle.py tests/test_e2e_unit_nav.py tests/test_e2e_results.py tests/test_e2e_catalog.py -m e2e`. Also derive a safety-net list — `grep -rlE "course_outline|/courses/\{" tests/ | grep -v capture_` — and run any file it names that the lists above miss (server files plainly, `test_e2e_*` with `-m e2e`). Expected: all PASS (grep the summary line).
 - [ ] **Step 2:** Capture screenshots with a temporary script (not committed; do not use or overwrite `capture_*` files) at 360 / 412 / 900 / 1280 in light and dark for: a new student, a student mid-course with an open menu, hovering the highlighted row, a print-media render, and a forced-colours render. Save under the session scratchpad. Look at each; judge dark separately; check the tick contrast and the absence of a UA triangle beside "⋯".
 - [ ] **Step 3:** `uv run ruff check --no-cache` and `uv run ruff format --check` on every touched `.py`.
 - [ ] **Step 4:** Commit only if Step 1–3 required a fix (with its test).
