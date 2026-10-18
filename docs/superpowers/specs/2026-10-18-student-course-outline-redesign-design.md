@@ -214,8 +214,8 @@ assertion (`test_e2e_outline_tree.py`, accessible name matches `^Chapter A`) val
 | state | condition | drawing | sr text |
 |---|---|---|---|
 | done | `required_total > 0 and required_done == required_total` | filled amber circle, dark tick | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
-| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed) | track ring + amber arc of `required_done/required_total`, with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0` | "W toku" / "In progress" |
-| not started | `required_done == 0 and not has_state` | empty ring | "Nierozpoczęte" / "Not started" |
+| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed), **or** `required_done == 0 and pk == current_row_pk and resume.state == "resume"` (the student's in-flight place — `resume` can come from a bare lesson visit or an in-progress quiz, neither of which sets `has_state`) | track ring + amber arc of `required_done/required_total`, with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0` | "W toku" / "In progress" |
+| not started | `required_done == 0`, not `has_state`, and not the `resume`-state current row | empty ring | "Nierozpoczęte" / "Not started" |
 
 So a highlighted row in state `resume` (the student is mid-lesson there) always reads "in
 progress". A highlighted row in `next`/`gap` that the student has not touched reads "not started",
@@ -248,6 +248,8 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
   root): a status circle at the start (done = filled with tick; not done = empty ring). It is
   purely decorative — `aria-hidden`, no status word — because the ✓ badge (kept, with its
   `aria-label`) already announces completion. Quiz rows get the quiz icon instead of a circle.
+  A unit whose `unit_type` is unset is treated as a lesson row here (gets the circle), so every
+  unit row has a same-width leading glyph and titles stay aligned.
 - Rows are ≥ 44px tall at ≤ 640px (D7) via `min-height` on `.outline-unit` and on container heads;
   desktop keeps today's denser rows.
 
@@ -424,8 +426,10 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
   render the card with unchanged eyebrow text; non-enrolled viewer renders neither; the start
   button carries `lang` = the UI language (pl UI on an `en` course) and its accessible name has no
   arrow;
-- status circle boundary: a highlighted row in `resume` with `required_done == 0` and saved work
-  reads "W toku"; a highlighted untouched row in `next` reads "Nierozpoczęte";
+- status circle boundary: a highlighted row in `resume` with `required_done == 0` reads "W toku"
+  in all three ways `resume` arises — saved practice work; a bare lesson visit (a `UnitProgress`
+  row with empty `element_state`); an in-progress quiz submission — and a highlighted untouched
+  row in `next` reads "Nierozpoczęte";
 - row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
 - accessible names start with the title: card summary (badge `aria-hidden`) and depth-1 summary
   (status word after title + count);
@@ -452,7 +456,9 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
 - desktop 1280: card head on one line (badge, title, bar, count, chevron);
 - expand-all / collapse-all still toggles every card and chapter, label flips;
 - tag filter hides a card whose units are all filtered out, and shows it again on clear;
-- deep link `#node-<chapter>` opens its card and highlights the row.
+- deep link `#node-<chapter>` opens its card and the chapter head carries the `:target` styling
+  (box-shadow ring) — using a chapter that is **not** `current_row_pk`, so `is-current` cannot
+  satisfy the assertion by accident.
 
 **Existing assertions this design legitimately supersedes** (update each to the replacement and
 list them in the PR; no other existing assertion may be changed):
