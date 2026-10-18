@@ -54,6 +54,12 @@ question, stated as the visible consequence for a student.
   The D1 label switches to the "nothing done yet" form when `required_done == 0`, independent of
   the resume state. When the course has no top-level containers (`section_count == 0`), the
   "nothing done yet" form drops the "w N działach" fragment and reads just "199 lekcji".
+- **Earlier owner decisions O6/O12** (`2026-09-17-analytics-results-table-design.md`): O12 made
+  the student outline's chip read „lekcje: 1/2", the same wording as the teacher breakdown chip
+  (O6). D4/D5 (approved 2026-10-18) replace that chip on the **student outline only** with a
+  progress bar + count; the teacher page keeps „lekcje: X/Y" (O6 untouched). **Owner confirmation
+  requested 2026-10-18** — the visible consequence is that the two pages stop sharing one chip
+  wording. Until confirmed, this row is the plan's assumption.
 - **D2 target kind.** `build_resume`'s `start` target is the first open unit, which can be a quiz
   or an optional lesson. The button keeps the D2 wording in every case (protected) and reuses the
   card's quiz/lesson URL branch.
@@ -158,7 +164,9 @@ changed.)
 
 ### 3.3 List header (D8)
 
-Between the tag filter bar and the list:
+Between the tag filter bar and the list, **outside** `<nav class="outline-tree">` (directly before
+it), so the nav landmark holds only the tree and no `.outline-tree` descendant rule or the
+`--booting` class touches the header:
 
 ```
 <div class="outline-list__head">
@@ -185,13 +193,26 @@ bordered "lessons: X/Y" chip becomes the same muted "X/Y" count as depth-1 rows,
 moves into a "⋯" at the row end. No status circle at depth ≥ 2. The "+N dodatkowe" chip stays.
 After this change no "lessons: X/Y" chip remains anywhere on the page.
 
+**Row counts use the card's two-span pattern:** a visible `aria-hidden` "X/Y" plus a
+visually-hidden long form "%(done)s z %(counter)s lekcji" (the card count msgid, §3.9), so a
+summary's accessible name still says "lessons" (today it says "lekcje: 1/10"). Depth ≥ 2 rows get
+the same pair and no status word.
+
+**Childless container arm** (`div.outline-node__head`, the fallback branch of
+`_outline_node.html`): same count pair as a depth-1 row, its reset moved into a "⋯" at the end of
+the div head; no chevron (nothing to fold), no circle at depth ≥ 2.
+
 Status circle (inline SVG, `aria-hidden`; a visually-hidden status word follows it):
 
 | state | condition | drawing | sr text |
 |---|---|---|---|
 | done | `required_total > 0 and required_done == required_total` | filled amber circle, dark tick | "Ukończone" / "Completed" (msgctxt "outline status", §3.9) |
-| in progress | `0 < required_done < required_total` | track ring + amber arc of `required_done/required_total` | "W toku" / "In progress" |
-| not started | `required_done == 0` | empty ring | "Nierozpoczęte" / "Not started" |
+| in progress | `0 < required_done < required_total`, **or** `required_done == 0 and has_state` (saved work but nothing completed) | track ring + amber arc of `required_done/required_total`, with a minimum visible arc (≈ 1/12 of the circle) when `required_done == 0` | "W toku" / "In progress" |
+| not started | `required_done == 0 and not has_state` | empty ring | "Nierozpoczęte" / "Not started" |
+
+So a highlighted row in state `resume` (the student is mid-lesson there) always reads "in
+progress". A highlighted row in `next`/`gap` that the student has not touched reads "not started",
+which is accurate (it is the next thing to start). Tests pin both.
 
 A container with `required_total == 0` gets **no circle** (and no status word) and no count — an
 empty ring would wrongly read "not started" for a finished all-quiz chapter.
@@ -226,9 +247,17 @@ then tag chips, the tag-edit affordance, and the notes badge as siblings. Additi
 ### 3.6 Resume card / start button (D2)
 
 `_resume_card.html` gains a branch: when `resume.state == "start"`, render
-`<a class="btn btn--primary outline__start" href="…">Zacznij pierwszą lekcję →</a>` instead of the
-card. The `href` reuses the card's existing branch verbatim (`quiz_unit` when
-`resume.node.unit_type == 'quiz'`, else `lesson_unit`). New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
+`<a class="btn btn--primary outline__start" lang="{{ LANGUAGE_CODE }}" href="…">Zacznij pierwszą lekcję<svg … aria-hidden="true">→</svg></a>`
+instead of the card. The `href` reuses the card's existing branch verbatim (`quiz_unit` when
+`resume.node.unit_type == 'quiz'`, else `lesson_unit`). The msgid carries no arrow; the arrow is
+the card's existing `aria-hidden` chevron SVG. `lang` is the UI language, as on the card's eyebrow
+(the button sits inside `<section lang="{{ course.language }}">`; without it an English course with
+a Polish UI would read the label in an English voice).
+
+**UI-language `lang` rule.** Every new UI string rendered inside the outline section — the D1
+label, "Działy · N", the card/row counts, the status words, the start button, the "⋯" label —
+carries `lang="{{ LANGUAGE_CODE }}"` on its element. Author content (titles) keeps the course
+language it inherits. New msgid "Start the first lesson" → "Zacznij pierwszą lekcję". The old
 "Start the course" msgid becomes unused in this template; leave it in the catalogue only if another
 template still uses it (grep), otherwise let `makemessages` mark it obsolete.
 
@@ -283,6 +312,11 @@ the glance track/fill tokens (`--border-subtle` track, `--glance-fill` fill). Ba
 judged separately in screenshots.
 
 The phone breakpoint is the one PR #397 introduced (`max-width: 640px`).
+
+**Forced colours.** Like the glance bars (app.css `@media (forced-colors: active)` block), the
+course bar, card bars and status circles get forced-colours rules: track = `1px solid CanvasText`
+border on a transparent background, fill / arc / done circle = `Highlight`
+(`forced-color-adjust: none` on the fill), tick = `Canvas`.
 
 ### 3.9 Strings (msgids, plural drivers, Polish forms)
 
@@ -373,7 +407,12 @@ looked at, dark judged separately. Never pass `-q`; grep the summary line. Run e
   `section_count == 0` form, pl plural forms (1 / 2 / 5 lessons; 1 / 2 / 5 działy in the locative);
 - D2: `start` state renders the primary button with the target URL and no card — once with a
   lesson as the first open unit, once with a quiz (href = `quiz_unit`); `resume`/`next`/`gap`
-  render the card with unchanged eyebrow text; non-enrolled viewer renders neither;
+  render the card with unchanged eyebrow text; non-enrolled viewer renders neither; the start
+  button carries `lang` = the UI language (pl UI on an `en` course) and its accessible name has no
+  arrow;
+- status circle boundary: a highlighted row in `resume` with `required_done == 0` and saved work
+  reads "W toku"; a highlighted untouched row in `next` reads "Nierozpoczęte";
+- row accessible counts: a depth-1 summary's text contains "1 z 2 lekcji";
 - D3/D3a: no visible "Zacznij od nowa" text link outside a "⋯" menu; course menu present iff
   `has_saved_work`; a card/row menu present iff that node `has_state`; reset hrefs unchanged;
 - D4: card numbering skips top-level units; bar width/count; no bar when total is 0; "+N dodatkowe"
@@ -413,6 +452,8 @@ list them in the PR; no other existing assertion may be changed):
 | `test_courses_views.py::test_eyebrow_carries_the_active_ui_language` | card eyebrow `lang` in `start` | seed progress → `next`; same `lang` assertion on the eyebrow |
 | `test_courses_views.py::test_resume_card_renders_its_path_separator_and_affordance` | card separator + chevron in `start` | seed progress → `next`; same assertions |
 | `test_title_math_markers.py::test_resume_card_title_and_crumbs_are_marked` | `span.resume__title` / `span.resume__crumb` marked in `start` | seed progress → `next`; the math-marker and crumb coverage of the card must survive in a non-start state |
+| `test_analytics_student_page.py::test_rt_t11_student_outline_chip_reads_lekcje` | `summary .rollup` == "lekcje: 1/2" on the student outline (O12) | the depth-1 row's accessible count reads "1 z 2 lekcji" and its visible count "1/2"; no `.rollup` "lekcje:" chip on the student outline |
+| `test_analytics_student_page.py::test_rt_t11_childless_outline_branch_chip_reads_lekcje` | childless arm `.outline-node__head .rollup` == "lekcje: 1/2" | the childless arm renders the same count pair as a depth-1 row (§3.4) |
 | `test_e2e_outline_tree.py::test_head_buttons_share_one_vertical_level` | 4 `.outline__head > .btn` on one top | "Moje wyniki", "Moje notatki" and the "⋯" summary inside `.outline__actions` share one vertical level; keep its align-self mutant |
 | `test_e2e_outline_phone_layout.py::test_outline_fits_a_phone` (PR #397) | no horizontal scroll; title starts on the chevron's line (chevron before title); `.rollup` on the title's line | no horizontal scroll at 360/412; on a card head the title starts on the badge's line, right of the badge (chevron now at the row end); the card count sits on the title's line or directly below it inside the card — never as an orphan line before the next card |
 | `test_e2e_outline_phone_layout.py::test_outline_head_stays_on_one_line_on_desktop` | 4 head buttons on the h1's line at 1280 | at 1280: the actions sit in the top row, right of the title column, bottom-aligned with the bar (D1 puts the title alone in its column) |
@@ -423,4 +464,6 @@ Line numbers are approximate; the plan locates each by content.
 `test_tags_outline.py`, `test_publish_outline.py`, `test_resume_target.py`, `test_courses_views.py`,
 `test_e2e_outline_tree.py`, `test_e2e_outline_phone_layout.py` (PR #397's guard — update its
 geometry assertions only where the card layout legitimately supersedes them, and say so in the PR),
-`test_e2e_tags.py`, `test_e2e_link_dialog.py`, every `test_*css*.py`.
+`test_e2e_tags.py`, `test_e2e_link_dialog.py`, `test_analytics_student_page.py` (its teacher-page
+T11 test `test_rt_t11_teacher_chip_reads_lekcje` and `test_rt_t11_catalogs_drop_the_unused_msgids`
+stay unchanged), every `test_*css*.py`.
