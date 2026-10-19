@@ -315,3 +315,16 @@ def test_screen_layout_untouched_by_printing(page, live_server):
     assert set(fonts) == {"19.36px"}, fonts
     page.evaluate("dispatchEvent(new Event('afterprint'))")
     assert page.locator(".katex-display[data-print-fit]").count() == 0
+
+
+def test_printed_display_draws_no_scrollbar(page, live_server):
+    """Paper cannot scroll. A shrunk display still overflows its box by a pixel
+    or two (KaTeX's fixed-width struts do not scale), and the screen scroller's
+    `overflow-x: auto` printed a scrollbar under it (owner report, Chrome)."""
+    _print_pdf(page, live_server, "pwmbar", 1280)
+    page.emulate_media(media="print")
+    overflow = page.evaluate(
+        "() => [...document.querySelectorAll('.el--text .katex-display')]"
+        ".map((d) => getComputedStyle(d).overflowX)"
+    )
+    assert overflow and set(overflow) == {"hidden"}, overflow
