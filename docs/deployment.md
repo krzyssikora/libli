@@ -1001,6 +1001,77 @@ guard (both the current and the target copy) but **not** the canary guard. Plain
 
 ---
 
+### Outgoing email
+
+A box with no `DJANGO_EMAIL_HOST` uses Django's console backend: every email —
+invitations, password resets, notification emails — is written to the app log and never
+sent. Nothing errors, so the only symptom is "the email never came". Set it up before
+anyone needs a reset or an emailed invitation.
+
+Mail goes out over SMTP on **port 587**; Hetzner blocks outbound 25 and 465 by default, so
+use a provider that accepts 587. libli.pl uses **Resend** (domain `libli.pl` verified, EU
+region; its SPF, DKIM and DMARC records are at nazwa.pl and must not be deleted when tidying
+DNS). Live since 2026-10-19.
+
+**1. A key for this box only.** Resend → *API Keys* → *Create API Key*: name it after the
+box (libli.pl's is `libli-app-prod`), permission **Sending access**, domain restricted to
+the box's sending domain. Resend shows it once: put it straight into the password manager.
+One key per box, so one can be revoked without touching another (or the Gmail "Send mail
+as" key, which is separate on purpose).
+
+**2. The sender.** libli.pl sends as `libli <no-reply@libli.pl>`. A school box sends as
+`no-reply@<school-domain>`, **never** as libli.pl: a pupil getting a password reset from a
+domain their school never mentioned is what schools train them to report as phishing. That
+means verifying the school's domain in Resend first. Resend lists the DNS records; the
+school adds them alongside the A record (free plan: 3 domains).
+
+**3. Set the values** (on the box, in `/opt/libli`). Each line is REPLACED if present and
+appended if not (`.env.production.example` carries these keys commented out, so a blind
+append is safe only by luck):
+
+```bash
+set_env() {
+  if grep -q "^$1=" .env.production; then
+    sed -i "s|^$1=.*|$1=$2|" .env.production
+  else
+    [ -n "$(tail -c1 .env.production)" ] && echo >> .env.production   # end the last line first
+    echo "$1=$2" >> .env.production
+  fi
+}
+set_env DJANGO_EMAIL_HOST 'smtp.resend.com'
+set_env DJANGO_EMAIL_PORT '587'
+set_env DJANGO_EMAIL_HOST_USER 'resend'          # literally the word "resend"
+set_env DJANGO_EMAIL_HOST_PASSWORD '<API key>'   # re_...
+set_env DJANGO_EMAIL_USE_TLS 'true'
+set_env DJANGO_DEFAULT_FROM_EMAIL 'libli <no-reply@libli.pl>'
+grep -cE '^DJANGO_(EMAIL_|DEFAULT_FROM_EMAIL)' .env.production   # must print 6
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate app
+```
+
+Never `docker compose restart`: it keeps the old environment.
+
+**4. Check it.**
+
+```bash
+bash /opt/libli/manage.sh shell -c "from django.conf import settings as s; print(s.EMAIL_BACKEND, s.EMAIL_HOST, s.EMAIL_PORT, s.EMAIL_USE_TLS, s.DEFAULT_FROM_EMAIL)"
+# django.core.mail.backends.smtp.EmailBackend smtp.resend.com 587 True libli <no-reply@libli.pl>
+bash /opt/libli/manage.sh sendtestemail <an address you can read>
+```
+
+The test email arrives and Resend → *Emails* shows it **Delivered**. In Gmail, *Show
+original* must read SPF, DKIM and DMARC all `PASS`. Then do one real reset through
+*Forgot your password?* on the login page: its link must open a page on the box's own
+domain (that comes from `DJANGO_SITE_DOMAIN`, §3).
+
+**Limits.** Resend's free plan allows **100 emails a day and 3,000 a month** (checked
+2026-10-19). A bulk enrolment sends one email per student. An email over the cap fails, and
+the failure is only logged (`notification email delivery failed`); the bell and push still
+reach everyone. Watch the daily count on the Resend dashboard before a big enrolment day.
+
+**Rotating the key:** create the new key, `set_env DJANGO_EMAIL_HOST_PASSWORD`, recreate,
+send a test email, and only then revoke the old key in Resend. **Turning email off:** blank
+`DJANGO_EMAIL_HOST` (`set_env DJANGO_EMAIL_HOST ''`) and recreate; mail goes back to the log.
+
 ### Push notifications
 
 Push ships dark: a box without the three `LIBLI_VAPID_*` values shows no push UI and sends
