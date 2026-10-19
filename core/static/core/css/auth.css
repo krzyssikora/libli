@@ -122,6 +122,13 @@ body.auth {
 }
 .auth-foot a { color: var(--accent); font-weight: 700; text-decoration: none; }
 
+.auth-forgot {
+  margin: 0 0 var(--space-3);
+  text-align: right;
+  font-size: 0.8rem;
+}
+.auth-forgot a { color: var(--accent); font-weight: 700; text-decoration: none; }
+
 .auth-error {
   margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-3);
