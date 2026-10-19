@@ -586,8 +586,12 @@ input[type=number] {
   grid-area: progress; margin-top: var(--space-3);
   display: flex; align-items: center; gap: var(--space-3);
 }
+/* Track: --border-subtle read 1.08:1 on the light page, so a new student's empty
+   bar looked missing. Half --text-tertiary is 1.7:1 light / 2.1:1 dark, and the fill
+   still clears it (2.6:1 / 3.7:1). Course bar only: the card bars sit on the card. */
 .outline__bar {
-  flex: 0 1 20rem; height: 8px; border-radius: 999px; background: var(--border-subtle);
+  flex: 0 1 20rem; height: 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--text-tertiary) 50%, var(--surface-base));
 }
 .outline__fill {
   display: block; height: 100%; border-radius: inherit; background: var(--glance-fill);
@@ -702,6 +706,8 @@ input[type=number] {
   border-radius: var(--radius-full); padding: 0 var(--space-2); line-height: 1.6; white-space: nowrap; }
 .rollup + .rollup { margin-left: var(--space-2); }   /* a 2nd chip shouldn't re-push */
 .rollup--additional { color: var(--accent); }
+/* A depth-1 row's count + chip wrapper: invisible to layout until the phone rule. */
+.outline-row__meta { display: contents; }
 
 /* unit rows */
 .outline-unit {
@@ -1020,6 +1026,21 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
   }
   .outline-node__head { min-height: 44px; align-content: center; }
   .outline-unit { min-height: 44px; }
+  /* Depth-1 rows: the count and "+N" chip take their own line under the title,
+     which keeps the full width (beside both it had ~95px at 360px). Ring and
+     chevron stay on the title's row; the status word is absolutely positioned. */
+  .outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__group > summary.outline-node__head {
+    display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center; column-gap: var(--space-2); row-gap: 0;
+  }
+  .outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__group > summary > .outline-ring { grid-column: 1; grid-row: 1; }
+  .outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__group > summary > .outline-node__title { grid-column: 2; grid-row: 1; }
+  .outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__group > summary > .outline-node__chevron { grid-column: 3; grid-row: 1; }
+  .outline-row__meta {
+    grid-column: 2; grid-row: 2;
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  }
+  .outline-row__meta > .rollup { margin-left: 0; }
 }
 
 /* Forced colours, like the glance bars: tracks become a CanvasText outline, fills
