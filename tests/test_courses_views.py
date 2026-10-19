@@ -417,6 +417,25 @@ def _resume_soup(client, slug):
     return BeautifulSoup(r.content, "html.parser").select_one("a.resume")
 
 
+def _start_soup(client, slug):
+    from bs4 import BeautifulSoup
+
+    r = client.get(reverse("courses:course_outline", kwargs={"slug": slug}))
+    return BeautifulSoup(r.content, "html.parser").select_one("a.outline__start")
+
+
+def _seed_done(user, unit):
+    """One completed earlier unit: a fresh student is `start`, which now renders the
+    D2 button instead of the card, so card tests seed this to reach `next`."""
+    from django.utils import timezone
+
+    from tests.factories import UnitProgressFactory
+
+    UnitProgressFactory(
+        student=user, unit=unit, completed=True, completed_at=timezone.now()
+    )
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "state,expected",
@@ -424,7 +443,6 @@ def _resume_soup(client, slug):
         ("resume", "Pick up where you left off"),
         ("next", "Up next"),
         ("gap", "Still to do"),
-        ("start", "Start the course"),
     ],
 )
 def test_each_state_renders_its_own_eyebrow(client, state, expected, monkeypatch):
@@ -446,6 +464,27 @@ def test_each_state_renders_its_own_eyebrow(client, state, expected, monkeypatch
 
 
 @pytest.mark.django_db
+def test_start_state_renders_the_start_button_not_the_card(client, monkeypatch):
+    """Superseded the `start` row above: `start` is the D2 button, not the card."""
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "eb-start")
+    course = CourseFactory(slug="eb-start")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    EnrollmentFactory(student=user, course=course)
+    monkeypatch.setattr(
+        "courses.views.build_resume",
+        lambda c, u, t: {"node": unit, "state": "start", "ancestors": []},
+    )
+    assert _resume_soup(client, "eb-start") is None
+    btn = _start_soup(client, "eb-start")
+    assert btn.get_text(strip=True) == "Start the first lesson"
+
+
+@pytest.mark.django_db
 def test_card_links_to_quiz_unit_for_a_quiz_target(client):
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
@@ -456,9 +495,22 @@ def test_card_links_to_quiz_unit_for_a_quiz_target(client):
     course = CourseFactory(slug="lq")
     quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=0)
     EnrollmentFactory(student=user, course=course)
-    card = _resume_soup(client, "lq")
-    assert card["href"] == reverse(
+    # `start`: the D2 button carries the same href.
+    assert _start_soup(client, "lq")["href"] == reverse(
         "courses:quiz_unit", kwargs={"slug": "lq", "node_pk": quiz.pk}
+    )
+
+    # `next`: one completed earlier unit, then the quiz.
+    course = CourseFactory(slug="lq-next")
+    earlier = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", order=0
+    )
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
+    EnrollmentFactory(student=user, course=course)
+    _seed_done(user, earlier)
+    card = _resume_soup(client, "lq-next")
+    assert card["href"] == reverse(
+        "courses:quiz_unit", kwargs={"slug": "lq-next", "node_pk": quiz.pk}
     )
 
 
@@ -473,9 +525,22 @@ def test_card_links_to_lesson_unit_for_a_lesson_target(client):
     course = CourseFactory(slug="ll")
     lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
     EnrollmentFactory(student=user, course=course)
-    card = _resume_soup(client, "ll")
-    assert card["href"] == reverse(
+    # `start`: the D2 button carries the same href.
+    assert _start_soup(client, "ll")["href"] == reverse(
         "courses:lesson_unit", kwargs={"slug": "ll", "node_pk": lesson.pk}
+    )
+
+    # `next`: one completed earlier unit, then the lesson.
+    course = CourseFactory(slug="ll-next")
+    earlier = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", order=0
+    )
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=1)
+    EnrollmentFactory(student=user, course=course)
+    _seed_done(user, earlier)
+    card = _resume_soup(client, "ll-next")
+    assert card["href"] == reverse(
+        "courses:lesson_unit", kwargs={"slug": "ll-next", "node_pk": lesson.pk}
     )
 
 
@@ -497,8 +562,12 @@ def test_eyebrow_carries_the_active_ui_language(client):
 
     user = make_login(client, "lang1")
     course = CourseFactory(slug="lang1", language="en")
-    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    earlier = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", order=0
+    )
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=1)
     EnrollmentFactory(student=user, course=course)
+    _seed_done(user, earlier)  # `next`: `start` renders the button, not the card
     session = client.session
     session["_language"] = "pl"
     session.save()
@@ -533,10 +602,14 @@ def test_resume_card_renders_its_path_separator_and_affordance(client):
     chapter = ContentNodeFactory(
         course=course, kind="chapter", unit_type=None, parent=part, order=0
     )
-    ContentNodeFactory(
+    earlier = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
     )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, order=1
+    )
     EnrollmentFactory(student=user, course=course)
+    _seed_done(user, earlier)  # `next`: `start` renders the button, not the card
 
     card = _resume_soup(client, "rcard")
     assert card.select_one("span.resume__path") is not None

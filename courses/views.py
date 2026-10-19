@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from courses import quiz as quiz_svc
@@ -735,6 +736,30 @@ def _stamp_rings(items, resume, current_row_pk):
             d["ring"] = "none"
 
 
+def _progress_label(done: int, total: int, sections: int) -> str:
+    """The course head's D1 label, built here because the request's language is active.
+
+    Some done: "1 of 4 lessons completed". Nothing done: "4 lessons in 2 topics",
+    or just "4 lessons" when the course has no top-level containers.
+    """
+    if done > 0:
+        return ngettext(
+            "%(done)s of %(counter)s lesson completed",
+            "%(done)s of %(counter)s lessons completed",
+            total,
+        ) % {"done": done, "counter": total}
+    lessons = ngettext("%(counter)s lesson", "%(counter)s lessons", total) % {
+        "counter": total
+    }
+    if sections == 0:
+        return lessons
+    return _("%(lessons)s %(sections)s") % {
+        "lessons": lessons,
+        "sections": ngettext("in %(counter)s topic", "in %(counter)s topics", sections)
+        % {"counter": sections},
+    }
+
+
 def _outline_presentation(outline, resume):
     """Presentation data for the outline page; stamps cards, rings and arcs in place."""
     done, total = _course_required_totals(outline)
@@ -775,8 +800,8 @@ def course_outline(request, slug):
     # The whole outline is in the DOM, so scan the whole tree.
     has_math = tree_titles_have_math(outline)
     # Enrolled-only: can_access_course also admits authors, teachers and staff
-    # previewing a course they are not taking, and a "Start the course" CTA would be
-    # noise for them. Mirrors the `seen` write route, which is enrolled-only by
+    # previewing a course they are not taking, and a next-step card or start button
+    # would be noise for them. Mirrors the `seen` write route, which is enrolled-only by
     # design. Runs AFTER outline_with_tags, but the target is deliberately
     # INDEPENDENT of the active tag filter: outline_with_tags annotates without
     # pruning, and the filter hides rows rather than restricting scope, so filtering
@@ -801,6 +826,11 @@ def course_outline(request, slug):
             ),
             "has_math": has_math,
             "resume": resume,
+            "progress_label": _progress_label(
+                presentation["course_done"],
+                presentation["course_total"],
+                presentation["section_count"],
+            ),
             # Gates the course-level "Start fresh": no saved work, nothing to clear.
             "has_saved_work": any(item["has_state"] for item in outline),
         },

@@ -11,12 +11,14 @@ valid HTML meaning "undetermined", so the failure is silent.
 lang is split the way _unit_crumbs.html splits it: the eyebrow is UI text and takes the
 UI language, while the title and crumbs are author content and keep the course language
 inherited from <section class="outline">.{% endcomment %}
+{% if resume.state == "start" %}{# D2: a new student gets one primary button, same target as the card. #}
+<a class="btn btn--primary outline__start" lang="{{ LANGUAGE_CODE }}" href="{% if resume.node.unit_type == 'quiz' %}{% url 'courses:quiz_unit' slug=course.slug node_pk=resume.node.pk %}{% else %}{% url 'courses:lesson_unit' slug=course.slug node_pk=resume.node.pk %}{% endif %}">{% trans "Start the first lesson" %}<svg class="outline__start-arrow icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+{% else %}
 <a class="resume" href="{% if resume.node.unit_type == 'quiz' %}{% url 'courses:quiz_unit' slug=course.slug node_pk=resume.node.pk %}{% else %}{% url 'courses:lesson_unit' slug=course.slug node_pk=resume.node.pk %}{% endif %}">
   <span class="resume__eyebrow" lang="{{ LANGUAGE_CODE }}">
     {% if resume.state == "resume" %}{% trans "Pick up where you left off" %}
     {% elif resume.state == "next" %}{% trans "Up next" %}
-    {% elif resume.state == "gap" %}{% trans "Still to do" %}
-    {% else %}{% trans "Start the course" %}{% endif %}
+    {% elif resume.state == "gap" %}{% trans "Still to do" %}{% endif %}
   </span>
   {% if resume.ancestors %}
     <span class="resume__path">
@@ -30,3 +32,4 @@ inherited from <section class="outline">.{% endcomment %}
   already has an accessible name (eyebrow + path + title); the glyph adds nothing to it.{% endcomment %}
   <svg class="resume__arrow icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
 </a>
+{% endif %}
