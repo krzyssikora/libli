@@ -668,7 +668,11 @@ input[type=number] {
 .resume:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .outline-tree ul { list-style: none; margin: 0; padding: 0; }
-.outline-tree > ul > .outline-node { margin-bottom: var(--space-6); }
+/* Root rhythm (spec 3.2) is card-only: consecutive root unit rows sit flush, like
+   unit rows inside a card, and a run of them gets the same --space-6 before the
+   next card. */
+.outline-tree > ul > .outline-node--card { margin-bottom: var(--space-6); }
+.outline-tree > ul > .outline-node--unit + .outline-node--card { margin-top: var(--space-6); }
 /* nested levels get a hairline guide rule. Re-pointed, not doubled: the <ul>
    now lives inside the <details>, and neither surviving branch renders a <ul>
    as a child of the <li> (the childless arm has no children by definition, and
@@ -743,7 +747,7 @@ input[type=number] {
    Specificity is capped at (0,1,0) on purpose: `.outline-node[hidden]` is
    (0,2,0) and MUST keep winning, or a filtered-out container stops hiding.
    Do not scope these selectors more tightly — AND this block
-   must stay declared ABOVE `.outline-node[hidden]` (line ~645 below). If
+   must stay declared ABOVE `.outline-node[hidden]` (the unit-row block below). If
    this selector's specificity ever ties (0,2,0), it is source order — the
    later rule wins a tie, not specificity alone — that keeps `[hidden]`
    winning. Move this block below `[hidden]`, or raise it past (0,2,0),
@@ -802,7 +806,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
    visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden].
    Must stay declared BELOW the .outline-node--part/--chapter/--section grid rule
-   (~line 583 above): if that rule's specificity ever ties this one's (0,2,0), it is
+   (the container-row grid block above): if its specificity ever ties this (0,2,0), it is
    THIS rule being later in source order that keeps it winning. */
 .outline-node[hidden] { display: none; }
 /* quiet per-row tag affordance, brightening on hover/focus */
@@ -821,6 +825,216 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .badge--done { background: var(--success-subtle); color: var(--success);
   border-color: color-mix(in srgb, var(--success) 45%, var(--border-default)); }
 .badge--todo { background: transparent; color: var(--text-secondary); }
+
+/* ── Outline cards, rows and rings (spec 3.2, 3.4, 3.5, 3.8) ───────────────
+   Every top-level container is a raised card. The card <li> keeps the container
+   grid above (the "⋯" menu in column 2, row 1) and sets NO display of its own, so
+   `.outline-node[hidden]` keeps winning. No overflow, transform, filter or
+   isolation anywhere on a card: a last card's open menu panel must spill below it.
+   --card-line is the height of the title's first line; the badge, chevron, bar,
+   count cell and menu are all aligned to it, never to a wrapped title's centre. */
+.outline-node--card {
+  --card-line: 1.75rem; --card-pad-block: var(--space-2); --card-menu: 32px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+.outline-node--card > .outline-menu {
+  margin-top: calc(var(--card-pad-block) + (var(--card-line) - var(--card-menu)) / 2);
+}
+/* The card's OWN list: the card edge is the boundary, so no guide rule and no
+   indent here; both start one level down (a chapter's <ul>). */
+.outline-node--card > .outline-node__group > ul {
+  margin-top: var(--space-3); border-left: 0; padding-left: 0;
+}
+/* Every summary inside a card gets room for the hover tint; the "⋯" reservation
+   below is added on top of it. The block padding matches the unit rows'. */
+.outline-node--card summary.outline-node__head {
+  padding: var(--space-2); border-radius: var(--radius-sm);
+}
+.outline-node--card .outline-unit { padding-inline: var(--space-2); }
+
+/* Card head grid, wide (>= 900px): exactly five tracks -- badge | title (the ONLY
+   flexible track) | bar 12.5rem | count cell | chevron. The meta wrapper is
+   display: contents here, so the bar and the count cell fill tracks 3 and 4; the
+   "+N" chip shares the count's cell, so it never adds a track. The chevron is
+   placed on the LAST track explicitly, so a card with no meta keeps its chevron
+   lined up with its neighbours'. */
+.outline-node--card > .outline-node__group > summary.outline-node__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 12.5rem minmax(7.5rem, max-content) auto;
+  align-items: start; column-gap: var(--space-3); row-gap: var(--space-2);
+  padding-block: var(--card-pad-block);
+}
+.outline-card__num {
+  grid-column: 1; grid-row: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--card-line); height: var(--card-line); padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--primary-subtle); color: var(--primary);
+  font-size: .875rem; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.outline-node--card > .outline-node__group > summary > .outline-node__chevron {
+  grid-column: -2; grid-row: 1; align-self: start;
+  margin-top: calc((var(--card-line) - .8rem) / 2);
+}
+.outline-card__meta { display: contents; }
+.outline-card__bar {
+  grid-column: 3; grid-row: 1; display: block; min-width: 0;
+  height: 6px; margin-top: calc((var(--card-line) - 6px) / 2);
+  border-radius: var(--radius-full); background: var(--border-subtle);
+}
+.outline-card__fill {
+  display: block; height: 100%; border-radius: inherit; background: var(--glance-fill);
+}
+.outline-card__countcell {
+  grid-column: 4; grid-row: 1;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--card-line); white-space: nowrap;
+}
+/* Card titles beat EVERY kind-based title rule, including the (0,4,0) section
+   micro-type `.outline-node--section > .outline-node__group > .outline-node__head
+   .outline-node__title`: this selector is (0,5,0), so the win is specificity, not
+   source order. It resets what those rules set, so a course whose roots are
+   sections gets normal card titles. */
+.outline-tree .outline-node--card > .outline-node__group > .outline-node__head > .outline-node__title {
+  grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere;
+  font-size: 1.25rem; font-weight: 600; line-height: var(--card-line);
+  text-transform: none; letter-spacing: normal; color: var(--text-primary);
+}
+.outline-node--card > .outline-node__group > summary .outline-count__long { white-space: nowrap; }
+
+/* Tablet and phone (< 900px, the card head only): two rows ONLY when the meta
+   wrapper exists. Row 1 = badge, title, chevron; row 2 = the meta, spanning under
+   the title (bar minmax(0, 1fr) + count cell at its end). A card without meta has
+   no second grid row at all, so no empty band and no row-gap. */
+@media (max-width: 899.98px) {
+  .outline-node--card > .outline-node__group > summary.outline-node__head {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .outline-card__meta {
+    grid-column: 2 / -1; grid-row: 2;
+    display: grid; grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center; column-gap: var(--space-3);
+  }
+  .outline-card__bar { grid-column: 1; grid-row: 1; margin-top: 0; }
+  .outline-card__countcell { grid-column: 2; grid-row: 1; min-height: 0; }
+}
+
+/* "⋯" reservation (spec 3.7): only a head whose <li> HAS a menu reserves the
+   button's width plus a gap, on top of the in-card --space-2 padding. Replaces
+   PR #397's `:has(> .outline-node__reset)` 7.5rem rule. */
+.outline-node:has(> .outline-menu) > .outline-node__group > summary.outline-node__head {
+  padding-inline-end: calc(32px + var(--space-2) + var(--space-2));
+}
+
+/* Count pair. Rows (depth >= 1) and the childless arm always show the short "X/Y"
+   (their long form is .visually-hidden in the markup). Card summaries ONLY swap:
+   the long form shows from 641px; on a phone it is visually hidden with the
+   .visually-hidden declarations -- never display: none, it stays in the a11y tree. */
+.outline-count {
+  flex: none; font-size: .8125rem; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.outline-node--card > .outline-node__group > summary .outline-count { font-size: .875rem; }
+@media (min-width: 641px) {
+  .outline-node--card > .outline-node__group > summary .outline-count__short { display: none; }
+}
+
+/* Type scale (spec 3.8), by POSITION, not kind. A depth-1 row (a chapter, or a
+   section directly under a part) is 15px/500 in the primary colour. The selector
+   is (0,6,1) / (0,5,1), above the (0,4,0) kind-based rules, so specificity -- not
+   source order -- makes a depth-1 section read like a chapter row. */
+.outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__group > .outline-node__head .outline-node__title,
+.outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__head .outline-node__title {
+  font-size: .9375rem; font-weight: 500;
+  text-transform: none; letter-spacing: normal; color: var(--text-primary);
+}
+.outline-node--card > .outline-node__group > ul > .outline-node > .outline-node__group > .outline-node__head.is-current .outline-node__title {
+  font-weight: 600;
+}
+/* Depth-1 and root-level unit rows share the depth-1 scale. :where() keeps this
+   at (0,2,0) so the is-current weight below wins on specificity. */
+:where(.outline-tree > ul, .outline-node--card > .outline-node__group > ul) > .outline-node--unit > .outline-unit > .outline-unit__title {
+  font-size: .9375rem; font-weight: 500;
+}
+.outline-unit.is-current > .outline-unit__title { font-weight: 600; }
+
+/* Hover inside a card: the default head hover paints --surface-raised, which IS
+   the card, so it would vanish. A half-sunken tint differs from both the card and
+   the full --surface-sunken of the highlighted row. */
+.outline-node--card summary.outline-node__head:hover,
+.outline-node--card .outline-unit:hover {
+  background: color-mix(in srgb, var(--surface-sunken) 50%, var(--surface-raised));
+}
+/* Highlighted row (D5): the full --surface-sunken and NO hover repaint. Declared
+   after the hover rules it ties. A unit row paints its band on the <li> so its tag
+   chips, tag-edit icon and notes badge sit inside it; the <a> stays transparent. */
+.outline-node--card summary.outline-node__head.is-current { background: var(--surface-sunken); }
+.outline-node--unit:has(> .outline-unit.is-current) {
+  background: var(--surface-sunken); border-radius: var(--radius-sm);
+}
+.outline-unit.is-current:hover,
+.outline-node--card .outline-unit.is-current:hover { background: transparent; }
+
+/* Status rings and the quiz icon: one 20x20 leading slot, so titles align across
+   rows inside and outside cards. Track --border-default, arc / done fill
+   --glance-fill (D9), tick --text-inverse (light tick on the darkened amber, dark
+   tick on the light amber). */
+.outline-ring { display: inline-flex; flex: none; width: 20px; height: 20px; align-self: center; }
+.outline-ring > svg { display: block; overflow: visible; }
+.outline-ring__track { fill: none; stroke: var(--border-default); stroke-width: 2.5; }
+.outline-ring__arc { fill: none; stroke: var(--glance-fill); stroke-width: 2.5; stroke-linecap: round; }
+.outline-ring__fill { fill: var(--glance-fill); }
+.outline-ring__tick {
+  fill: none; stroke: var(--text-inverse); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.outline-quiz-icon { flex: none; width: 20px; height: 20px; color: var(--primary); }
+/* D6: the "QUIZ" label IS the shared kind chip, restyled ONLY under the outline row
+   -- _resume_card.html and the unit articles render the same partial and keep
+   their look. Uppercase in CSS, so the "Quiz" msgid is untouched. */
+.outline-unit .unit-kind-chip--quiz {
+  background: var(--primary-subtle); color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border-default));
+  text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* Phone (<= 640px): card padding and title step down; D7 makes every head and
+   unit row >= 44px (desktop keeps the denser rows), and the card head's padding
+   centres a one-line title in a 44px row level with the 44px "⋯" square. */
+@media (max-width: 640px) {
+  .outline-node--card {
+    --card-line: 1.5rem; --card-pad-block: calc((44px - 1.5rem) / 2); --card-menu: 44px;
+    padding: var(--space-4);
+  }
+  .outline-tree .outline-node--card > .outline-node__group > .outline-node__head > .outline-node__title {
+    font-size: 1.125rem;
+  }
+  .outline-node:has(> .outline-menu) > .outline-node__group > summary.outline-node__head {
+    padding-inline-end: calc(44px + var(--space-2) + var(--space-2));
+  }
+  .outline-node--card > .outline-node__group > summary .outline-count__long {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .outline-node__head { min-height: 44px; align-content: center; }
+  .outline-unit { min-height: 44px; }
+}
+
+/* Forced colours, like the glance bars: tracks become a CanvasText outline, fills
+   Highlight. The rings are inline SVG, out of reach of the box rules, so they opt
+   out of adjustment and restate each part in system colours -- done / in progress
+   / not started stay distinguishable (the status words are screen-reader-only). */
+@media (forced-colors: active) {
+  .outline__bar, .outline-card__bar { background: transparent; border: 1px solid CanvasText; }
+  .outline__fill, .outline-card__fill { forced-color-adjust: none; background: Highlight; }
+  .outline-ring { forced-color-adjust: none; }
+  .outline-ring__track { stroke: CanvasText; }
+  .outline-ring__arc { stroke: Highlight; }
+  .outline-ring__fill { fill: Highlight; }
+  .outline-ring__tick { stroke: Canvas; }
+}
 
 /* --- Practice-state reset controls --- */
 .lesson-unit__reset { flex: none; }

@@ -166,7 +166,8 @@ def test_first_visit_opens_depth0_only(page, live_server):
     # resolves to ZERO elements and fails on a correct build. Nor
     # page.accessibility.snapshot(), which no longer exists in this version.
     # Only the negative assertion discriminates: under the T6 mutant the name
-    # becomes "Chapter A lessons: 0/1 Start fresh", which still matches
+    # becomes "Chapter A 0 of 1 lesson In progress Start fresh" (the count pair's
+    # aria-hidden "0/1" drops out, its long form stays), which still matches
     # ^Chapter A. The positive one is a liveness check that the locator resolves
     # and the name is computed at all.
     summary = page.locator(f"[data-node='{f['chap_a'].pk}'] > summary")
@@ -696,7 +697,7 @@ def test_nested_type_scale_and_guide_rule_survive_the_details_nesting(
         "`[data-node='${pk}'] > summary .outline-node__title`)).fontSize",
         str(f["chap_a"].pk),
     )
-    assert chapter_size == "17.6px", "1.1rem — the nested chapter type scale"
+    assert chapter_size == "15px", ".9375rem — the depth-1 row type scale (§3.8)"
 
     section_style = page.evaluate(
         "pk => { const el = document.querySelector("

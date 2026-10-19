@@ -172,10 +172,13 @@
     --surface-overlay: rgba(30,28,24,0.45);
     --scroll-edge: rgba(30,28,24,0.16);
     --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
-    /* The ONE deliberate divergence from :root. --text-inverse is only ever
-       `color:` on a `background: var(--primary)` (app.css's `.btn` and
+    /* The ONE deliberate divergence from :root. --text-inverse is `color:` on a
+       `background: var(--primary)` (app.css's `.btn` and
        `.btn--primary`; the unit-footer Next link, courses.css's
-       `.unit-foot__nav--primary`). Print strips backgrounds, so the paint that
+       `.unit-foot__nav--primary`), plus ONE consumer off --primary: the course
+       outline's done tick (app.css's `.outline-ring__tick`), a `stroke:` on the
+       --glance-fill done circle -- dark ink there prints at ~3.4:1 on the darkened
+       amber, so this override suits it too. Print strips backgrounds, so the paint that
        justifies an "inverse" colour is gone: :root's #FBF9F4 would print at
        1.05:1 on white -- the exact defect this whole block exists to fix, and the
        dark theme's own #1E1C18 (17.01:1) was accidentally the safe one. Both
