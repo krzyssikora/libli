@@ -801,7 +801,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
 }
 /* min-width: 0 here for the same reason as .outline-unit__title above. */
-.outline-node--unit > .outline-unit { flex: 1 1 auto; min-width: 0; }
+.outline-node--unit > .outline-unit { flex: 1 1 0; min-width: 0; }
 /* The [hidden] attr (UA display:none) must beat .outline-node--unit's display:flex —
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
    visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden].

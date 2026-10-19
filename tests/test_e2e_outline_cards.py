@@ -756,3 +756,19 @@ def test_tag_filter_hides_and_restores_a_card(page, live_server):
     expect(page.locator(f"#node-{n['Funkcje'].pk}")).to_be_visible()
     chip.click()
     expect(page.locator(f"#node-{n['Zbiory liczbowe'].pk}")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_unit_row_tag_icon_stays_on_the_title_row_on_a_phone(page, live_server):
+    long_title = " ".join(["Zastosowania liczb rzeczywistych i ich własności"] * 3)
+    _, course, n = _build(
+        "ctagrow",
+        [("part", "Zbiory", [("chapter", "Rozdział 1", [("lesson", long_title)])])],
+    )
+    _open(page, live_server, "ctagrow", course.slug, 360)
+    _expand_all(page)
+    li = f"#node-{n[long_title].pk}"
+    link = _box(page, f"{li} > a.outline-unit")
+    tags = _box(page, f"{li} > .outline-unit__edit-tags")
+    assert link["height"] >= 1.8 * _line_height(page, f"{li} .outline-unit__title")
+    assert _overlap_v(tags, link), (tags, link)

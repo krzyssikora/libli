@@ -151,3 +151,19 @@ def test_unit_row_keeps_chips_badges_and_links(client):
     kids = [c for c in qa.find_all(True, recursive=False)]
     assert kids[1]["class"][0] == "outline-unit__title"
     assert "unit-kind-chip--quiz" in kids[2]["class"]
+
+
+def test_bare_lesson_dict_without_ring_still_gets_no_quiz_icon():
+    from django.template.loader import render_to_string
+
+    course = CourseFactory()
+    lesson = _lesson(course, _container(course, "part"))
+    html = render_to_string(
+        "courses/_outline_node.html",
+        {
+            "item": {"node": lesson, "is_unit": True, "depth": 1, "tags": []},
+            "course": course,
+            "current_row_pk": None,
+        },
+    )
+    assert BeautifulSoup(html, "html.parser").select_one("svg.outline-quiz-icon") is None
