@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 03:20+0200\n"
+"POT-Creation-Date: 2026-10-19 14:34+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -4579,29 +4579,33 @@ msgid "Remember me"
 msgstr ""
 
 #: .\templates\account\login.html:42
+msgid "Forgot your password?"
+msgstr ""
+
+#: .\templates\account\login.html:44
 #: .\templates\account\password_reset_from_key_done.html:9
 #: .\templates\account\signup.html:22
 msgid "Sign in"
 msgstr ""
 
-#: .\templates\account\login.html:48
+#: .\templates\account\login.html:50
 msgid "or"
 msgstr ""
 
-#: .\templates\account\login.html:52
+#: .\templates\account\login.html:54
 #, python-format
 msgid "Continue with %(provider_name)s"
 msgstr ""
 
-#: .\templates\account\login.html:60
+#: .\templates\account\login.html:62
 msgid "No account?"
 msgstr ""
 
-#: .\templates\account\login.html:60 .\templates\account\signup.html:20
+#: .\templates\account\login.html:62 .\templates\account\signup.html:20
 msgid "Sign up"
 msgstr ""
 
-#: .\templates\account\login.html:62
+#: .\templates\account\login.html:64
 msgid "No account? Ask your administrator."
 msgstr ""
 

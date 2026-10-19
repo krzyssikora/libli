@@ -41,6 +41,25 @@ def test_login_page_renders_bespoke_card(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("signup_policy", ["open", "invite"])
+def test_login_links_to_password_reset(client, signup_policy):
+    # Self-service reset is the documented path for local accounts (phase-0 spec §1);
+    # shown under every signup policy: admin-made accounts have email too.
+    inst = Institution.load()
+    inst.signup_policy = signup_policy
+    inst.save()
+    html = client.get("/accounts/login/").content.decode()
+    assert '<p class="auth-forgot"><a href="/accounts/password/reset/">' in html
+    assert "Forgot your password?" in html
+
+
+@pytest.mark.django_db
+def test_login_reset_link_is_polish_in_pl(client):
+    html = client.get("/accounts/login/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert "Nie pamiętasz hasła?" in html
+
+
+@pytest.mark.django_db
 def test_login_preserves_next_redirect(client):
     resp = client.get("/accounts/login/?next=/dashboard/")
     html = resp.content.decode()
