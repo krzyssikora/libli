@@ -442,7 +442,7 @@ msgstr "Zapisanie na kurs"
 
 #: .\core\views.py:136
 msgid "Email me when I'm enrolled in a course."
-msgstr "Wyślij e-mail, gdy zostanę zapisany(a) na kurs."
+msgstr "Wyślij e-mail, gdy zostanę zapisany(-a) na kurs."
 
 #: .\core\views.py:137
 msgid "When I'm enrolled in a course."
