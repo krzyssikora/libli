@@ -1,6 +1,7 @@
 """Render-tier tests for the collapsible course outline (spec T1-T5)."""
 
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from courses.models import Enrollment
@@ -61,7 +62,7 @@ def test_depth0_open_deeper_closed(client):
 
 
 def test_reset_link_is_a_sibling_of_details_not_inside_the_summary(client):
-    """T3. Mutant: move the link back inside the <summary>.
+    """T3. Mutant: move the menu back inside the <summary>.
 
     Structural assertion. The motivation is that a <summary> is one button-role
     control whose accessible name concatenates its contents, and that a folded
@@ -77,12 +78,19 @@ def test_reset_link_is_a_sibling_of_details_not_inside_the_summary(client):
         reverse("courses:course_outline", kwargs={"slug": course.slug})
     ).content.decode()
 
-    _, _, rest = html.partition('<summary class="outline-node__head">')
-    summary, _, _ = rest.partition("</summary>")
-    assert "outline-node__chevron" in summary
-    assert "outline-node__title" in summary
-    assert "outline-node__reset" not in summary, "D9: the reset link is a sibling"
-    assert "outline-node__reset" in html, "...but it is still rendered"
+    summary = BeautifulSoup(html, "html.parser").select_one(
+        "summary.outline-node__head"
+    )
+    assert summary.select_one(".outline-node__chevron") is not None
+    assert summary.select_one(".outline-node__title") is not None
+    assert summary.select_one(".outline-node__reset") is None, (
+        "D9: the reset link is not inside the summary"
+    )
+    menu = summary.parent.find_next_sibling()
+    assert menu.name == "details" and "outline-menu" in menu["class"], (
+        "the menu holding the reset link is the <details>' next sibling"
+    )
+    assert menu.select_one("a.outline-node__reset") is not None
 
 
 def test_filter_opens_the_ancestors_of_a_match(client):
