@@ -88,9 +88,11 @@ DISPLAYS = [
 NUMBERS = [str(n) for n in range(1, 13)]
 
 PT = 0.75  # pt per CSS px at scale 1
-# Paper prints at 10pt against the screen's 16px (app.css), so a display that
-# fits prints at 10/12 of its screen size, not 1.
-PRINT_SCALE = 10 / 12
+# Paper prints at 10pt (app.css), not the screen's 16px. The screen span is
+# re-measured with the root at that size, so a display that fits prints at
+# scale 1 against it: glyph advances round differently at each size (4% at
+# 16px on Linux Chromium), which a span taken at 19.36px would read as a shrink.
+PRINT_ROOT = "10pt"
 TOL = 0.75  # pt
 
 
@@ -124,6 +126,22 @@ _PROBE_JS = """() => {
       font: getComputedStyle(html).fontSize,
     });
   });
+  return out;
+}"""
+
+
+# Each display's L-to-R probe span with the root at the print size, then the
+# root restored: the printed size's glyph rounding, on the screen layout.
+_AT_PRINT_SIZE_JS = """(root) => {
+  const html = document.documentElement, was = html.style.fontSize;
+  html.style.fontSize = root;
+  const x = (i, k) => {
+    const a = document.querySelector(`a[href="https://probe.invalid/d${i}-${k}"]`);
+    return a.getBoundingClientRect().left;
+  };
+  const n = document.querySelectorAll('[data-element-id] .katex-display').length;
+  const out = [...Array(n).keys()].map((i) => x(i, 'R') - x(i, 'L'));
+  html.style.fontSize = was;
   return out;
 }"""
 
@@ -251,6 +269,9 @@ def _print_pdf(page, live_server, slug, width, *, beforeprint_only=False):
     assert page.evaluate("document.fonts.check('1em KaTeX_Main')")
     screen = page.evaluate(_PROBE_JS)
     assert len(screen) == len(DISPLAYS), screen
+    at_print = page.evaluate(_AT_PRINT_SIZE_JS, PRINT_ROOT)
+    for s, p in zip(screen, at_print, strict=True):
+        s["span"] = p
     pdf = page.pdf(format="A4")
     out = os.environ.get("PRINT_WIDE_MATH_PDF_DIR")
     if out:
@@ -284,15 +305,12 @@ def test_wide_displays_print_inside_the_column(page, live_server, width):
         # display unrendered on screen has no span there; it shares the first
         # display's formula, so that span stands in.
         printed = ann[f"d{i}-R"][0] - ann[f"d{i}-L"][0]
-        span = (screen[i]["R"] - screen[i]["L"]) or (screen[0]["R"] - screen[0]["L"])
+        span = screen[i]["span"] or screen[0]["span"]
         scales[name] = printed / (span * PT)
         if not wide:
-            # 0.03, not tighter: glyph advances round at the printed ~16px
-            # (measured 2.3% short), as print.js's small-size note describes.
-            # A shrink or a dropped min() moves it far more than that.
-            assert abs(scales[name] - PRINT_SCALE) <= 0.03, (name, scales[name])
+            assert abs(scales[name] - 1) <= 0.015, (name, scales[name])
     wide_scales = [scales[d[0]] for d in DISPLAYS if d[3]]
-    assert all(s < 0.99 * PRINT_SCALE for s in wide_scales), scales
+    assert all(s < 0.99 for s in wide_scales), scales
     print(width, {n: round(s, 3) for n, s in scales.items()})
 
 
