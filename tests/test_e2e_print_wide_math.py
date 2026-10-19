@@ -308,7 +308,10 @@ def test_wide_displays_print_inside_the_column(page, live_server, width):
         span = screen[i]["span"] or screen[0]["span"]
         scales[name] = printed / (span * PT)
         if not wide:
-            assert abs(scales[name] - 1) <= 0.015, (name, scales[name])
+            # Screen and PDF still draw the same 16px text a little apart:
+            # measured 0.987-0.991 (Windows) and 0.984 (Linux CI). A dropped
+            # min() would blow a fitting display up to the column instead.
+            assert abs(scales[name] - 1) <= 0.025, (name, scales[name])
     wide_scales = [scales[d[0]] for d in DISPLAYS if d[3]]
     assert all(s < 0.99 for s in wide_scales), scales
     print(width, {n: round(s, 3) for n, s in scales.items()})
