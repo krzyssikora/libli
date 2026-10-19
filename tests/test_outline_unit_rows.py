@@ -166,4 +166,6 @@ def test_bare_lesson_dict_without_ring_still_gets_no_quiz_icon():
             "current_row_pk": None,
         },
     )
-    assert BeautifulSoup(html, "html.parser").select_one("svg.outline-quiz-icon") is None
+    assert (
+        BeautifulSoup(html, "html.parser").select_one("svg.outline-quiz-icon") is None
+    )

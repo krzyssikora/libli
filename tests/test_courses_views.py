@@ -352,8 +352,8 @@ def test_outline_passes_a_resume_target_for_an_enrolled_student(client):
 @pytest.mark.django_db
 def test_outline_offers_no_resume_target_to_a_non_enrolled_viewer(client):
     """can_access_course also admits authors/teachers/staff previewing a course they
-    are not taking; a next-step card or start button would be noise for them. This is also
-    the guard that pins the WIRING -- calling build_resume unconditionally.
+    are not taking; a next-step card or start button would be noise for them. This is
+    also the guard that pins the WIRING -- calling build_resume unconditionally.
     """
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
