@@ -942,15 +942,17 @@ def test_rt_t11_student_outline_chip_reads_lekcje(client):
     _polish(client)
     outline = reverse("courses:course_outline", kwargs={"slug": course.slug})
     _resp, soup = _get(client, outline)
-    chips = {
+    counts = {
         summary.select_one(".outline-node__title").get_text(strip=True): (
-            summary.select_one(".rollup").get_text(" ", strip=True)
+            summary.select_one(".outline-count__long").get_text(strip=True),
+            summary.select_one(".outline-count__short").get_text(strip=True),
         )
         for summary in soup.select("summary.outline-node__head")
-        if summary.select_one(".rollup") is not None
+        if summary.select_one(".outline-count__long") is not None
     }
-    assert chips["Czesc pierwsza"] == "lekcje: 1/2"
-    assert chips["Czesc druga"] == "lekcje: 0/1"
+    assert counts["Czesc pierwsza"] == ("1 z 2 lekcji", "1/2")
+    assert counts["Czesc druga"] == ("0 z 1 lekcji", "0/1")
+    assert not [r for r in soup.select(".rollup") if "lekcje:" in r.get_text()]
 
 
 def test_rt_t11_childless_outline_branch_chip_reads_lekcje():
@@ -980,8 +982,12 @@ def test_rt_t11_childless_outline_branch_chip_reads_lekcje():
             "courses/_outline_node.html",
             {"item": item, "course": _Course(), "note_counts": {}},
         )
-    chip = BeautifulSoup(html, "html.parser").select_one(".outline-node__head .rollup")
-    assert chip.get_text(" ", strip=True) == "lekcje: 1/2"
+    head = BeautifulSoup(html, "html.parser").select_one("div.outline-node__head")
+    assert head.select_one(".outline-count__long").get_text(strip=True) == (
+        "1 z 2 lekcji"
+    )
+    assert head.select_one(".outline-count__short").get_text(strip=True) == "1/2"
+    assert head.select_one(".rollup") is None
 
 
 def test_rt_t11_catalogs_drop_the_unused_msgids():

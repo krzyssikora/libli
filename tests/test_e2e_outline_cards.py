@@ -5,7 +5,6 @@ Polish UI where the longest labels matter. Marked e2e (run with -m e2e).
 """
 
 import os
-import re
 
 import pytest
 from playwright.sync_api import expect
@@ -270,10 +269,7 @@ def test_row_short_count_is_visible_on_desktop(page, live_server):
     expect(page.locator(f"{row} .outline-count__short")).to_be_visible()
     expect(page.locator(f"{card} .outline-count__short")).to_be_hidden()
     expect(page.locator(f"{card} .outline-count__long")).to_be_visible()
-    # Text pinned loosely: the Polish catalogue for this msgid lands in Task 7.
-    expect(page.locator(f"{card} .outline-count__long")).to_have_text(
-        re.compile(r"^0\D+1\D+$")
-    )
+    expect(page.locator(f"{card} .outline-count__long")).to_have_text("0 z 1 lekcji")
 
 
 # --- tablet ------------------------------------------------------------------
@@ -333,7 +329,7 @@ def test_tablet_card_head_is_two_rows(page, live_server):
     meta = _box(page, f"{head} .outline-card__meta")
     assert meta["y"] >= _bottom(name) - 0.5, (name, meta)
     long_sel = f"{head} .outline-count__long"
-    expect(page.locator(long_sel)).to_have_text(re.compile(r"^0\D+100\D+$"))
+    expect(page.locator(long_sel)).to_have_text("0 z 100 lekcji")
     rects = page.evaluate(
         "sel => document.querySelector(sel).getClientRects().length", long_sel
     )
