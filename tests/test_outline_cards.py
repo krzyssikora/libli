@@ -488,3 +488,30 @@ def test_every_li_keeps_its_node_id_and_filtered_cards_are_hidden(client):
     assert _li(soup, n["p2"]).has_attr("hidden")
     assert "outline-node--card" in _li(soup, n["p2"])["class"]
     assert not _li(soup, n["p1"]).has_attr("hidden")
+
+
+def test_depth1_row_meta_wraps_count_and_chip_only_when_present(client):
+    """The phone layout moves .outline-row__meta under the title, so it must hold
+    exactly the count and the "+N" chip, and be absent from a row with neither."""
+    course = CourseFactory()
+    part = _container(course, "part")
+    chapter = _container(course, "chapter", part, 0)
+    _lesson(course, chapter, 0)
+    extra = _lesson(course, chapter, 1, obligatory=False)
+    quiz_chapter = _container(course, "chapter", part, 1)
+    _quiz(course, quiz_chapter)
+    user = _student(client, course, "rowmeta")
+    _complete(user, extra)
+    soup = _soup(client, course)
+
+    head = _summary(soup, chapter)
+    meta = head.select_one(":scope > .outline-row__meta")
+    assert meta is not None
+    kids = [" ".join(k["class"]) for k in meta.find_all(recursive=False)]
+    assert kids == ["outline-count", "rollup rollup--additional"]
+    # the status word stays a direct child, after the meta, before the chevron
+    order = [k["class"][-1] for k in head.find_all(recursive=False)]
+    tail = ["outline-row__meta", "outline-status", "outline-node__chevron"]
+    assert order[-3:] == tail
+
+    assert _summary(soup, quiz_chapter).select_one(".outline-row__meta") is None

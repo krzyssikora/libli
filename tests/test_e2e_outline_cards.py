@@ -272,6 +272,102 @@ def test_row_short_count_is_visible_on_desktop(page, live_server):
     expect(page.locator(f"{card} .outline-count__long")).to_have_text("0 z 1 lekcji")
 
 
+def _rgb(css):
+    """A computed colour -- rgb()/rgba() or Chrome's color(srgb ...) for color-mix
+    -- as 0-255 floats."""
+    import re
+
+    nums = [float(x) for x in re.findall(r"[\d.]+", css)]
+    if css.startswith("color("):
+        return [v * 255 for v in nums[:3]]
+    return nums[:3]
+
+
+def _contrast(a, b):
+    def lum(c):
+        c = [v / 255 for v in c]
+        c = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _row_with_chip(username):
+    return _build(
+        username,
+        [
+            (
+                "part",
+                "Zbiory liczbowe",
+                [
+                    (
+                        "chapter",
+                        "Liczby rzeczywiste i ich własności",
+                        [
+                            ("lesson", "L1"),
+                            ("lesson", "L2"),
+                            ("lesson", "Extra", {"optional": True, "completed": True}),
+                        ],
+                    )
+                ],
+            )
+        ],
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_empty_course_bar_track_is_visible(page, live_server):
+    """A new student's course bar has no fill, so the track IS the bar. Mutant:
+    put the track back on --border-subtle (1.08:1 on the light page)."""
+    _, course, _ = _three_parts("cbartrack")
+    _open(page, live_server, "cbartrack", course.slug, 1280)
+
+    expect(page.locator(".outline__bar")).to_be_visible()
+    track = _rgb(_style(page, ".outline__bar", "backgroundColor"))
+    base = _rgb(_style(page, "body", "backgroundColor"))
+    assert _contrast(track, base) >= 1.5, (track, base)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_row_meta_drops_under_the_title_on_a_phone(page, live_server):
+    """At 360px a row with a count AND "+1 dodatkowe" gave the title ~95px. The
+    meta now takes its own line; the title keeps the row's width and the chevron
+    its first line. Mutant: drop the phone grid rule for depth-1 heads."""
+    _, course, n = _row_with_chip("crowmeta")
+    _open(page, live_server, "crowmeta", course.slug, 360)
+
+    head = _head(n["Liczby rzeczywiste i ich własności"].pk)
+    title_sel = f"{head} > .outline-node__title"
+    title = _box(page, title_sel)
+    summary = _box(page, head)
+    meta = _box(page, f"{head} > .outline-row__meta")
+    chevron = _box(page, f"{head} > .outline-node__chevron")
+    expect(page.locator(f"{head} .rollup--additional")).to_be_visible()
+    assert title["width"] >= summary["width"] * 0.6, (title, summary)
+    assert meta["y"] >= _bottom(title) - 1, (meta, title)
+    assert abs(meta["x"] - title["x"]) <= 1, (meta, title)
+    first_line = {"y": title["y"], "height": _line_height(page, title_sel)}
+    assert _overlap_v(chevron, first_line), (chevron, first_line)
+    assert page.evaluate(NO_HSCROLL)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_row_meta_stays_beside_the_title_on_desktop(page, live_server):
+    """Wide screens keep the one-line row: the wrapper is display: contents, so
+    the count and chip sit on the title's line. Mutant: drop that base rule."""
+    _, course, n = _row_with_chip("crowdesk")
+    _open(page, live_server, "crowdesk", course.slug, 1280)
+
+    head = _head(n["Liczby rzeczywiste i ich własności"].pk)
+    assert _style(page, f"{head} > .outline-row__meta", "display") == "contents"
+    title_sel = f"{head} > .outline-node__title"
+    title = _box(page, title_sel)
+    first_line = {"y": title["y"], "height": _line_height(page, title_sel)}
+    chip = _box(page, f"{head} .rollup--additional")
+    assert _overlap_v(chip, first_line), (chip, first_line)
+
+
 # --- tablet ------------------------------------------------------------------
 
 
