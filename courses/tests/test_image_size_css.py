@@ -42,10 +42,17 @@ RETAINED_DECL = re.compile(
 )
 
 PRINT_MM_DECL = {
-    "small": re.compile(r"\.el--image--small\s+img\s*\{[^}]*max-height:\s*45mm"),
-    "medium": re.compile(r"\.el--image--medium\s+img\s*\{[^}]*max-height:\s*75mm"),
-    "large": re.compile(r"\.el--image--large\s+img\s*\{[^}]*max-height:\s*110mm"),
-    "full": re.compile(r"\.el--image--full\s+img\s*\{[^}]*max-height:\s*170mm"),
+    "small": re.compile(r"\.el--image--small\s+img\s*\{[^}]*max-height:\s*34mm"),
+    "medium": re.compile(r"\.el--image--medium\s+img\s*\{[^}]*max-height:\s*56mm"),
+    "large": re.compile(r"\.el--image--large\s+img\s*\{[^}]*max-height:\s*82mm"),
+    "full": re.compile(r"\.el--image--full\s+img\s*\{[^}]*max-height:\s*128mm"),
+}
+# Paper: every preset box at 0.75 of its screen width (owner, 2026-10-20).
+PRINT_WIDTH_DECL = {
+    "small": re.compile(r"\.el--image--small\s*\{[^}]*max-width:\s*18\.75%"),
+    "medium": re.compile(r"\.el--image--medium\s*\{[^}]*max-width:\s*37\.5%"),
+    "large": re.compile(r"\.el--image--large\s*\{[^}]*max-width:\s*56\.25%"),
+    "full": re.compile(r"\.el--image--full\s*\{[^}]*max-width:\s*75%"),
 }
 
 
@@ -92,6 +99,8 @@ def test_print_block_bounds_all_four_presets_in_mm():
     block, _ = _print_block(css)
     for name, rx in PRINT_MM_DECL.items():
         assert rx.search(block), f"missing print max-height (mm) for {name}"
+    for name, rx in PRINT_WIDTH_DECL.items():
+        assert rx.search(block), f"missing print max-width (%) for {name}"
 
 
 def test_print_block_comes_after_screen_presets():

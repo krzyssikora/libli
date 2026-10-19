@@ -230,7 +230,7 @@ def test_print_keeps_the_float_unless_notes_print(page, live_server):
     cap = page.locator(f"{_block(joins[0])} img").evaluate(
         "e => getComputedStyle(e).maxHeight"
     )
-    assert cap.endswith("px") and abs(float(cap[:-2]) - 45 * 96 / 25.4) < 1  # 45mm
+    assert cap.endswith("px") and abs(float(cap[:-2]) - 34 * 96 / 25.4) < 1  # 34mm
     assert _float(page, joins[2]) == "none"
     assert (
         page.locator(f"{_block(joins[1])} .block-notes__pop").evaluate(

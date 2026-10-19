@@ -290,10 +290,10 @@ def test_mid_fade_slide_prints_opaque(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_print_is_compact_11pt_and_full_column(page, live_server):
-    """Paper gets 11pt text, not the screen's 16px (12pt), and the lesson spans
+def test_print_is_compact_10pt_and_full_column(page, live_server):
+    """Paper gets 10pt text, not the screen's 16px (12pt), and the lesson spans
     the whole printed column: the @page margin is the only side gap. Every libli
-    size is rem/em, so body text scales by exactly 11/12."""
+    size is rem/em, so body text scales by exactly 10/12."""
     course, unit, student = _dark_lesson("e2e-print-compact", "<p>Body text.</p>")
     _open_lesson(page, live_server, course, unit, student, ".el--text p")
     screen = page.evaluate(
@@ -313,7 +313,7 @@ def test_print_is_compact_11pt_and_full_column(page, live_server):
                   width: l.getBoundingClientRect().width, vw: innerWidth};
         }"""
     )
-    assert got["root"] == "14.6667px", got
-    assert abs(got["p"] - screen * 11 / 12) < 0.01, (screen, got)
+    assert got["root"] == "13.3333px", got
+    assert abs(got["p"] - screen * 10 / 12) < 0.01, (screen, got)
     assert got["pad"] == ["0px", "0px"], got
     assert got["width"] == got["vw"], got
