@@ -3551,6 +3551,10 @@ html.js .unit-strip__print { display: inline-flex; }
   .katex-display[data-print-fit] > .katex > .katex-html {
     font-size: min(1em, calc((100vw - 3rem - var(--print-fit-inset) - 2px) / var(--print-fit-em)));
   }
+  /* Paper cannot scroll, and a shrunk display still overflows by a pixel or two
+     (KaTeX's fixed-width struts do not scale), so the screen scroller's `auto`
+     printed a scrollbar under it. `hidden` clips at the same box, no bar. */
+  .katex-display { overflow-x: hidden; }
 
   /* gallery.js stacks every card absolutely at opacity 0 except the active one
      and sets inline min-heights; on paper every card prints, stacked. */
