@@ -155,19 +155,25 @@ blockquote {
 [data-theme="dark"] .el--image--small img { padding: var(--space-1); }
 [data-theme="dark"] .el--image--medium img { padding: var(--space-2); }
 
-/* dvh is meaningless on paper. These mm values are chosen to be sensible on A4
-   (297mm tall, ~250mm printable): `full` at 170mm leaves ~80mm for surrounding
-   text so an image never monopolises a page. NOT ratio-transferred from the screen
-   boxes — as fractions of full they are 26/44/65% against the screen's 30/45/60%.
+/* dvh is meaningless on paper. Paper boxes are 0.75 of the original print
+   design (owner, 2026-10-20: images printed larger than they need to be), on
+   both axes: width 18.75/37.5/56.25/75% of the column, height 34/56/82/128mm
+   (from 45/75/110/170mm, chosen for A4's ~267mm of content height). NOT
+   ratio-transferred from the screen boxes -- as fractions of full the heights
+   are 26/44/64% against the screen's 30/45/60%.
 
    This block MUST stay after the screen presets above: media queries add no
    specificity, so an earlier print block would lose the tie and every image would
    print at its dvh height. Same trap as the TOC-pin print block at :1009-1012. */
 @media print {
-  .el--image--small  img { max-height: 45mm; }
-  .el--image--medium img { max-height: 75mm; }
-  .el--image--large  img { max-height: 110mm; }
-  .el--image--full   img { max-height: 170mm; }
+  .el--image--small  { max-width: 18.75%; }
+  .el--image--medium { max-width: 37.5%; }
+  .el--image--large  { max-width: 56.25%; }
+  .el--image--full   { max-width: 75%; }
+  .el--image--small  img { max-height: 34mm; }
+  .el--image--medium img { max-height: 56mm; }
+  .el--image--large  img { max-height: 82mm; }
+  .el--image--full   img { max-height: 128mm; }
   /* tokens.css forces the light palette for print, but that only rewrites TOKENS --
      a RULE scoped to [data-theme="dark"] still matches, because the attribute stays on
      <html> when a dark-theme student prints. Undo the plate so their printout is
@@ -271,7 +277,7 @@ blockquote {
   .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)),
   section.prev-el:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)),
   :is(.callout__child, .tabs__child, .twocolumn__child, .spoiler__child, .ba__child):has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) {
-    float: right; max-width: 25%; margin: 0 0 var(--space-3) var(--space-4);
+    float: right; max-width: 18.75%; margin: 0 0 var(--space-3) var(--space-4);
   }
   .lesson-block:has(> .lesson-block__body > .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float,
   .quiz .slide > section[data-element-id]:has(> .el--image--float):not(:has(.block-notes__pop .note-card, .block-notes__pop .note-composer--edit, .block-notes__pop .note-composer--has-draft, .block-notes__pop .note-composer__error)) .el--image--float,

@@ -560,7 +560,7 @@ def test_print_media_uses_mm_caps(page, live_server, geom):
         "large": "centred-large",
         "full": "full-plain",
     }
-    mm_for_preset = {"small": 45, "medium": 75, "large": 110, "full": 170}
+    mm_for_preset = {"small": 34, "medium": 56, "large": 82, "full": 128}
 
     page.emulate_media(media="print")
 
