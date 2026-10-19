@@ -69,20 +69,19 @@ def test_some_done_label_plurals(client, total, expected):
 
 
 @pytest.mark.parametrize(
-    "lessons,sections,expected",
+    "n,expected",
     [
-        (1, 1, "1 lekcja w 1 dziale"),
-        (2, 2, "2 lekcje w 2 działach"),
-        (5, 5, "5 lekcji w 5 działach"),
+        (1, "1 lekcja w 1 dziale"),
+        (2, "2 lekcje w 2 działach"),
+        (5, "5 lekcji w 5 działach"),
     ],
 )
-def test_nothing_done_label_plurals(client, lessons, sections, expected):
+def test_nothing_done_label_plurals(client, n, expected):
     course = CourseFactory()
-    for i in range(sections):
+    for i in range(n):
         part = _container(course, "part", order=i)
         _lesson(course, part, 0)
-    assert lessons == sections  # one lesson per part
-    _student(client, course, f"nd{lessons}")
+    _student(client, course, f"nd{n}")
     assert _label(_polish_soup(client, course)) == expected
 
 
@@ -151,8 +150,8 @@ def test_svg_and_style_numbers_have_no_decimal_comma(client):
     arc = soup.select_one(
         f'details[data-node="{saved.pk}"] > summary circle.outline-ring__arc'
     )
-    assert arc["stroke-dasharray"] == "9 100"
     assert "," not in arc["stroke-dasharray"]
+    assert arc["stroke-dasharray"] == "9 100"
     fill = soup.select_one(f"#node-{part.pk} .outline-card__fill")
-    assert fill["style"] == "width: 25%"
     assert "," not in fill["style"]
+    assert fill["style"] == "width: 25%"
