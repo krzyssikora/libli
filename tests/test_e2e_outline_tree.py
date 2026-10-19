@@ -625,7 +625,9 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
     # NOT `> a.outline-node__reset`: under the mutant the link moves inside the
     # <summary> and a direct-child locator would fail to resolve, reddening this
     # test on T3's structural point instead of on the storage invariant it exists
-    # to prove.
+    # to prove. The link lives in the row's "⋯" menu (D3a): open it first.
+    menu = page.locator(f"#node-{f['chap_a'].pk} > details.outline-menu > summary")
+    menu.click()
     link = page.locator(f"#node-{f['chap_a'].pk} a.outline-node__reset")
     expect(link).to_be_visible()
     link.click()
@@ -641,11 +643,21 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
     reset_url = f"/courses/{f['course'].slug}/reset/{f['chap_a'].pk}/"
     expect(link).to_have_attribute("href", re.compile(re.escape(reset_url)))
 
-    # Keyboard reachability. Collapse chapter A first: with the group OPEN the
-    # next tab stop after the summary is the unit link INSIDE the disclosure, not
-    # the sibling reset link — D9 puts that link after </details> in DOM order.
+    # Keyboard reachability. Close the menu the click path left open, and
+    # collapse chapter A: with the group OPEN the next tab stop after the summary
+    # is the unit link INSIDE the disclosure, not the sibling "⋯" menu — D9 puts
+    # the menu after </details> in DOM order.
+    menu.click()
     page.locator(_title_sel(f["chap_a"].pk)).click()
     page.locator(f"[data-node='{f['chap_a'].pk}'] > summary").focus()
+    page.keyboard.press("Tab")
+    assert page.evaluate(
+        "() => document.activeElement.matches('details.outline-menu > summary')"
+    )
+    page.keyboard.press("Enter")
+    assert page.evaluate("() => document.activeElement.parentElement.open"), (
+        "Enter opens the menu"
+    )
     page.keyboard.press("Tab")
     assert page.evaluate(
         "() => document.activeElement.classList.contains('outline-node__reset')"
@@ -733,6 +745,14 @@ def test_toggle_all_stays_hidden_when_there_are_no_groups(page, live_server):
     # stopped rendering the button entirely would pass without this count check.
     expect(button).to_have_count(1)
     expect(button).to_be_hidden()
+    # The button now sits inside a hidden list header (section_count == 0), so
+    # visibility alone no longer sees the mutant: read the button's own flag.
+    assert (
+        page.evaluate(
+            "() => document.querySelector('[data-outline-toggle-all]').hidden"
+        )
+        is True
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -790,20 +810,26 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_head_buttons_share_one_vertical_level(page, live_server):
-    """The four head buttons line up. .outline__head is align-items: baseline,
-    and an inline-flex button whose first item is an <svg class="icon"> takes its
-    baseline from the svg's bottom edge, so "My results" and "My notes" rode ~2px
-    above "Expand all" and "Start fresh". Mutant: drop the align-self: center
-    rule on the head's buttons -- the tops differ and this goes red."""
+    """ "My results", "My notes" and the "⋯" summary in .outline__actions line up.
+    An inline-flex button whose first item is an <svg class="icon"> takes its
+    baseline from the svg's bottom edge, so under baseline alignment the icon
+    buttons ride off the "⋯". CENTRES, not tops: the summary is 32px and
+    .btn--small ~31px.
+
+    Mutant: `align-items: baseline` on .outline__actions — MEASURED (1280px) the
+    centres then differ by exactly 1.0px, so the tolerance is 0.5px, not 1px.
+    Dropping `align-items: center` outright CANNOT redden this: the flex default
+    (stretch) stretches the buttons to the summary's 32px and re-centres them."""
     f = _course_with_two_chapters("headalign", started=True)
     _login(page, live_server, "headalign")
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
     expect(page.locator("[data-outline-toggle-all]")).to_be_visible()
 
-    tops = page.eval_on_selector_all(
-        ".outline__head > .btn",
-        "els => els.map(e => [e.textContent.trim(), e.getBoundingClientRect().top])",
+    centres = page.eval_on_selector_all(
+        ".outline__actions > .btn, .outline__actions summary",
+        "els => els.map(e => { const r = e.getBoundingClientRect();"
+        "  return [e.textContent.trim(), r.top + r.height / 2]; })",
     )
-    assert len(tops) == 4, tops
-    assert max(t for _, t in tops) - min(t for _, t in tops) <= 0.5, tops
+    assert len(centres) == 3, centres
+    assert max(c for _, c in centres) - min(c for _, c in centres) <= 0.5, centres

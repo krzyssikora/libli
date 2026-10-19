@@ -123,11 +123,25 @@ def test_outline_fits_a_phone(page, live_server, width):
 
 @pytest.mark.django_db(transaction=True)
 def test_outline_head_stays_on_one_line_on_desktop(page, live_server):
+    """D1 puts the title alone in its column: the actions sit in the top row,
+    right of the title column, bottom-aligned with the bar + label row, and above
+    the resume card."""
     _open_outline(page, live_server, 1280)
 
     h1 = page.locator(".outline__title").bounding_box()
-    buttons = page.locator(".outline__head > .btn").all()
-    assert len(buttons) == 4
-    for i, btn in enumerate(buttons):
-        box = btn.bounding_box()
-        assert box["y"] < h1["y"] + h1["height"], (i, h1, box)
+    progress = page.locator(".outline__progress").bounding_box()
+    card = page.locator(".outline__head > .resume").bounding_box()
+    expect(page.locator(".outline__actions > *")).to_have_count(3)
+    actions = page.locator(".outline__actions").bounding_box()
+    assert actions["x"] >= h1["x"] + h1["width"] - 1, (h1, actions)
+    assert actions["y"] >= h1["y"] - 1, (h1, actions)
+    # The bar and its label share ONE row (.outline__progress), so that row's
+    # bottom is the bar row's bottom. Measured on the "⋯" summary (the tallest
+    # action), not the actions box: a stretched box would end there too.
+    bar_row_bottom = progress["y"] + progress["height"]
+    summary = page.locator(".outline__actions summary").bounding_box()
+    assert abs(summary["y"] + summary["height"] - bar_row_bottom) <= 2, (
+        progress,
+        summary,
+    )
+    assert actions["y"] + actions["height"] <= card["y"] + 0.5, (actions, card)
