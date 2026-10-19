@@ -110,10 +110,10 @@
      scroll, so a formula wider than the printed column was clipped -- equation
      numbers first, since #390 puts them after the formula. The print CSS
      shrinks such a display with
-       font-size: min(1em, (100vw - 3rem - inset) / width-in-em)
+       font-size: min(1em, (100vw - inset) / width-in-em)
      on its .katex-html. In print `vw` is the printed content width (the page
-     box minus the @page margins) whatever the screen was; 3rem is the lesson's
-     own print padding; `inset` is the room everything between the lesson's
+     box minus the @page margins) whatever the screen was, and the lesson
+     spans it (no side padding in print); `inset` is the room everything between the lesson's
      content box and the display takes (a deck slide's padding, a callout, a
      tab panel...), measured here from the screen layout. Every KaTeX length is
      in em, so the width in em is nearly a constant of the formula (see the
@@ -216,10 +216,9 @@
        it, keeping the largest width per em: an over-shrink, never a clip.
        Repeat while a wider measurement pushes the size below what was
        sampled. Wider paper prints larger, where the width in em is no worse. */
-    var rem3 = 3 * parseFloat(getComputedStyle(document.documentElement).fontSize);
     for (var pass = 0; pass < 6; pass++) {
       var todo = found.filter(function (f) {
-        f.size = (A4_COLUMN_PX - rem3 - Math.max(0, f.inset) - 2) / f.em;
+        f.size = (A4_COLUMN_PX - Math.max(0, f.inset) - 2) / f.em;
         return f.em > 0 && f.size < f.low;
       });
       if (!todo.length) break;

@@ -287,3 +287,33 @@ def test_mid_fade_slide_prints_opaque(page, live_server):
         "is missing (inline style wins) or transition:none is missing (the reveal "
         "only starts a 320ms animation the snapshot samples mid-way)"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_print_is_compact_11pt_and_full_column(page, live_server):
+    """Paper gets 11pt text, not the screen's 16px (12pt), and the lesson spans
+    the whole printed column: the @page margin is the only side gap. Every libli
+    size is rem/em, so body text scales by exactly 11/12."""
+    course, unit, student = _dark_lesson("e2e-print-compact", "<p>Body text.</p>")
+    _open_lesson(page, live_server, course, unit, student, ".el--text p")
+    screen = page.evaluate(
+        "parseFloat(getComputedStyle(document.querySelector('.el--text p')).fontSize)"
+    )
+
+    # A4 at the 15mm @page margin: a 180mm column, 680px.
+    page.set_viewport_size({"width": 680, "height": 900})
+    page.emulate_media(media="print")
+    got = page.evaluate(
+        """() => {
+          const l = document.querySelector('.lesson'), cs = getComputedStyle(l);
+          const p = document.querySelector('.el--text p');
+          return {root: getComputedStyle(document.documentElement).fontSize,
+                  p: parseFloat(getComputedStyle(p).fontSize),
+                  pad: [cs.paddingLeft, cs.paddingRight],
+                  width: l.getBoundingClientRect().width, vw: innerWidth};
+        }"""
+    )
+    assert got["root"] == "14.6667px", got
+    assert abs(got["p"] - screen * 11 / 12) < 0.01, (screen, got)
+    assert got["pad"] == ["0px", "0px"], got
+    assert got["width"] == got["vw"], got

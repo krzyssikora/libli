@@ -3514,6 +3514,11 @@ html.js .unit-strip__print { display: inline-flex; }
   /* Block flow, scoped by attribute: manage/review_submission.html reuses the
      bare `.unit-shell` wrapper for its own two-column layout. */
   [data-unit-shell], [data-unit-shell] > .unit-shell__main { display: block; }
+  /* The @page margin is the paper's side gap; the screen's 1.5rem on top of
+     it only narrowed the printed column. print.js and the wide-maths rule
+     below rely on this being 0. */
+  .unit-shell__main > .lesson,
+  .unit-shell__main > .quiz { padding-inline: 0; }
 
   /* D6: never split an image (with its caption) or a single question. Long
      text and tables flow normally. img.cell-img is an atomic box anyway;
@@ -3545,11 +3550,11 @@ html.js .unit-strip__print { display: inline-flex; }
      paper cannot scroll, so it was clipped, equation numbers first. print.js
      flags each display on beforeprint with its natural width in em and the
      room its containers take around it; in print `100vw` is the printed
-     content width and 3rem the lesson's print padding (`.unit-shell__main >
-     .lesson`, 1.5rem a side). min() leaves a display that fits at 1em. NOT a
-     container query: style containment would restart the equation numbers. */
+     content width, which the lesson spans (no side padding in print, above).
+     min() leaves a display that fits at 1em. NOT a container query: style
+     containment would restart the equation numbers. */
   .katex-display[data-print-fit] > .katex > .katex-html {
-    font-size: min(1em, calc((100vw - 3rem - var(--print-fit-inset) - 2px) / var(--print-fit-em)));
+    font-size: min(1em, calc((100vw - var(--print-fit-inset) - 2px) / var(--print-fit-em)));
   }
   /* Paper cannot scroll, and a shrunk display still overflows by a pixel or two
      (KaTeX's fixed-width struts do not scale), so the screen scroller's `auto`

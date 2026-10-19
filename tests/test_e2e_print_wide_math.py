@@ -6,7 +6,7 @@ equation numbers first, since #390 lays them out after the formula.
 
 THE FIX. print.js (beforeprint) flags every display in block flow with its
 natural width in em and its containers' horizontal inset; the print CSS sets
-its `.katex-html` to `min(1em, (100vw - 3rem - inset - 2px) / width-in-em)`.
+its `.katex-html` to `min(1em, (100vw - inset - 2px) / width-in-em)`.
 In print `vw` is the printed content width. A display that fits keeps 1em and
 prints exactly as before. NOT a container query: style containment scoped
 KaTeX's equation counter per display, and (4)(5)(6) printed as (1)(1)(1).
@@ -59,11 +59,12 @@ WIDE_TAGGED = (
     r" = \sqrt{((2-y_A)-(2-y_B))^2+((x_A+1)-(x_B+1))^2}"
     r"\\ &= \sqrt{(-y_A+y_B)^2+(x_A-x_B)^2}\\ &= |AB|\end{align}"
 )
-# No number at all (~610px: just over the ~558px printed column).
+# No number at all, just over the printed column (A4 at 11pt: 680px, ~38em).
 WIDE_PLAIN = (
     r"\sum_{k=1}^{n} \left(a_k + b_k\right)^2 = \sum_{k=1}^{n} a_k^2"
     r" + 2\sum_{k=1}^{n} a_k b_k + \sum_{k=1}^{n} b_k^2"
     r" = \sum_{k=1}^{n} a_k^2 + 2\sum_{k=1}^{n} a_k b_k + \sum_{k=1}^{n} b_k^2"
+    r" + 2\sum_{k=1}^{n} a_k b_k + \sum_{k=1}^{n} b_k^2"
 )
 # A letter tag, so it never joins the (n) auto-number sequence.
 FIT_TAGGED = r"x = \frac{a}{b} + y \tag{A}"
@@ -87,6 +88,9 @@ DISPLAYS = [
 NUMBERS = [str(n) for n in range(1, 13)]
 
 PT = 0.75  # pt per CSS px at scale 1
+# Paper prints at 11pt against the screen's 16px (app.css), so a display that
+# fits prints at 11/12 of its screen size, not 1.
+PRINT_SCALE = 11 / 12
 TOL = 0.75  # pt
 
 
@@ -283,9 +287,9 @@ def test_wide_displays_print_inside_the_column(page, live_server, width):
         span = (screen[i]["R"] - screen[i]["L"]) or (screen[0]["R"] - screen[0]["L"])
         scales[name] = printed / (span * PT)
         if not wide:
-            assert abs(scales[name] - 1) <= 0.015, (name, scales[name])
+            assert abs(scales[name] - PRINT_SCALE) <= 0.015, (name, scales[name])
     wide_scales = [scales[d[0]] for d in DISPLAYS if d[3]]
-    assert all(s < 0.99 for s in wide_scales), scales
+    assert all(s < 0.99 * PRINT_SCALE for s in wide_scales), scales
     print(width, {n: round(s, 3) for n, s in scales.items()})
 
 
