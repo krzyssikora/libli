@@ -43,7 +43,17 @@ STUB = """
   }
   const fakeSub = () => S.sub ? {
     endpoint: S.sub, toJSON: () => ({ endpoint: S.sub, keys: S.keys }),
-    unsubscribe: () => { delete S.sub; save(); return Promise.resolve(true); }
+    unsubscribe: () => {
+      // "slow": the browser API takes a while (a page that leaves first kills it);
+      // "hang": it never settles.
+      if (cfg.unsub === "hang") return new Promise(() => {});
+      if (cfg.unsub === "slow") {
+        return new Promise((r) => setTimeout(() => {
+          delete S.sub; save(); r(true);
+        }, 300));
+      }
+      delete S.sub; save(); return Promise.resolve(true);
+    }
   } : null;
   const pm = {
     getSubscription: () => Promise.resolve(fakeSub()),
@@ -173,6 +183,37 @@ def test_off_to_on_to_off_posts_and_persists(page, context, live_server):
         page.locator("input[data-push-switch]").uncheck(force=True)
     page.wait_for_selector('html[data-push-reported="off"]')
     assert not PushSubscription.objects.exists()
+
+
+def _turn_on(page, live_server):
+    box = _settings(page, live_server, "off")
+    with page.expect_request("**/notifications/push/subscribe/"):
+        box.check(force=True)
+    page.wait_for_selector('html[data-push-reported="on"]')
+
+
+def _log_out(page, timeout=None):
+    page.locator("[data-account-menu] [data-menu-trigger]").click()
+    page.locator("form[data-logout-form] button").click()
+    # The login form renders only for an anonymous visitor: logged out, not leaving.
+    page.wait_for_selector("form[action*='login'] input[name='login']", timeout=timeout)
+
+
+def test_logout_waits_for_the_browser_unsubscribe(page, context, live_server):
+    # mutant: submit without waiting -> the slow unsubscribe dies with the page
+    _configure(context, live_server, unsub="slow")
+    _login(page, live_server)
+    _turn_on(page, live_server)
+    _log_out(page)
+    assert page.evaluate("() => !JSON.parse(localStorage.__pushStub || '{}').sub")
+
+
+def test_a_hung_unsubscribe_does_not_block_logout(page, context, live_server):
+    # mutant: no LOGOUT_WAIT_MS fallback -> the logout never leaves the page
+    _configure(context, live_server, unsub="hang")
+    _login(page, live_server)
+    _turn_on(page, live_server)
+    _log_out(page, timeout=5000)
 
 
 def test_subscribe_500_rolls_back_and_shows_the_error(page, context, live_server):
@@ -460,5 +501,31 @@ def test_worker_shows_a_delivered_push(
                 break
             page.wait_for_timeout(100)
         assert shown
+    finally:
+        browser.close()
+
+
+def test_logout_closes_libli_notifications_in_the_tray(
+    browser_type, browser_type_launch_args, live_server
+):
+    # Full Chromium for the same reason as test_worker_shows_a_delivered_push.
+    # mutant: drop the getNotifications() close -> the notification outlives the logout
+    browser = browser_type.launch(**{**browser_type_launch_args, "channel": "chromium"})
+    try:
+        context = browser.new_context()
+        context.grant_permissions(["notifications"], origin=live_server.url)
+        page = context.new_page()
+        _login(page, live_server)
+        count = """async () => {
+          const reg = await navigator.serviceWorker.ready;
+          return (await reg.getNotifications()).length;
+        }"""
+        page.evaluate(
+            "async () => { const reg = await navigator.serviceWorker.ready;"
+            " await reg.showNotification('T', { tag: 'libli-1' }); }"
+        )
+        assert page.evaluate(count) == 1
+        _log_out(page)
+        assert page.evaluate(count) == 0
     finally:
         browser.close()

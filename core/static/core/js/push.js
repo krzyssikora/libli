@@ -211,12 +211,39 @@
     }
   });
 
-  // Logout: tidy the browser best-effort; the server receiver is the guarantee.
+  // Logout: tidy the browser BEFORE leaving -- unsubscribe (the push service then drops
+  // anything still queued for this device) and close libli's notifications left in the
+  // tray (a shared device). Held at most LOGOUT_WAIT_MS, so a hung browser API never
+  // blocks logging out; the server's logout receiver remains the guarantee.
+  var LOGOUT_WAIT_MS = 1000;
   document.addEventListener("submit", function (e) {
-    if (!e.target.matches || !e.target.matches("form[data-logout-form]")) return;
+    var form = e.target;
+    if (!form.matches || !form.matches("form[data-logout-form]")) return;
+    e.preventDefault();
+    var sent = false;
+    function send() {
+      if (sent) return;
+      sent = true;
+      // The prototype's submit() fires no submit event, so this handler never re-runs.
+      HTMLFormElement.prototype.submit.call(form);
+    }
+    setTimeout(send, LOGOUT_WAIT_MS);
     registration().then(function (reg) {
-      return reg && reg.pushManager.getSubscription();
-    }).then(function (sub) { if (sub) sub.unsubscribe(); }).catch(function () {});
+      if (!reg) return null;
+      // Each step on its own: a missing API (a throw) must not skip the other.
+      return Promise.all([
+        Promise.resolve().then(function () {
+          return reg.pushManager.getSubscription();
+        }).then(function (sub) {
+          return sub && sub.unsubscribe();
+        }).catch(function () {}),
+        Promise.resolve().then(function () {
+          return reg.getNotifications();
+        }).then(function (list) {
+          list.forEach(function (n) { n.close(); });
+        }).catch(function () {})
+      ]);
+    }).catch(function () {}).then(send);
   });
 
   refresh();
