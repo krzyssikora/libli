@@ -87,7 +87,31 @@ def _open_outline(page, live_server, width):
 def _head(page, part):
     sel = f"[data-node='{part.pk}'] > summary"
     box = lambda s: page.locator(f"{sel} {s}").bounding_box()  # noqa: E731
-    return box(".outline-node__chevron"), box(".outline-node__title"), box(".rollup")
+    return {
+        "row": box(""),
+        "badge": box(".outline-card__num"),
+        "title": box("> .outline-node__title"),
+        "meta": box(".outline-card__meta"),
+        "count": box(".outline-card__countcell"),
+        "chevron": box("> .outline-node__chevron"),
+    }
+
+
+def _right(box):
+    return box["x"] + box["width"]
+
+
+def _bottom(box):
+    return box["y"] + box["height"]
+
+
+def _overlaps(a, b):
+    return (
+        a["x"] < _right(b)
+        and b["x"] < _right(a)
+        and a["y"] < _bottom(b)
+        and b["y"] < _bottom(a)
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -99,35 +123,74 @@ def test_outline_fits_a_phone(page, live_server, width):
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
 
-    # Every title starts on its chevron's line, beside it -- never below it.
+    # Card heads (spec §3.2 phone grid): every title starts on its badge's line,
+    # right of the badge; the bar + count row sits directly below the title,
+    # inside the card.
     for title, part in parts.items():
-        chevron, name, _ = _head(page, part)
-        assert name["y"] < chevron["y"] + chevron["height"], (title, chevron, name)
-        assert name["x"] >= chevron["x"] + chevron["width"], (title, chevron, name)
+        h = _head(page, part)
+        card = page.locator(f"#node-{part.pk}").bounding_box()
+        assert h["title"]["y"] < _bottom(h["badge"]), (title, h)
+        assert h["title"]["x"] >= _right(h["badge"]), (title, h)
+        assert 0 <= h["meta"]["y"] - _bottom(h["title"]) <= 12, (title, h)
+        assert h["meta"]["x"] >= card["x"] and _right(h["meta"]) <= _right(card), (
+            title,
+            card,
+            h["meta"],
+        )
 
-    # Without a "Start fresh" link nothing is reserved: the chip reaches the
-    # row's end, and a short title keeps it on its own line.
+    # Reservation: a head without a menu reserves nothing -- its chevron reaches
+    # the summary's content-box edge; a head with one keeps its chevron >= 44px
+    # clear of the row end, and the "⋯" overlaps neither chevron nor count.
     for title in (LONG, LONGER, *SHORT):
-        _, name, chip = _head(page, parts[title])
-        row = page.locator(f"[data-node='{parts[title].pk}'] > summary").bounding_box()
-        assert chip["x"] + chip["width"] >= row["x"] + row["width"] - 2, (title, chip)
-        if title in SHORT:
-            assert chip["y"] < name["y"] + name["height"], (title, name, chip)
+        h = _head(page, parts[title])
+        pad_end = page.locator(f"[data-node='{parts[title].pk}'] > summary").evaluate(
+            "el => parseFloat(getComputedStyle(el).paddingRight)"
+        )
+        content_edge = _right(h["row"]) - pad_end
+        assert abs(_right(h["chevron"]) - content_edge) <= 2, (title, h, pad_end)
+    h = _head(page, parts[SAVED])
+    assert _right(h["chevron"]) <= _right(h["row"]) - 44, (SAVED, h)
+    menu = page.locator(
+        f"#node-{parts[SAVED].pk} > .outline-menu > summary"
+    ).bounding_box()
+    assert not _overlaps(menu, h["chevron"]), (menu, h)
+    assert not _overlaps(menu, h["count"]), (menu, h)
 
-    # The course title has its line to itself; the buttons sit beneath it.
+    # The course title has its line to itself: the bar, the resume card and every
+    # action (the "⋯" summary included) start below it.
     h1 = page.locator(".outline__title").bounding_box()
-    for i, btn in enumerate(page.locator(".outline__head > .btn").all()):
-        box = btn.bounding_box()
-        assert box["y"] >= h1["y"] + h1["height"] - 1, (i, h1, box)
+    below = [".outline__progress", ".outline__head > .resume"]
+    for sel in below:
+        box = page.locator(sel).bounding_box()
+        assert box["y"] >= _bottom(h1) - 1, (sel, h1, box)
+    actions = page.locator(".outline__actions > .btn, .outline__actions summary")
+    expect(actions).to_have_count(3)  # results, notes, "⋯" (saved work)
+    for i, action in enumerate(actions.all()):
+        box = action.bounding_box()
+        assert box["y"] >= _bottom(h1) - 1, (i, h1, box)
 
 
 @pytest.mark.django_db(transaction=True)
 def test_outline_head_stays_on_one_line_on_desktop(page, live_server):
+    """D1 puts the title alone in its column: the actions sit in the top row,
+    right of the title column, bottom-aligned with the bar + label row, and above
+    the resume card."""
     _open_outline(page, live_server, 1280)
 
     h1 = page.locator(".outline__title").bounding_box()
-    buttons = page.locator(".outline__head > .btn").all()
-    assert len(buttons) == 4
-    for i, btn in enumerate(buttons):
-        box = btn.bounding_box()
-        assert box["y"] < h1["y"] + h1["height"], (i, h1, box)
+    progress = page.locator(".outline__progress").bounding_box()
+    card = page.locator(".outline__head > .resume").bounding_box()
+    expect(page.locator(".outline__actions > *")).to_have_count(3)
+    actions = page.locator(".outline__actions").bounding_box()
+    assert actions["x"] >= h1["x"] + h1["width"] - 1, (h1, actions)
+    assert actions["y"] >= h1["y"] - 1, (h1, actions)
+    # The bar and its label share ONE row (.outline__progress), so that row's
+    # bottom is the bar row's bottom. Measured on the "⋯" summary (the tallest
+    # action), not the actions box: a stretched box would end there too.
+    bar_row_bottom = progress["y"] + progress["height"]
+    summary = page.locator(".outline__actions summary").bounding_box()
+    assert abs(summary["y"] + summary["height"] - bar_row_bottom) <= 2, (
+        progress,
+        summary,
+    )
+    assert actions["y"] + actions["height"] <= card["y"] + 0.5, (actions, card)

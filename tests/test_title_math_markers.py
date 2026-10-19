@@ -305,15 +305,27 @@ def test_resume_card_title_and_crumbs_are_marked(client):
     chapter = ContentNodeFactory(
         course=course, kind="chapter", unit_type=None, order=0, title=r"Rozdz \(x^2\)"
     )
+    done = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
+    )
     ContentNodeFactory(
         course=course,
         kind="unit",
         unit_type="lesson",
         parent=chapter,
-        order=0,
+        order=1,
         title=r"Unit \(y\)",
     )
     EnrollmentFactory(student=user, course=course)
+    # A fresh student (`start`) gets the D2 button, not the card: seed one completed
+    # earlier unit so the state is `next` and the card's marker coverage survives.
+    from django.utils import timezone
+
+    from tests.factories import UnitProgressFactory
+
+    UnitProgressFactory(
+        student=user, unit=done, completed=True, completed_at=timezone.now()
+    )
     body = client.get(
         reverse("courses:course_outline", kwargs={"slug": "mm"})
     ).content.decode()

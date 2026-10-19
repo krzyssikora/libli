@@ -176,6 +176,11 @@
 
   // CAPTURE phase: `toggle` does not bubble, so a plain delegated listener
   // silently never fires and the label just stops updating.
+  // The "⋯" menus are <details class="outline-menu"> too, so every menu
+  // open/close also lands here. Harmless ONLY because syncLabel reads the
+  // `groups` array captured from .outline-node__group at init: keep it that
+  // way — never re-query a generic `details` selector, or a menu counts as a
+  // group. (No outside-click/Escape close: a menu closes on its own "⋯".)
   tree.addEventListener("toggle", syncLabel, true);
 
   // ── tag filter (dispatcher lives in tags.js) ─────────────────────────────

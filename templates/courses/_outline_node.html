@@ -1,9 +1,12 @@
-{% load i18n notes_extras %}
-<li class="outline-node outline-node--{{ item.node.kind }}" id="node-{{ item.node.pk }}"{% if item.tag_hidden %} hidden{% endif %}
+{% load i18n l10n notes_extras %}{% get_current_language as LANGUAGE_CODE %}
+<li class="outline-node outline-node--{{ item.node.kind }}{% if not item.is_unit and item.depth == 0 and item.children %} outline-node--card{% endif %}" id="node-{{ item.node.pk }}"{% if item.tag_hidden %} hidden{% endif %}
     {% if item.is_unit %}data-unit="{{ item.node.pk }}" data-tags="{% for t in item.tags %}{{ t.pk }} {% endfor %}"{% endif %}>
   {% if item.is_unit %}
-    <a class="outline-unit{% if item.completed %} outline-unit--done{% endif %}" lang="{{ course.language }}"
+    {% comment %}Unit highlight keys on current_row_pk, never on the resume node: a
+       depth-2 resume target lights its depth-1 container, not itself.{% endcomment %}
+    <a class="outline-unit{% if item.completed %} outline-unit--done{% endif %}{% if item.node.pk == current_row_pk %} is-current{% endif %}" lang="{{ course.language }}"{% if item.node.pk == current_row_pk %} aria-current="step"{% endif %}
        href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">
+      {% if item.node.unit_type != "quiz" %}<span class="outline-ring outline-ring--{{ item.ring|default:"none" }}" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20">{% if item.ring == "done" %}<circle class="outline-ring__fill" cx="10" cy="10" r="9"/><path class="outline-ring__tick" d="M6 10.5l2.5 2.5 5.5-6"/>{% else %}<circle class="outline-ring__track" cx="10" cy="10" r="8"/>{% if item.ring == "progress" %}<circle class="outline-ring__arc" cx="10" cy="10" r="8" pathLength="100" stroke-dasharray="{{ arc_floor_pct|unlocalize }} 100" transform="rotate(-90 10 10)"/>{% endif %}{% endif %}</svg></span>{% else %}<svg class="outline-quiz-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="2.5" width="14" height="15" rx="2.5"/><path d="M6.5 7.5l1.3 1.3 2.4-2.4M11.5 7.8h2.5M6.5 12.5h7"/></svg>{% endif %}
       <span class="outline-unit__title" data-math-title>{{ item.node.title }}</span>
       {% include "courses/_unit_kind_chip.html" with node=item.node only %}
       {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
@@ -31,31 +34,68 @@
        existing value. active_tag_ids reaches here because neither {% include %}
        uses `only` — if that ever changes, a no-JS filtered outline silently shows
        nothing.{% endcomment %}
+    {% comment %}The count pair (spec §3.2, §3.4): a visible aria-hidden "X/Y" plus the
+       long form, which stays in the accessibility tree at every width. Rendered
+       ONLY when required_total > 0 (no "0/0" on an all-quiz node), and built once
+       here because every arm below prints it. The long form is visible on cards
+       (CSS swaps the pair at <= 640px) and visually hidden everywhere else.{% endcomment %}
+    {% if item.required_total %}{% blocktrans asvar outline_count_long count counter=item.required_total with done=item.required_done %}{{ done }} of {{ counter }} lesson{% plural %}{{ done }} of {{ counter }} lessons{% endblocktrans %}{% endif %}
     {% if item.children %}
       <details class="outline-node__group" data-node="{{ item.node.pk }}" data-depth="{{ item.depth }}"{% if item.depth == 0 or active_tag_ids and not item.tag_hidden %} open{% endif %}>
+        {% if item.depth == 0 %}
+        <summary class="outline-node__head">
+          <span class="outline-card__num" aria-hidden="true">{{ item.card_number }}</span>
+          <span class="outline-node__title" id="node-title-{{ item.node.pk }}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
+          {% if item.required_total or item.additional_done %}
+          <span class="outline-card__meta">
+            {% if item.required_total %}<span class="outline-card__bar" aria-hidden="true">{% if item.progress_width is not None %}<span class="outline-card__fill" style="width: {{ item.progress_width|unlocalize }}%"></span>{% endif %}</span>{% endif %}
+            <span class="outline-card__countcell">
+              {% if item.required_total %}<span class="outline-count"><span class="outline-count__short" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span><span class="outline-count__long" lang="{{ LANGUAGE_CODE }}">{{ outline_count_long }}</span></span>{% endif %}
+              {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
+            </span>
+          </span>
+          {% endif %}
+          <svg class="icon outline-node__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </summary>
+        {% elif item.depth == 1 %}
+        {% comment %}D5: the one "you are here" row is decided ONLY by comparing pks with
+           the view's current_row_pk — never by contains_current, which build_resume
+           stamps in every state, start included. The status word sits after the
+           title and count so the summary's accessible name starts with the title.{% endcomment %}
+        <summary class="outline-node__head{% if item.node.pk == current_row_pk %} is-current{% endif %}"{% if item.node.pk == current_row_pk %} aria-current="step"{% endif %}>
+          {% if item.ring %}<span class="outline-ring outline-ring--{{ item.ring }}" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20">{% if item.ring == "done" %}<circle class="outline-ring__fill" cx="10" cy="10" r="9"/><path class="outline-ring__tick" d="M6 10.5l2.5 2.5 5.5-6"/>{% else %}<circle class="outline-ring__track" cx="10" cy="10" r="8"/>{% if item.ring == "progress" %}<circle class="outline-ring__arc" cx="10" cy="10" r="8" pathLength="100" stroke-dasharray="{{ item.arc_pct|unlocalize }} 100" transform="rotate(-90 10 10)"/>{% endif %}{% endif %}</svg></span>{% else %}<span class="outline-ring" aria-hidden="true"></span>{% endif %}
+          <span class="outline-node__title" id="node-title-{{ item.node.pk }}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
+          {% if item.required_total %}<span class="outline-count"><span class="outline-count__short" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span><span class="outline-count__long visually-hidden" lang="{{ LANGUAGE_CODE }}">{{ outline_count_long }}</span></span>{% endif %}
+          {% if item.ring %}<span class="visually-hidden outline-status" lang="{{ LANGUAGE_CODE }}">{% if item.ring == "done" %}{% trans "Completed" %}{% elif item.ring == "progress" %}{% trans "In progress" %}{% else %}{% trans "Not started" %}{% endif %}</span>{% endif %}
+          {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
+          <svg class="icon outline-node__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </summary>
+        {% else %}
         <summary class="outline-node__head">
           <svg class="icon outline-node__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-          <span class="outline-node__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
-          {% if item.required_total %}<span class="rollup">{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}</span>{% endif %}
+          <span class="outline-node__title" id="node-title-{{ item.node.pk }}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
+          {% if item.required_total %}<span class="outline-count"><span class="outline-count__short" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span><span class="outline-count__long visually-hidden" lang="{{ LANGUAGE_CODE }}">{{ outline_count_long }}</span></span>{% endif %}
           {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
         </summary>
+        {% endif %}
         <ul>{% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course note_counts=note_counts %}{% endfor %}</ul>
       </details>
-      {% comment %}D9: a SIBLING of the <details>, not a child of the <summary> —
-         nesting a focusable link inside a button-role control both corrupts the
-         disclosure's accessible name and is exposed inconsistently by screen
-         readers. app.css grid-places it back onto the head row. Offered only
-         where a unit below holds saved work (build_outline's has_state):
-         anywhere else the reset clears nothing.{% endcomment %}
-      {% if item.has_state %}<a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
-         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>{% endif %}
+      {% comment %}D9 / D3a: the "⋯" menu is a SIBLING of the <details>, not a child of
+         the <summary> — nesting a focusable control inside a button-role control both
+         corrupts the disclosure's accessible name and is exposed inconsistently by
+         screen readers. CSS grid-places it back onto the head row. It is a
+         <details class="outline-menu">, never .outline-node__group, so the tree's
+         partition logic ignores it. Offered only where a unit below holds saved
+         work (build_outline's has_state): anywhere else the reset clears nothing.{% endcomment %}
+      {% if item.has_state %}<details class="outline-menu"><summary class="outline-menu__button" aria-label="{% trans 'More actions' %}" aria-describedby="node-title-{{ item.node.pk }}" lang="{{ LANGUAGE_CODE }}">⋯</summary><div class="outline-menu__panel"><a class="outline-node__reset outline-menu__item" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
+         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a></div></details>{% endif %}
     {% else %}
       <div class="outline-node__head">
-        <span class="outline-node__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
-        {% if item.required_total %}<span class="rollup">{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}</span>{% endif %}
+        <span class="outline-node__title" id="node-title-{{ item.node.pk }}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
+        {% if item.required_total %}<span class="outline-count"><span class="outline-count__short" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span><span class="outline-count__long visually-hidden" lang="{{ LANGUAGE_CODE }}">{{ outline_count_long }}</span></span>{% endif %}
         {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
-        {% if item.has_state %}<a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
-           href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>{% endif %}
+        {% if item.has_state %}<details class="outline-menu"><summary class="outline-menu__button" aria-label="{% trans 'More actions' %}" aria-describedby="node-title-{{ item.node.pk }}" lang="{{ LANGUAGE_CODE }}">⋯</summary><div class="outline-menu__panel"><a class="outline-node__reset outline-menu__item" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
+           href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a></div></details>{% endif %}
       </div>
     {% endif %}
   {% endif %}
