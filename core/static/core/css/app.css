@@ -2861,6 +2861,10 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 /* tokens.css defines 1-6, 8, 10 only: var(--space-7) is UNDEFINED and would
    make the whole declaration invalid, silently dropping the margin. */
 .public-page h2 { margin-top: var(--space-8); margin-bottom: var(--space-2); }
+/* A `###` subsection: less air above than an h2, and only a little more than
+   the h2's own bottom margin when it opens the section. */
+.public-page h3 { margin-top: var(--space-6); margin-bottom: var(--space-2); }
+.public-page h2 + h3 { margin-top: var(--space-3); }
 /* reset.css's `* { margin: 0 }` leaves paragraphs and list items touching, with
    only line-height between them: a multi-paragraph section reads as one solid
    block. Restores paragraph rhythm; `.public-page h2` above supplies the space

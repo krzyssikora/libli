@@ -66,6 +66,14 @@ def test_public_page_h2_has_both_a_top_and_a_bottom_margin():
     assert "margin-bottom" in body
 
 
+def test_public_page_h3_has_both_a_top_and_a_bottom_margin():
+    # A `###` subsection heading otherwise sits flush on its first paragraph
+    # and on the h2 above it (privacy, for-schools).
+    body = _rule_body(".public-page h3 ")
+    assert "margin-top" in body
+    assert "margin-bottom" in body
+
+
 def test_no_declaration_in_this_block_uses_an_undefined_space_token():
     # Scan the whole public-page block (h1 through the list rules) rather than
     # just p/h2: the same silent-drop trap applies to any --space-N reference.
