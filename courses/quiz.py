@@ -5,7 +5,9 @@ from types import SimpleNamespace
 
 from django.utils import timezone
 
+from courses.models import AttemptsMode
 from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.scoring import earned_marks
@@ -22,6 +24,37 @@ def reveal_list_template(question):
     if question.INLINE_QUIZ_REVEAL or question.CONTROLS_TEMPLATE is not None:
         return None
     return question.REVEAL_TEMPLATE
+
+
+def effective_course_attempts(course):
+    """int >= 1, or None for unlimited: the course level alone (spec §4)."""
+    if course.attempts_mode == AttemptsMode.UNLIMITED:
+        return None
+    return course.attempts_limit
+
+
+def effective_unit_attempts(unit):
+    """(value, source) for a question that inherits in `unit`: value int >= 1 or
+    None (unlimited); source "quiz" when the unit decides, else "course". The unit
+    step applies ONLY to a quiz unit: a lesson's dormant override (left by a
+    quiz -> lesson switch, or imported) is skipped (spec §4 step 2)."""
+    if unit.unit_type == ContentNode.UnitType.QUIZ:
+        if unit.attempts_mode == AttemptsMode.LIMITED:
+            return unit.attempts_limit, "quiz"
+        if unit.attempts_mode == AttemptsMode.UNLIMITED:
+            return None, "quiz"
+    return effective_course_attempts(unit.course), "course"
+
+
+def effective_max_attempts(question, unit):
+    """THE attempts limit the quiz enforces: int >= 1, or None for unlimited.
+    question -> unit -> course; steps 2-3 live in effective_unit_attempts so the
+    editor's "Same as …" label and enforcement cannot disagree."""
+    if question.attempts_mode == AttemptsMode.LIMITED:
+        return question.attempts_limit
+    if question.attempts_mode == AttemptsMode.UNLIMITED:
+        return None
+    return effective_unit_attempts(unit)[0]
 
 
 def quiz_feedback_context(question, response, *, result=None, validation=False):
