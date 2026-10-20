@@ -393,6 +393,14 @@ changes the attempts setting**, reset or not, before the `Course` write. That
 serialises the unlock's effective-limit computation against concurrent question
 and quiz saves. A lock-order test pins the no-reset course path too.
 
+**Change detection (course path).** "Changes the attempts setting" is
+`{"attempts_mode", "attempts_limit"} & set(form.changed_data)` or a reset
+requested. Never compare `form.instance.attempts_*` with `cleaned_data`:
+`ModelForm._post_clean` has already copied the cleaned values onto the instance
+during `is_valid()`, so that comparison always reports "no change" and would skip
+the locks and the unlock silently. The no-reset raise test (course 1 → 2 unlocks
+an exhausted student) fails on such a build.
+
 **Race with Finish / Show answer.** Submitting the quiz (`quiz.py`, responses
 `update(locked=True)` + status SUBMITTED) and Show answer lock no unit, so they can
 commit between any Python-side selection and the write. The write therefore
