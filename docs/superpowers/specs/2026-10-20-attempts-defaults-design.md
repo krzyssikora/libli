@@ -294,17 +294,26 @@ when a reset is requested it also records the reset count on the returned node
 `django.contrib.messages` success message, which the editor page renders after
 the redirect. `course_edit` does the same with the counts from its reset.
 
-### 5.3 Course (`CourseForm`)
+**When a message appears:** only when `reset` was posted, at both quiz and course
+level (with the plain *"Settings saved."* text when its counts are zero). A Keep
+save, or a save that doesn't touch attempts, shows no message — unchanged from
+today, where neither `node_rename` nor `course_edit` shows one. Tested for Keep at
+both levels.
+
+### 5.3 Course (`CourseForm`, `templates/courses/manage/course_form.html`)
 
 **Attempts per question**: *Limited to…* / *Unlimited*, default *Limited to 1*.
-Below it, shown only when overrides exist in the course's quiz units (P8, P9):
+`course_form.html` renders the select, the `:has()` reveal wrapper (§5.1), the
+help text, and the reset radios — the latter only when `creating` is false and the
+counts are non-zero. Below the select, shown only when overrides exist in the
+course's quiz units (P8, P9):
 
 - ◉ **Keep specific settings (Q quizzes, N questions have their own)** (default)
 - ○ **Make every quiz and question use the course setting**
 
 A limit of 0 at course level gets: *"0 isn't a limit. Choose 'Unlimited' or a
-number from 1."* (the course has no inherit option). The number input has no `min`
-attribute, as in §5.1.
+number from 1."* (the course has no inherit option). The number input has no `min`/`max`
+attributes (plain `CharField`, §5.1).
 
 `course_edit` wraps `form.save()` and the reset in one `transaction.atomic()`
 (today it has none and `ATOMIC_REQUESTS` is off). **Lock order:** element saves
@@ -312,7 +321,10 @@ lock the unit first (`builder._locked_unit`, `select_for_update` on
 `ContentNode`) and then write the question row, so the course reset must do the
 same: first `select_for_update()` the course's quiz units **ordered by pk**, then
 compute the counts and the touched set, then run the question/unit updates and the
-`updated` bump. Updating question rows before locking the units would deadlock
+`updated` bump. The counts, the question updates and the unit updates all scope by
+`unit__in=<the pks returned by that locking SELECT>`, never by a fresh
+`unit_type=quiz` filter: a concurrent lesson → quiz toggle could otherwise slip a
+unit the reset never locked into its scope. Updating question rows before locking the units would deadlock
 against a concurrent element save. When a reset is requested, the unit locks are
 taken **before** `form.save()` writes the `Course` row: builder ops
 (`reparent_node`, top-level `delete_node`/`move_node`, `duplicate_unit`) lock a
@@ -337,7 +349,7 @@ reset choice nor runs a reset (a new course has no overrides).
 - Questions in lessons, other quizzes and other courses are untouched.
 - **Counts** (and whether the reset choice is shown) include only `[A]` auto-marked questions with a non-`inherit` mode, the only ones an attempts setting affects (P3); quiz units counted are those with a non-`inherit` mode.
 - The reset's bulk updates filter to `attempts_mode != 'inherit'` (every question row in scope, `[N]`/`[R]` included — harmless). The **success message** reports the `[A]`-override counts computed inside the transaction **before** the update — the same numbers the choice showed, unless changed concurrently.
-- **Touched units** (whose `updated` is bumped) = quiz units that had at least one non-`inherit` question row, plus (course reset) quiz units whose own mode was non-`inherit`. Units with nothing to reset are not bumped, so unrelated open editors are not made stale.
+- **Touched units** (whose `updated` is bumped) = quiz units that had at least one non-`inherit` question row, plus (course reset) quiz units whose own mode was non-`inherit`. Units with nothing to reset are not bumped, so unrelated open editors are not made stale. Accepted: a quiz unit whose only overrides are on `[N]`/`[R]` questions is reset and bumped (its rows really changed) although the message's `[A]` counts don't mention it.
 - If every count is zero at save time (overrides removed meanwhile, or a crafted POST), the message is the plain *"Settings saved."*
 - Accepted consequence of P9: a lesson unit's dormant override survives a course reset and takes effect again if the unit is later switched to a quiz (the quiz panel then shows it). Not "fixed".
 
@@ -401,8 +413,10 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 ### 7.1 Existing-test sweep (risk)
 
 `max_attempts` appears in ~60 existing test files (repo-wide grep excluding
-`.venv`, migrations and `docs/` — not only `courses/`; e.g.
-`integrations/tests/test_delivery.py`) (factories, `create(...)`
+`.venv`, migrations and `docs/` — not only `courses/`; note it also has
+**unrelated** hits, e.g. webhook delivery's `MAX_ATTEMPTS` /
+`test_deliver_dead_after_max_attempts` in `integrations/tests/test_delivery.py`,
+which must be left alone) (factories, `create(...)`
 kwargs, and form POST dicts). Model kwargs fail loudly after the rename. **Form
 POST dicts do not:** the form fields are `required=False`, so a stale
 `"max_attempts": "3"` key is silently ignored and the question saves as
