@@ -1,10 +1,13 @@
 import pytest
 
 from courses.element_forms import FORM_FOR_TYPE
+from courses.element_forms import marking_kwargs
+from tests.factories import make_quiz_unit
 
 
 def _form(key, data):
-    return FORM_FOR_TYPE[key](data=data)
+    form_cls = FORM_FOR_TYPE[key]
+    return form_cls(data=data, **marking_kwargs(form_cls, make_quiz_unit()))
 
 
 @pytest.mark.django_db
@@ -53,7 +56,9 @@ def test_fillblank_edit_form_prefills_author_markers_not_tokens():
     )
     Blank.objects.create(question=q, accepted="Warszawa")
     Blank.objects.create(question=q, accepted="Paris\nparis")
-    initial = FORM_FOR_TYPE["fillblankquestion"](instance=q).initial["stem"]
+    initial = FORM_FOR_TYPE["fillblankquestion"](
+        instance=q, unit=make_quiz_unit()
+    ).initial["stem"]
     assert "￿" not in initial
     assert "{{Warszawa}}" in initial
     assert "{{Paris|paris}}" in initial
@@ -67,7 +72,9 @@ def test_dragfill_edit_form_prefills_author_markers_not_tokens():
     q = DragFillBlankQuestionElement.objects.create(stem="Drag ￿0￿ then ￿1￿")
     DragBlank.objects.create(question=q, correct_token="alpha")
     DragBlank.objects.create(question=q, correct_token="beta")
-    initial = FORM_FOR_TYPE["dragfillblankquestion"](instance=q).initial["stem"]
+    initial = FORM_FOR_TYPE["dragfillblankquestion"](
+        instance=q, unit=make_quiz_unit()
+    ).initial["stem"]
     assert "￿" not in initial
     assert "{{alpha}}" in initial
     assert "{{beta}}" in initial
@@ -157,7 +164,7 @@ def test_shortnumeric_editor_round_trips_a_fraction_and_a_tolerance():
     q = ShortNumericQuestionElement.objects.create(
         stem="?", value="3/2", tolerance="0.1"
     )
-    form = ShortNumericQuestionElementForm(instance=q)
+    form = ShortNumericQuestionElementForm(instance=q, unit=make_quiz_unit())
     assert form["value"].value() == "3/2"
     # Defect 3: this rendered "0.10000000" before, so inserting a digit made nine
     # decimal places and DecimalValidator refused the edit.
@@ -170,11 +177,13 @@ def test_shortnumeric_editor_round_trips_a_fraction_and_a_tolerance():
             "value": "3/2",
             "tolerance": "0.01",
             "marking_mode": q.marking_mode,
-            "max_attempts": q.max_attempts,
+            "attempts_mode": q.attempts_mode,
+            "attempts_limit": "" if q.attempts_limit is None else str(q.attempts_limit),
             "max_marks": q.max_marks,
             "explanation": "",
         },
         instance=q,
+        unit=make_quiz_unit(),
     )
     assert edited.is_valid(), edited.errors
 

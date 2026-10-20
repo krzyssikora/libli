@@ -200,7 +200,7 @@ def _grid_post(unit, type_key, parent_join):
         "stem": "Pick the truths",
         "explanation": "",
         "marking_mode": "A",  # MarkingMode.AUTO == "A" (one char), NOT "AUTO"
-        "max_attempts": "0",
+        "attempts_mode": "inherit",
         "max_marks": "1",
         "columns-TOTAL_FORMS": "2",
         "columns-INITIAL_FORMS": "0",

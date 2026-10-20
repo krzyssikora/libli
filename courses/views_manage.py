@@ -2322,6 +2322,7 @@ def _render_open_form(
     from courses.element_forms import _SG_SEED_STEM
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
+    from courses.element_forms import marking_kwargs
 
     if form is None:
         # Module attribute (builder_svc.COURSE_SCOPED_TYPE_KEYS), not a from-import --
@@ -2334,6 +2335,7 @@ def _render_open_form(
             if type_key in (*builder_svc.COURSE_SCOPED_TYPE_KEYS, "dragtoimagequestion")
             else {}
         )
+        extra.update(marking_kwargs(FORM_FOR_TYPE[type_key], unit))
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
     # Compute a SINGLE authoritative is_multiple for the template (radio vs checkbox),
     # rather than letting the template derive it from bound/unbound form attrs
@@ -2690,6 +2692,7 @@ def element_form(request, slug, pk):
     type_key = el.content_object.__class__.__name__.lower().replace("element", "")
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
+    from courses.element_forms import marking_kwargs
 
     # See the matching comment in _render_open_form: module attribute, union with
     # "dragtoimagequestion" (course-scoped but not itself in COURSE_SCOPED_TYPE_KEYS).
@@ -2698,6 +2701,7 @@ def element_form(request, slug, pk):
         if type_key in (*builder_svc.COURSE_SCOPED_TYPE_KEYS, "dragtoimagequestion")
         else {}
     )
+    extra.update(marking_kwargs(FORM_FOR_TYPE[type_key], el.unit))
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
     formset = None
     formset2 = None

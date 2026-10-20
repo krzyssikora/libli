@@ -10,6 +10,7 @@ from courses.element_forms import MatchPairQuestionElementForm
 from courses.element_forms import ShortNumericQuestionElementForm
 from courses.element_forms import ShortTextQuestionElementForm
 from courses.element_forms import build_choice_formset
+from tests.factories import make_quiz_unit
 
 ALL_QUESTION_FORMS = [
     ChoiceQuestionElementForm,
@@ -27,8 +28,8 @@ ALL_QUESTION_FORMS = [
 @pytest.mark.parametrize("FormCls", ALL_QUESTION_FORMS)
 def test_marking_widgets_have_input_class(FormCls):
     # all 8 construct bare: _CourseScopedMediaForm's course= defaults to None
-    form = FormCls()
-    for name in ("marking_mode", "max_attempts", "max_marks"):
+    form = FormCls(unit=make_quiz_unit())
+    for name in ("marking_mode", "attempts_mode", "max_marks"):
         assert "input" in form.fields[name].widget.attrs.get("class", "")
 
 
@@ -50,7 +51,7 @@ def _formset_data(rows, *, prefix="choices"):
 @pytest.mark.django_db
 def test_form_in_registry_and_has_multiple_on_create():
     assert FORM_FOR_TYPE["choicequestion"] is ChoiceQuestionElementForm
-    form = ChoiceQuestionElementForm(initial={"multiple": True})
+    form = ChoiceQuestionElementForm(initial={"multiple": True}, unit=make_quiz_unit())
     assert "multiple" in form.fields
 
 
@@ -59,7 +60,7 @@ def test_form_drops_multiple_field_on_edit():
     from courses.models import ChoiceQuestionElement
 
     q = ChoiceQuestionElement.objects.create(stem="x", multiple=True)
-    form = ChoiceQuestionElementForm(instance=q)
+    form = ChoiceQuestionElementForm(instance=q, unit=make_quiz_unit())
     assert "multiple" not in form.fields  # pinned: a bound POST cannot flip it
 
 

@@ -3507,6 +3507,14 @@ dialog.imgzoom:not([open]) { display: none; }
 html.js .unit-strip__print { display: inline-flex; }
 @media print { html.js .unit-strip__print { display: none; } }
 
+/* Attempts (spec 2026-10-20 §5.1): the limit input shows only while "Limited to…"
+   is selected. CSS-only on purpose -- nothing to re-run after an editor fragment
+   swap or a 422 re-render. Scoped per <form>: the editor page holds several. */
+form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
+  :is([data-attempts-limit], [data-field="attempts_limit"]) {
+  display: none;
+}
+
 /* == Print layout for units (spec 2026-10-11-print-layout-for-units) == */
 /* ONE print block, appended last, so it follows every screen rule it overrides
    (`.unit-shell`, `.unit-strip`, `.draft-banner`, the gallery carousel).

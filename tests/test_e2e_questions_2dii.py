@@ -662,7 +662,8 @@ def test_authoring_no_js_edit_existing_zone(live_server, browser):
             "media": str(q.media_id),
             "alt": "Diagram",
             "marking_mode": q.marking_mode,
-            "max_attempts": str(q.max_attempts) if q.max_attempts is not None else "",
+            "attempts_mode": q.attempts_mode,
+            "attempts_limit": "" if q.attempts_limit is None else str(q.attempts_limit),
             "csrfmiddlewaretoken": csrf_token,
         }
     )

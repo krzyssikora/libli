@@ -4,6 +4,7 @@ from courses.element_forms import DragToImageQuestionElementForm
 from courses.element_forms import build_dragzone_formset
 from tests.factories import CourseFactory
 from tests.factories import MediaAssetFactory
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -13,15 +14,18 @@ def test_form_scopes_media_to_course_and_makes_marking_optional():
     c2 = CourseFactory()
     mine = MediaAssetFactory(course=c1, kind="image")
     other = MediaAssetFactory(course=c2, kind="image")
-    form = DragToImageQuestionElementForm(course=c1)
+    form = DragToImageQuestionElementForm(course=c1, unit=make_quiz_unit())
     qs = form.fields["media"].queryset
     assert mine in qs and other not in qs
-    for f in ("marking_mode", "max_attempts", "max_marks"):
+    # attempts_mode is deliberately required (spec 5.1: MSG_CHOOSE), so not listed.
+    for f in ("marking_mode", "max_marks"):
         assert form.fields[f].required is False
 
 
 def test_form_constructs_without_typeerror_on_course_kwarg():
-    DragToImageQuestionElementForm(course=CourseFactory())  # no TypeError
+    DragToImageQuestionElementForm(
+        course=CourseFactory(), unit=make_quiz_unit()
+    )  # no TypeError
 
 
 def test_formset_requires_at_least_one_zone():

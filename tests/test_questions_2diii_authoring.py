@@ -12,6 +12,7 @@ from courses.views_manage import _EDITOR_TYPE_LABELS
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_pa
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -29,7 +30,7 @@ def test_element_outline_label_is_short():
 
 
 def test_edit_partial_renders_keyword_textareas():
-    form = ExtendedResponseQuestionElementForm()
+    form = ExtendedResponseQuestionElementForm(unit=make_quiz_unit())
     html = render_to_string(
         "courses/manage/editor/_edit_extendedresponsequestion.html", {"form": form}
     )
@@ -67,7 +68,8 @@ def test_element_save_creates_element(client):
             "required_keywords": "chlorophyll\nlight",
             "forbidden_keywords": "",
             "marking_mode": "A",
-            "max_attempts": "1",
+            "attempts_mode": "limited",
+            "attempts_limit": "1",
             "max_marks": "1",
         },
         HTTP_X_REQUESTED_WITH="fetch",

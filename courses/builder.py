@@ -1506,7 +1506,7 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         from courses.element_forms import build_choice_formset
 
         is_create = join is None
-        form = ChoiceQuestionElementForm(data=post_data, instance=instance)
+        form = ChoiceQuestionElementForm(data=post_data, instance=instance, unit=unit)
         form_valid = form.is_valid()
         # multiple authority: derive from the VALIDATED form on create — its
         # BooleanField coerces the hidden field's "False"/"True" string correctly.
@@ -1533,7 +1533,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
     elif type_key == "fillblankquestion":
         from courses.element_forms import FillBlankQuestionElementForm
 
-        form = FillBlankQuestionElementForm(data=post_data, instance=instance)
+        form = FillBlankQuestionElementForm(
+            data=post_data, instance=instance, unit=unit
+        )
         if not form.is_valid():
             raise ElementFormInvalid(form)
         obj = form.save()  # token-stem stored; QuestionElement.save() sanitises
@@ -1545,7 +1547,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
     elif type_key == "dragfillblankquestion":
         from courses.element_forms import DragFillBlankQuestionElementForm
 
-        form = DragFillBlankQuestionElementForm(data=post_data, instance=instance)
+        form = DragFillBlankQuestionElementForm(
+            data=post_data, instance=instance, unit=unit
+        )
         if not form.is_valid():
             raise ElementFormInvalid(form)
         obj = form.save()  # token-stem stored; QuestionElement.save() sanitises
@@ -1558,7 +1562,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         from courses.element_forms import MatchPairQuestionElementForm
         from courses.element_forms import build_matchpair_formset
 
-        form = MatchPairQuestionElementForm(data=post_data, instance=instance)
+        form = MatchPairQuestionElementForm(
+            data=post_data, instance=instance, unit=unit
+        )
         form_valid = form.is_valid()
         formset = build_matchpair_formset(
             data=post_data, files=files, instance=instance
@@ -1573,7 +1579,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         from courses.element_forms import build_choicegrid_columns_formset
         from courses.element_forms import build_choicegrid_rows_formset
 
-        form = ChoiceGridQuestionElementForm(data=post_data, instance=instance)
+        form = ChoiceGridQuestionElementForm(
+            data=post_data, instance=instance, unit=unit
+        )
         col_fs = build_choicegrid_columns_formset(
             data=post_data, files=files, instance=instance
         )
@@ -1633,7 +1641,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         from courses.element_forms import build_multigrid_columns_formset
         from courses.element_forms import build_multigrid_rows_formset
 
-        form = MultiGridQuestionElementForm(data=post_data, instance=instance)
+        form = MultiGridQuestionElementForm(
+            data=post_data, instance=instance, unit=unit
+        )
         col_fs = build_multigrid_columns_formset(
             data=post_data, files=files, instance=instance
         )
@@ -1691,7 +1701,7 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         from courses.element_forms import build_dragzone_formset
 
         form = DragToImageQuestionElementForm(
-            data=post_data, files=files, instance=instance, course=course
+            data=post_data, files=files, instance=instance, course=course, unit=unit
         )
         form_valid = form.is_valid()
         formset = build_dragzone_formset(data=post_data, files=files, instance=instance)
@@ -1837,10 +1847,12 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             f.instance.save()
             idx += 1
     else:
+        from courses.element_forms import marking_kwargs
+
         extra = {"course": course} if type_key in COURSE_SCOPED_TYPE_KEYS else {}
-        form = FORM_FOR_TYPE[type_key](
-            data=post_data, files=files, instance=instance, **extra
-        )
+        form_cls = FORM_FOR_TYPE[type_key]
+        extra.update(marking_kwargs(form_cls, unit))
+        form = form_cls(data=post_data, files=files, instance=instance, **extra)
         if not form.is_valid():
             raise ElementFormInvalid(form)
         obj = form.save()  # concrete row saved (TextElement.save sanitises)
