@@ -176,8 +176,8 @@ class AttemptsMode(models.TextChoices):
     UNLIMITED = "unlimited", _("Unlimited")
 
 
-# PositiveSmallIntegerField's own maximum: the range the old max_attempts accepted,
-# so every stored value migrates, round-trips and stays editable (spec §3.1).
+# PositiveSmallIntegerField's own maximum: the range the old per-question limit
+# accepted, so every stored value migrates, round-trips and stays editable (§3.1).
 MAX_ATTEMPTS_LIMIT = 32767
 ```
 
@@ -257,10 +257,13 @@ def effective_max_attempts(question, unit):
 ```python
 def attempts(n):
     """A question's OWN attempts setting as model kwargs (spec 2026-10-20): an int
-    -> limited n; None -> unlimited. The drop-in replacement for the removed
-    `max_attempts=n` (same meaning: None was "unlimited")."""
+    n >= 1 -> limited n; None -> unlimited; 0 -> inherit (D9, as migration 0071
+    maps it -- `limited` 0 would violate the DB constraint). The drop-in
+    replacement for the removed `max_attempts=n`."""
     if n is None:
         return {"attempts_mode": "unlimited", "attempts_limit": None}
+    if n == 0:
+        return {"attempts_mode": "inherit", "attempts_limit": None}
     return {"attempts_mode": "limited", "attempts_limit": n}
 ```
 
@@ -291,6 +294,14 @@ def _migrate(target):
     executor.migrate([(APP, target)])
     executor.loader.build_graph()
     return executor.loader.project_state([(APP, target)]).apps
+
+
+@pytest.fixture(autouse=True)
+def _restore_head():
+    # Teardown, not a last line: a failing assertion (or a deliberate mutant run)
+    # must not leave the test DB at 0069/0070 for every later test in the process.
+    yield
+    call_command("migrate", APP, verbosity=0)  # the graph HEAD, never a pinned name
 
 
 def _quiz_tree(apps, slug, *, course_kw=None, unit_kw=None, unit_type="quiz"):
@@ -345,8 +356,6 @@ def test_forwards_maps_every_old_value():
         assert resolved == want
     assert got[0][0] == "inherit"  # 0 -> course default (1), separately pinned
 
-    call_command("migrate", APP, verbosity=0)  # back to the graph HEAD
-
 
 def test_backwards_writes_effective_values():
     new = _migrate(DATA)
@@ -390,8 +399,6 @@ def test_backwards_writes_effective_values():
     old = _migrate(FIELDS)
     OST = old.get_model(APP, "ShortTextQuestionElement")
     assert {pk: OST.objects.get(pk=pk).max_attempts for pk in cases} == cases
-
-    call_command("migrate", APP, verbosity=0)
 ```
 
 If the historical `ContentNode` / `Element` create fails on `OrderField` (`order` NOT NULL), pass `order=0` explicitly in `_quiz_tree`, `_join` and the `Node.objects.create` calls — do not change the migration to suit the test.
@@ -688,6 +695,8 @@ and the body's return:
 
 - [ ] **Step 5: Run the new tests** — `uv run pytest tests/test_attempts_readers.py` → PASS.
 
+- [ ] **Step 5b: Prove the tests that already passed before the change bite.** `test_untouched_question_still_gets_one_attempt` — Mutant W: make `effective_course_attempts` return `None` → FAILS (never locks). `test_raising_a_limit_does_not_unlock` — Mutant X: in `quiz_answer`, before the gate, add `if response.locked and response.attempt_count < (effective_max_attempts(question, node) or 10**6): response.locked = False` → FAILS. Revert both by hand.
+
 - [ ] **Step 6: Parity cases.** In `tests/test_quiz_lock_rule_parity.py`:
 - import `attempts` from `tests.factories`;
 - `_question`: `max_attempts=max_attempts` → `**attempts(max_attempts)`;
@@ -730,7 +739,8 @@ Rules (apply to every hit that is NOT a form-POST dict key `"max_attempts": …`
 3. Local test helpers whose parameter is named `max_attempts` keep the parameter; only the model call inside changes (rule 1).
 4. Assertions reading `q.max_attempts` → assert `(q.attempts_mode, q.attempts_limit)`.
 5. Direct calls of `locked_after(` / `quiz_feedback_context(` / `ephemeral_quiz_feedback(` in tests (`grep -rn "locked_after(\|quiz_feedback_context(\|ephemeral_quiz_feedback(" tests courses/tests`) gain `unit=`: a real `make_quiz_unit()` when the test has DB access, otherwise `SimpleNamespace(unit_type="quiz", attempts_mode="inherit", attempts_limit=None, course=SimpleNamespace(attempts_mode="limited", attempts_limit=1))` with a one-line comment saying why.
-6. e2e seeds (`tests/test_e2e_*.py`) follow rule 1 too.
+6. e2e seeds (`tests/test_e2e_*.py`) follow rule 1 too — including helpers that DEFAULT to 0 (`_seed_matrix(..., max_attempts=0)` in `tests/test_e2e_choicegrid.py`, `_seed_multigrid(..., max_attempts=0)` in `tests/test_e2e_multigrid.py`; find others with `grep -rn "max_attempts=0" tests`): `attempts(0)` gives inherit, matching D9.
+7. POST dicts built FROM a question's field (e.g. `tests/test_e2e_questions_2dii.py` ~664, `str(q.max_attempts)`) → post `q.attempts_mode` and `"" if q.attempts_limit is None else str(q.attempts_limit)` under the two new keys. Find them with `grep -rn "\.max_attempts" tests courses/tests`.
 
 Do it file by file; do not script it blind (scripted edits fail silently — read every `git diff`).
 
@@ -1426,7 +1436,7 @@ If a circular import appears (`courses.quiz` → … → `courses.element_forms`
         form = form_cls(data=post_data, files=files, instance=instance, **extra)
 ```
 - `courses/views_manage.py` `_render_open_form`: after building `extra`, `extra.update(marking_kwargs(FORM_FOR_TYPE[type_key], unit))` (import `marking_kwargs` next to `FORM_FOR_TYPE`); `element_form`: `extra.update(marking_kwargs(FORM_FOR_TYPE[type_key], el.unit))`.
-- Confirm none is left: `grep -rnE "(ChoiceQuestion|ShortTextQuestion|ShortNumericQuestion|FillBlankQuestion|DragFillBlankQuestion|MatchPairQuestion|ChoiceGridQuestion|MultiGridQuestion|DragToImageQuestion|ExtendedResponseQuestion)ElementForm\(" courses` — every production hit passes `unit=` (or goes through `marking_kwargs`).
+- Confirm none is left: `grep -rnE "(ChoiceQuestion|ShortTextQuestion|ShortNumericQuestion|FillBlankQuestion|DragFillBlankQuestion|MatchPairQuestion|ChoiceGridQuestion|MultiGridQuestion|DragToImageQuestion|ExtendedResponseQuestion)ElementForm\(" courses | grep -vE ":\s*class "` — every remaining production hit passes `unit=` (or goes through `marking_kwargs`).
 
 - [ ] **Step 6: Template** — in `templates/courses/manage/editor/_marking_fields.html` replace the three `max_attempts` lines with:
 
@@ -1464,7 +1474,7 @@ Then run every CSS source test: `uv run pytest $(ls tests/test_*css*.py)` → PA
 
 - [ ] **Step 10: Sweep form constructions and POST dicts in tests.**
 - `grep -rnE "QuestionElementForm\(" tests courses/tests` — add `unit=` (a `make_quiz_unit()` for quiz-behaviour tests; the existing test's unit where it has one). `tests/test_questions_forms.py::test_marking_widgets_have_input_class` iterates `("marking_mode", "max_attempts", "max_marks")` — change it to `("marking_mode", "attempts_mode", "max_marks")` and build forms with `unit=make_quiz_unit()`.
-- `grep -rn "\"max_attempts\"" tests courses/tests` — every POST dict entry: `"max_attempts": "N"` (N ≥ 1) → `"attempts_mode": "limited", "attempts_limit": "N"`; `"max_attempts": ""` → `"attempts_mode": "unlimited"`. **Grep, don't recall**: a stale key is silently ignored and the question saves as inherit (spec §7.1). Leave transfer payload dicts for Task 7.
+- `grep -rn "\"max_attempts\"" tests courses/tests` — every POST dict entry: `"max_attempts": "N"` (N ≥ 1) → `"attempts_mode": "limited", "attempts_limit": "N"`; `"max_attempts": ""` → `"attempts_mode": "unlimited"`; `"max_attempts": "0"` (e.g. `tests/test_save_choicegrid.py` ×3, `tests/test_save_multigrid.py` ×3, `tests/test_grid_questions_nesting.py`) → `"attempts_mode": "inherit"` (D9 — `limited` 0 is now a form error). **Grep, don't recall**: a stale key is silently ignored and the question saves as inherit (spec §7.1). Leave transfer payload dicts for Task 7.
 - Run every file the sweep touched (chunks of ~10) → PASS.
 
 - [ ] **Step 11: Commit**
@@ -1813,7 +1823,7 @@ Keep the existing `{% trans %}` seed help text byte-identical (it has a catalog 
 
 - [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_quiz_settings.py` → PASS. Also run the existing editor/settings tests: `uv run pytest tests -k "unit_settings or node_rename or editor_page"` → PASS (they read the old `unit.*` values; `unit_settings` must reproduce them).
 
-- [ ] **Step 7: Prove they bite.** Mutant L: drop the `node.unit_type != QUIZ` guard in `rename_node` → the crafted-lesson test FAILS. Mutant M: in `_unit_settings_values` use stored values on the 422 path (`post=None` always) → `test_422_keeps_every_posted_value` FAILS. Revert by hand.
+- [ ] **Step 7: Prove they bite.** Mutant L: drop the `node.unit_type != QUIZ` guard in `rename_node` → the crafted-lesson test FAILS. Mutant M: in `_unit_settings_values` use stored values on the 422 path (`post=None` always) → `test_422_keeps_every_posted_value` FAILS. Mutant Y: `attempts_posted = is_settings` (drop the key check) → `test_lesson_settings_and_plain_rename_keep_dormant_override` FAILS (422: lesson guard). Mutant Z: in `parse_attempts` return `raw_limit` unparsed for non-limited modes → `test_hidden_junk_saves_null` FAILS. Revert each by hand.
 
 - [ ] **Step 8: Commit**
 
@@ -1961,7 +1971,11 @@ def test_invalid_post_keeps_the_reset_pick(client):
     url = reverse("courses:manage_course_edit", kwargs={"slug": course.slug})
     resp = client.post(url, _form_data(course, attempts_mode="limited", attempts_limit="0", attempts_reset="reset"))
     assert resp.status_code == 200
-    assert 'value="reset" checked' in resp.content.decode()
+    # Django's RadioSelect puts id= between value= and checked: parse, don't substring.
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(resp.content, "html.parser")
+    assert soup.select_one('input[name="attempts_reset"][value="reset"]').has_attr("checked")
 
 
 def test_units_are_locked_before_any_question_or_course_write(client):
@@ -2132,7 +2146,7 @@ and the field cleaners:
 
 - [ ] **Step 6: Prove they bite.** Mutant N: call `form.save()` before `reset_course_overrides` → the lock-order test FAILS. Mutant O: move the reset outside the `atomic()` block → the atomic test FAILS. Mutant P: remove the explicit `updated` bump in `reset_course_overrides` → `test_stale_editor_save_is_refused_after_a_reset` FAILS (200, override re-written). Revert each by hand.
 
-- [ ] **Step 7: `ContentNode.updated` reader audit** (spec §5.4). Re-run `grep -rn "\.updated\b" --include=*.py --include=*.html courses templates scripts | grep -v /tests/` and confirm, for each reader, that a reset bump is right. Known readers: the optimistic-concurrency tokens (`_check_token` in `builder.py`, `data-updated` / hidden `token` inputs in editor templates) — the bump is the point; LAL "no hand edit" evidence (`updated == created`, `scripts/lal_import/lesson.py`) — a reset IS an edit of the unit's questions, so marking the unit touched is correct. Write the result as a short paragraph in the PR description; if any reader would be wrong, stop and report it to the owner.
+- [ ] **Step 7: `ContentNode.updated` reader audit** (spec §5.4). Re-run `grep -rn "\.updated\b" --include=*.py --include=*.html courses templates scripts | grep -v /tests/` and confirm, for each reader, that a reset bump is right. Known readers: the optimistic-concurrency tokens (`_check_token` in `builder.py`, `data-updated` / hidden `token` inputs in editor templates) — the bump is the point; LAL "no hand edit" evidence (`updated == created`, `scripts/lal_import/lesson.py`) — a reset IS an edit of the unit's questions, so marking the unit touched is correct. The spec also names **author live-view links** and **unit-progress staleness**: find their code (`grep -rn "updated" courses/views*.py courses/rollups.py templates/courses`) and decide each. The PR paragraph gives a one-line verdict for EVERY spec-named reader plus any extra one the grep finds; if any reader would be wrong, stop and report it to the owner.
 
 - [ ] **Step 8: Commit**
 
@@ -2281,7 +2295,46 @@ def test_exporter_writes_null_for_non_limited():
     assert document["course"]["attempts_limit"] is None
 ```
 
-Also add to the existing sub-tree import tests (`tests/test_transfer_subtree.py`) one case: a v17 archive whose question had `max_attempts: 1`, imported into a target course with `attempts_mode="unlimited"` → the imported question is `inherit` and resolves to `None` (P10/P11, spec §6). And one copy case (`courses.builder.duplicate_unit` or the copy-units view into another course): a question set to `inherit` keeps `inherit` and resolves against the destination course.
+The cross-COURSE copy path is the sub-tree import (`import_subtree` with a `target_course`); `duplicate_unit` only copies within one course, so it cannot show "resolves at the destination". Append to `tests/test_attempts_transfer.py`:
+
+```python
+from courses.quiz import effective_max_attempts
+from courses.transfer.export import write_archive_from
+from tests.test_transfer_subtree import _import_subtree_zip
+
+
+def _unit_archive(unit, *, legacy):
+    manifest, document, media, _problems = build_export(unit.course, unit)
+    if legacy:  # rewrite to the v17 shape: the pair becomes max_attempts 1
+        manifest["format_version"] = 17
+        for el in document["elements"]:
+            d = el["data"]
+            if "attempts_mode" in d:
+                del d["attempts_mode"], d["attempts_limit"]
+                d["max_attempts"] = 1
+        for nd in document["nodes"]:
+            del nd["attempts_mode"], nd["attempts_limit"]
+    buf = io.BytesIO()
+    write_archive_from(manifest, document, media, buf)
+    buf.seek(0)
+    return buf
+
+
+@pytest.mark.parametrize("legacy", [True, False])
+def test_subtree_import_inherits_from_the_target_course(legacy):
+    """P10/P11: an inheriting question (a v17 `max_attempts: 1`, or a modern
+    inherit) resolves against the TARGET course, not the source."""
+    src = CourseFactory(attempts_mode="limited", attempts_limit=4)
+    unit = make_quiz_unit(course=src)
+    add_element(unit, ShortTextQuestionElement.objects.create(stem="a", accepted="x"))
+    target = CourseFactory(attempts_mode="unlimited", attempts_limit=None)
+    grafted = _import_subtree_zip(_unit_archive(unit, legacy=legacy), target, None, UserFactory())
+    q = grafted.elements.get().content_object
+    assert (q.attempts_mode, q.attempts_limit) == ("inherit", None)
+    assert effective_max_attempts(q, grafted) is None  # target's unlimited
+```
+
+If `build_export(course, unit)` / `write_archive_from` take other argument shapes, follow `tests/test_transfer_subtree.py::_archive_of`. Mutant V: in `_upgrade_legacy_attempts` map `old <= 1` to `("limited", old)` → the `legacy=True` case FAILS (limited 1, resolves to 1, not None).
 
 - [ ] **Step 2: Run to verify it fails** — `uv run pytest tests/test_attempts_transfer.py` → FAIL (`FORMAT_VERSION == 17`).
 
@@ -2517,6 +2570,12 @@ from tests.factories import make_quiz_unit
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
+@pytest.fixture(autouse=True)
+def _restore_head():
+    yield
+    call_command("migrate", "courses", verbosity=0)  # even after a failure
+
+
 def test_round_trip_with_every_question_type():
     unit = make_quiz_unit()
     rows = []
@@ -2589,6 +2648,8 @@ def test_round_trip_with_every_question_type():
 - [ ] **Step 7: Prove they bite.** Mutant T: make the question constraint's second `Q` also allow `attempts_limit__gte=1` → `("inherit", 3)` cases FAIL. Mutant U: add `from courses.quiz import effective_max_attempts` to the top of `0071_attempts_data.py` → the no-import test FAILS. Revert by hand (and re-run `migrate` if you touched a migration).
 
 - [ ] **Step 8: Full test run in chunks** (the whole suite is OOM-killed in one go). Start the test DB container; run the non-e2e suite in ~4 chunks (e.g. `tests/test_[a-f]*.py`, `tests/test_[g-p]*.py`, `tests/test_[q-z]*.py`, `courses/tests integrations`), one at a time. Expected: all PASS; grep each summary line. Any failure: read it (a missed sweep site is the usual cause).
+
+- [ ] **Step 8b: Run the e2e files the sweeps touched.** `git diff --name-only master -- 'tests/test_e2e_*.py'` lists them (14 files mention attempts). Run them with `uv run pytest -m e2e <files>` in chunks of 3–4 files, one chunk at a time (e2e is TRUNCATE-bound; `-n 2` at most), and grep each summary line. Any failure: compare against master before blaming the diff (e2e flakes under load), then fix the sweep site.
 
 - [ ] **Step 9: Commit**
 
