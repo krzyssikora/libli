@@ -34,6 +34,7 @@ Approved section bullets that are individually protected (from D6–D11):
 - P3. Lessons keep ignoring attempts; only `[A]` auto-marked questions use the value (`[N]`/`[R]` stay single-submission).
 - P4. Every student's effective limit is identical the day after deploy (except former 0s, which become answerable).
 - P5. Existing `QuestionResponse.attempt_count` is untouched; lowering a limit below a student's count behaves as today (locked; Show answer still works).
+- P5a. *(Added in spec review — OPEN for owner confirmation.)* Raising a limit at any level does **not** unlock a `QuestionResponse` that is already `locked` (stored boolean, checked first by the `quiz_answer` gate): unchanged behaviour. The new limit applies to responses not yet locked. If the owner wants a raise to unlock students, that is a new decision.
 - P6. The migration is reversible: reverse writes each question's **effective** value into `max_attempts`.
 - P7. The *inherit* option label always shows the current resolved value and its source ("Same as quiz (currently: 3)", "Same as course (currently: unlimited)").
 - P8. The reset choice defaults to **Keep**; it is shown only when overrides exist, shows the counts, applies even if the number did not change, runs in the same transaction as the save, and is confirmed with a message ("Settings saved. 2 quizzes and 41 questions now use the course setting.").
@@ -162,6 +163,18 @@ shown**, i.e. follows the source word of P7:
 The same text also shows as help text under the number input, so the guidance is
 visible before submitting.
 
+Other limit messages (all three levels): empty under *Limited to…* → *"Enter a
+number of attempts, or choose another option."*; above the cap → *"At most 999
+attempts."*
+
+**Form wiring.** The question form takes the `unit` as a constructor argument and
+builds the inherit-option label itself from `effective_unit_attempts(unit)`, so
+every render path (full page, fragment swap, 422 re-render, add-element) shows it.
+When the attempts fields are **absent** from the POST (a lesson question — the
+select renders only in quizzes), both stored values are kept unchanged; the
+nulling rule of §3.2 runs only when a mode was actually posted. A lesson question's
+dormant `limited` override therefore survives an edit.
+
 ### 5.2 Quiz unit (`templates/courses/manage/editor/_unit_settings.html`, only when `unit_type == quiz`)
 
 Same select; inherit option reads **Same as course (currently: …)**; same input
@@ -204,6 +217,7 @@ reset choice nor runs a reset (a new course has no overrides).
 - **Concurrency:** the reset bumps `ContentNode.updated` on every quiz unit it touched (units whose questions or own mode changed). An editor already open on such a unit then gets the existing stale-token "changed elsewhere" response on its next save, instead of silently re-posting the old override and undoing the reset. The plan must audit every reader of `ContentNode.updated` (author live-view links, LAL "no hand edit" checks, unit-progress staleness) before relying on the bump, and report any reader for which the bump is wrong.
 - Success message reports the counts actually reset.
 - Questions in lessons, other quizzes and other courses are untouched.
+- Accepted consequence of P9: a lesson unit's dormant override survives a course reset and takes effect again if the unit is later switched to a quiz (the quiz panel then shows it). Not "fixed".
 
 **Count wording (§5.2, §5.3, P8 message):** a zero part is omitted ("41 questions
 have their own", not "0 quizzes, 41 questions …"); each count uses its own
@@ -225,12 +239,12 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 
 1. **Resolver** — full mode matrix over the three levels; nothing set → 1; a lesson unit with a `limited` override is skipped (step 2 quiz-only).
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
-3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 locks on the 3rd try, inheriting unlimited never locks; attempts-left and analytics show resolved values.
-4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit saves with `attempts_limit = NULL` (no 500); inherit label shows correct value + source; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched.
+3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; raising a limit leaves an already-locked response locked (P5a); attempts-left and analytics show resolved values.
+4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit saves with `attempts_limit = NULL` (no 500); inherit label shows correct value + source; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
 5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped and a stale editor save then gets the stale-token response.
 6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping; invalid payloads rejected; sub-tree import inherits from target.
 7. **Constraints** — the full truth table at the DB, on **every** concrete question table (derived list), `ContentNode` and `Course`: `limited` without a limit, `limited` with 0, `inherit`/`unlimited` with a limit all fail; `Course` with `inherit` fails.
-8. **e2e (real UI)** — author sets course to 3 + reset → a student gets 3 tries on a formerly-default question, 4th refused; author sets a quiz to Unlimited while a question keeps 2 → it still stops at 2; author types 0 in a question's limit and sees the D9 message (proves the browser does not swallow it).
+8. **e2e (real UI)** — a question with its own override (`limited` 2); author sets course to 3 and chooses "Make every quiz and question use the course setting" → a student **who has not answered yet** gets 3 tries, 4th refused (proves the reset through the UI); author sets a quiz to Unlimited while a question keeps 2 → it still stops at 2; author types 0 in a question's limit and sees the D9 message (proves the browser does not swallow it).
 9. **Screenshots** — question select, quiz panel with reset choice, course form; light + dark.
 
 ### 7.1 Existing-test sweep (risk)
