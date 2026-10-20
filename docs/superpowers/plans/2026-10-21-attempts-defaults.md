@@ -1204,7 +1204,7 @@ git commit -m "feat(attempts): shared parsing, wording, override counts and rese
 - Modify: `courses/builder.py` `save_element` (7 direct question-form constructions ~1509–1693 + the generic `else` ~1841)
 - Modify: `courses/views_manage.py` `_render_open_form` (~2337), `element_form` (~2701)
 - Modify: `templates/courses/manage/editor/_marking_fields.html`
-- Modify: `courses/static/courses/css/courses.css` (reveal rule)
+- Modify: `courses/static/courses/css/courses.css` (reveal rule), `courses/static/courses/css/editor.css` (wrapper layout)
 - Modify: tests that construct question forms or POST `max_attempts` (sweep)
 - Test: `tests/test_attempts_question_form.py`
 
@@ -1486,7 +1486,15 @@ form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
 }
 ```
 
-Then run every CSS source test: `uv run pytest $(ls tests/test_*css*.py)` → PASS (a new rule can duplicate text marker tests partition on).
+And give the wrapper its own layout in `courses/static/courses/css/editor.css`, next to the `[data-marks-fields]` rule (it is one grid item there, so its label/input/help would otherwise stack with no gap):
+
+```css
+/* Must stay LESS specific than the courses.css :has() hide rule, which has to win
+   whenever "Limited to…" is not selected. */
+.el-editor__marking-fields [data-attempts-limit] { display: grid; gap: var(--space-3); }
+```
+
+Check the spacing in the Task 10 screenshots. Then run every CSS source test: `uv run pytest $(ls tests/test_*css*.py)` → PASS (a new rule can duplicate text marker tests partition on).
 
 - [ ] **Step 8: Run the new tests** — `uv run pytest tests/test_attempts_question_form.py` → PASS.
 
@@ -2696,7 +2704,7 @@ def test_round_trip_with_every_question_type():
 
 - [ ] **Step 5: Admin** — `CourseAdmin` and `ContentNodeAdmin` get `readonly_fields = ("attempts_mode", "attempts_limit")` with a comment: "Edited only through the attempts forms, which own the nulling rule (spec §4); a raw admin edit would hit the DB constraint."
 
-- [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_constraints.py tests/test_attempts_no_stragglers.py tests/test_attempts_migration_populated.py tests/test_attempts_migration.py` → PASS. Then check the TESTS too (the straggler test skips them): `grep -rln "max_attempts" tests courses/tests | grep -v "test_attempts_migration\|test_attempts_transfer\|test_attempts_no_stragglers"` must list only files whose hits are the unrelated webhook `MAX_ATTEMPTS` / `dead_after_max_attempts`, or a legacy-archive payload that is validated ONLY at a version ≤ 17 (a payload shared with a v18 / `None` test does not qualify) — read every other hit and convert it. A straggler hit means a reader/template/comment was missed: fix it (rewrite prose in terms of the effective limit), never whitelist it.
+- [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_constraints.py tests/test_attempts_no_stragglers.py tests/test_attempts_migration_populated.py tests/test_attempts_migration.py` → PASS. Then check the TESTS too (the straggler test skips them): `grep -rln "max_attempts" tests courses/tests integrations | grep -v "test_attempts_migration\|test_attempts_transfer\|test_attempts_no_stragglers"` must list only files whose hits are the unrelated webhook `MAX_ATTEMPTS` / `dead_after_max_attempts`, or a legacy-archive payload that is validated ONLY at a version ≤ 17 (a payload shared with a v18 / `None` test does not qualify) — read every other hit and convert it. A straggler hit means a reader/template/comment was missed: fix it (rewrite prose in terms of the effective limit), never whitelist it.
 
 - [ ] **Step 7: Prove they bite.** Mutant T: make the question constraint's second `Q` also allow `attempts_limit__gte=1` → `("inherit", 3)` cases FAIL. Mutant U: add `from courses.quiz import effective_max_attempts` to the top of `0071_attempts_data.py` → the no-import test FAILS. Revert by hand (and re-run `migrate` if you touched a migration).
 
