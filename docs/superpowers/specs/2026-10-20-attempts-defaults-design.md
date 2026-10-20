@@ -182,8 +182,16 @@ The plan re-greps these call sites at execution time (line numbers rot).
 
 Removing the field makes any missed **Python** reader an `AttributeError` in tests
 (D5). Templates fail silently (`{{ form.max_attempts }}` renders empty), so the
-plan also greps `templates/` for `max_attempts` expecting zero hits, and a test
-asserts the rendered question editor contains the `attempts_mode` select.
+plan also greps `templates/` and production `.py` files (excluding migrations and
+the unrelated webhook `MAX_ATTEMPTS`) for `max_attempts` expecting zero hits —
+which also catches stale prose such as `locked_after`'s docstring and the Show
+answer comment in `quiz_answer`, rewritten in terms of the effective limit — and a
+test asserts the rendered question editor contains the `attempts_mode` select.
+
+**Django admin:** `CourseAdmin` / `ContentNodeAdmin` (plain `ModelAdmin`s) would
+expose the new fields without the §3.2 nulling rule; both list
+`attempts_mode`/`attempts_limit` in `readonly_fields`. Attempts are edited only
+through the §5 forms.
 
 ## 5. Editor UI
 
@@ -302,6 +310,12 @@ and `_unit_settings.html` prefers `settings_post` values over `unit.*` when
 present. The settings `<details>` renders `open` on that 422 so the values and
 the error are visible.
 
+**Context.** For a quiz unit, `_editor_page` computes on **every** render (422
+re-render included, counts recomputed from the DB) the course-resolved value +
+source for the inherit label (`effective_course_attempts(unit.course)`) and the
+`[A]`-override count that decides whether the reset radios show. A quiz-level 422
+test asserts the label and radios are still present.
+
 Quiz-level success message: *"Settings saved. N questions now use the quiz
 setting."* (`ngettext` on N; plain *"Settings saved."* when N is 0).
 
@@ -366,7 +380,7 @@ reset choice nor runs a reset (a new course has no overrides).
 - Questions in lessons, other quizzes and other courses are untouched.
 - **Counts** (and whether the reset choice is shown) include only `[A]` auto-marked questions with a non-`inherit` mode, the only ones an attempts setting affects (P3); quiz units counted are those with a non-`inherit` mode.
 - The reset's bulk updates filter to `attempts_mode != 'inherit'` (every question row in scope, `[N]`/`[R]` included — harmless). The **success message** reports the `[A]`-override counts computed inside the transaction **before** the update — the same numbers the choice showed, unless changed concurrently.
-- **Touched units** (whose `updated` is bumped) = quiz units that had at least one non-`inherit` question row, plus (course reset) quiz units whose own mode was non-`inherit`. Units with nothing to reset are not bumped, so unrelated open editors are not made stale. Accepted: a quiz unit whose only overrides are on `[N]`/`[R]` questions is reset and bumped (its rows really changed) although the message's `[A]` counts don't mention it.
+- **Touched units** (whose `updated` is bumped) = quiz units that had at least one non-`inherit` question row, plus (course reset) quiz units whose own mode was non-`inherit`. Units with nothing to reset are not bumped, so unrelated open editors are not made stale. Accepted: after a course save with Keep (or with nothing to reset), an already-open editor's inherit label ("Same as course (currently: 1)") is stale until reload; saving from it is harmless (mode still `inherit`). Not "fixed" by bumping every unit (that would cause false stale-token conflicts). Accepted: a quiz unit whose only overrides are on `[N]`/`[R]` questions is reset and bumped (its rows really changed) although the message's `[A]` counts don't mention it.
 - If every count is zero at save time (overrides removed meanwhile, or a crafted POST), the message is the plain *"Settings saved."*
 - Accepted consequence of P9: a lesson unit's dormant override survives a course reset and takes effect again if the unit is later switched to a quiz (the quiz panel then shows it). Not "fixed".
 
