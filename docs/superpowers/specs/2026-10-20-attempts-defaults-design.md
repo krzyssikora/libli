@@ -81,10 +81,11 @@ their names must be class-interpolated (`%(app_label)s_%(class)s_attempts_…`) 
 every concrete subclass that declares its own `Meta` must inherit
 `QuestionElement.Meta`, or it silently drops them.
 
-**Stale limit with a non-`limited` mode:** at every level the save path (form
-`clean()`, `rename_node`, importer) sets `attempts_limit = NULL` whenever the mode
+**Stale limit with a non-`limited` mode:** at every level the editing save path
+(form `clean()`, `rename_node`) sets `attempts_limit = NULL` whenever the mode
 is not `limited`, so a hidden-but-posted number never reaches the constraint
-(no IntegrityError / 500).
+(no IntegrityError / 500). The importer does **not** null: it rejects such a
+payload (§6).
 
 ### 3.3 Migration
 
@@ -121,6 +122,9 @@ with no `Element` row resolves to 1 in the reverse step.
 `courses/quiz.py`:
 
 ```python
+def effective_course_attempts(course):
+    """int >= 1, or None for unlimited: the course level alone."""
+
 def effective_unit_attempts(unit):
     """(value, source): value int >= 1 or None; source "quiz" | "course".
     The unit step applies only when unit.unit_type == quiz."""
@@ -135,8 +139,12 @@ def effective_max_attempts(question, unit):
    unit's dormant override (left by a quiz→lesson switch, or imported) is skipped;
 3. else the course's (always set).
 
-`effective_unit_attempts` also feeds the inherit-option labels (§5.1, §5.2), so the
-labels and enforcement cannot disagree.
+The same helpers feed the inherit-option labels, so labels and enforcement cannot
+disagree: the **question** select (§5.1) uses `effective_unit_attempts(unit)`; the
+**quiz** select (§5.2) uses `effective_course_attempts(unit.course)` — never
+`effective_unit_attempts`, which on an overriding quiz would return the quiz's own
+value. `effective_unit_attempts` delegates its step 3 to
+`effective_course_attempts`.
 
 The caller passes the unit (its `course` loaded); no per-question query.
 
@@ -213,6 +221,12 @@ dormant override. Validation (incl. the D9 message) raises `ValidationError`, wh
 surfaces through the existing `_editor_page(..., error=msg, status=422)` route. The
 reset runs inside `rename_node`'s existing locked transaction.
 
+**Message path.** `rename_node`'s return value is unchanged for existing callers;
+when a reset is requested it also records the reset count on the returned node
+(e.g. `node.attempts_reset_count`), and `node_rename` adds a
+`django.contrib.messages` success message, which the editor page renders after
+the redirect. `course_edit` does the same with the counts from its reset.
+
 ### 5.3 Course (`CourseForm`)
 
 **Attempts per question**: *Limited to…* / *Unlimited*, default *Limited to 1*.
@@ -243,6 +257,11 @@ reset choice nor runs a reset (a new course has no overrides).
 have their own", not "0 quizzes, 41 questions …"); each count uses its own
 `ngettext` / `blocktrans count` (Polish plurals).
 
+**Translations.** Every new or changed string (labels incl. "Max attempts" →
+"Attempts", option labels, D9 and other messages, counts) gets a Polish
+translation: run `makemessages`, translate every new msgid, clear any fuzzy
+pre-fill (it is often a wrong translation), recompile the `.mo`.
+
 ## 6. Export / import (FORMAT_VERSION 17 → 18)
 
 - **Question payload:** `attempts_mode` + `attempts_limit` replace `max_attempts` (`export.py:76`, `payloads.py:97/103`, `importer.py:489`).
@@ -262,7 +281,7 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 1. **Resolver** — full mode matrix over the three levels; nothing set → 1; a lesson unit with a `limited` override is skipped (step 2 quiz-only).
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
 3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; raising a limit leaves an already-locked response locked (P5a); attempts-left and analytics show resolved values.
-4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit saves with `attempts_limit = NULL` (no 500); inherit label shows correct value + source; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
+4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit saves with `attempts_limit = NULL` (no 500); inherit label shows correct value + source; a quiz unit with its own `limited` 3 under a course `limited` 1 shows "Same as course (currently: 1)"; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
 5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
 6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
 6a. **Migration on Postgres** — forwards and backwards on a DB with populated rows of every question type (catches the pending-trigger failure).
