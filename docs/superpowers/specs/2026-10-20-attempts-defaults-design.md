@@ -74,7 +74,11 @@ only**: every model in `apps.get_app_config("courses").get_models()` that has a
 `max_attempts` field (data steps) — historical models don't keep the abstract base,
 and a live `QuestionElement.__subclasses__()` would make a future 11th type raise
 `LookupError` on every fresh migrate. The migrations never import from
-`courses.models`; a test asserts this.
+`courses.models` — **nor from anything that does**, e.g. `courses.quiz`: the
+reverse step re-implements the three-step rule (§4) inline on historical models,
+comparing against literal mode strings and `'quiz'`. A test loads the migration
+modules in a fresh interpreter and asserts `courses.models` and `courses.quiz`
+are absent from `sys.modules` (transitive imports included).
 
 `attempts_limit` is capped at `MAX_ATTEMPTS_LIMIT = 32767` (forms and import
 validation) — `PositiveSmallIntegerField`'s own maximum, the same range the old
@@ -169,14 +173,17 @@ Readers switched to it (every current `max_attempts` reader); `locked_after`,
 
 - `locked_after` (`quiz.py:121`) — the single lock rule. Both answer paths (persisted `quiz_answer` and `ephemeral_quiz_feedback`) pass it.
 - `quiz_feedback_context` (attempts-left, `quiz.py:86`) — callers `views.py:1544`, `views.py:1658`, `views_manage.py:2810`.
-- `ephemeral_quiz_feedback` — callers: student previewer `views.py:1768`, author previewer `views_manage.py:2807`.
+- `ephemeral_quiz_feedback` — callers: student previewer `views.py:1768`, author previewer `views_manage.py:2807`; it also calls `locked_after` and `quiz_feedback_context` **internally** (`quiz.py`), which must thread `unit` too. The plan's grep includes `courses/quiz.py`.
 - exhausted gate in `quiz_answer` (`views.py:1811`).
 - analytics attempt column (`views_analytics.py:412`).
 - the editor marking template (§5.1).
 
 The plan re-greps these call sites at execution time (line numbers rot).
 
-Removing the field makes any missed reader an `AttributeError` in tests (D5).
+Removing the field makes any missed **Python** reader an `AttributeError` in tests
+(D5). Templates fail silently (`{{ form.max_attempts }}` renders empty), so the
+plan also greps `templates/` for `max_attempts` expecting zero hits, and a test
+asserts the rendered question editor contains the `attempts_mode` select.
 
 ## 5. Editor UI
 
