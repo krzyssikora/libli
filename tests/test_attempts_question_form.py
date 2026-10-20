@@ -53,6 +53,14 @@ def test_every_question_form_exposes_both_fields_in_a_quiz(FormCls):
     assert "max_attempts" not in form.fields
 
 
+@pytest.mark.parametrize("FormCls", QUESTION_FORMS)
+def test_every_question_form_lists_both_fields_in_meta(FormCls):
+    # The mixin injects the fields regardless of Meta.fields, but construct_instance
+    # only saves fields named in Meta.fields: a form that omits one silently drops
+    # the author's choice on save.
+    assert {"attempts_mode", "attempts_limit"} <= set(FormCls._meta.fields)
+
+
 def test_unit_is_required():
     with pytest.raises(TypeError):
         ShortTextQuestionElementForm()
