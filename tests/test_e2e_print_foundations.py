@@ -317,3 +317,36 @@ def test_print_is_compact_10pt_and_full_column(page, live_server):
     assert abs(got["p"] - screen * 10 / 12) < 0.01, (screen, got)
     assert got["pad"] == ["0px", "0px"], got
     assert got["width"] == got["vw"], got
+
+
+@pytest.mark.django_db(transaction=True)
+def test_print_spacing_shrinks_with_the_text(page, live_server):
+    """The px spacing tokens print at 0.75 and the block gap at 0.75rem (owner,
+    2026-10-20: spacing should be smaller once text and images shrank)."""
+    course, unit, student = _dark_lesson("e2e-print-spacing", "<p>One.</p><p>Two.</p>")
+    _open_lesson(page, live_server, course, unit, student, ".el--text p")
+    page.emulate_media(media="print")
+    got = page.evaluate(
+        """() => {
+          const root = getComputedStyle(document.documentElement);
+          const ps = document.querySelectorAll('.el--text p');
+          return {
+            tokens: [1, 2, 3, 4, 5, 6, 8, 10].map(
+              (n) => root.getPropertyValue(`--space-${n}`).trim()),
+            el: getComputedStyle(document.querySelector('.el--text')).marginTop,
+            p: getComputedStyle(ps[1]).marginTop,
+          };
+        }"""
+    )
+    assert got["tokens"] == [
+        "3px",
+        "6px",
+        "9px",
+        "12px",
+        "15px",
+        "18px",
+        "24px",
+        "30px",
+    ], got
+    assert got["el"] == "10px", got  # 0.75rem at the 10pt print root
+    assert got["p"] == "9px", got  # authored paragraphs: var(--space-3)
