@@ -757,8 +757,8 @@ Rules (apply to every hit that is NOT a form-POST dict key `"max_attempts": …`
 6. e2e seeds (`tests/test_e2e_*.py`) follow rule 1 too — including helpers that DEFAULT to 0 (`_seed_matrix(..., max_attempts=0)` in `tests/test_e2e_choicegrid.py`, `_seed_multigrid(..., max_attempts=0)` in `tests/test_e2e_multigrid.py`; find others with `grep -rn "max_attempts=0" tests`): `attempts(0)` gives inherit, matching D9.
 7. POST dicts built FROM a question's field (e.g. `tests/test_e2e_questions_2dii.py` ~664, `str(q.max_attempts)`) → post `q.attempts_mode` and `"" if q.attempts_limit is None else str(q.attempts_limit)` under the two new keys. Find them with `grep -rn "\.max_attempts" tests courses/tests`.
 
-9. Attribute assignments that LOWER/RAISE a stored limit (`q.max_attempts = X` then `q.save()` / `save(update_fields=["max_attempts"])`) → `q.attempts_mode, q.attempts_limit = attempts(X)["attempts_mode"], attempts(X)["attempts_limit"]` and `update_fields=["attempts_mode", "attempts_limit"]`. Known sites: `tests/test_analytics_student_quiz.py` ~643, `tests/test_quiz_reveal_flow.py` ~131. These are dangerous: after Task 8 the old assignment sets a plain attribute that `save()` ignores, so the test passes while testing nothing.
 8. A dict built for a model create (e.g. `tests/test_e2e_questions_2diii.py` ~106, `kwargs["max_attempts"] = max_attempts`) → `kwargs.update(attempts(max_attempts))`.
+9. Attribute assignments that LOWER/RAISE a stored limit (`q.max_attempts = X` then `q.save()` / `save(update_fields=["max_attempts"])`) → `q.attempts_mode, q.attempts_limit = attempts(X)["attempts_mode"], attempts(X)["attempts_limit"]` and `update_fields=["attempts_mode", "attempts_limit"]`. Known sites: `tests/test_analytics_student_quiz.py` ~643, `tests/test_quiz_reveal_flow.py` ~131. These are dangerous: after Task 8 the old assignment sets a plain attribute that `save()` ignores, so the test passes while testing nothing.
 
 **Leave for later tasks** (convert them there, not here): any assertion whose value travels through the **question form** (Task 4 — e.g. `tests/test_quiz_authoring.py` ~23, which POSTs `"max_attempts": 2` and asserts the saved value) or through the **transfer / paste / duplicate** path (Task 7 — e.g. `tests/test_builder_paste_element.py` ~762–774, which asserts the copy's attempts). Until those tasks land, the form and the importer still write only `max_attempts`, so converting the assertion now makes it fail for no sweep reason. Note each deferred site in the task's commit message so Tasks 4 and 7 pick them up.
 
@@ -2087,6 +2087,8 @@ def test_stale_editor_save_is_refused_after_a_reset(client):
 
 Check the URL name for `element_save` and the `type` POST key in `courses/urls.py` / the view (~2590) and adjust.
 
+- [ ] **Step 1b: Add the course-reset D13 case** to the same file: a question at `attempts(1)` that an enrolled student has exhausted (one wrong answer → locked) stays locked after a course reset POST to `limited 3` — the next answer POST (fetch) is 409 and `QuestionResponse.locked is True`.
+
 - [ ] **Step 2: Run to verify it fails** — `uv run pytest tests/test_attempts_course_settings.py` → FAIL.
 
 - [ ] **Step 3: `CourseForm`** (`courses/forms.py`; add `from courses import attempts as attempts_rules`). Add `"attempts_mode", "attempts_limit"` to `Meta.fields` after `"external_id"`, and declared fields at class level:
@@ -2177,9 +2179,9 @@ and the field cleaners:
 
 - [ ] **Step 5: Run** — `uv run pytest tests/test_attempts_course_settings.py` → PASS; then the existing course-form tests, chosen by content: `uv run pytest $(grep -rln "CourseForm\|manage_course_edit\|manage_course_create\|course_form.html" tests | grep -v e2e)` → PASS (they post without `attempts_mode`; absent = keep).
 
-Add one D13 case to `tests/test_attempts_course_settings.py`: a question at `attempts(1)` that a student has exhausted (locked) stays locked after a course reset POST to `limited 3` — the next answer POST is 409 and `QuestionResponse.locked is True`.
+(The course-reset D13 test is in Step 1b.)
 
-- [ ] **Step 6: Prove they bite.** Mutant N: call `form.save()` before `reset_course_overrides` → the lock-order test FAILS. Mutant O: move the reset outside the `atomic()` block → the atomic test FAILS. Mutant P: remove the explicit `updated` bump in `reset_course_overrides` → `test_stale_editor_save_is_refused_after_a_reset` FAILS (200, override re-written). Revert each by hand.
+- [ ] **Step 6: Prove they bite.** Mutant N: call `form.save()` before `reset_course_overrides` → the lock-order test FAILS. Mutant O: move the reset outside the `atomic()` block → the atomic test FAILS. Mutant P: remove the explicit `updated` bump in `reset_course_overrides` → `test_stale_editor_save_is_refused_after_a_reset` FAILS (200, override re-written). Mutant AB: at the end of `reset_course_overrides`, add `QuestionResponse.objects.filter(element__unit_id__in=pks, locked=True).update(locked=False)` → the Step 1b D13 case FAILS (200, not 409). Revert each by hand.
 
 - [ ] **Step 7: `ContentNode.updated` reader audit** (spec §5.4). Re-run `grep -rn "\.updated\b" --include=*.py --include=*.html courses templates scripts | grep -v /tests/` and confirm, for each reader, that a reset bump is right. Known readers: the optimistic-concurrency tokens (`_check_token` in `builder.py`, `data-updated` / hidden `token` inputs in editor templates) — the bump is the point; LAL "no hand edit" evidence (`updated == created`, `scripts/lal_import/lesson.py`) — a reset IS an edit of the unit's questions, so marking the unit touched is correct. The spec also names **author live-view links** and **unit-progress staleness**: find their code (`grep -rn "updated" courses/views*.py courses/rollups.py templates/courses`) and decide each. The PR paragraph gives a one-line verdict for EVERY spec-named reader plus any extra one the grep finds; if any reader would be wrong, stop and report it to the owner.
 
@@ -2457,7 +2459,7 @@ and call it from `_upgrade_legacy_data` before the image-only early return (`dat
 - `importer._create_nodes`: pass `attempts_mode=nd["attempts_mode"], attempts_limit=nd["attempts_limit"]`.
 - `importer.import_course` `work()`: pass `attempts_mode=c["attempts_mode"], attempts_limit=c["attempts_limit"]` to `Course(...)`.
 
-- [ ] **Step 6: Sweep transfer test payloads.** `q_fields` in `tests/test_transfer_validation.py` → `"attempts_mode": "inherit", "attempts_limit": None` instead of `"max_attempts": 1`. Then `grep -rn "max_attempts" tests/test_transfer* tests/test_*transfer* tests/test_link_transfer.py tests/test_export_depth3.py` and convert each the same way (a dict key `"max_attempts": N` → the mapped pair per the §3.3 table). An export-output assertion such as `assert data["max_attempts"] == 1` (`tests/test_transfer_export.py` ~120) → assert `(data["attempts_mode"], data["attempts_limit"])` equals the question's stored pair. Convert the transfer/paste/duplicate assertions Task 2 deferred (its commit message lists them, e.g. `tests/test_builder_paste_element.py`). Bump the version pins: `grep -rn "FORMAT_VERSION == 17" tests` (today `tests/test_link_transfer.py`, `tests/test_table_transfer.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py`) → `== 18`, following how the previous bump updated them (`git log -S "FORMAT_VERSION == 17" --oneline`); also scan `tests/test_transfer_schema.py` for other `17` literals tied to the current version. Run all transfer test files plus the paste/duplicate ones: `uv run pytest $(ls tests/test_*transfer*.py tests/test_export_depth3.py tests/test_link_transfer.py tests/test_builder_paste_element.py)` → PASS.
+- [ ] **Step 6: Sweep transfer test payloads.** `q_fields` in `tests/test_transfer_validation.py` → `"attempts_mode": "inherit", "attempts_limit": None` instead of `"max_attempts": 1`. Then `grep -rn "max_attempts" tests/test_transfer* tests/test_*transfer* tests/test_link_transfer.py tests/test_export_depth3.py courses/tests` and convert each the same way — including `courses/tests/test_nested_question_transfer.py` (~238): its shared `fill_blank` payload feeds a v11, a v12 AND a `format_version=None` test; convert it to `"attempts_mode": "inherit", "attempts_limit": None` (the v11/v12 tests stay valid: the legacy upgrade only fires when `max_attempts` is present). Left as is, the None-version guard would still get its `TransferError` — from `_exact_keys`, not from the nested-question rule — and go blind while staying green (a dict key `"max_attempts": N` → the mapped pair per the §3.3 table). An export-output assertion such as `assert data["max_attempts"] == 1` (`tests/test_transfer_export.py` ~120) → assert `(data["attempts_mode"], data["attempts_limit"])` equals the question's stored pair. Convert the transfer/paste/duplicate assertions Task 2 deferred (its commit message lists them, e.g. `tests/test_builder_paste_element.py`). Bump the version pins: `grep -rn "FORMAT_VERSION == 17" tests` (today `tests/test_link_transfer.py`, `tests/test_table_transfer.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py`) → `== 18`, following how the previous bump updated them (`git log -S "FORMAT_VERSION == 17" --oneline`); also scan `tests/test_transfer_schema.py` for other `17` literals tied to the current version. Run all transfer test files plus the paste/duplicate ones: `uv run pytest $(ls tests/test_*transfer*.py tests/test_export_depth3.py tests/test_link_transfer.py tests/test_builder_paste_element.py)` → PASS.
 
 - [ ] **Step 7: Run** — `uv run pytest tests/test_attempts_transfer.py tests/test_transfer_subtree.py` → PASS.
 
@@ -2694,7 +2696,7 @@ def test_round_trip_with_every_question_type():
 
 - [ ] **Step 5: Admin** — `CourseAdmin` and `ContentNodeAdmin` get `readonly_fields = ("attempts_mode", "attempts_limit")` with a comment: "Edited only through the attempts forms, which own the nulling rule (spec §4); a raw admin edit would hit the DB constraint."
 
-- [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_constraints.py tests/test_attempts_no_stragglers.py tests/test_attempts_migration_populated.py tests/test_attempts_migration.py` → PASS. Then check the TESTS too (the straggler test skips them): `grep -rln "max_attempts" tests courses/tests | grep -v "test_attempts_migration\|test_attempts_transfer\|test_attempts_no_stragglers"` must list only files whose hits are the unrelated webhook `MAX_ATTEMPTS` / `dead_after_max_attempts`, or legacy-archive (v≤17) payloads in transfer tests — read every other hit and convert it. A straggler hit means a reader/template/comment was missed: fix it (rewrite prose in terms of the effective limit), never whitelist it.
+- [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_constraints.py tests/test_attempts_no_stragglers.py tests/test_attempts_migration_populated.py tests/test_attempts_migration.py` → PASS. Then check the TESTS too (the straggler test skips them): `grep -rln "max_attempts" tests courses/tests | grep -v "test_attempts_migration\|test_attempts_transfer\|test_attempts_no_stragglers"` must list only files whose hits are the unrelated webhook `MAX_ATTEMPTS` / `dead_after_max_attempts`, or a legacy-archive payload that is validated ONLY at a version ≤ 17 (a payload shared with a v18 / `None` test does not qualify) — read every other hit and convert it. A straggler hit means a reader/template/comment was missed: fix it (rewrite prose in terms of the effective limit), never whitelist it.
 
 - [ ] **Step 7: Prove they bite.** Mutant T: make the question constraint's second `Q` also allow `attempts_limit__gte=1` → `("inherit", 3)` cases FAIL. Mutant U: add `from courses.quiz import effective_max_attempts` to the top of `0071_attempts_data.py` → the no-import test FAILS. Revert by hand (and re-run `migrate` if you touched a migration).
 
@@ -2715,8 +2717,9 @@ git commit -m "feat(attempts): drop max_attempts; DB constraints; read-only admi
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po`, `django.mo`
+- Modify: `locale/en/LC_MESSAGES/django.po`, `django.mo` (the repo keeps en in step — see commits `4b3fb424`, `1a310859`; en msgstrs stay empty by design, as `tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid` documents)
 
-- [ ] **Step 1:** `uv run python manage.py makemessages -l pl` (check the repo's usual flags in earlier i18n commits, e.g. `--no-location`, and use the same).
+- [ ] **Step 1:** `uv run python manage.py makemessages -l pl -l en` (check the repo's usual flags in those earlier i18n commits, e.g. `--no-location`, and use the same).
 - [ ] **Step 2:** Translate every new msgid. **Clear every `#, fuzzy` pre-fill on these entries — both the flag and the guessed msgstr** (makemessages often pre-fills a wrong translation). Proposed Polish (owner to confirm in review):
 
 | msgid | msgstr |
@@ -2752,9 +2755,9 @@ git commit -m "feat(attempts): drop max_attempts; DB constraints; read-only admi
 
 Polish plural order in this catalog: `msgstr[0]` one, `[1]` few (2–4), `[2]` many — confirm against the `Plural-Forms` header.
 
-- [ ] **Step 3:** Remove the now-unused `Max attempts` entry if makemessages marked it obsolete (`#~`), leave other obsolete entries alone. `uv run python manage.py compilemessages -l pl`.
+- [ ] **Step 3:** Delete EVERY `#~` (obsolete) entry makemessages produced in both catalogs, `Max attempts` included — `tests/test_i18n_po_health.py::test_no_obsolete_entries` fails on any. `uv run python manage.py compilemessages -l pl -l en`.
 - [ ] **Step 4:** Verify no fuzzy entries remain among the new msgids (CRLF-safe — `grep $` anchors fail on CRLF .po files): `uv run python -c "import polib,sys; po=polib.pofile('locale/pl/LC_MESSAGES/django.po'); bad=[e.msgid for e in po.fuzzy_entries() if 'ttempt' in e.msgid or 'Same as' in e.msgid or 'Settings saved' in e.msgid]; print(bad); sys.exit(bool(bad))"` (if `polib` is unavailable, read the entries by eye). Run the i18n tests: `uv run pytest $(ls tests/test_*i18n*.py tests/test_*locale*.py 2>/dev/null)` → PASS.
-- [ ] **Step 5: Commit** — `git add locale && git commit -m "i18n(pl): attempts defaults strings"`.
+- [ ] **Step 5: Commit** — `git add locale && git commit -m "i18n: attempts defaults strings (pl translated, en in step)"`.
 
 ---
 
