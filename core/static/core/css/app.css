@@ -3004,6 +3004,13 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
      10pt a formula's scripts get hard to read. Every type size is rem/em, so
      all text and maths scale together; the px spacing tokens do not. */
   html { font-size: 10pt; }
+  /* The spacing tokens are px, so they kept their screen size while the text
+     shrank: at 0.75 the gaps follow it down (owner, 2026-10-20). After
+     tokens.css, so these win the :root tie on source order. */
+  :root {
+    --space-1: 3px; --space-2: 6px; --space-3: 9px; --space-4: 12px;
+    --space-5: 15px; --space-6: 18px; --space-8: 24px; --space-10: 30px;
+  }
   .app-header__spacer, .app-header__cluster { display: none !important; }
   .app-header { padding: 0 0 var(--space-4); background: none; border: 0; }
   .app-main { padding: 0; max-width: none; }

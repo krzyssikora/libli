@@ -50,6 +50,8 @@ blockquote {
 .el--iframe iframe { width: 100%; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
 
+@media print { .el { margin: 0.75rem 0; } }
+
 /* Divider element: an authored horizontal rule between blocks. `border: 0` first
    because a UA <hr> ships its own inset 3-D border, which would sit under this
    one as a second, thicker line. Colour comes from a token, so it follows the
@@ -434,6 +436,18 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
    which are the two that still mean something in print. */
 @media print {
   .embed-frame--sized { width: min(100%, calc(var(--embed-w) * 1px)); }
+}
+/* On paper an embed or a video is only a still, not worth a page (owner,
+   2026-10-20): at most half the column and 60mm tall, centred, and still never
+   past its authored size. The height bound is a WIDTH, as on screen, so the
+   aspect-ratio keeps the shape. After the rule above, which it overrides. */
+@media print {
+  .embed-frame--sized {
+    width: min(50%, calc(var(--embed-w) * 1px), calc(60mm * var(--embed-w) / var(--embed-h)));
+  }
+  .embed-frame:not(.embed-frame--sized) { width: 50%; margin-inline: auto; }
+  .el--video iframe { display: block; width: 50%; margin-inline: auto; }
+  .el--video video { max-width: 50%; max-height: 60mm; margin-inline: auto; }
 }
 
 /* Sandboxed HTML element (1b-iii) */

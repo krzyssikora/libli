@@ -210,3 +210,54 @@ def test_a_dimensionless_embed_keeps_its_full_width_16_9_geometry(live_server, p
         )
         is False
     )
+
+
+# Paper (owner, 2026-10-20): an embed or a video is only a still on paper, so it
+# prints within half the column and 60mm of height, never past its authored size.
+PRINT_SHARE = 0.5
+PRINT_MAX_H_PX = 60 * 96 / 25.4
+
+
+@pytest.mark.django_db(transaction=True)
+def test_print_bounds_every_embed_and_video(live_server, page):
+    from courses.models import Element
+    from courses.models import VideoElement
+
+    course, unit = _seed("ef9", "efslug9")
+    Element.objects.create(
+        unit=unit,
+        content_object=VideoElement.objects.create(
+            url="https://www.youtube.com/embed/dQw4w9WgXcQ"
+        ),
+    )
+    page.route("**://www.geogebra.org/**", lambda route: route.abort())
+    page.route("**://www.youtube.com/**", lambda route: route.abort())
+    _login(page, live_server, "ef9")
+    page.goto(
+        f"{live_server.url}/courses/efslug9/u/{unit.pk}/", wait_until="domcontentloaded"
+    )
+    page.wait_for_selector(".el--video iframe")
+    # A4 at the 15mm @page margin: a 180mm column, 680px.
+    page.set_viewport_size({"width": 680, "height": 900})
+    page.emulate_media(media="print")
+    boxes = page.evaluate(
+        """() => [...document.querySelectorAll('.embed-frame, .el--video iframe')]
+          .map(e => {
+            const r = e.getBoundingClientRect();
+            const col = e.closest('.el').getBoundingClientRect();
+            return {w: r.width, h: r.height, col: col.width,
+                    centred: Math.abs((r.left - col.left) - (col.right - r.right)) < 1};
+          })"""
+    )
+    assert len(boxes) == 4, boxes
+    portrait, small, unsized, video = boxes
+    for b in boxes:
+        assert 0 < b["w"] <= PRINT_SHARE * b["col"] + 1, boxes
+        assert 0 < b["h"] <= PRINT_MAX_H_PX + 1, boxes
+        assert b["centred"], boxes
+    # The height bound is what holds the portrait applet, keeping its shape.
+    assert abs(portrait["h"] - PRINT_MAX_H_PX) <= 1, portrait
+    assert abs(portrait["w"] / portrait["h"] - PORTRAIT[0] / PORTRAIT[1]) < 0.01
+    assert small["w"] <= SMALL[0] + 1, small
+    for b in (unsized, video):
+        assert abs(b["w"] / b["h"] - 16 / 9) < 0.01, b
