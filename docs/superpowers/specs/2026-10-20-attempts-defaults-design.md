@@ -100,8 +100,8 @@ payload (§6).
 migration risks PostgreSQL's "cannot ALTER TABLE … pending trigger events" on the
 question tables): (1) add the new fields; (2) `RunPython` data step; (3) remove
 `max_attempts` and add the §3.2 constraints. The migration-graph-head restore check
-covers the last of the three. The data step applies, for every existing question,
-quiz or lesson:
+covers the last of the three. The data step applies, for every existing question
+row (every concrete table, in quizzes and lessons alike):
 
 | Old `max_attempts` | New |
 |---|---|
@@ -249,9 +249,22 @@ dormant override. Validation (incl. the D9 message) raises `ValidationError`, wh
 surfaces through the existing `_editor_page(..., error=msg, status=422)` route. The
 reset runs inside `rename_node`'s existing locked transaction.
 
-On a quiz-level 422 the unit settings re-render with the **posted** mode, limit
-and reset choice (not the stored ones / default *Keep*), so the author's
-*Limited to…* choice, number and reset pick survive next to the error message.
+**Parsing.** `node_rename` passes raw POST strings; `rename_node` parses them
+**before** `full_clean` and raises `ValidationError` with the spec's wording:
+unknown mode → *"Choose one of the attempts options."*; under `limited`, an
+empty, whitespace, non-integer ("abc", "2.5"), or negative value → *"Enter a
+number of attempts, or choose another option."*; 0 → the D9 course-source
+message; > cap → the cap message. No raw `int()` can raise, and Django's default
+`full_clean` messages never replace these.
+
+On a quiz-level 422 the **whole** unit settings form re-renders with the posted
+values — title, published, obligatory, `html_seed_js`, attempts mode, limit and
+reset choice — not the stored ones, so no edit (e.g. seed JS) is lost to an
+attempts error. Mechanism: `node_rename`'s error path calls
+`_editor_page(request, unit, error=msg, status=422, settings_post=request.POST)`,
+and `_unit_settings.html` prefers `settings_post` values over `unit.*` when
+present. The settings `<details>` renders `open` on that 422 so the values and
+the error are visible.
 
 Quiz-level success message: *"Settings saved. N questions now use the quiz
 setting."* (`ngettext` on N; plain *"Settings saved."* when N is 0).
@@ -281,7 +294,15 @@ lock the unit first (`builder._locked_unit`, `select_for_update` on
 same: first `select_for_update()` the course's quiz units **ordered by pk**, then
 compute the counts and the touched set, then run the question/unit updates and the
 `updated` bump. Updating question rows before locking the units would deadlock
-against a concurrent element save. `course_create` shows neither the
+against a concurrent element save. When a reset is requested, the unit locks are
+taken **before** `form.save()` writes the `Course` row: builder ops
+(`reparent_node`, top-level `delete_node`/`move_node`, `duplicate_unit`) lock a
+unit and then `course.save(update_fields=["updated"])`, so the one global order is
+**units (pk order), then course**.
+
+The reset choice is a non-model `CourseForm` field (absent on create), so an
+invalid course POST re-binds it automatically and keeps the posted pick; the
+counts on re-render are recomputed from the DB. `course_create` shows neither the
 reset choice nor runs a reset (a new course has no overrides).
 
 ### 5.4 Reset semantics
@@ -314,7 +335,8 @@ pre-fill (it is often a wrong translation), recompile the `.mo`.
 - Legacy defaults for absent keys are applied **by version, before** the exact-keys check (as `published` already is), so v≤17 archives are not rejected.
 - **Copies and moves** (`duplicate_unit`, `duplicate_element`, copy-units across courses, element moves between units) keep the stored mode as-is and resolve at the destination — same rule as sub-tree import.
 - **Legacy (≤ 17):** question `max_attempts` mapped per §3.3; nodes absent → `inherit`; course absent → `limited`, 1.
-- **Validation:** unknown mode, `inherit` on course, missing / < 1 / > `MAX_ATTEMPTS_LIMIT` limit under `limited`, or limit present otherwise → `TransferError` with a translated message.
+- **Validation:** `attempts_mode` must be a known mode (not `inherit` on course); `attempts_limit` (always a present key) must be `null` unless the mode is `limited`, and under `limited` an int in 1..`MAX_ATTEMPTS_LIMIT`. Anything else → `TransferError` with a translated message. The exporter writes `null` for non-`limited` modes.
+- **Legacy question hook:** for questions the legacy key `max_attempts` is *present* and must be renamed and value-mapped, so absent-key defaults don't cover it. `_upgrade_legacy_data` (today image-only) is extended — or a sibling hook added — to run for every question type **before** the ten `_exact_keys(data, Q_KEYS + …)` checks. It validates the legacy value with `check_int_or_null` first (a bool, string or negative value → `TransferError`, never a 500), then maps per §3.3 and **mutates `el["data"]` in place**, so the commit step (`importer.py:489`) stores the mapped keys. `format_version=None` (in-instance paths such as `duplicate_unit` → `materialize_duplicate`) means modern: no mapping.
 - **Sub-tree import:** modes kept as-is; *inherit* resolves against the target course (P10).
 - **Merge guard:** before merging, confirm no other open branch also bumps to 18 (identical-line bumps merge silently).
 
@@ -326,8 +348,8 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
 3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; raising a limit leaves an already-locked response locked (P5a); attempts-left and analytics show resolved values.
 4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit saves with `attempts_limit = NULL` (no 500); inherit label shows correct value + source; a quiz unit with its own `limited` 3 under a course `limited` 1 shows "Same as course (currently: 1)"; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
-5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit + reset choice; quiz-level success message wording; the course reset locks the quiz units (ordered by pk) before touching any question row (assert the lock order, e.g. via the queries captured in order); message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
-6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
+5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit + reset choice; quiz-level success message wording; the course reset locks the quiz units (ordered by pk) before touching any question row **and before the Course UPDATE** (assert the lock order, e.g. via the queries captured in order); quiz level "abc" / "2.5" / unknown mode → 422 with the spec's message; a posted seed JS survives a quiz-level attempts 422 and the settings `<details>` is open; an invalid course POST keeps the posted reset choice; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
+6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); v17 question with `max_attempts: true` / `"3"` / `-1` → `TransferError`, not a 500; a `duplicate_unit` (`format_version=None`) is not re-mapped; invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
 6a. **Migration on Postgres** — forwards and backwards on a DB with populated rows of every question type (catches the pending-trigger failure).
 7. **Constraints** — the full truth table at the DB, on **every** concrete question table (derived list), `ContentNode` and `Course`: `limited` without a limit, `limited` with 0, `inherit`/`unlimited` with a limit all fail; `Course` with `inherit` fails.
 8. **e2e (real UI)** — a question with its own override (`limited` 2); author sets course to 3 and chooses "Make every quiz and question use the course setting" → a student **who has not answered yet** gets 3 tries, 4th refused (proves the reset through the UI); author sets a quiz to Unlimited while a question keeps 2 → it still stops at 2; author types 0 in a question's limit and sees the D9 message (proves the browser does not swallow it); after a fragment swap, selecting "Limited to…" shows the number input.
