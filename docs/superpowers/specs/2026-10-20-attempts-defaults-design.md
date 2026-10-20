@@ -67,8 +67,11 @@ tests) iterates a **derived** list — the concrete subclasses of `QuestionEleme
 (in the migration: the historical models of those classes) — never a hand-written
 one, so a new question type is covered automatically.
 
-`attempts_limit` is capped at `MAX_ATTEMPTS_LIMIT = 999` (forms and import
-validation), well inside `PositiveSmallIntegerField`'s 32767.
+`attempts_limit` is capped at `MAX_ATTEMPTS_LIMIT = 32767` (forms and import
+validation) — `PositiveSmallIntegerField`'s own maximum, the same range the old
+`max_attempts` accepted. So every existing value migrates, round-trips through
+export/import and `duplicate_unit`, and stays editable; the cap only turns an
+out-of-range number into a message instead of a DB error.
 
 ### 3.2 Database constraints
 
@@ -77,8 +80,12 @@ On every table: `attempts_limit IS NOT NULL AND attempts_limit >= 1` exactly whe
 additionally `attempts_mode != 'inherit'`.
 
 The question constraints are declared on the abstract `QuestionElement.Meta`, so
-their names must be class-interpolated (`%(app_label)s_%(class)s_attempts_…`) and
-every concrete subclass that declares its own `Meta` must inherit
+their names must be class-interpolated, with **short suffixes that differ early**
+(`%(app_label)s_%(class)s_att_mode`, `…_att_lim`): the longest prefix
+(`courses_extendedresponsequestionelement_`) is already 40 bytes and Postgres
+silently truncates identifiers past 63, so long suffixes could collide. A test
+asserts every generated constraint name is ≤ 63 bytes. Every
+concrete subclass that declares its own `Meta` must inherit
 `QuestionElement.Meta`, or it silently drops them.
 
 **Stale limit with a non-`limited` mode:** at every level the editing save path
@@ -185,7 +192,7 @@ visible before submitting.
 
 Other limit messages (all three levels): empty or negative under *Limited to…* →
 *"Enter a number of attempts, or choose another option."*; above the cap → *"At
-most 999 attempts."* (these replace Django's default min/max/required messages).
+most 32767 attempts. For no limit, choose 'Unlimited'."* (these replace Django's default min/max/required messages).
 
 **Reveal mechanism (all three levels).** The number input is always rendered in
 the HTML; a CSS-only rule (`:has()` on the select's checked `limited` option)
@@ -200,7 +207,17 @@ every render path (full page, fragment swap, 422 re-render, add-element) shows i
 When the attempts fields are **absent** from the POST (a lesson question — the
 select renders only in quizzes), both stored values are kept unchanged; the
 nulling rule of §3.2 runs only when a mode was actually posted. A lesson question's
-dormant `limited` override therefore survives an edit.
+dormant `limited` override therefore survives an edit. This is done
+**explicitly** (e.g. both fields removed from the form when the mode key is not
+posted, or restored from `self.instance`), not via Django's omitted-field rule:
+`construct_instance` skips an omitted field only if the model field has a
+default, and `attempts_limit` has none, so relying on it would write
+`limited` + NULL and violate §3.2 (500). The `_MarkingFieldsMixin` tuple
+(`element_forms.py:91`, `("marking_mode", "max_attempts", "max_marks")`) is
+updated to `attempts_mode` + `attempts_limit` (both `required=False`); its `if
+field_name in self.fields` guard would otherwise skip the removed name silently,
+leaving `attempts_mode` required and every lesson-question save a 422. Its
+docstring's "model defaults apply" reasoning is corrected for `attempts_limit`.
 
 ### 5.2 Quiz unit (`templates/courses/manage/editor/_unit_settings.html`, only when `unit_type == quiz`)
 
@@ -220,6 +237,10 @@ for a quiz unit), so saving a lesson's settings or renaming a node never touches
 dormant override. Validation (incl. the D9 message) raises `ValidationError`, which
 surfaces through the existing `_editor_page(..., error=msg, status=422)` route. The
 reset runs inside `rename_node`'s existing locked transaction.
+
+On a quiz-level 422 the unit settings re-render with the **posted** mode and
+limit (not the stored ones), so the author's *Limited to…* choice and number
+survive next to the error message.
 
 **Message path.** `rename_node`'s return value is unchanged for existing callers;
 when a reset is requested it also records the reset count on the returned node
@@ -250,7 +271,10 @@ reset choice nor runs a reset (a new course has no overrides).
 - **Concurrency:** the reset bumps `ContentNode.updated` on every quiz unit it touched (units whose questions or own mode changed). The bump is **explicit** — `ContentNode.objects.filter(pk__in=touched).update(updated=timezone.now(), …)` — because `updated` is `auto_now` and `QuerySet.update()` never applies `auto_now`; a question-only reset touches no `ContentNode` row at all otherwise. An editor already open on such a unit then gets the existing stale-token "changed elsewhere" response on its next save, instead of silently re-posting the old override and undoing the reset. The plan must audit every reader of `ContentNode.updated` (author live-view links, LAL "no hand edit" checks, unit-progress staleness) before relying on the bump, and report any reader for which the bump is wrong.
 - Success message reports the counts actually reset.
 - Questions in lessons, other quizzes and other courses are untouched.
-- **Counts** (and whether the reset choice is shown) include only `[A]` auto-marked questions, the only ones an attempts setting affects (P3). The reset itself clears every question row in scope, `[N]`/`[R]` included (harmless).
+- **Counts** (and whether the reset choice is shown) include only `[A]` auto-marked questions with a non-`inherit` mode, the only ones an attempts setting affects (P3); quiz units counted are those with a non-`inherit` mode.
+- The reset's bulk updates filter to `attempts_mode != 'inherit'` (every question row in scope, `[N]`/`[R]` included — harmless). The **success message** reports the `[A]`-override counts computed inside the transaction **before** the update — the same numbers the choice showed, unless changed concurrently.
+- **Touched units** (whose `updated` is bumped) = quiz units that had at least one non-`inherit` question row, plus (course reset) quiz units whose own mode was non-`inherit`. Units with nothing to reset are not bumped, so unrelated open editors are not made stale.
+- If every count is zero at save time (overrides removed meanwhile, or a crafted POST), the message is the plain *"Settings saved."*
 - Accepted consequence of P9: a lesson unit's dormant override survives a course reset and takes effect again if the unit is later switched to a quiz (the quiz panel then shows it). Not "fixed".
 
 **Count wording (§5.2, §5.3, P8 message):** a zero part is omitted ("41 questions
@@ -282,7 +306,7 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
 3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; raising a limit leaves an already-locked response locked (P5a); attempts-left and analytics show resolved values.
 4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit saves with `attempts_limit = NULL` (no 500); inherit label shows correct value + source; a quiz unit with its own `limited` 3 under a course `limited` 1 shows "Same as course (currently: 1)"; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
-5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
+5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
 6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
 6a. **Migration on Postgres** — forwards and backwards on a DB with populated rows of every question type (catches the pending-trigger failure).
 7. **Constraints** — the full truth table at the DB, on **every** concrete question table (derived list), `ContentNode` and `Course`: `limited` without a limit, `limited` with 0, `inherit`/`unlimited` with a limit all fail; `Course` with `inherit` fails.
