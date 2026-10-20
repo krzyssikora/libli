@@ -368,7 +368,7 @@ A response in a quiz unit of `units` is unlocked (`locked = False`) iff **all** 
 2. the question is `[A]` auto-marked (`[N]`/`[R]` lock on their single submission);
 3. `revealed_at` is NULL (no Show answer — D12);
 4. its `QuizSubmission.status` is not SUBMITTED (D12);
-5. its latest `Attempt` (highest `n`) has `correct` not True (a correct answer locks for good);
+5. its latest `Attempt` (highest `n`) has `correct` **IS FALSE** — an explicit wrong `[A]` attempt. A correct answer locks for good; `correct = NULL` (the response was locked under `[N]`/`[R]`, even if the author has since switched the question to `[A]`) and **no `Attempt` row at all** (legacy / seeded data) never qualify;
 6. `attempt_count < effective_max_attempts(question, unit)`, or the effective limit is `None` (unlimited).
 
 `attempt_count`, `latest_answer`, marks and `Attempt` rows are untouched, so the
@@ -379,17 +379,32 @@ that can change an effective limit:
 - question save that changes its attempts setting → that question's unit;
 - quiz settings save that changes the quiz's setting or resets → that unit;
 - course save that changes the course setting or resets → all the course's quiz units;
-- a `unit_type` lesson → quiz switch is **not** a trigger (a lesson unit has no quiz responses).
+- a `unit_type` lesson → quiz switch in `rename_node` → that unit. A unit's `QuizSubmission`/`QuestionResponse` rows survive a quiz → lesson → quiz round trip, and a course raise made while it was a lesson skipped it, so the switch back re-runs the unlock inside `rename_node`'s transaction.
 
 It is idempotent and cheap to call when nothing qualifies, so a save path may call
 it on any attempts-related save without detecting "was it a raise". Lowering a
 limit never re-locks a response through this function: the existing gate
 (`attempt_count >= limit`) handles lowering on the student's next try (P5).
 
-**Locking:** it runs after the unit locks of §5.3 / `rename_node` /
-`_locked_unit`, and updates responses by one bulk `UPDATE` per unit. `quiz_answer`
-locks its submission/response rows but never a unit, so the order units →
-responses introduces no cycle; the plan verifies this against the code.
+**Locking.** It always runs after the affected units are locked: `_locked_unit`
+(question save), `rename_node` (quiz save / type switch), and at course level the
+pk-ordered quiz-unit locks of §5.3, which are taken **on every course save that
+changes the attempts setting**, reset or not, before the `Course` write. That
+serialises the unlock's effective-limit computation against concurrent question
+and quiz saves. A lock-order test pins the no-reset course path too.
+
+**Race with Finish / Show answer.** Submitting the quiz (`quiz.py`, responses
+`update(locked=True)` + status SUBMITTED) and Show answer lock no unit, so they can
+commit between any Python-side selection and the write. The write therefore
+re-checks every state condition **in its own `WHERE`**: one `UPDATE` per question
+(limits differ per question) with `locked = True`, `revealed_at IS NULL`,
+`submission.status != SUBMITTED`, `attempt_count < <that question's limit>` (omitted
+when unlimited), and an `Exists` subquery for "latest `Attempt` has `correct IS
+FALSE`". On PostgreSQL (READ COMMITTED) a row changed concurrently is re-evaluated
+against that `WHERE` before being written, so a just-submitted or just-revealed
+response is never unlocked. `quiz_answer` locks submission/response rows but never
+a unit, so units → responses introduces no deadlock cycle; the plan verifies this
+against the code.
 
 **Student view:** an unlocked question shows as answerable again on the next page
 load (no live push). Its result line shows the attempts left from the new limit.
@@ -400,7 +415,7 @@ load (no live push). Its result line shows the attempts left from the new limit.
 - **Node payload:** `attempts_mode` + `attempts_limit` beside `obligatory` (`export.py:603`, `importer.py:932`, and the node `_exact_keys` list in `transfer/schema.py`).
 - **Course payload** (KIND_COURSE only): beside `color_bands` (`export.py:1006`, `importer.py:1109`, and the course key check in `transfer/schema.py`).
 - Legacy defaults for absent keys are applied **by version, before** the exact-keys check (as `published` already is), so v≤17 archives are not rejected.
-- **Copies and moves** (`duplicate_unit`, `duplicate_element`, copy-units across courses, element moves between units) keep the stored mode as-is and resolve at the destination — same rule as sub-tree import.
+- **Copies and moves** (`duplicate_unit`, `duplicate_element`, copy-units across courses, cross-unit paste — always a copy via `_copy_into`; in-unit moves leave the unit unchanged) keep the stored mode as-is and resolve at the destination — same rule as sub-tree import.
 - **Legacy (≤ 17):** question `max_attempts` mapped per §3.3; nodes absent → `inherit`; course absent → `limited`, 1.
 - **Validation:** `attempts_mode` must be a known mode (not `inherit` on course); `attempts_limit` (always a present key) must be `null` unless the mode is `limited`, and under `limited` an int in 1..`MAX_ATTEMPTS_LIMIT`. Anything else → `TransferError` with a translated message. The exporter writes `null` for non-`limited` modes.
 - **Legacy question hook:** for questions the legacy key `max_attempts` is *present* and must be renamed and value-mapped, so absent-key defaults don't cover it. `_upgrade_legacy_data` (today image-only) is extended — or a sibling hook added — to run for every question type **before** the ten `_exact_keys(data, Q_KEYS + …)` checks. It validates the legacy value with `check_int_or_null` first (a bool, string or negative value → `TransferError`, never a 500), then maps per §3.3 and **mutates `el["data"]` in place**, so the commit step (`importer.py:489`) stores the mapped keys. `format_version=None` (in-instance paths such as `duplicate_unit` → `materialize_duplicate`) means modern: no mapping.
@@ -413,13 +428,13 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 
 1. **Resolver** — full mode matrix over the three levels; nothing set → 1; a lesson unit with a `limited` override is skipped (step 2 quiz-only).
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
-3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; unlock on raise (§5.5): one test per condition — exhausted wrong answer under a raised course / quiz / question limit is unlocked and accepts the next try; each of correct-latest-attempt, revealed, submitted quiz, `[N]`/`[R]`, and count still ≥ new limit stays locked; a response in a lesson unit or another course is untouched; lowering never unlocks or re-locks; idempotent second call changes nothing; attempts-left and analytics show resolved values.
+3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; unlock on raise (§5.5): one test per condition — exhausted wrong answer under a raised course / quiz / question limit is unlocked and accepts the next try; each of correct-latest-attempt, revealed, submitted quiz, `[N]`/`[R]`, an `[N]` question switched to `[A]` with limit 3 (latest `correct` NULL), no `Attempt` row, and count still ≥ new limit stays locked; a quiz → lesson → quiz round trip with a course raise in between unlocks on the switch back; a course save changing only the limit (no reset) takes the unit locks before the Course write; a response submitted/revealed concurrently with the unlock is not unlocked (WHERE re-check); a response in a lesson unit or another course is untouched; lowering never unlocks or re-locks; idempotent second call changes nothing; attempts-left and analytics show resolved values.
 4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit — including a hidden `-1`, `99999` or `abc` — saves with `attempts_limit = NULL` (no 500, no 422) at question, quiz and course level; a reset value other than `reset` (or none) means Keep; empty/unknown posted mode → "Choose one of the attempts options." at all three levels; a crafted attempts POST against a lesson unit is rejected and writes nothing; inherit label shows correct value + source; a quiz unit with its own `limited` 3 under a course `limited` 1 shows "Same as course (currently: 1)"; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
 5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit + reset choice; quiz-level success message wording; the course reset locks the quiz units (ordered by pk) before touching any question row **and before the Course UPDATE** (assert the lock order, e.g. via the queries captured in order); quiz level "abc" / "2.5" / unknown mode → 422 with the spec's message; a posted seed JS survives a quiz-level attempts 422 and the settings `<details>` is open; an invalid course POST keeps the posted reset choice; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
 6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); v17 question with `max_attempts: true` / `"3"` / `-1` → `TransferError`, not a 500; a `duplicate_unit` (`format_version=None`) is not re-mapped; invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
 6a. **Migration on Postgres** — forwards and backwards on a DB with populated rows of every question type (catches the pending-trigger failure).
 7. **Constraints** — the full truth table at the DB, on **every** concrete question table (derived list), `ContentNode` and `Course`: `limited` without a limit, `limited` with 0, `inherit`/`unlimited` with a limit all fail; `Course` with `inherit` fails.
-8. **e2e (real UI)** — a question with its own override (`limited` 2); author sets course to 3 and chooses "Make every quiz and question use the course setting" → a student **who has not answered yet** gets 3 tries, 4th refused (proves the reset through the UI); author sets a quiz to Unlimited while a question keeps 2 → it still stops at 2; author types 0 in a question's limit and sees the D9 message (proves the browser does not swallow it); after a fragment swap, selecting "Limited to…" shows the number input.
+8. **e2e (real UI)** — a question with its own override (`limited` 2); author sets course to 3 and chooses "Make every quiz and question use the course setting" → a student **who has not answered yet** gets 3 tries, 4th refused (proves the reset through the UI); author sets a quiz to Unlimited while a question keeps 2 → it still stops at 2; author types 0 in a question's limit and sees the D9 message (proves the browser does not swallow it); after a fragment swap, selecting "Limited to…" shows the number input; a student runs out of attempts at course limit 1, the author raises the course to 2, and on reload the student can answer again with "1 attempt left" (D12).
 9. **Screenshots** — question select, quiz panel with reset choice, course form; light + dark.
 
 ### 7.1 Existing-test sweep (risk)
