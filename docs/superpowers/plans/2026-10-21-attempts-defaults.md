@@ -742,6 +742,10 @@ Rules (apply to every hit that is NOT a form-POST dict key `"max_attempts": …`
 6. e2e seeds (`tests/test_e2e_*.py`) follow rule 1 too — including helpers that DEFAULT to 0 (`_seed_matrix(..., max_attempts=0)` in `tests/test_e2e_choicegrid.py`, `_seed_multigrid(..., max_attempts=0)` in `tests/test_e2e_multigrid.py`; find others with `grep -rn "max_attempts=0" tests`): `attempts(0)` gives inherit, matching D9.
 7. POST dicts built FROM a question's field (e.g. `tests/test_e2e_questions_2dii.py` ~664, `str(q.max_attempts)`) → post `q.attempts_mode` and `"" if q.attempts_limit is None else str(q.attempts_limit)` under the two new keys. Find them with `grep -rn "\.max_attempts" tests courses/tests`.
 
+8. A dict built for a model create (e.g. `tests/test_e2e_questions_2diii.py` ~106, `kwargs["max_attempts"] = max_attempts`) → `kwargs.update(attempts(max_attempts))`.
+
+**Leave for later tasks** (convert them there, not here): any assertion whose value travels through the **question form** (Task 4 — e.g. `tests/test_quiz_authoring.py` ~23, which POSTs `"max_attempts": 2` and asserts the saved value) or through the **transfer / paste / duplicate** path (Task 7 — e.g. `tests/test_builder_paste_element.py` ~762–774, which asserts the copy's attempts). Until those tasks land, the form and the importer still write only `max_attempts`, so converting the assertion now makes it fail for no sweep reason. Note each deferred site in the task's commit message so Tasks 4 and 7 pick them up.
+
 Do it file by file; do not script it blind (scripted edits fail silently — read every `git diff`).
 
 - [ ] **Step 8: Run the touched test files** (not the whole suite — scope test runs narrowly): run each modified non-e2e test file listed by `git diff --name-only -- tests courses/tests`, in chunks of ~10 files per command. Expected: all PASS. A failure here is a sweep mistake or a reader you missed — read it, don't "fix" the expectation.
@@ -1475,6 +1479,8 @@ Then run every CSS source test: `uv run pytest $(ls tests/test_*css*.py)` → PA
 - [ ] **Step 10: Sweep form constructions and POST dicts in tests.**
 - `grep -rnE "QuestionElementForm\(" tests courses/tests` — add `unit=` (a `make_quiz_unit()` for quiz-behaviour tests; the existing test's unit where it has one). `tests/test_questions_forms.py::test_marking_widgets_have_input_class` iterates `("marking_mode", "max_attempts", "max_marks")` — change it to `("marking_mode", "attempts_mode", "max_marks")` and build forms with `unit=make_quiz_unit()`.
 - `grep -rn "\"max_attempts\"" tests courses/tests` — every POST dict entry: `"max_attempts": "N"` (N ≥ 1) → `"attempts_mode": "limited", "attempts_limit": "N"`; `"max_attempts": ""` → `"attempts_mode": "unlimited"`; `"max_attempts": "0"` (e.g. `tests/test_save_choicegrid.py` ×3, `tests/test_save_multigrid.py` ×3, `tests/test_grid_questions_nesting.py`) → `"attempts_mode": "inherit"` (D9 — `limited` 0 is now a form error). **Grep, don't recall**: a stale key is silently ignored and the question saves as inherit (spec §7.1). Leave transfer payload dicts for Task 7.
+- `tests/test_questions_2dii_form.py` (~19) has the same `("marking_mode", "max_attempts", "max_marks")` loop — same fix as above.
+- Convert the form-path assertions Task 2 deferred (its commit message lists them, e.g. `tests/test_quiz_authoring.py`).
 - Run every file the sweep touched (chunks of ~10) → PASS.
 
 - [ ] **Step 11: Commit**
@@ -1821,7 +1827,7 @@ def _unit_settings_values(unit, post=None):
 
 Keep the existing `{% trans %}` seed help text byte-identical (it has a catalog entry). Make sure the test's `'<option value="limited" selected'` matches the rendered whitespace; if Django renders the attribute differently, adjust the assertion to the real markup, not the template.
 
-- [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_quiz_settings.py` → PASS. Also run the existing editor/settings tests: `uv run pytest tests -k "unit_settings or node_rename or editor_page"` → PASS (they read the old `unit.*` values; `unit_settings` must reproduce them).
+- [ ] **Step 6: Run** — `uv run pytest tests/test_attempts_quiz_settings.py` → PASS. Also run the existing tests that touch the settings form, chosen by CONTENT not name: `uv run pytest $(grep -rln "has_settings\|unit-settings\|html_seed_js\|node_rename" tests | grep -v e2e)` → PASS (they read the old `unit.*` values; `unit_settings` must reproduce them).
 
 - [ ] **Step 7: Prove they bite.** Mutant L: drop the `node.unit_type != QUIZ` guard in `rename_node` → the crafted-lesson test FAILS. Mutant M: in `_unit_settings_values` use stored values on the 422 path (`post=None` always) → `test_422_keeps_every_posted_value` FAILS. Mutant Y: `attempts_posted = is_settings` (drop the key check) → `test_lesson_settings_and_plain_rename_keep_dormant_override` FAILS (422: lesson guard). Mutant Z: in `parse_attempts` return `raw_limit` unparsed for non-limited modes → `test_hidden_junk_saves_null` FAILS. Revert each by hand.
 
@@ -2406,7 +2412,7 @@ and call it from `_upgrade_legacy_data` before the image-only early return (`dat
 - `importer._create_nodes`: pass `attempts_mode=nd["attempts_mode"], attempts_limit=nd["attempts_limit"]`.
 - `importer.import_course` `work()`: pass `attempts_mode=c["attempts_mode"], attempts_limit=c["attempts_limit"]` to `Course(...)`.
 
-- [ ] **Step 6: Sweep transfer test payloads.** `q_fields` in `tests/test_transfer_validation.py` → `"attempts_mode": "inherit", "attempts_limit": None` instead of `"max_attempts": 1`. Then `grep -rn "max_attempts" tests/test_transfer* tests/test_*transfer* tests/test_link_transfer.py tests/test_export_depth3.py` and convert each the same way (a dict key `"max_attempts": N` → the mapped pair per the §3.3 table). Run all transfer test files: `uv run pytest $(ls tests/test_*transfer*.py tests/test_export_depth3.py tests/test_link_transfer.py)` → PASS.
+- [ ] **Step 6: Sweep transfer test payloads.** `q_fields` in `tests/test_transfer_validation.py` → `"attempts_mode": "inherit", "attempts_limit": None` instead of `"max_attempts": 1`. Then `grep -rn "max_attempts" tests/test_transfer* tests/test_*transfer* tests/test_link_transfer.py tests/test_export_depth3.py` and convert each the same way (a dict key `"max_attempts": N` → the mapped pair per the §3.3 table). Convert the transfer/paste/duplicate assertions Task 2 deferred (its commit message lists them, e.g. `tests/test_builder_paste_element.py`). Bump the version pins: `grep -rn "FORMAT_VERSION == 17" tests` (today `tests/test_link_transfer.py`, `tests/test_table_transfer.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py`) → `== 18`, following how the previous bump updated them (`git log -S "FORMAT_VERSION == 17" --oneline`); also scan `tests/test_transfer_schema.py` for other `17` literals tied to the current version. Run all transfer test files plus the paste/duplicate ones: `uv run pytest $(ls tests/test_*transfer*.py tests/test_export_depth3.py tests/test_link_transfer.py tests/test_builder_paste_element.py)` → PASS.
 
 - [ ] **Step 7: Run** — `uv run pytest tests/test_attempts_transfer.py tests/test_transfer_subtree.py` → PASS.
 
