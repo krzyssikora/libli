@@ -64,10 +64,17 @@ A shared `AttemptsMode` `TextChoices` (`inherit`, `limited`, `unlimited`).
 
 `QuestionElement.max_attempts` is **removed**.
 
-Everything that touches "all question tables" (migration, reset, counts, constraint
-tests) iterates a **derived** list — the concrete subclasses of `QuestionElement`
-(in the migration: the historical models of those classes) — never a hand-written
-one, so a new question type is covered automatically.
+Runtime code and tests that touch "all question tables" (reset, counts,
+constraint tests, form-class test) iterate a **derived** list — the concrete
+subclasses of `QuestionElement` — never a hand-written one, so a new question type
+is covered automatically.
+
+The **migrations** are frozen and derive their list from **historical state
+only**: every model in `apps.get_app_config("courses").get_models()` that has a
+`max_attempts` field (data steps) — historical models don't keep the abstract base,
+and a live `QuestionElement.__subclasses__()` would make a future 11th type raise
+`LookupError` on every fresh migrate. The migrations never import from
+`courses.models`; a test asserts this.
 
 `attempts_limit` is capped at `MAX_ATTEMPTS_LIMIT = 32767` (forms and import
 validation) — `PositiveSmallIntegerField`'s own maximum, the same range the old
@@ -232,7 +239,10 @@ test iterates the question form classes and asserts each exposes both.
 When the attempts fields are **absent** from the POST (a lesson question — the
 select renders only in quizzes), both stored values are kept unchanged; the
 nulling rule of §3.2 runs only when a mode was actually posted. A lesson question's
-dormant `limited` override therefore survives an edit. This is done
+dormant `limited` override therefore survives an edit. Attempts keys posted
+for a question in a **non-quiz** unit (a crafted POST) are **ignored** — the form
+drops both fields whenever `unit.unit_type != quiz`, so stored values are kept,
+mirroring the absent case (tested). This is done
 **explicitly** (e.g. both fields removed from the form when the mode key is not
 posted, or restored from `self.instance`), not via Django's omitted-field rule:
 `construct_instance` skips an omitted field only if the model field has a
@@ -403,7 +413,7 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
 3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; raising a limit (course, quiz and question level, incl. with a reset) leaves an already-locked response locked (D13); course limit lowered 3 → 1 after 2 wrong attempts → next try refused, Show answer still offered, no key shown; raised back to 3 → the student gets one more attempt (§5.5); attempts-left and analytics show resolved values.
 4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit — including a hidden `-1`, `99999` or `abc` — saves with `attempts_limit = NULL` (no 500, no 422) at question, quiz and course level; a reset value other than `reset` (or none) means Keep; empty/unknown posted mode → "Choose one of the attempts options." at all three levels; a crafted attempts POST against a lesson unit is rejected and writes nothing; inherit label shows correct value + source; a quiz unit with its own `limited` 3 under a course `limited` 1 shows "Same as course (currently: 1)"; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
-5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit + reset choice; quiz-level success message wording; the course reset locks the quiz units (ordered by pk) before touching any question row **and before the Course UPDATE** (assert the lock order, e.g. via the queries captured in order); quiz level "abc" / "2.5" / unknown mode → 422 with the spec's message; a posted seed JS survives a quiz-level attempts 422 and the settings `<details>` is open; an invalid course POST keeps the posted reset choice; course-level success message wording incl. both counts; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
+5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit + reset choice; quiz-level success message wording; the course reset locks the quiz units (ordered by pk) before touching any question row **and before the Course UPDATE** (assert the lock order, e.g. via the queries captured in order); quiz level "abc" / "2.5" / unknown mode → 422 with the spec's message; a posted seed JS survives a quiz-level attempts 422 and the settings `<details>` is open; an invalid course POST keeps the posted reset choice; course-level success message wording incl. both counts; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped — the falsifiable case is the **course** reset of a quiz unit whose own mode is `inherit` and whose only overrides are on questions (must fail on a build relying on `auto_now`, since the course reset writes units via `QuerySet.update()`); at quiz level `rename_node`'s own `save(update_fields=[…, "updated"])` already bumps the unit, so no separate explicit-bump test is claimed there; and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
 6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); v17 question with `max_attempts: true` / `"3"` / `-1` → `TransferError`, not a 500; a `duplicate_unit` (`format_version=None`) is not re-mapped; invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
 6a. **Migration on Postgres** — forwards and backwards on a DB with populated rows of every question type (catches the pending-trigger failure).
 7. **Constraints** — the full truth table at the DB, on **every** concrete question table (derived list), `ContentNode` and `Course`: `limited` without a limit, `limited` with 0, `inherit`/`unlimited` with a limit all fail; `Course` with `inherit` fails.
