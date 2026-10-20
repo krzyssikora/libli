@@ -26,6 +26,7 @@ would change a row below is NOT applied: it is brought back to the owner.
 | D9 | Old value 0 migrates to *inherit*, and this must be made clear to course authors: the editor never uses 0 to mean inherit; typing 0 is rejected with a message pointing at the "Same as …" option. | "0 as inherit makes sense for me. Must be made clear for course authors, too" |
 | D10 | Section 4 (export/import, §6) approved. | "Looks right" |
 | D11 | Section 5 (testing, §7) approved; write the spec. | "Yes" |
+| D12 | Raising a limit **unlocks** students who ran out of attempts — unless they pressed Show answer on that question **or** submitted the quiz (option (c)). Details §5.5. | "I would unlock, unless they already checked their answers" → "(c)" |
 
 Approved section bullets that are individually protected (from D6–D11):
 
@@ -34,7 +35,7 @@ Approved section bullets that are individually protected (from D6–D11):
 - P3. Lessons keep ignoring attempts; only `[A]` auto-marked questions use the value (`[N]`/`[R]` stay single-submission).
 - P4. Every student's effective limit is identical the day after deploy (except former 0s, which become answerable).
 - P5. Existing `QuestionResponse.attempt_count` is untouched; lowering a limit below a student's count behaves as today (locked; Show answer still works).
-- P5a. *(Added in spec review — OPEN for owner confirmation.)* Raising a limit at any level does **not** unlock a `QuestionResponse` that is already `locked` (stored boolean, checked first by the `quiz_answer` gate): unchanged behaviour. The new limit applies to responses not yet locked. If the owner wants a raise to unlock students, that is a new decision.
+- P5a. *(Resolved by D12.)* Raising a limit at any level unlocks a `QuestionResponse` that was locked **only because it ran out of attempts**; one locked because the answer was correct, because Show answer was pressed, because the quiz was submitted, or because the question is `[N]`/`[R]` stays locked (§5.5).
 - P6. The migration is reversible: reverse writes each question's **effective** value into `max_attempts`.
 - P7. The *inherit* option label always shows the current resolved value and its source ("Same as quiz (currently: 3)", "Same as course (currently: unlimited)").
 - P8. The reset choice defaults to **Keep**; it is shown only when overrides exist, shows the counts, applies even if the number did not change, runs in the same transaction as the save, and is confirmed with a message ("Settings saved. 2 quizzes and 41 questions now use the course setting.").
@@ -348,6 +349,51 @@ have their own", not "0 quizzes, 41 questions …"); each count uses its own
 translation: run `makemessages`, translate every new msgid, clear any fuzzy
 pre-fill (it is often a wrong translation), recompile the `.mo`.
 
+### 5.5 Unlock on raise (D12)
+
+`QuestionResponse.locked` stays a stored boolean, read by ~27 sites (quiz
+rendering, `fillblank.py`, template tags, templates); none of them changes.
+Instead, one function re-opens exhausted responses whenever an attempts setting
+changes:
+
+```python
+def unlock_exhausted_responses(units):
+    """Re-open responses locked only by running out of attempts, where the
+    current effective limit now allows another try. Returns the count."""
+```
+
+A response in a quiz unit of `units` is unlocked (`locked = False`) iff **all** hold:
+
+1. `locked` is True;
+2. the question is `[A]` auto-marked (`[N]`/`[R]` lock on their single submission);
+3. `revealed_at` is NULL (no Show answer — D12);
+4. its `QuizSubmission.status` is not SUBMITTED (D12);
+5. its latest `Attempt` (highest `n`) has `correct` not True (a correct answer locks for good);
+6. `attempt_count < effective_max_attempts(question, unit)`, or the effective limit is `None` (unlimited).
+
+`attempt_count`, `latest_answer`, marks and `Attempt` rows are untouched, so the
+student continues from where they were with the remaining tries (P5).
+
+**When it runs** — inside the same transaction, after the change, on every path
+that can change an effective limit:
+- question save that changes its attempts setting → that question's unit;
+- quiz settings save that changes the quiz's setting or resets → that unit;
+- course save that changes the course setting or resets → all the course's quiz units;
+- a `unit_type` lesson → quiz switch is **not** a trigger (a lesson unit has no quiz responses).
+
+It is idempotent and cheap to call when nothing qualifies, so a save path may call
+it on any attempts-related save without detecting "was it a raise". Lowering a
+limit never re-locks a response through this function: the existing gate
+(`attempt_count >= limit`) handles lowering on the student's next try (P5).
+
+**Locking:** it runs after the unit locks of §5.3 / `rename_node` /
+`_locked_unit`, and updates responses by one bulk `UPDATE` per unit. `quiz_answer`
+locks its submission/response rows but never a unit, so the order units →
+responses introduces no cycle; the plan verifies this against the code.
+
+**Student view:** an unlocked question shows as answerable again on the next page
+load (no live push). Its result line shows the attempts left from the new limit.
+
 ## 6. Export / import (FORMAT_VERSION 17 → 18)
 
 - **Question payload:** `attempts_mode` + `attempts_limit` replace `max_attempts` (`export.py:76`, `payloads.py:97/103`, `importer.py:489`).
@@ -367,7 +413,7 @@ TDD; each new test proven RED against a mutant chosen from its failure mode.
 
 1. **Resolver** — full mode matrix over the three levels; nothing set → 1; a lesson unit with a `limited` override is skipped (step 2 quiz-only).
 2. **Migration** (pattern of `tests/test_subject_migrations.py`) — forwards per §3.3; backwards writes effective values (former 0 → 1, lossy); property: every question's effective limit equal before and after **for every old value except 0**, and a separate assertion that an old 0 resolves to the course default (1).
-3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; raising a limit leaves an already-locked response locked (P5a); attempts-left and analytics show resolved values.
+3. **Readers** — `test_quiz_lock_rule_parity.py` gains inherit cases; exhausted gate: inheriting quiz limit 2 → 2 wrong attempts accepted, the 3rd refused (locked response); inheriting unlimited never locks; unlock on raise (§5.5): one test per condition — exhausted wrong answer under a raised course / quiz / question limit is unlocked and accepts the next try; each of correct-latest-attempt, revealed, submitted quiz, `[N]`/`[R]`, and count still ≥ new limit stays locked; a response in a lesson unit or another course is untouched; lowering never unlocks or re-locks; idempotent second call changes nothing; attempts-left and analytics show resolved values.
 4. **Forms / save paths** — 0 / empty / > `MAX_ATTEMPTS_LIMIT` under `limited` rejected at all three levels with the level's message (both D9 source variants); posting `unlimited` or `inherit` together with a limit — including a hidden `-1`, `99999` or `abc` — saves with `attempts_limit = NULL` (no 500, no 422) at question, quiz and course level; a reset value other than `reset` (or none) means Keep; empty/unknown posted mode → "Choose one of the attempts options." at all three levels; a crafted attempts POST against a lesson unit is rejected and writes nothing; inherit label shows correct value + source; a quiz unit with its own `limited` 3 under a course `limited` 1 shows "Same as course (currently: 1)"; course cannot be `inherit`; saving a **lesson's** settings or a plain tree rename leaves a dormant unit override untouched; editing a lesson question with a dormant `limited` override keeps it unchanged; the inherit label is correct on every render path; a lesson unit with an override switched to quiz shows and enforces it after a course reset.
 5. **Reset** — keep vs reset; exact scope (quiz units only, this course/unit only); counts incl. zero-part omission and the all-zero "Settings saved." case; message counts = pre-update `[A]`-override counts (already-`inherit` and `[N]`/`[R]` rows not counted); only units with something to reset get `updated` bumped; quiz-level 422 re-renders the posted mode + limit + reset choice; quiz-level success message wording; the course reset locks the quiz units (ordered by pk) before touching any question row **and before the Course UPDATE** (assert the lock order, e.g. via the queries captured in order); quiz level "abc" / "2.5" / unknown mode → 422 with the spec's message; a posted seed JS survives a quiz-level attempts 422 and the settings `<details>` is open; an invalid course POST keeps the posted reset choice; message; atomic with the save (a failure in the reset rolls back the course/unit save); touched units' `updated` bumped, including a question-only quiz reset (must fail on a build relying on `auto_now`), and a stale editor save then gets the stale-token response; counts ignore `[N]`/`[R]` overrides.
 6. **Transfer** — v18 round trip at all three levels; v17 fixture mapping (accepted by the exact-keys check); v17 question with `max_attempts: true` / `"3"` / `-1` → `TransferError`, not a 500; a `duplicate_unit` (`format_version=None`) is not re-mapped; invalid payloads rejected; sub-tree import inherits from target; copying units across courses keeps modes and resolves at the destination.
