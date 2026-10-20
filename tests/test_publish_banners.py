@@ -21,6 +21,7 @@ from tests.factories import QuizSubmissionFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import UserFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -393,7 +394,7 @@ def test_qz9_interrupted_attempt_resumes_on_republication(client):
     course = CourseFactory(slug="qz9")
     quiz = make_quiz_unit(course=course, title="Quiz", published=True)
     question = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=None
+        stem="Capital?", accepted="Paris", **attempts(None)
     )
     element = add_element(quiz, question)
     student = make_login(client, "student")

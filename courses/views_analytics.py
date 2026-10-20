@@ -25,6 +25,7 @@ from courses.models import DragToImageQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
+from courses.quiz import effective_max_attempts
 from courses.rollups import _course_results_row
 from courses.rollups import _quiz_pill
 from courses.rollups import _quiz_review_maps
@@ -409,7 +410,7 @@ def _quiz_answer_rows(unit, submission):
         row["qnum"] = qnum
         row["stem_html"] = stem_html(question)
         attempts = response.attempt_count if response is not None else 0
-        limit = question.max_attempts
+        limit = effective_max_attempts(question, unit)
         row["attempt_count"] = attempts
         row["attempt_max"] = limit if limit is not None and attempts <= limit else None
         row["dragimage"] = (

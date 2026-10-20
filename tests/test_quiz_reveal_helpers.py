@@ -17,6 +17,15 @@ from courses.quiz import ephemeral_quiz_feedback
 from courses.quiz import key_view
 from courses.quiz import quiz_render_state
 from courses.scoring import outcome
+from tests.factories import attempts
+
+# No DB in these tests: a stand-in quiz unit (the questions set their own limit).
+_UNIT = SimpleNamespace(
+    unit_type="quiz",
+    attempts_mode="inherit",
+    attempts_limit=None,
+    course=SimpleNamespace(attempts_mode="limited", attempts_limit=1),
+)
 
 A = QuestionElement.MarkingMode.AUTO
 N = QuestionElement.MarkingMode.NOT_MARKED
@@ -68,15 +77,17 @@ def test_key_view_matrix():
 
 
 def test_ephemeral_stand_in_always_has_revealed_at():
-    q = ShortTextQuestionElement(accepted="Paris", marking_mode=A, max_attempts=3)
+    q = ShortTextQuestionElement(accepted="Paris", marking_mode=A, **attempts(3))
     for answer in ("", "Rome"):
-        stand_in, _r, _v = ephemeral_quiz_feedback(q, answer, 1)
+        stand_in, _r, _v = ephemeral_quiz_feedback(q, answer, 1, unit=_UNIT)
         assert stand_in.revealed_at is None
 
 
 def test_ephemeral_reveal_locks_marks_form_and_skips_validation():
-    q = ShortTextQuestionElement(accepted="Paris", marking_mode=A, max_attempts=3)
-    stand_in, result, validation = ephemeral_quiz_feedback(q, "", 1, reveal=True)
+    q = ShortTextQuestionElement(accepted="Paris", marking_mode=A, **attempts(3))
+    stand_in, result, validation = ephemeral_quiz_feedback(
+        q, "", 1, unit=_UNIT, reveal=True
+    )
     assert validation is False
     assert stand_in.locked is True and stand_in.revealed_at is not None
     assert result.correct is False and result.fraction == 0.0
@@ -87,7 +98,7 @@ def test_ephemeral_reveal_locks_marks_form_and_skips_validation():
 def test_quiz_render_state_unlocked_partial_paints_without_key(monkeypatch):
     monkeypatch.setattr(FillBlankQuestionElement, "SUPPORTS_REVEAL", True)
     token_stem, _ = parse("{{11}} {{9}}")
-    q = FillBlankQuestionElement.objects.create(stem=token_stem, max_attempts=3)
+    q = FillBlankQuestionElement.objects.create(stem=token_stem, **attempts(3))
     Blank.objects.create(question=q, order=0, accepted="11")
     Blank.objects.create(question=q, order=1, accepted="9")
     resp = SimpleNamespace(
@@ -104,7 +115,7 @@ def test_quiz_render_state_unlocked_partial_paints_without_key(monkeypatch):
 @pytest.mark.django_db
 def test_quiz_render_state_locked_partial_has_key_and_result():
     token_stem, _ = parse("{{11}} {{9}}")
-    q = FillBlankQuestionElement.objects.create(stem=token_stem, max_attempts=1)
+    q = FillBlankQuestionElement.objects.create(stem=token_stem, **attempts(1))
     Blank.objects.create(question=q, order=0, accepted="11")
     Blank.objects.create(question=q, order=1, accepted="9")
     resp = SimpleNamespace(

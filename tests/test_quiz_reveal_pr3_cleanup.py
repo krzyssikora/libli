@@ -18,6 +18,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_course_with_unit
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
@@ -88,22 +89,28 @@ def test_no_stylesheet_styles_the_deleted_lists():
 
 def _simple(kind, **kw):
     """(question, wrong POST) for the five non-PR-2 types."""
-    kw.setdefault("max_attempts", 1)
+    limit = kw.pop("max_attempts", 1)
     if kind == "fillblank":
-        q = FillBlankQuestionElement.objects.create(stem=parse("{{11}} {{9}}")[0], **kw)
+        q = FillBlankQuestionElement.objects.create(
+            stem=parse("{{11}} {{9}}")[0], **attempts(limit), **kw
+        )
         Blank.objects.create(question=q, order=0, accepted="11")
         Blank.objects.create(question=q, order=1, accepted="9")
         return q, {"blank": ["11", "5"]}
     if kind == "shorttext":
-        q = ShortTextQuestionElement.objects.create(stem="?", accepted="Paris", **kw)
+        q = ShortTextQuestionElement.objects.create(
+            stem="?", accepted="Paris", **attempts(limit), **kw
+        )
         return q, {"answer": "Rome"}
     if kind == "shortnumeric":
-        q = ShortNumericQuestionElement.objects.create(stem="?", value="3.14", **kw)
+        q = ShortNumericQuestionElement.objects.create(
+            stem="?", value="3.14", **attempts(limit), **kw
+        )
         return q, {"answer": "2"}
     if kind == "choice":
-        kit = choice(**kw)
+        kit = choice(max_attempts=limit, **kw)
         return kit.question, kit.half
-    return extended(**kw), ER_HALF
+    return extended(max_attempts=limit, **kw), ER_HALF
 
 
 ALL_KINDS = PR2_KINDS + ("fillblank", "shorttext", "shortnumeric", "choice", "extended")

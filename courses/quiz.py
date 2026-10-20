@@ -57,7 +57,7 @@ def effective_max_attempts(question, unit):
     return effective_unit_attempts(unit)[0]
 
 
-def quiz_feedback_context(question, response, *, result=None, validation=False):
+def quiz_feedback_context(question, response, *, unit, result=None, validation=False):
     """Reveal-gated feedback context. Reveal (reveal_template + mark_result) is
     included ONLY when the question is locked AND was marked — i.e. correct, or
     wrong-on-last-attempt. While attempts remain, only `attempts_left` passes.
@@ -65,7 +65,9 @@ def quiz_feedback_context(question, response, *, result=None, validation=False):
 
     `response` only needs `.locked` and `.attempt_count` — the live student path
     passes a QuestionResponse; the authoring 'try it' preview passes an ephemeral
-    stand-in (nothing persisted)."""
+    stand-in (nothing persisted).
+
+    `unit` resolves the attempts limit (spec 2026-10-20 §4)."""
     ctx = {
         "el": question,
         "validation": validation,
@@ -116,8 +118,9 @@ def quiz_feedback_context(question, response, *, result=None, validation=False):
         # Withhold: no reveal_template, no mark_result payload beyond correct=False.
         ctx["mark_result"] = result
         ctx["reveal_template"] = None
-    if question.max_attempts is not None and not response.locked:
-        ctx["attempts_left"] = max(0, question.max_attempts - response.attempt_count)
+    limit = effective_max_attempts(question, unit)
+    if limit is not None and not response.locked:
+        ctx["attempts_left"] = max(0, limit - response.attempt_count)
     return ctx
 
 
@@ -151,7 +154,7 @@ def parse_attempt(post):
         return 1
 
 
-def locked_after(question, result, attempt_count):
+def locked_after(question, result, attempt_count, *, unit):
     """Does `question` lock after an attempt that produced `result`?
 
     THE single source of the lock rule. Both quiz answer paths call this: the
@@ -163,17 +166,17 @@ def locked_after(question, result, attempt_count):
     its own side, so a one-sided change went green.
     tests/test_quiz_lock_rule_parity.py is the behavioural guard.
 
-    `max_attempts is not None` is mandatory: null means UNLIMITED attempts, and
-    without the guard this raises
+    The limit is the RESOLVED one (effective_max_attempts: question -> quiz ->
+    course). `limit is not None` is mandatory: None means UNLIMITED, and without
+    the guard this raises
     TypeError: '>=' not supported between 'int' and 'NoneType'.
 
     `result` is only consulted for AUTO questions and may be None otherwise.
     """
     if question.marking_mode != QuestionElement.MarkingMode.AUTO:
         return True  # [N]/[R]: single submission
-    return bool(result.correct) or (
-        question.max_attempts is not None and attempt_count >= question.max_attempts
-    )
+    limit = effective_max_attempts(question, unit)
+    return bool(result.correct) or (limit is not None and attempt_count >= limit)
 
 
 def can_reveal(question, *, attempts_made, locked):
@@ -257,7 +260,7 @@ def quiz_render_state(question, response, result):
     }
 
 
-def ephemeral_quiz_feedback(question, answer, attempt, *, reveal=False):
+def ephemeral_quiz_feedback(question, answer, attempt, *, unit, reveal=False):
     """Grade `answer` without persisting anything.
 
     Returns the triple (stand_in, result, validation) -- NOT a finished context --
@@ -317,7 +320,7 @@ def ephemeral_quiz_feedback(question, answer, attempt, *, reveal=False):
         )
     is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
     result = question.mark(answer) if is_auto else None
-    locked = locked_after(question, result, attempt)
+    locked = locked_after(question, result, attempt, unit=unit)
     return (
         SimpleNamespace(
             locked=locked,

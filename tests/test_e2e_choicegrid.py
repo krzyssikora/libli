@@ -18,6 +18,7 @@ import os
 import pytest
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -63,7 +64,7 @@ def _seed_matrix(username, slug, *, unit_type, max_attempts=0):
         course=course, kind="unit", unit_type=unit_type, parent=None, title="U"
     )
     q = ChoiceGridQuestionElement.objects.create(
-        stem="<p>Classify each statement</p>", max_attempts=max_attempts
+        stem="<p>Classify each statement</p>", **attempts(max_attempts)
     )
     col_true = GridColumn.objects.create(question=q, label="True")
     col_false = GridColumn.objects.create(question=q, label="False")

@@ -6,6 +6,7 @@ from courses.models import QuizSubmission
 from tests.factories import EnrollmentFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -23,7 +24,7 @@ def _previewer_quiz(client, *, max_attempts=3, marking_mode="A"):
     q = ShortTextQuestionElement.objects.create(
         stem="Capital?",
         accepted="Paris",
-        max_attempts=max_attempts,
+        **attempts(max_attempts),
         marking_mode=marking_mode,
     )
     el = add_element(unit, q)
@@ -114,7 +115,7 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     # so the stem carries a real gap (the U+FFFF-delimited placeholder) and a real
     # drag select is rendered and painted.
     q = DragFillBlankQuestionElement.objects.create(
-        stem="Cap is ￿0￿", distractors="Rome", marking_mode="A", max_attempts=2
+        stem="Cap is ￿0￿", distractors="Rome", marking_mode="A", **attempts(2)
     )
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = add_element(unit, q)
@@ -290,7 +291,7 @@ def test_enrolled_staff_still_persists(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
     el = add_element(unit, q)
     resp = client.post(
@@ -314,7 +315,7 @@ def test_enrolled_path_ignores_client_supplied_attempt(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
     el = add_element(unit, q)
     resp = client.post(

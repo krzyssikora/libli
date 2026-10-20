@@ -21,6 +21,7 @@ from tests.factories import ChoiceQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -40,7 +41,7 @@ def _quiz(client, max_attempts=1, multiple=False):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ChoiceQuestionElement.objects.create(
-        stem="Capital of France?", multiple=multiple, max_attempts=max_attempts
+        stem="Capital of France?", multiple=multiple, **attempts(max_attempts)
     )
     right = Choice.objects.create(question=q, text="Paris", is_correct=True)
     wrong = Choice.objects.create(question=q, text="London", is_correct=False)

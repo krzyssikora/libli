@@ -25,6 +25,7 @@ from courses.models import UnitProgress
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
+from tests.factories import attempts
 from tests.factories import make_course_with_unit
 from tests.factories import make_login
 from tests.factories import make_pa
@@ -222,7 +223,7 @@ def test_quiz_fillblank_reveals_the_answer_via_key_copy(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     token_stem, _ = parse(_STEM)
-    obj = FillBlankQuestionElement.objects.create(stem=token_stem, max_attempts=1)
+    obj = FillBlankQuestionElement.objects.create(stem=token_stem, **attempts(1))
     for i, acc in enumerate(_ACCEPTED):
         Blank.objects.create(question=obj, order=i, accepted=acc)
     row = Element.objects.create(unit=unit, content_object=obj)

@@ -3,6 +3,7 @@ import pytest
 from tests.factories import EnrollmentFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -13,7 +14,7 @@ def test_no_leak_fragment_pre_reveal(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
     el = add_element(unit, q)
     url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
@@ -27,7 +28,7 @@ def test_no_leak_on_resume_render(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
     el = add_element(unit, q)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"

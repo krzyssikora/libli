@@ -14,6 +14,7 @@ from courses.models import TextElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_pa
 from tests.reveal_pr3_kit import ER_WRONG
 from tests.reveal_pr3_kit import extended
@@ -31,7 +32,7 @@ def _quiz_unit(course):
 
 def _question(unit, *, multiple=False, max_attempts=1):
     q = ChoiceQuestionElement.objects.create(
-        stem="<p>Pick</p>", multiple=multiple, max_attempts=max_attempts
+        stem="<p>Pick</p>", multiple=multiple, **attempts(max_attempts)
     )
     a = Choice.objects.create(question=q, text="A", is_correct=True)
     b = Choice.objects.create(question=q, text="B", is_correct=False)
@@ -318,7 +319,7 @@ def test_try_quiz_ineligible_reveal_is_a_plain_check(client, kind, monkeypatch):
         el = add_element(
             unit,
             ShortTextQuestionElement.objects.create(
-                stem="?", accepted="Paris", max_attempts=3, marking_mode="N"
+                stem="?", accepted="Paris", **attempts(3), marking_mode="N"
             ),
         )
         data = {"answer": "Rome", "attempt": "1", "reveal": "1"}

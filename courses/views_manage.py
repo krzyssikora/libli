@@ -2805,10 +2805,10 @@ def element_try(request, slug, pk):
         question, attempts_made=attempt, locked=False
     )
     stand_in, result, validation = ephemeral_quiz_feedback(
-        question, answer, attempt, reveal=reveal
+        question, answer, attempt, unit=el.unit, reveal=reveal
     )
     ctx = quiz_feedback_context(
-        question, stand_in, result=result, validation=validation
+        question, stand_in, unit=el.unit, result=result, validation=validation
     )
     if not validation and (question.SUPPORTS_REVEAL or question.INLINE_QUIZ_REVEAL):
         # Same whole-element contract as the student path (views._quiz_render_feedback);

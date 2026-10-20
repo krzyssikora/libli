@@ -10,6 +10,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -41,7 +42,7 @@ def test_choice_nudge_withheld_prelock_then_revealed(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ChoiceQuestionElement.objects.create(
-        stem="<p>Pick</p>", multiple=False, marking_mode="A", max_attempts=2
+        stem="<p>Pick</p>", multiple=False, marking_mode="A", **attempts(2)
     )
     Choice.objects.create(question=q, text="A", is_correct=True)
     bad = Choice.objects.create(

@@ -5,6 +5,8 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.quiz import ephemeral_quiz_feedback
 from courses.quiz import parse_attempt
+from tests.factories import attempts
+from tests.factories import make_quiz_unit
 
 
 @pytest.mark.parametrize(
@@ -26,9 +28,11 @@ def test_parse_attempt_floors_to_one(raw, expected):
 @pytest.mark.django_db
 def test_empty_answer_is_validation_and_never_locks():
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
-    stand_in, result, validation = ephemeral_quiz_feedback(q, "", attempt=2)
+    stand_in, result, validation = ephemeral_quiz_feedback(
+        q, "", attempt=2, unit=make_quiz_unit()
+    )
     assert validation is True
     assert result is None
     # locked=False on the validation branch is load-bearing: quiz_feedback_context
@@ -41,9 +45,11 @@ def test_empty_answer_is_validation_and_never_locks():
 @pytest.mark.django_db
 def test_auto_wrong_with_attempts_left_does_not_lock():
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
-    stand_in, result, validation = ephemeral_quiz_feedback(q, "London", attempt=1)
+    stand_in, result, validation = ephemeral_quiz_feedback(
+        q, "London", attempt=1, unit=make_quiz_unit()
+    )
     assert validation is False
     assert result is not None and result.correct is False
     assert stand_in.locked is False
@@ -53,9 +59,11 @@ def test_auto_wrong_with_attempts_left_does_not_lock():
 @pytest.mark.django_db
 def test_auto_locks_when_correct():
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
-    stand_in, result, _ = ephemeral_quiz_feedback(q, "Paris", attempt=1)
+    stand_in, result, _ = ephemeral_quiz_feedback(
+        q, "Paris", attempt=1, unit=make_quiz_unit()
+    )
     assert result.correct is True
     assert stand_in.locked is True
 
@@ -63,9 +71,11 @@ def test_auto_locks_when_correct():
 @pytest.mark.django_db
 def test_auto_locks_at_max_attempts():
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
-    stand_in, _, _ = ephemeral_quiz_feedback(q, "London", attempt=3)
+    stand_in, _, _ = ephemeral_quiz_feedback(
+        q, "London", attempt=3, unit=make_quiz_unit()
+    )
     assert stand_in.locked is True
 
 
@@ -74,9 +84,11 @@ def test_unlimited_attempts_never_locks_on_wrong_answer():
     """max_attempts=None means unlimited. Without the `is not None` guard this
     raises TypeError: '>=' not supported between 'int' and 'NoneType'."""
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=None
+        stem="Capital?", accepted="Paris", **attempts(None)
     )
-    stand_in, _, _ = ephemeral_quiz_feedback(q, "London", attempt=99)
+    stand_in, _, _ = ephemeral_quiz_feedback(
+        q, "London", attempt=99, unit=make_quiz_unit()
+    )
     assert stand_in.locked is False
 
 
@@ -86,7 +98,9 @@ def test_not_marked_and_review_lock_on_first_submit_without_marking(mode):
     q = ShortTextQuestionElement.objects.create(
         stem="Discuss", accepted="", marking_mode=mode
     )
-    stand_in, result, validation = ephemeral_quiz_feedback(q, "anything", attempt=1)
+    stand_in, result, validation = ephemeral_quiz_feedback(
+        q, "anything", attempt=1, unit=make_quiz_unit()
+    )
     assert validation is False
     assert result is None  # never marked
     assert stand_in.locked is True
@@ -100,6 +114,8 @@ def test_latest_answer_is_normalised_via_answer_to_json():
     q = ChoiceQuestionElement.objects.create(stem="<p>Pick</p>", multiple=True)
     a = Choice.objects.create(question=q, text="A", is_correct=True)
     b = Choice.objects.create(question=q, text="B", is_correct=False)
-    stand_in, _, _ = ephemeral_quiz_feedback(q, {b.pk, a.pk}, attempt=1)
+    stand_in, _, _ = ephemeral_quiz_feedback(
+        q, {b.pk, a.pk}, attempt=1, unit=make_quiz_unit()
+    )
     assert stand_in.latest_answer == sorted([a.pk, b.pk])
     assert isinstance(stand_in.latest_answer, list)

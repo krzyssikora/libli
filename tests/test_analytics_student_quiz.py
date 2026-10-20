@@ -39,6 +39,7 @@ from tests.factories import EnrollmentFactory
 from tests.factories import GroupFactory
 from tests.factories import GroupMembershipFactory
 from tests.factories import UserFactory
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_pa
 from tests.factories import make_teacher
@@ -260,11 +261,11 @@ def _badge(item):
 def test_t35_in_progress_rows_count_and_overrides(client):
     course, pupil = _owner_view(client)
     quiz = _empty_quiz(course, "Live quiz")
-    q1 = _add(quiz, max_attempts=2)
+    q1 = _add(quiz, **attempts(2))
     _add(quiz, ExtendedResponseQuestionElement, marking_mode=REVIEW)  # q2
     q3 = _add(quiz, marking_mode=NOT_MARKED)
     q4 = _add(quiz, marking_mode=REVIEW)
-    q5 = _add(quiz, max_attempts=None)
+    q5 = _add(quiz, **attempts(None))
     q6 = _add(quiz)
     sub = _submitted(pupil, quiz, status=QuizSubmission.Status.IN_PROGRESS)
     _respond(sub, q1, latest_answer="Krakow", fraction=Decimal("0"), attempt_count=1)
@@ -636,12 +637,12 @@ def test_t33_reviewed_then_switched_to_auto_badges_from_the_review(client):
 def test_t33_lowered_max_attempts_never_prints_n_of_smaller_max(client):
     course, pupil = _owner_view(client)
     quiz = _empty_quiz(course, "Lowered")
-    el = _add(quiz, max_attempts=3)
+    el = _add(quiz, **attempts(3))
     sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
     _respond(sub, el, latest_answer="Krakow", fraction=Decimal("0"), attempt_count=3)
     q = el.content_object
-    q.max_attempts = 1
-    q.save()
+    q.attempts_mode, q.attempts_limit = "limited", 1
+    q.save(update_fields=["attempts_mode", "attempts_limit"])
     text = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0].get_text(
         " ", strip=True
     )

@@ -23,6 +23,7 @@ from courses.models import MultiGridColumn
 from courses.models import MultiGridQuestionElement
 from courses.models import MultiGridRow
 from tests.factories import MediaAssetFactory
+from tests.factories import attempts
 
 DND_KINDS = ("dragfill", "matchpair", "dragimage")
 GRID_KINDS = ("choicegrid", "multigrid")
@@ -41,7 +42,7 @@ class Kit:
 
 
 def build(kind, **kw):
-    kw.setdefault("max_attempts", 3)
+    kw.update(attempts(kw.pop("max_attempts", 3)))
     return _BUILDERS[kind](**kw)
 
 

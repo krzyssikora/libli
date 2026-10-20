@@ -7,6 +7,7 @@ from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 from tests.reveal_pr2_kit import key
@@ -23,7 +24,7 @@ def _quiz(client):
 def test_dragfill_quiz_withholds_reveal_then_reveals_on_last_attempt(client):
     user, unit = _quiz(client)
     q = DragFillBlankQuestionElement.objects.create(
-        stem="Cap is ￿0￿", distractors="Rome", marking_mode="A", max_attempts=2
+        stem="Cap is ￿0￿", distractors="Rome", marking_mode="A", **attempts(2)
     )
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = add_element(unit, q)
@@ -56,7 +57,7 @@ def test_dragfill_quiz_withholds_reveal_then_reveals_on_last_attempt(client):
 def test_matchpair_quiz_withholds_then_reveals(client):
     user, unit = _quiz(client)
     q = MatchPairQuestionElement.objects.create(
-        stem="<p>m</p>", distractors="Rome", marking_mode="A", max_attempts=2
+        stem="<p>m</p>", distractors="Rome", marking_mode="A", **attempts(2)
     )
     MatchPair.objects.create(question=q, left="France", right="Paris")
     el = add_element(unit, q)
