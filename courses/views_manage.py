@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.db import OperationalError
+from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
 from django.http import HttpResponse
@@ -116,7 +117,16 @@ def course_edit(request, slug):
             request.POST, instance=course, can_assign_owner=can_assign_owner
         )
         if form.is_valid():
-            course = form.save()
+            reset = form.cleaned_data.get("attempts_reset") == "reset"
+            with transaction.atomic():
+                # Quiz units BEFORE the Course row: builder ops lock a unit and
+                # then write the course, so this is the one global order (§5.3).
+                counts = (
+                    attempts_rules.reset_course_overrides(course) if reset else None
+                )
+                course = form.save()
+            if counts is not None:
+                messages.success(request, attempts_rules.course_reset_message(*counts))
             return redirect("courses:manage_course_edit", slug=course.slug)  # new slug
     else:
         form = CourseForm(instance=course, can_assign_owner=can_assign_owner)
