@@ -1,6 +1,7 @@
 # Attempts defaults: course → quiz → question
 
-**Status:** design approved in brainstorming 2026-10-20; spec awaiting owner review.
+**Status:** implemented on `feat/attempts-defaults` (2026-10-21).
+Implementation notes: the resolver ships as `effective_attempt_limit` (renamed from `effective_max_attempts`, whose name tripped the no-`max_attempts` straggler guard); the limited branch of every CHECK constraint also requires `attempts_limit IS NOT NULL` (a NULL comparison would otherwise pass a CHECK).
 
 Today `max_attempts` lives only on each question (`QuestionElement.max_attempts`,
 `courses/models.py:2306`, default 1, null = unlimited, consumed only in quiz
