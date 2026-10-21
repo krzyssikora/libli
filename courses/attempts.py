@@ -175,11 +175,20 @@ def _what(quizzes, questions):
     return gettext(" and ").join(parts)
 
 
+def _verb_n(quizzes, questions):
+    """ngettext count for the verb. A compound subject ("1 quiz i 4 pytania")
+    is always plural in Polish, but the sum's plural class can pick the
+    singular-looking form, so pass 2 (Polish "few"; English plural) then."""
+    if quizzes and questions:
+        return 2
+    return quizzes or questions
+
+
 def course_keep_label(quizzes, questions):
     return ngettext(
         "Keep specific settings (%(what)s has its own)",
         "Keep specific settings (%(what)s have their own)",
-        quizzes + questions,
+        _verb_n(quizzes, questions),
     ) % {"what": _what(quizzes, questions)}
 
 
@@ -197,7 +206,7 @@ def course_reset_message(quizzes, questions):
     return ngettext(
         "Settings saved. %(what)s now uses the course setting.",
         "Settings saved. %(what)s now use the course setting.",
-        quizzes + questions,
+        _verb_n(quizzes, questions),
     ) % {"what": _what(quizzes, questions)}
 
 

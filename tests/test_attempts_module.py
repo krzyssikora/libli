@@ -173,3 +173,15 @@ def test_course_reset_scope_counts_and_bumps():
     assert after[lesson.pk] == before[lesson.pk]
     lesson.refresh_from_db()
     assert lesson.attempts_limit == 5
+
+
+def test_polish_compound_subject_takes_the_plural_verb():
+    from django.utils.translation import override
+
+    with override("pl"):
+        # "1 quiz i 4 pytania" is a compound subject: always plural, even
+        # though the sum (5) falls in Polish's "many" class.
+        assert "mają" in A.course_keep_label(1, 4)
+        assert "korzystają" in A.course_reset_message(1, 4)
+        # Single-part control: 5 pytań alone takes the "many" form.
+        assert "korzysta" in A.course_reset_message(0, 5)
