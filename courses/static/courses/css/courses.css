@@ -3509,7 +3509,10 @@ html.js .unit-strip__print { display: inline-flex; }
 
 /* Attempts (spec 2026-10-20 §5.1): the limit input shows only while "Limited to…"
    is selected. CSS-only on purpose -- nothing to re-run after an editor fragment
-   swap or a 422 re-render. Scoped per <form>: the editor page holds several. */
+   swap or a 422 re-render. Scoped per <form>: the editor page holds several.
+   The rule is scoped per <form>, so it assumes ONE attempts select per form (true
+   today: one question per editor form; quizzes cannot nest questions). Revisit
+   if that changes. */
 form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
   :is([data-attempts-limit], [data-field="attempts_limit"]) {
   display: none;

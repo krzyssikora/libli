@@ -366,6 +366,7 @@ Known exposure: `set_node_flag(scope="subtree")` row-locks many units through a
 single `QuerySet.update()` in scan order, so a concurrent subtree publish and
 course reset can still deadlock; Postgres aborts one side. Accepted (rare,
 author-only, retry succeeds); the plan does not change `set_node_flag`.
+`builder.reorder_node` locks a node and then its siblings in ("order", "pk") order, so sibling quiz units can be locked out of pk order; a concurrent reorder and course reset can also deadlock (Postgres aborts one side, the author retries). Accepted, same class.
 
 The reset choice is a non-model `CourseForm` field (absent on create), so an
 invalid course POST re-binds it automatically and keeps the posted pick; the
@@ -382,7 +383,7 @@ reset choice nor runs a reset (a new course has no overrides).
 - **Counts** (and whether the reset choice is shown) include only `[A]` auto-marked questions with a non-`inherit` mode, the only ones an attempts setting affects (P3); quiz units counted are those with a non-`inherit` mode.
 - The reset's bulk updates filter to `attempts_mode != 'inherit'` (every question row in scope, `[N]`/`[R]` included — harmless). The **success message** reports the `[A]`-override counts computed inside the transaction **before** the update — the same numbers the choice showed, unless changed concurrently.
 - **Touched units** (whose `updated` is bumped) = quiz units that had at least one non-`inherit` question row, plus (course reset) quiz units whose own mode was non-`inherit`. Units with nothing to reset are not bumped, so unrelated open editors are not made stale. Accepted: after a course save with Keep (or with nothing to reset), an already-open editor's inherit label ("Same as course (currently: 1)") is stale until reload; saving from it is harmless (mode still `inherit`). Not "fixed" by bumping every unit (that would cause false stale-token conflicts). Accepted: a quiz unit whose only overrides are on `[N]`/`[R]` questions is reset and bumped (its rows really changed) although the message's `[A]` counts don't mention it.
-- If every count is zero at save time (overrides removed meanwhile, or a crafted POST), the message is the plain *"Settings saved."*
+- If every count is zero at save time (overrides removed meanwhile, or a crafted POST), the message is the plain *"Settings saved."* At course level a crafted reset posted when no overrides exist finds no reset field and shows no message — accepted (invisible to real users).
 - Accepted consequence of P9: a lesson unit's dormant override survives a course reset and takes effect again if the unit is later switched to a quiz (the quiz panel then shows it). Not "fixed".
 
 **Count wording (§5.2, §5.3, P8 message):** a zero part is omitted ("41 questions
