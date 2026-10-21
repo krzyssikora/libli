@@ -5,6 +5,7 @@ import os
 import pytest
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -48,7 +49,7 @@ def _seed_quiz(username, slug, max_attempts=3):
         course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
     )
     q = FillBlankQuestionElement.objects.create(
-        stem=parse("log {{11}} = {{9}} · {{2}} = {{22}}")[0], max_attempts=max_attempts
+        stem=parse("log {{11}} = {{9}} · {{2}} = {{22}}")[0], **attempts(max_attempts)
     )
     for i, a in enumerate(["11", "9", "2", "22"]):
         Blank.objects.create(question=q, order=i, accepted=a)
@@ -167,7 +168,7 @@ def test_number_key_copy_keeps_tolerance_inline_and_switch_still(browser, live_s
     Element.objects.create(
         unit=unit,
         content_object=ShortNumericQuestionElement.objects.create(
-            stem="pi?", value="3.14", tolerance="0.01", max_attempts=1
+            stem="pi?", value="3.14", tolerance="0.01", **attempts(1)
         ),
     )
     page = browser.new_context().new_page()
@@ -214,7 +215,7 @@ def test_short_text_verdict_colours_are_computed(browser, live_server):
         Element.objects.create(
             unit=unit,
             content_object=ShortTextQuestionElement.objects.create(
-                stem="?", accepted=accepted, max_attempts=3
+                stem="?", accepted=accepted, **attempts(3)
             ),
         )
     page = browser.new_context().new_page()
@@ -324,7 +325,7 @@ def test_editor_try_it_reveal_switch_survives_freeze(browser, live_server):
         course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
     )
     q = FillBlankQuestionElement.objects.create(
-        stem=parse("{{11}} {{9}}")[0], max_attempts=3
+        stem=parse("{{11}} {{9}}")[0], **attempts(3)
     )
     Blank.objects.create(question=q, order=0, accepted="11")
     Blank.objects.create(question=q, order=1, accepted="9")

@@ -5,7 +5,8 @@ attempt: the persisted branch (enrolled student, `courses/views.py`) and the
 ephemeral branch (non-enrolled previewer, `courses/quiz.py`). They were introduced
 as independent implementations of the same rule:
 
-    locked iff correct, or (max_attempts is not None and attempt >= max_attempts)
+    locked iff correct, or (limit is not None and attempt >= limit), where limit
+    is the RESOLVED question -> quiz -> course attempts limit
     [N]/[R] always lock on first submit
 
 Each side's own tests pin only its own side, so a one-sided change goes green --
@@ -26,18 +27,19 @@ from courses.models import QuestionResponse
 from courses.models import ShortTextQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts as attempts_kw
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
 LOCKED_SENTINEL = b"data-quiz-locked"
 
 
-def _question(unit, *, marking_mode, max_attempts):
+def _question(unit, *, marking_mode, max_attempts, q_kw=None):
     q = ShortTextQuestionElement.objects.create(
         stem="Capital?",
         accepted="Paris",
         marking_mode=marking_mode,
-        max_attempts=max_attempts,
+        **(q_kw if q_kw is not None else attempts_kw(max_attempts)),
     )
     return add_element(unit, q)
 
@@ -46,12 +48,16 @@ def _url(unit, el):
     return f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
 
 
-def _persisted_locked(client, *, marking_mode, max_attempts, answer, attempts):
+def _persisted_locked(
+    client, *, marking_mode, max_attempts, answer, attempts, unit_kw=None, q_kw=None
+):
     """Drive the ENROLLED path `attempts` times; return whether it ended locked."""
     user = make_login(client, "stu")
-    unit = make_quiz_unit()
+    unit = make_quiz_unit(**(unit_kw or {}))
     EnrollmentFactory(student=user, course=unit.course)
-    el = _question(unit, marking_mode=marking_mode, max_attempts=max_attempts)
+    el = _question(
+        unit, marking_mode=marking_mode, max_attempts=max_attempts, q_kw=q_kw
+    )
     resp = None
     for _ in range(attempts):
         resp = client.post(
@@ -61,7 +67,9 @@ def _persisted_locked(client, *, marking_mode, max_attempts, answer, attempts):
     return LOCKED_SENTINEL in resp.content
 
 
-def _ephemeral_locked(client, *, marking_mode, max_attempts, answer, attempts):
+def _ephemeral_locked(
+    client, *, marking_mode, max_attempts, answer, attempts, unit_kw=None, q_kw=None
+):
     """Drive the PREVIEWER path at attempt=`attempts`; return whether it locked.
 
     The previewer branch is stateless, so the attempt number is supplied rather
@@ -70,8 +78,10 @@ def _ephemeral_locked(client, *, marking_mode, max_attempts, answer, attempts):
     user = make_login(client, "prev")
     user.is_staff = True  # access without enrollment; see courses/access.py
     user.save()
-    unit = make_quiz_unit()
-    el = _question(unit, marking_mode=marking_mode, max_attempts=max_attempts)
+    unit = make_quiz_unit(**(unit_kw or {}))
+    el = _question(
+        unit, marking_mode=marking_mode, max_attempts=max_attempts, q_kw=q_kw
+    )
     resp = client.post(
         _url(unit, el),
         {"answer": answer, "attempt": str(attempts)},
@@ -162,13 +172,13 @@ def _reveal_setup(client, *, enrolled, kind, marking_mode="A", attempts=1):
         EnrollmentFactory(student=user, course=unit.course)
     if kind == "fillblank":
         q = FillBlankQuestionElement.objects.create(
-            stem=parse("{{11}}")[0], marking_mode=marking_mode, max_attempts=3
+            stem=parse("{{11}}")[0], marking_mode=marking_mode, **attempts_kw(3)
         )
         Blank.objects.create(question=q, order=0, accepted="11")
         data = {"blank": ["5"]}
     else:
         q = ChoiceQuestionElement.objects.create(
-            stem="?", marking_mode=marking_mode, max_attempts=3
+            stem="?", marking_mode=marking_mode, **attempts_kw(3)
         )
         Choice.objects.create(question=q, text="A", is_correct=True)
         wrong = Choice.objects.create(question=q, text="B", is_correct=False)
@@ -234,3 +244,26 @@ def test_reveal_parity_no_attempt_yet(client):
     )
     # The EPHEMERAL twin is deliberately not asserted: spec §3.3 floors the client
     # attempt count at 1 there, so its check is advisory (a pre-Check reveal passes).
+
+
+# Inheriting questions: the limit comes from the QUIZ unit (spec 2026-10-20).
+INHERIT_CASES = [
+    ({"attempts_mode": "limited", "attempts_limit": 2}, "London", 1, False),
+    ({"attempts_mode": "limited", "attempts_limit": 2}, "London", 2, True),
+    ({"attempts_mode": "unlimited", "attempts_limit": None}, "London", 5, False),
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("unit_kw,answer,attempts,expected", INHERIT_CASES)
+def test_both_paths_agree_when_inheriting(client, unit_kw, answer, attempts, expected):
+    kw = {
+        "marking_mode": "A",
+        "max_attempts": None,  # ignored: q_kw below wins
+        "answer": answer,
+        "attempts": attempts,
+        "unit_kw": unit_kw,
+        "q_kw": {"attempts_mode": "inherit", "attempts_limit": None},
+    }
+    assert _persisted_locked(client, **kw) is expected
+    assert _ephemeral_locked(client, **kw) is expected

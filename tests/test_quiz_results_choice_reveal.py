@@ -29,6 +29,7 @@ from courses.models import ShortTextQuestionElement
 from tests.factories import ChoiceQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import attempts
 from tests.factories import make_login
 
 M_CORRECT = "question__choice-marker--correct"
@@ -42,7 +43,7 @@ def _quiz(client, multiple=False):
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
     q = ChoiceQuestionElement.objects.create(
-        stem="Capital of France?", multiple=multiple, max_attempts=1
+        stem="Capital of France?", multiple=multiple, **attempts(1)
     )
     right = Choice.objects.create(question=q, text="Paris", is_correct=True, order=0)
     wrong = Choice.objects.create(question=q, text="London", is_correct=False, order=1)
@@ -131,7 +132,7 @@ def test_a_non_choice_type_keeps_the_correct_outcome_gate(client):
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=1
+        stem="Capital?", accepted="Paris", **attempts(1)
     )
     el = Element.objects.create(unit=unit, content_object=q)
     base = f"/courses/{course.slug}/u/{unit.pk}/quiz"

@@ -8,6 +8,7 @@ from courses.fillblank import parse
 from courses.models import Blank
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
+from tests.factories import attempts
 from tests.factories import make_quiz_unit
 
 _INPUT = re.compile(r"<input[^>]*>")
@@ -17,7 +18,7 @@ _INPUT = re.compile(r"<input[^>]*>")
 def fb(db):
     unit = make_quiz_unit()
     token_stem, _ = parse("log {{11}} = {{9}}")
-    q = FillBlankQuestionElement.objects.create(stem=token_stem, max_attempts=3)
+    q = FillBlankQuestionElement.objects.create(stem=token_stem, **attempts(3))
     Blank.objects.create(question=q, order=0, accepted="11")
     Blank.objects.create(question=q, order=1, accepted="9")
     return q, Element.objects.create(unit=unit, content_object=q)
@@ -166,7 +167,7 @@ def test_quiz_page_with_a_choice_question_still_renders(client):
     user = make_login(client, "stu_ch")
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
-    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    q = ChoiceQuestionElement.objects.create(stem="?", **attempts(3))
     Choice.objects.create(question=q, text="A", is_correct=True)
     add_element(unit, q)
     resp = client.get(

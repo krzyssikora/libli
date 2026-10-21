@@ -121,6 +121,21 @@ def _delete_element_content_objects(elements):
             obj.delete()
 
 
+class AttemptsMode(models.TextChoices):
+    """How one level (course / quiz unit / question) sets quiz attempts (spec
+    2026-10-20). INHERIT defers to the level above; the course has no level above,
+    so a DB constraint (Task 8) forbids INHERIT there."""
+
+    INHERIT = "inherit", _("Same as the level above")
+    LIMITED = "limited", _("Limited")
+    UNLIMITED = "unlimited", _("Unlimited")
+
+
+# PositiveSmallIntegerField's own maximum: the range the old per-question limit
+# accepted, so every stored value migrates, round-trips and stays editable (§3.1).
+MAX_ATTEMPTS_LIMIT = 32767
+
+
 class Course(models.Model):
     VISIBILITY_CHOICES = [("assigned", "Assigned"), ("open", "Open")]
 
@@ -164,6 +179,27 @@ class Course(models.Model):
     # read through courses.color_bands.course_color_bands(). Stored mins are
     # JSON ints (a plain JSONField can't serialize Decimal).
     color_bands = models.JSONField(blank=True, default=list)
+    # Course-wide default for quiz questions (spec 2026-10-20). Never INHERIT.
+    attempts_mode = models.CharField(
+        max_length=9, choices=AttemptsMode.choices, default=AttemptsMode.LIMITED
+    )
+    attempts_limit = models.PositiveSmallIntegerField(null=True, blank=True, default=1)
+
+    class Meta:
+        constraints = [
+            # No INHERIT: the course is the top level (P2, spec §3.2).
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        attempts_mode="limited",
+                        attempts_limit__isnull=False,
+                        attempts_limit__gte=1,
+                    )
+                    | models.Q(attempts_mode="unlimited", attempts_limit__isnull=True)
+                ),
+                name="courses_course_att_lim",
+            )
+        ]
 
     def __str__(self):
         return self.title
@@ -218,9 +254,31 @@ class ContentNode(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     html_seed_js = models.TextField(blank=True)  # per-unit seed; dormant on non-units
+    # Quiz-level attempts override (spec 2026-10-20); dormant unless
+    # unit_type == quiz, like `obligatory` on non-units.
+    attempts_mode = models.CharField(
+        max_length=9, choices=AttemptsMode.choices, default=AttemptsMode.INHERIT
+    )
+    attempts_limit = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ["order", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        attempts_mode="limited",
+                        attempts_limit__isnull=False,
+                        attempts_limit__gte=1,
+                    )
+                    | models.Q(
+                        attempts_mode__in=["inherit", "unlimited"],
+                        attempts_limit__isnull=True,
+                    )
+                ),
+                name="courses_contentnode_att_lim",
+            )
+        ]
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.title}"
@@ -2302,8 +2360,11 @@ class QuestionElement(ElementBase):
     marking_mode = models.CharField(
         max_length=1, choices=MarkingMode.choices, default=MarkingMode.AUTO
     )
-    # null = unlimited attempts; consumed only in quiz units (dormant in lessons).
-    max_attempts = models.PositiveSmallIntegerField(null=True, blank=True, default=1)
+    # Question-level attempts override (spec 2026-10-20).
+    attempts_mode = models.CharField(
+        max_length=9, choices=AttemptsMode.choices, default=AttemptsMode.INHERIT
+    )
+    attempts_limit = models.PositiveSmallIntegerField(null=True, blank=True)
     max_marks = models.DecimalField(
         max_digits=7,
         decimal_places=2,
@@ -2313,6 +2374,26 @@ class QuestionElement(ElementBase):
 
     class Meta:
         abstract = True
+        constraints = [
+            # Spec 2026-10-20 §3.2. %(class)s-interpolated (declared on the abstract
+            # base) with a short suffix: the longest prefix,
+            # courses_extendedresponsequestionelement_, is 40 bytes and Postgres
+            # silently truncates names past 63.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        attempts_mode="limited",
+                        attempts_limit__isnull=False,
+                        attempts_limit__gte=1,
+                    )
+                    | models.Q(
+                        attempts_mode__in=["inherit", "unlimited"],
+                        attempts_limit__isnull=True,
+                    )
+                ),
+                name="%(app_label)s_%(class)s_att_lim",
+            )
+        ]
 
     def save(self, *args, **kwargs):
         self.stem = normalize_body(self.stem)  # a cleared RTE's <p><br></p> -> ""

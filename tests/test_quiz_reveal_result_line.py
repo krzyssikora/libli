@@ -10,6 +10,7 @@ from courses.models import Element
 from courses.models import FillBlankQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -22,6 +23,7 @@ def _enrolled_quiz(client):
 
 
 def _fb(unit, accepted, **kw):
+    kw.update(attempts(kw.pop("max_attempts", 1)))
     token_stem, _ = parse(" ".join("{{%s}}" % a for a in accepted))  # noqa: UP031
     q = FillBlankQuestionElement.objects.create(stem=token_stem, **kw)
     for i, a in enumerate(accepted):
@@ -94,7 +96,7 @@ def test_incorrect_choice_gets_the_new_line(client):
     from courses.models import ChoiceQuestionElement
 
     unit = _enrolled_quiz(client)
-    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    q = ChoiceQuestionElement.objects.create(stem="?", **attempts(3))
     Choice.objects.create(question=q, text="A", is_correct=True)
     wrong = Choice.objects.create(question=q, text="B", is_correct=False)
     el = add_element(unit, q)
@@ -118,9 +120,7 @@ def test_incorrect_unconverted_non_inline_type_gets_new_line_too(client, monkeyp
 
     monkeypatch.setattr(ExtendedResponseQuestionElement, "SUPPORTS_REVEAL", False)
     unit = _enrolled_quiz(client)
-    q = ExtendedResponseQuestionElementFactory(
-        required_keywords="alpha", max_attempts=3
-    )
+    q = ExtendedResponseQuestionElementFactory(required_keywords="alpha", **attempts(3))
     el = add_element(unit, q)
     body = _post(client, unit, el, {"answer": "beta"})
     assert "data-question-inline" not in body  # the fragment, not the element
@@ -137,9 +137,7 @@ def test_incorrect_extended_response_whole_element_line(client):
     from tests.factories import ExtendedResponseQuestionElementFactory
 
     unit = _enrolled_quiz(client)
-    q = ExtendedResponseQuestionElementFactory(
-        required_keywords="alpha", max_attempts=3
-    )
+    q = ExtendedResponseQuestionElementFactory(required_keywords="alpha", **attempts(3))
     el = add_element(unit, q)
     body = _post(client, unit, el, {"answer": "beta"})
     assert "<form" in body

@@ -6,6 +6,7 @@ from courses.models import QuizSubmission
 from tests.factories import EnrollmentFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -18,7 +19,7 @@ def _setup(client, max_attempts=1, accepted="Paris"):
         stem="Capital?",
         accepted=accepted,
         explanation="It's Paris.",
-        max_attempts=max_attempts,
+        **attempts(max_attempts),
     )
     el = add_element(unit, q)
     return user, unit, el
@@ -104,7 +105,7 @@ def test_empty_numeric_answer_does_not_burn_attempt(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortNumericQuestionElement.objects.create(
-        stem="2+2?", value="4", tolerance="0", max_attempts=2
+        stem="2+2?", value="4", tolerance="0", **attempts(2)
     )
     el = add_element(unit, q)
     resp = client.post(
@@ -133,7 +134,7 @@ def test_not_marked_records_without_score_and_locks(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Reflect", accepted="", marking_mode="N", max_attempts=3
+        stem="Reflect", accepted="", marking_mode="N", **attempts(3)
     )
     el = add_element(unit, q)
     url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
@@ -152,7 +153,7 @@ def test_not_marked_second_submit_rejected_despite_high_cap(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Reflect", accepted="", marking_mode="N", max_attempts=5
+        stem="Reflect", accepted="", marking_mode="N", **attempts(5)
     )
     el = add_element(unit, q)
     url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"

@@ -27,6 +27,9 @@ class CourseAdmin(admin.ModelAdmin):
     search_fields = ("title",)
     prepopulated_fields = {"slug": ("title",)}
     autocomplete_fields = ("subjects", "owner")
+    # Edited only through the attempts forms, which own the nulling rule (spec §4);
+    # a raw admin edit would hit the DB constraint.
+    readonly_fields = ("attempts_mode", "attempts_limit")
 
 
 @admin.register(ContentNode)
@@ -35,6 +38,9 @@ class ContentNodeAdmin(admin.ModelAdmin):
     list_filter = ("course", "kind", "unit_type")
     search_fields = ("title",)
     autocomplete_fields = ("course", "parent")
+    # Edited only through the attempts forms, which own the nulling rule (spec §4);
+    # a raw admin edit would hit the DB constraint.
+    readonly_fields = ("attempts_mode", "attempts_limit")
 
 
 # Only the original handful of simple content types are registered here; every

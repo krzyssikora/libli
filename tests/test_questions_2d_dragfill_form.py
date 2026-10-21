@@ -1,12 +1,17 @@
 import pytest
 
 from courses.element_forms import DragFillBlankQuestionElementForm
+from tests.factories import make_quiz_unit
 
 
 @pytest.mark.django_db
 def test_form_parses_single_token_markers():
     form = DragFillBlankQuestionElementForm(
-        data={"stem": "The capital is {{Paris}} and {{Madrid}}.", "distractors": "Rome"}
+        unit=make_quiz_unit(),
+        data={
+            "stem": "The capital is {{Paris}} and {{Madrid}}.",
+            "distractors": "Rome",
+        },
     )
     assert form.is_valid(), form.errors
     assert form.parsed_dragblanks == ["Paris", "Madrid"]
@@ -14,7 +19,9 @@ def test_form_parses_single_token_markers():
 
 @pytest.mark.django_db
 def test_form_rejects_pipe_with_dragfill_message():
-    form = DragFillBlankQuestionElementForm(data={"stem": "{{a|b}}", "distractors": ""})
+    form = DragFillBlankQuestionElementForm(
+        unit=make_quiz_unit(), data={"stem": "{{a|b}}", "distractors": ""}
+    )
     assert not form.is_valid()
     assert any(
         "single answer" in str(e).lower() or "one token" in str(e).lower()
@@ -25,7 +32,7 @@ def test_form_rejects_pipe_with_dragfill_message():
 @pytest.mark.django_db
 def test_form_rejects_no_markers_without_fillblank_pipe_hint():
     form = DragFillBlankQuestionElementForm(
-        data={"stem": "no gaps here", "distractors": ""}
+        unit=make_quiz_unit(), data={"stem": "no gaps here", "distractors": ""}
     )
     assert not form.is_valid()
     msg = " ".join(str(e) for e in form.errors["stem"]).lower()
@@ -37,7 +44,7 @@ def test_form_rejects_no_markers_without_fillblank_pipe_hint():
 @pytest.mark.django_db
 def test_form_rejects_over_long_token():
     form = DragFillBlankQuestionElementForm(
-        data={"stem": "{{" + "x" * 501 + "}}", "distractors": ""}
+        unit=make_quiz_unit(), data={"stem": "{{" + "x" * 501 + "}}", "distractors": ""}
     )
     assert not form.is_valid()
 
@@ -47,7 +54,7 @@ def test_form_accepts_exactly_500_char_token():
     # Boundary: 500 is the max_length, so a 500-char token is accepted (501
     # rejected above).
     form = DragFillBlankQuestionElementForm(
-        data={"stem": "{{" + "x" * 500 + "}}", "distractors": ""}
+        unit=make_quiz_unit(), data={"stem": "{{" + "x" * 500 + "}}", "distractors": ""}
     )
     assert form.is_valid(), form.errors
     assert form.parsed_dragblanks == ["x" * 500]

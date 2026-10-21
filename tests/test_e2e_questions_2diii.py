@@ -32,6 +32,7 @@ from courses.models import Element
 from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db]
@@ -103,7 +104,7 @@ def _seed_extended_quiz(username, slug, *, marking_mode, max_attempts=None):
         marking_mode=marking_mode,
     )
     if max_attempts is not None:
-        kwargs["max_attempts"] = max_attempts
+        kwargs.update(attempts(max_attempts))
     q = ExtendedResponseQuestionElement.objects.create(**kwargs)
     el = Element.objects.create(unit=unit, content_object=q)
     return course, unit, el

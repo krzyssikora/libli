@@ -8,6 +8,7 @@ from courses.models import QuizSubmission
 from tests.factories import TEST_PASSWORD
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
 
@@ -28,7 +29,7 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page):
     bypasses the gesture ships broken UX green."""
     unit = make_quiz_unit()
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
     add_element(unit, q)  # not bound: ruff F841 flags an unused local
 
@@ -81,7 +82,7 @@ def test_previewer_client_attempt_counter_reaches_terminal_reveal(live_server, p
     """
     unit = make_quiz_unit()
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=2
+        stem="Capital?", accepted="Paris", **attempts(2)
     )
     add_element(unit, q)  # not bound: ruff F841 flags an unused local
 

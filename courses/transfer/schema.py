@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 17
+FORMAT_VERSION = 18
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 
@@ -73,6 +73,38 @@ def check_decimal_str(value, what, max_digits, decimal_places):
     return d
 
 
+ATTEMPTS_MODES = ("inherit", "limited", "unlimited")
+
+
+def check_attempts_pair(mode, limit, *, allowed, what):
+    """Spec 2026-10-20 §6: `attempts_limit` is null unless the mode is limited, and
+    then an int in 1..MAX_ATTEMPTS_LIMIT. isinstance-first, so a hostile value is
+    a TransferError, never a 500."""
+    from courses.models import MAX_ATTEMPTS_LIMIT
+
+    if not isinstance(mode, str) or mode not in allowed:
+        _err(_("%(what)s: unknown attempts mode."), what=what)
+    if mode == "limited":
+        if (
+            not isinstance(limit, int)
+            or isinstance(limit, bool)
+            or not 1 <= limit <= MAX_ATTEMPTS_LIMIT
+        ):
+            _err(
+                _(
+                    "%(what)s: the attempts limit must be a whole number "
+                    "from 1 to %(max)d."
+                ),
+                what=what,
+                max=MAX_ATTEMPTS_LIMIT,
+            )
+    elif limit is not None:
+        _err(
+            _("%(what)s: an attempts limit is only allowed with the limited mode."),
+            what=what,
+        )
+
+
 def check_float(value, what):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         _err(_("%(what)s must be a number."), what=what)
@@ -117,6 +149,11 @@ def validate_document(doc, *, kind, target_allowed_kinds=None, format_version=No
     # and a new archive fails "unknown key 'link_nodes'".
     if isinstance(doc, dict):
         doc.setdefault("link_nodes", {})
+        # v<=17 had no course attempts default: the migration default (limited 1).
+        c0 = doc.get("course")
+        if isinstance(c0, dict):
+            c0.setdefault("attempts_mode", "limited")
+            c0.setdefault("attempts_limit", 1)
     _exact_keys(
         doc,
         (["course"] if is_course else ["context"])
@@ -159,10 +196,18 @@ def validate_document(doc, *, kind, target_allowed_kinds=None, format_version=No
                 "uses_sections",
                 "color_bands",
                 "subjects",
+                "attempts_mode",
+                "attempts_limit",
             ],
             "course",
         )
         check_str(c["title"], _("course title"), max_length=200, required=True)
+        check_attempts_pair(
+            c["attempts_mode"],
+            c["attempts_limit"],
+            allowed=("limited", "unlimited"),
+            what=_("course"),
+        )
         # isinstance guards before EVERY dict-membership test: a hostile list/
         # dict value would otherwise raise "unhashable type" → 500.
         if not isinstance(c["language"], str) or c["language"] not in dict(
@@ -240,6 +285,8 @@ def validate_document(doc, *, kind, target_allowed_kinds=None, format_version=No
         # archive's clean 422 into a 500.
         if isinstance(nd, dict):
             nd.setdefault("published", True)
+            nd.setdefault("attempts_mode", "inherit")
+            nd.setdefault("attempts_limit", None)
         _exact_keys(
             nd,
             [
@@ -251,10 +298,18 @@ def validate_document(doc, *, kind, target_allowed_kinds=None, format_version=No
                 "obligatory",
                 "published",
                 "html_seed_js",
+                "attempts_mode",
+                "attempts_limit",
             ],
             _("node"),
         )
         _claim_id(nd["id"], _("node id"))
+        check_attempts_pair(
+            nd["attempts_mode"],
+            nd["attempts_limit"],
+            allowed=ATTEMPTS_MODES,
+            what=_("node"),
+        )
         if not isinstance(nd["kind"], str) or nd["kind"] not in ContentNode.RANK:
             _err(_("Unknown node kind '%(v)s'."), v=str(nd["kind"])[:20])
         if nd["kind"] not in allowed:

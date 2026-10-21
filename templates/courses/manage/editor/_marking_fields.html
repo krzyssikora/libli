@@ -6,9 +6,17 @@
     {% for e in form.marking_mode.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
     <div data-marks-fields>
-      <label class="el-editor__label" for="id_max_attempts">{% trans "Max attempts" %}</label>
-      {{ form.max_attempts }}
-      {% for e in form.max_attempts.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      {% if "attempts_mode" in form.fields %}
+      <label class="el-editor__label" for="{{ form.attempts_mode.id_for_label }}">{{ form.attempts_mode.label }}</label>
+      {{ form.attempts_mode }}
+      {% for e in form.attempts_mode.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      <div class="attempts-limit" data-attempts-limit>
+        <label class="el-editor__label" for="{{ form.attempts_limit.id_for_label }}">{{ form.attempts_limit.label }}</label>
+        {{ form.attempts_limit }}
+        <p class="helptext">{{ form.attempts_limit.help_text }}</p>
+        {% for e in form.attempts_limit.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      </div>
+      {% endif %}
 
       <label class="el-editor__label" for="id_max_marks">{% trans "Max marks" %}</label>
       {{ form.max_marks }}

@@ -17,6 +17,7 @@ from courses.models import QuestionResponse
 from courses.models import ShortTextQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 from tests.reveal_pr3_kit import extended
@@ -33,7 +34,7 @@ def _quiz(client, enrolled=True):
 
 
 def _fb(unit, accepted=("11", "9"), **kw):
-    kw.setdefault("max_attempts", 3)
+    kw.update(attempts(kw.pop("max_attempts", 3)))
     token_stem, _ = parse(" ".join("{{" + a + "}}" for a in accepted))
     q = FillBlankQuestionElement.objects.create(stem=token_stem, **kw)
     for i, a in enumerate(accepted):
@@ -128,8 +129,9 @@ def test_exhausted_but_unlocked_can_still_reveal(client):
     _fetch(client, unit, el, {"blank": ["11", "5"]})
     _fetch(client, unit, el, {"blank": ["11", "6"]})
     q = el.content_object
-    q.max_attempts = 1  # author lowered the limit below the student's count
-    q.save()
+    # author lowered the limit below the student's count
+    q.attempts_mode, q.attempts_limit = "limited", 1
+    q.save(update_fields=["attempts_mode", "attempts_limit"])
     assert _fetch(client, unit, el, {"reveal": "1"}).status_code == 200
     assert QuestionResponse.objects.get(element=el).locked
 
@@ -148,7 +150,7 @@ def test_locked_wrong_has_key_copy_and_no_old_list(client, kind):
         el = add_element(
             unit,
             ShortTextQuestionElement.objects.create(
-                stem="?", accepted="Paris", max_attempts=1
+                stem="?", accepted="Paris", **attempts(1)
             ),
         )
         data = {"answer": "Rome"}
@@ -156,7 +158,7 @@ def test_locked_wrong_has_key_copy_and_no_old_list(client, kind):
         el = add_element(
             unit,
             ShortNumericQuestionElement.objects.create(
-                stem="?", value="3.14", tolerance="0.01", max_attempts=1
+                stem="?", value="3.14", tolerance="0.01", **attempts(1)
             ),
         )
         data = {"answer": "9"}
@@ -245,7 +247,7 @@ def test_validation_stays_a_fragment_for_converted_and_choice(client):
     el = _fb(unit)
     body = _fetch(client, unit, el, {"blank": ["", ""]}).content.decode()
     assert "<form" not in body and "is-validation" in body
-    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    q = ChoiceQuestionElement.objects.create(stem="?", **attempts(3))
     ch = add_element(unit, q)
     body = _fetch(client, unit, ch, {}).content.decode()
     assert "<form" not in body and "is-validation" in body
@@ -384,7 +386,7 @@ def test_ephemeral_fetch_validation_is_a_fragment(client):
         client, unit, el, {"blank": ["", ""], "attempt": "1"}
     ).content.decode()
     assert "<form" not in body and "is-validation" in body
-    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=3)
+    q = ChoiceQuestionElement.objects.create(stem="?", **attempts(3))
     ch = add_element(unit, q)
     body = _fetch(client, unit, ch, {"attempt": "1"}).content.decode()
     assert "<form" not in body and "is-validation" in body
@@ -431,7 +433,7 @@ def test_locked_choice_still_whole_element_with_marks(client):
     _u, unit = _quiz(client)
     from courses.models import Choice
 
-    q = ChoiceQuestionElement.objects.create(stem="?", max_attempts=1)
+    q = ChoiceQuestionElement.objects.create(stem="?", **attempts(1))
     Choice.objects.create(question=q, text="A", is_correct=True)
     b = Choice.objects.create(question=q, text="B", is_correct=False)
     el = add_element(unit, q)

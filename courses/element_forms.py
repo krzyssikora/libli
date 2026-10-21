@@ -8,6 +8,7 @@ from django.forms import inlineformset_factory
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from courses import attempts as attempts_rules
 from courses import fillblank
 from courses import guessnumber
 from courses import switchgate
@@ -28,6 +29,7 @@ from courses.models import CalloutElement
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
 from courses.models import DividerElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
@@ -67,6 +69,7 @@ from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import TwoColumnElement
 from courses.models import VideoElement
+from courses.quiz import effective_unit_attempts
 from courses.sanitize import CAPTION_MAX_LENGTH
 from courses.sanitize import sanitize_caption
 from courses.sanitize import sanitize_cell
@@ -78,20 +81,76 @@ from courses.widgets import CodeTextarea
 
 
 class _MarkingFieldsMixin:
-    """Make the three marking fields optional in the form.
+    """Marking fields for every question form, and the owner of the attempts pair.
 
-    All three fields have model-level defaults, so when they are omitted from
-    POST (e.g. non-quiz forms where the fields are hidden) Django's
-    construct_instance skips setting them and the model defaults apply on save.
-    Zero-rejection for max_marks is enforced by the model's MinValueValidator
-    via ModelForm._post_clean(); no custom clean methods are needed."""
+    marking_mode / max_marks have model defaults: omitted from POST (non-quiz forms
+    hide them), construct_instance skips them and the defaults apply. Zero-rejection
+    for max_marks is the model's MinValueValidator via _post_clean().
 
-    def __init__(self, *args, **kwargs):
+    The attempts pair is different (spec 2026-10-20 §5.1). `attempts_limit` has NO
+    model default, so Django's omitted-field rule would write NULL over a stored
+    limit -- `limited` + NULL violates the DB constraint (500). So both attempts
+    fields are REMOVED unless the unit is a quiz and, when bound, the mode key was
+    posted: a removed field never reaches cleaned_data, so construct_instance
+    leaves the stored values alone (lesson questions, crafted POSTs).
+
+    `unit` is required, with no None fallback: a missed construction site must be a
+    TypeError, not a silently wrong "Same as ..." label."""
+
+    def __init__(self, *args, unit, **kwargs):
         super().__init__(*args, **kwargs)
-        for field_name in ("marking_mode", "max_attempts", "max_marks"):
+        self.unit = unit
+        for field_name in ("marking_mode", "max_marks"):
             if field_name in self.fields:
                 self.fields[field_name].required = False
                 self.fields[field_name].widget.attrs["class"] = "input"
+        posted = not self.is_bound or self.add_prefix("attempts_mode") in self.data
+        if unit.unit_type != ContentNode.UnitType.QUIZ or not posted:
+            self.fields.pop("attempts_mode", None)
+            self.fields.pop("attempts_limit", None)
+            return
+        value, self._attempts_source = effective_unit_attempts(unit)
+        # Replacing the auto-generated fields keeps their position (Meta.fields
+        # order: mode before limit, which clean_attempts_limit relies on).
+        self.fields["attempts_mode"] = forms.ChoiceField(
+            label=_("Attempts"),
+            choices=[
+                ("inherit", attempts_rules.inherit_label(self._attempts_source, value)),
+                ("limited", _("Limited to…")),
+                ("unlimited", _("Unlimited")),
+            ],
+            error_messages={
+                "required": attempts_rules.MSG_CHOOSE,
+                "invalid_choice": attempts_rules.MSG_CHOOSE,
+            },
+            widget=forms.Select(attrs={"class": "input"}),
+        )
+        # A plain CharField: no min/max widget attrs (the browser would block 0
+        # with its own text and the D9 message would never show) and no validators
+        # (a hidden, irrelevant value must not 422 on an invisible field).
+        self.fields["attempts_limit"] = forms.CharField(
+            required=False,
+            label=_("Number of attempts"),
+            help_text=attempts_rules.ZERO_MESSAGES[self._attempts_source],
+            widget=forms.TextInput(attrs={"class": "input", "inputmode": "numeric"}),
+        )
+
+    def clean_attempts_limit(self):
+        mode = self.cleaned_data.get("attempts_mode")
+        if mode is None:  # the mode failed; its own field carries the error
+            return None
+        return attempts_rules.parse_attempts(
+            mode,
+            self.cleaned_data.get("attempts_limit"),
+            allowed_modes=attempts_rules.QUESTION_MODES,
+            zero_message=attempts_rules.ZERO_MESSAGES[self._attempts_source],
+        )[1]
+
+
+def marking_kwargs(form_cls, unit):
+    """{"unit": unit} for a question form, else {}: the shared FORM_FOR_TYPE
+    dispatch passes it so non-question forms are unchanged (spec §5.1)."""
+    return {"unit": unit} if issubclass(form_cls, _MarkingFieldsMixin) else {}
 
 
 class MediaAssetForm(forms.ModelForm):
@@ -737,7 +796,8 @@ class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "explanation",
             "multiple",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {
@@ -833,7 +893,8 @@ class ShortTextQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "accepted",
             "case_sensitive",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {
@@ -858,7 +919,8 @@ class ShortNumericQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "value",
             "tolerance",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {
@@ -905,7 +967,14 @@ class FillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
 
     class Meta:
         model = FillBlankQuestionElement
-        fields = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem",
+            "explanation",
+            "marking_mode",
+            "attempts_mode",
+            "attempts_limit",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -945,7 +1014,8 @@ class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "distractors",
             "explanation",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {
@@ -997,7 +1067,8 @@ class MatchPairQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "distractors",
             "explanation",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {
@@ -1047,7 +1118,14 @@ def build_matchpair_formset(*, data=None, files=None, instance=None, prefix="pai
 class ChoiceGridQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ChoiceGridQuestionElement
-        fields = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem",
+            "explanation",
+            "marking_mode",
+            "attempts_mode",
+            "attempts_limit",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -1179,7 +1257,14 @@ def build_choicegrid_rows_formset(
 class MultiGridQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = MultiGridQuestionElement
-        fields = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem",
+            "explanation",
+            "marking_mode",
+            "attempts_mode",
+            "attempts_limit",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -1329,7 +1414,8 @@ class DragToImageQuestionElementForm(_MarkingFieldsMixin, _CourseScopedMediaForm
             "distractors",
             "explanation",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {
@@ -1392,7 +1478,8 @@ class ExtendedResponseQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "required_keywords",
             "forbidden_keywords",
             "marking_mode",
-            "max_attempts",
+            "attempts_mode",
+            "attempts_limit",
             "max_marks",
         ]
         widgets = {

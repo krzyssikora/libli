@@ -163,6 +163,9 @@ body.editor-page .app-main { max-width: 102rem; }
 .math-field-wrap { display: grid; grid-template-columns: 1fr; gap: var(--space-2); justify-items: start; }
 .el-editor__marking-fields { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-sunken); }
 .el-editor__marking-fields [data-marks-fields] { display: grid; gap: var(--space-3); }
+/* Must stay LESS specific than the courses.css :has() hide rule, which has to win
+   whenever "Limited to…" is not selected. */
+.el-editor__marking-fields [data-attempts-limit] { display: grid; gap: var(--space-3); }
 /* HTML/CSS/JS element field wrapper. */
 .edit-html { display: grid; gap: var(--space-2); }
 .edit-html__label { font-size: .8rem; font-weight: 600; color: var(--text-secondary); }

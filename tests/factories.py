@@ -226,6 +226,18 @@ def add_element(unit, obj):
     return Element.objects.create(unit=unit, content_object=obj)
 
 
+def attempts(n):
+    """A question's OWN attempts setting as model kwargs (spec 2026-10-20): an int
+    n >= 1 -> limited n; None -> unlimited; 0 -> inherit (D9, as migration 0071
+    maps it -- `limited` 0 would violate the DB constraint). The drop-in
+    replacement for the removed `max_attempts=n`."""
+    if n is None:
+        return {"attempts_mode": "unlimited", "attempts_limit": None}
+    if n == 0:
+        return {"attempts_mode": "inherit", "attempts_limit": None}
+    return {"attempts_mode": "limited", "attempts_limit": n}
+
+
 def make_login(client, username):
     """Create a user with a verified email, log the test client in, return the user.
 

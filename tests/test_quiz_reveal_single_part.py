@@ -10,6 +10,7 @@ from courses.models import Enrollment
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from tests.factories import attempts
 from tests.factories import make_course_with_unit
 from tests.factories import make_quiz_unit
 from tests.factories import make_student
@@ -21,7 +22,7 @@ _INPUT = re.compile(r'<input[^>]*name="answer"[^>]*>')
 def st_quiz(db):
     unit = make_quiz_unit()
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", max_attempts=3
+        stem="Capital?", accepted="Paris", **attempts(3)
     )
     return q, Element.objects.create(unit=unit, content_object=q)
 

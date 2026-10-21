@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import ExtendedResponseQuestionElement
+from tests.factories import attempts
 
 TEXTS = ("Alphaopt", "Betaopt", "Gammaopt")
 KEYWORDS = "question__reveal-keywords"
@@ -34,7 +35,7 @@ class ChoiceKit:
 
 
 def choice(multiple=True, **kw):
-    kw.setdefault("max_attempts", 3)
+    kw.update(attempts(kw.pop("max_attempts", 3)))
     q = ChoiceQuestionElement.objects.create(stem="Pick them.", multiple=multiple, **kw)
     a = Choice.objects.create(question=q, text="Alphaopt", is_correct=True)
     b = Choice.objects.create(
@@ -49,7 +50,7 @@ def choice(multiple=True, **kw):
 
 
 def extended(**kw):
-    kw.setdefault("max_attempts", 3)
+    kw.update(attempts(kw.pop("max_attempts", 3)))
     return ExtendedResponseQuestionElement.objects.create(
         stem="Explain it.",
         required_keywords="alphakw\nbetakw",

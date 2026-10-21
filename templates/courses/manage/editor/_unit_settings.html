@@ -1,5 +1,5 @@
 {% load i18n %}
-<details class="unit-settings">
+<details class="unit-settings"{% if unit_settings.open %} open{% endif %}>
   <summary class="unit-settings__summary">
     <span class="unit-settings__label">{% trans "Settings" %}</span>
   </summary>
@@ -9,13 +9,34 @@
     <input type="hidden" name="token" value="{{ unit.updated.isoformat }}">
     <input type="hidden" name="has_settings" value="1">
     <input type="hidden" name="ctx" value="editor">
-    <label>{% trans "Title" %} <input type="text" name="title" value="{{ unit.title }}" required></label>
-    <label><input type="checkbox" name="published"{% if unit.published %} checked{% endif %}> {% trans "Published" %}</label>
-    <label><input type="checkbox" name="obligatory"{% if unit.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
+    <label>{% trans "Title" %} <input type="text" name="title" value="{{ unit_settings.title }}" required></label>
+    <label><input type="checkbox" name="published"{% if unit_settings.published %} checked{% endif %}> {% trans "Published" %}</label>
+    <label><input type="checkbox" name="obligatory"{% if unit_settings.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
+    {% if unit.unit_type == "quiz" %}
+    <div class="unit-settings__attempts">
+      <label for="unit-attempts-mode">{% trans "Attempts per question" %}</label>
+      <select id="unit-attempts-mode" name="attempts_mode" class="input">
+        <option value="inherit"{% if unit_settings.attempts_mode == "inherit" %} selected{% endif %}>{{ unit_settings.inherit_label }}</option>
+        <option value="limited"{% if unit_settings.attempts_mode == "limited" %} selected{% endif %}>{% trans "Limited to…" %}</option>
+        <option value="unlimited"{% if unit_settings.attempts_mode == "unlimited" %} selected{% endif %}>{% trans "Unlimited" %}</option>
+      </select>
+      <div class="attempts-limit" data-attempts-limit>
+        <label for="unit-attempts-limit">{% trans "Number of attempts" %}</label>
+        <input id="unit-attempts-limit" class="input" type="text" inputmode="numeric" name="attempts_limit" value="{{ unit_settings.attempts_limit }}">
+        <p class="helptext">{{ unit_settings.zero_help }}</p>
+      </div>
+      {% if unit_settings.override_count %}
+      <div class="unit-settings__reset" role="radiogroup">
+        <label><input type="radio" name="attempts_reset" value="keep"{% if unit_settings.attempts_reset != "reset" %} checked{% endif %}> {{ unit_settings.keep_label }}</label>
+        <label><input type="radio" name="attempts_reset" value="reset"{% if unit_settings.attempts_reset == "reset" %} checked{% endif %}> {% trans "Make all questions in this quiz use the quiz setting" %}</label>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
     <label class="unit-seed">{% trans "Unit JS (seed)" %}
       <div class="code-field" data-code-field style="--code-field-rows: 6">
         <div class="code-field__gutter" aria-hidden="true"></div>
-        <div class="code-field__area"><textarea name="html_seed_js" rows="6" spellcheck="false" autocomplete="off" wrap="off" placeholder="{}">{{ unit.html_seed_js }}</textarea></div>
+        <div class="code-field__area"><textarea name="html_seed_js" rows="6" spellcheck="false" autocomplete="off" wrap="off" placeholder="{}">{{ unit_settings.html_seed_js }}</textarea></div>
       </div>
     </label>
     <p class="helptext unit-seed__help">

@@ -19,6 +19,7 @@ import urllib.parse
 import pytest
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -81,7 +82,7 @@ def _seed_quiz(username, slug):
     st = ShortTextQuestionElement.objects.create(
         stem="<p>Capital of France?</p>",
         accepted="Paris",
-        max_attempts=2,
+        **attempts(2),
     )
     el_join = Element.objects.create(unit=unit, content_object=st)
     return course, unit, el_join

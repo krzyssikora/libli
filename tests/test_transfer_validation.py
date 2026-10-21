@@ -320,7 +320,8 @@ def q_fields(**over):
         "stem": "s",
         "explanation": "",
         "marking_mode": "A",
-        "max_attempts": 1,
+        "attempts_mode": "inherit",
+        "attempts_limit": None,
         "max_marks": "1.00",
     }
     d.update(over)

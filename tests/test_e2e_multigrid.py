@@ -17,6 +17,7 @@ import os
 import pytest
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -64,7 +65,7 @@ def _seed_multigrid(username, slug, *, unit_type, max_attempts=0):
         course=course, kind="unit", unit_type=unit_type, parent=None, title="U"
     )
     q = MultiGridQuestionElement.objects.create(
-        stem="<p>Tick every correct column</p>", max_attempts=max_attempts
+        stem="<p>Tick every correct column</p>", **attempts(max_attempts)
     )
     col_x = MultiGridColumn.objects.create(question=q, label="\\(x^2\\)")
     col_b = MultiGridColumn.objects.create(question=q, label="B")

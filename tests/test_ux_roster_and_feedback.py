@@ -15,6 +15,7 @@ from tests.factories import EnrollmentFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import UserFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_pa
 from tests.factories import make_quiz_unit
@@ -109,7 +110,7 @@ def _quiz_q(client, *, accepted="Paris", explanation="It's Paris.", max_attempts
         stem="Capital?",
         accepted=accepted,
         explanation=explanation,
-        max_attempts=max_attempts,
+        **attempts(max_attempts),
     )
     el = add_element(unit, q)
     return unit, el
@@ -155,7 +156,7 @@ def test_results_correct_question_hides_reveal_keeps_explanation_in_panel(client
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", explanation="Bravo.", max_attempts=1
+        stem="Capital?", accepted="Paris", explanation="Bravo.", **attempts(1)
     )
     el = add_element(unit, q)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"

@@ -19,7 +19,7 @@ def _post(unit, **extra):
         "stem": "Pick the truths",
         "explanation": "",
         "marking_mode": "A",  # MarkingMode.AUTO == "A" (single char), NOT "AUTO"
-        "max_attempts": "0",
+        "attempts_mode": "inherit",
         "max_marks": "1",
         # columns formset
         "columns-TOTAL_FORMS": "2",
@@ -87,7 +87,7 @@ def test_edit_delete_column_and_repoint_same_submission(client):
         "stem": "Pick the truths",
         "explanation": "",
         "marking_mode": "A",
-        "max_attempts": "0",
+        "attempts_mode": "inherit",
         "max_marks": "1",
         "columns-TOTAL_FORMS": "2",
         "columns-INITIAL_FORMS": "2",
@@ -151,7 +151,7 @@ def test_edit_unchanged_preserves_correct_columns(client):
         "stem": "Pick the truths",
         "explanation": "",
         "marking_mode": "A",
-        "max_attempts": "0",
+        "attempts_mode": "inherit",
         "max_marks": "1",
         "columns-TOTAL_FORMS": "2",
         "columns-INITIAL_FORMS": "2",

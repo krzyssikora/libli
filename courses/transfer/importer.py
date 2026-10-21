@@ -486,7 +486,8 @@ def _q_kwargs(data):
         "stem": data["stem"],
         "explanation": data["explanation"],
         "marking_mode": data["marking_mode"],
-        "max_attempts": data["max_attempts"],
+        "attempts_mode": data["attempts_mode"],
+        "attempts_limit": data["attempts_limit"],
         "max_marks": Decimal(data["max_marks"]),
     }
 
@@ -931,6 +932,8 @@ def _create_nodes(document, course, root_parent=None):
             unit_type=nd["unit_type"],
             obligatory=nd["obligatory"],
             published=nd["published"],
+            attempts_mode=nd["attempts_mode"],
+            attempts_limit=nd["attempts_limit"],
             html_seed_js=nd["html_seed_js"],
         )
         try:
@@ -1107,6 +1110,8 @@ def import_course(
             uses_chapters=c["uses_chapters"],
             uses_sections=c["uses_sections"],
             color_bands=c["color_bands"],
+            attempts_mode=c["attempts_mode"],
+            attempts_limit=c["attempts_limit"],
             owner=user,
         )
         course.full_clean()

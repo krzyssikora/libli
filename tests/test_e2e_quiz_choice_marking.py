@@ -17,6 +17,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -54,7 +55,7 @@ def _seed(username, slug, max_attempts=1):
         course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
     )
     q = ChoiceQuestionElement.objects.create(
-        stem="<p>Capital of France?</p>", multiple=False, max_attempts=max_attempts
+        stem="<p>Capital of France?</p>", multiple=False, **attempts(max_attempts)
     )
     Choice.objects.create(question=q, text="Paris", is_correct=True, order=0)
     Choice.objects.create(question=q, text="London", is_correct=False, order=1)

@@ -9,23 +9,25 @@ from tests.factories import ContentNodeFactory
 from tests.factories import QuestionResponseFactory
 from tests.factories import QuizSubmissionFactory
 from tests.factories import UserFactory
+from tests.factories import attempts
 
 
 @pytest.mark.django_db
 def test_question_marking_fields_defaults():
     q = ShortTextQuestionElement.objects.create(stem="x", accepted="a")
     assert q.marking_mode == "A"
-    assert q.max_attempts == 1
+    # a fresh question INHERITS (spec 2026-10-20 D9); the quiz/course decides
+    assert (q.attempts_mode, q.attempts_limit) == ("inherit", None)
     assert q.max_marks == Decimal("1.00")
 
 
 @pytest.mark.django_db
-def test_question_max_attempts_nullable_for_unlimited():
+def test_question_attempts_nullable_for_unlimited():
     q = ShortTextQuestionElement.objects.create(
-        stem="x", accepted="a", max_attempts=None
+        stem="x", accepted="a", **attempts(None)
     )
     q.refresh_from_db()
-    assert q.max_attempts is None
+    assert (q.attempts_mode, q.attempts_limit) == ("unlimited", None)
 
 
 @pytest.mark.django_db

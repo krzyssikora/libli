@@ -12,6 +12,7 @@ from courses.models import QuestionElement
 from courses.models import ShortTextQuestionElement
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -21,7 +22,7 @@ def _setup(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     token_stem, _ = parse("{{11}} {{9}}")
-    q = FillBlankQuestionElement.objects.create(stem=token_stem, max_attempts=3)
+    q = FillBlankQuestionElement.objects.create(stem=token_stem, **attempts(3))
     Blank.objects.create(question=q, order=0, accepted="11")
     Blank.objects.create(question=q, order=1, accepted="9")
     fb = Element.objects.create(unit=unit, content_object=q)
@@ -123,7 +124,7 @@ def test_results_row_matrix(client, mode, answer, badge, switch, key_shown):
         stem="Capital?",
         accepted="Paris",
         marking_mode=mode,
-        max_attempts=1,
+        **attempts(1),
         explanation="<p>Because.</p>",
     )
     el = add_element(unit, q)
@@ -151,13 +152,13 @@ def test_results_nr_rows_never_show_the_key(client, kind, mode, answered):
     EnrollmentFactory(student=user, course=unit.course)
     if kind == "fillblank":
         q = FillBlankQuestionElement.objects.create(
-            stem=parse("{{11}}")[0], marking_mode=mode, max_attempts=1
+            stem=parse("{{11}}")[0], marking_mode=mode, **attempts(1)
         )
         Blank.objects.create(question=q, order=0, accepted="11")
         data = {"blank": ["5"]}
     else:
         q = ShortNumericQuestionElement.objects.create(
-            stem="?", value="3.14", marking_mode=mode, max_attempts=1
+            stem="?", value="3.14", marking_mode=mode, **attempts(1)
         )
         data = {"answer": "9"}
     el = add_element(unit, q)
@@ -177,7 +178,7 @@ def test_results_reviewed_row_shows_teacher_marks(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Essay?", accepted="Paris", marking_mode="R", max_attempts=1
+        stem="Essay?", accepted="Paris", marking_mode="R", **attempts(1)
     )
     el = add_element(unit, q)
     _answer(client, unit, el, {"answer": "Rome"})
@@ -204,7 +205,7 @@ def test_results_short_text_row_every_input_disabled(client):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="?", accepted="Paris", max_attempts=1
+        stem="?", accepted="Paris", **attempts(1)
     )
     el = add_element(unit, q)
     _answer(client, unit, el, {"answer": "Rome"})
@@ -239,18 +240,18 @@ def test_analytics_expected_answer_per_type(client, kind, answered):
     EnrollmentFactory(student=user, course=unit.course)
     if kind == "fillblank":
         q = FillBlankQuestionElement.objects.create(
-            stem=parse("{{zetakey}}")[0], max_attempts=1
+            stem=parse("{{zetakey}}")[0], **attempts(1)
         )
         Blank.objects.create(question=q, order=0, accepted="zetakey")
         data, key = {"blank": ["no"]}, "zetakey"
     elif kind == "text":
         q = ShortTextQuestionElement.objects.create(
-            stem="?", accepted="Parisxyz", max_attempts=1
+            stem="?", accepted="Parisxyz", **attempts(1)
         )
         data, key = {"answer": "no"}, "Parisxyz"
     else:
         q = ShortNumericQuestionElement.objects.create(
-            stem="?", value="3.14159", max_attempts=1
+            stem="?", value="3.14159", **attempts(1)
         )
         data, key = {"answer": "1"}, "3.14159"
     el = add_element(unit, q)

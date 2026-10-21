@@ -8,6 +8,7 @@ from courses.models import UnitProgress
 from tests.factories import EnrollmentFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -49,7 +50,7 @@ def test_finish_scores_partial_credit_and_unanswered_zero(client):
 def test_finish_locks_all_responses_and_scores_wrong_as_zero(client):
     user, unit = _enrolled(client)
     q = ShortTextQuestionElement.objects.create(
-        stem="A?", accepted="x", max_attempts=None, max_marks=Decimal("2")
+        stem="A?", accepted="x", **attempts(None), max_marks=Decimal("2")
     )
     el = add_element(unit, q)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
@@ -71,7 +72,7 @@ def test_finish_locks_all_responses_and_scores_wrong_as_zero(client):
 def test_results_reveals_correct_answer_for_all_auto_questions(client):
     user, unit = _enrolled(client)
     answered = ShortTextQuestionElement.objects.create(
-        stem="A?", accepted="Paris", max_attempts=1
+        stem="A?", accepted="Paris", **attempts(1)
     )
     el1 = add_element(unit, answered)
     unanswered = ShortTextQuestionElement.objects.create(stem="B?", accepted="Rome")

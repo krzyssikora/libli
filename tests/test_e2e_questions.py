@@ -17,6 +17,7 @@ import urllib.parse
 import pytest
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -454,9 +455,7 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="quiz", parent=None, title="Quiz"
     )
-    q = ChoiceQuestionElement.objects.create(
-        stem="Pick", multiple=False, max_attempts=2
-    )
+    q = ChoiceQuestionElement.objects.create(stem="Pick", multiple=False, **attempts(2))
     Choice.objects.create(question=q, text="One", is_correct=False)
     Choice.objects.create(question=q, text="Two", is_correct=True)
     add_element(unit, q)

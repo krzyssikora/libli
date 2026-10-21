@@ -17,6 +17,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -368,7 +369,7 @@ def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(browser, live_serv
         course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
     )
     third_sn = ShortNumericQuestionElement.objects.create(
-        stem="<p>Third?</p>", value="1/3", tolerance="", max_attempts=1
+        stem="<p>Third?</p>", value="1/3", tolerance="", **attempts(1)
     )
     Element.objects.create(unit=unit, content_object=third_sn)
     context = browser.new_context()

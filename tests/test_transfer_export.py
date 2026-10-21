@@ -117,7 +117,10 @@ def test_choice_question(course):
     assert key == "choice"
     assert data["multiple"] is False
     assert data["max_marks"] == "2.50"
-    assert data["max_attempts"] == 1
+    assert (data["attempts_mode"], data["attempts_limit"]) == (
+        q.attempts_mode,
+        q.attempts_limit,
+    )
     assert data["choices"] == [
         {"text": "A", "is_correct": True, "feedback": ""},
         {"text": "B", "is_correct": False, "feedback": ""},
@@ -225,7 +228,7 @@ def test_build_export_full_course_document(course, image_asset):
     _attach(unit, TextElement.objects.create(body="hi"))
     _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
     manifest, doc, media, _problems = build_export(course)
-    assert manifest["format_version"] == 17
+    assert manifest["format_version"] == 18
     assert manifest["kind"] == "course"
     assert manifest["course"] == {"title": "Src", "slug": "src"}
     assert doc["course"]["title"] == "Src"

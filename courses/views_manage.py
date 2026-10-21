@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.db import OperationalError
+from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
 from django.http import HttpResponse
@@ -20,6 +22,7 @@ from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 
+from courses import attempts as attempts_rules
 from courses import builder as builder_svc
 from courses import builder_filter
 from courses import builder_open  # for builder_open.CEILING -- see below
@@ -114,7 +117,16 @@ def course_edit(request, slug):
             request.POST, instance=course, can_assign_owner=can_assign_owner
         )
         if form.is_valid():
-            course = form.save()
+            reset = form.cleaned_data.get("attempts_reset") == "reset"
+            with transaction.atomic():
+                # Quiz units BEFORE the Course row: builder ops lock a unit and
+                # then write the course, so this is the one global order (§5.3).
+                counts = (
+                    attempts_rules.reset_course_overrides(course) if reset else None
+                )
+                course = form.save()
+            if counts is not None:
+                messages.success(request, attempts_rules.course_reset_message(*counts))
             return redirect("courses:manage_course_edit", slug=course.slug)  # new slug
     else:
         form = CourseForm(instance=course, can_assign_owner=can_assign_owner)
@@ -932,6 +944,10 @@ def node_rename(request, slug):
     # plain full-page POST, so success/conflict/error route back to the editor.
     to_editor = request.POST.get("ctx") == "editor"
     node_pk = request.POST.get("node")
+    # Attempts ride the settings form only, and only a quiz renders the select:
+    # absent keys stay _UNSET so a lesson save or a plain rename never touches a
+    # dormant override (spec §5.2).
+    attempts_posted = is_settings and "attempts_mode" in request.POST
     try:
         node = builder_svc.rename_node(
             course,
@@ -956,6 +972,15 @@ def node_rename(request, slug):
             published=("published" in request.POST)
             if is_settings
             else builder_svc._UNSET,
+            attempts_mode=request.POST.get("attempts_mode")
+            if attempts_posted
+            else builder_svc._UNSET,
+            attempts_limit=request.POST.get("attempts_limit", "")
+            if attempts_posted
+            else builder_svc._UNSET,
+            reset_question_attempts=(request.POST.get("attempts_reset") == "reset")
+            if attempts_posted
+            else builder_svc._UNSET,
         )
     except builder_svc.ConflictError:
         if to_editor:
@@ -973,11 +998,22 @@ def node_rename(request, slug):
         msg = "; ".join(e.messages)
         if to_editor:
             unit = get_node_or_404(node_pk, slug, require_unit=True)
-            return _editor_page(request, unit, error=msg, status=422)
+            return _editor_page(
+                request,
+                unit,
+                error=msg,
+                status=422,
+                settings_post=request.POST if is_settings else None,
+            )
         if not _wants_fragment(request):
             return _builder_with_notice(request, course, msg, status=422)
         return render(
             request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
+    if attempts_posted and request.POST.get("attempts_reset") == "reset":
+        messages.success(
+            request,
+            attempts_rules.quiz_reset_message(getattr(node, "attempts_reset_count", 0)),
         )
     if to_editor:
         return redirect("courses:manage_editor", slug=slug, pk=node.pk)
@@ -2176,8 +2212,56 @@ def _render_editor_fragments(
     return resp
 
 
+def _unit_settings_values(unit, post=None):
+    """What the unit settings form shows: stored values, or -- on a 422 -- the
+    posted ones, so an attempts error never discards another edit such as the
+    seed JS (spec §5.2). Counts and labels always come from the DB."""
+    if post is None:
+        vals = {
+            "title": unit.title,
+            "published": unit.published,
+            "obligatory": unit.obligatory,
+            "html_seed_js": unit.html_seed_js,
+            "attempts_mode": unit.attempts_mode,
+            "attempts_limit": ""
+            if unit.attempts_limit is None
+            else str(unit.attempts_limit),
+            "attempts_reset": "keep",
+            "open": False,
+        }
+    else:
+        vals = {
+            "title": post.get("title", ""),
+            "published": "published" in post,
+            "obligatory": "obligatory" in post,
+            "html_seed_js": post.get("html_seed_js", ""),
+            "attempts_mode": post.get("attempts_mode", unit.attempts_mode),
+            "attempts_limit": post.get("attempts_limit", ""),
+            "attempts_reset": post.get("attempts_reset", "keep"),
+            "open": True,
+        }
+    if unit.unit_type == ContentNode.UnitType.QUIZ:
+        from courses.quiz import effective_course_attempts
+
+        n = attempts_rules.count_question_overrides([unit.pk])
+        vals["inherit_label"] = attempts_rules.inherit_label(
+            "course", effective_course_attempts(unit.course)
+        )
+        vals["zero_help"] = attempts_rules.ZERO_MESSAGES["course"]
+        vals["override_count"] = n
+        vals["keep_label"] = attempts_rules.quiz_keep_label(n)
+    return vals
+
+
 def _editor_page(
-    request, unit, *, error="", changed=False, open_slots=None, status=200
+    request,
+    unit,
+    *,
+    error="",
+    changed=False,
+    open_slots=None,
+    status=200,
+    settings_post=None,
 ):
     """Render the full editor page (not just the swappable scope). Shared by the
     editor view and the unit-settings save path so a 422 can re-render with an
@@ -2201,6 +2285,7 @@ def _editor_page(
             # because three callers render this page, two of them 422 re-renders.
             "can_view_live": can_access_course(request.user, unit.course),
             "unit": unit,
+            "unit_settings": _unit_settings_values(unit, settings_post),
             "rows": rows,
             "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
@@ -2322,6 +2407,7 @@ def _render_open_form(
     from courses.element_forms import _SG_SEED_STEM
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
+    from courses.element_forms import marking_kwargs
 
     if form is None:
         # Module attribute (builder_svc.COURSE_SCOPED_TYPE_KEYS), not a from-import --
@@ -2334,6 +2420,7 @@ def _render_open_form(
             if type_key in (*builder_svc.COURSE_SCOPED_TYPE_KEYS, "dragtoimagequestion")
             else {}
         )
+        extra.update(marking_kwargs(FORM_FOR_TYPE[type_key], unit))
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
     # Compute a SINGLE authoritative is_multiple for the template (radio vs checkbox),
     # rather than letting the template derive it from bound/unbound form attrs
@@ -2690,6 +2777,7 @@ def element_form(request, slug, pk):
     type_key = el.content_object.__class__.__name__.lower().replace("element", "")
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
+    from courses.element_forms import marking_kwargs
 
     # See the matching comment in _render_open_form: module attribute, union with
     # "dragtoimagequestion" (course-scoped but not itself in COURSE_SCOPED_TYPE_KEYS).
@@ -2698,6 +2786,7 @@ def element_form(request, slug, pk):
         if type_key in (*builder_svc.COURSE_SCOPED_TYPE_KEYS, "dragtoimagequestion")
         else {}
     )
+    extra.update(marking_kwargs(FORM_FOR_TYPE[type_key], el.unit))
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
     formset = None
     formset2 = None
@@ -2805,10 +2894,10 @@ def element_try(request, slug, pk):
         question, attempts_made=attempt, locked=False
     )
     stand_in, result, validation = ephemeral_quiz_feedback(
-        question, answer, attempt, reveal=reveal
+        question, answer, attempt, unit=el.unit, reveal=reveal
     )
     ctx = quiz_feedback_context(
-        question, stand_in, result=result, validation=validation
+        question, stand_in, unit=el.unit, result=result, validation=validation
     )
     if not validation and (question.SUPPORTS_REVEAL or question.INLINE_QUIZ_REVEAL):
         # Same whole-element contract as the student path (views._quiz_render_feedback);

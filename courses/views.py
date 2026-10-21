@@ -77,6 +77,7 @@ from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import can_reveal
+from courses.quiz import effective_attempt_limit
 from courses.quiz import ephemeral_quiz_feedback
 from courses.quiz import key_view
 from courses.quiz import locked_after
@@ -1541,7 +1542,7 @@ def build_quiz_context(node, user):
             # One helper for every quiz render path (spec §2.4): verdicts on both
             # branches, mark_result / key copy only once locked.
             state.update(quiz_render_state(q, r, result))
-            fb_ctx = quiz_feedback_context(q, r, result=result)
+            fb_ctx = quiz_feedback_context(q, r, unit=node, result=result)
             state["attempts_left"] = fb_ctx.get("attempts_left")
             state["feedback_html"] = render_to_string(
                 "courses/elements/_quiz_question_feedback.html", fb_ctx
@@ -1656,7 +1657,7 @@ def _quiz_render_feedback(
     request, node, element, question, response, *, result=None, validation=False
 ):
     fb_ctx = quiz_feedback_context(
-        question, response, result=result, validation=validation
+        question, response, unit=node, result=result, validation=validation
     )
     # Validation keeps the bare fragment for every type (spec §2.4): the student's
     # (empty) inputs stay as they are. A change for choice, which used to re-render.
@@ -1766,7 +1767,11 @@ def quiz_answer(request, slug, node_pk, element_pk):
             question, attempts_made=attempt, locked=False
         )
         stand_in, result, validation = ephemeral_quiz_feedback(
-            question, question.build_answer(request.POST), attempt, reveal=reveal
+            question,
+            question.build_answer(request.POST),
+            attempt,
+            unit=node,
+            reveal=reveal,
         )
         return _quiz_render_feedback(
             request,
@@ -1791,10 +1796,11 @@ def quiz_answer(request, slug, node_pk, element_pk):
         )
         if request.POST.get("reveal"):
             # Show answer (spec §3.2). Runs BEFORE the exhausted gate (an author
-            # may lower max_attempts below the student's count -- Show answer is the
-            # way out) and before build_answer / validation (an emptied form must
-            # not block it). Ignores the posted answer: the stored latest attempt is
-            # what is marked and shown. Consumes no attempt, writes no Attempt row.
+            # may lower the effective attempts limit below the student's count --
+            # Show answer is the way out) and before build_answer / validation (an
+            # emptied form must not block it). Ignores the posted answer: the
+            # stored latest attempt is what is marked and shown. Consumes no
+            # attempt, writes no Attempt row.
             if response.locked:
                 return _quiz_locked_response(request, slug, node_pk)
             if not can_reveal(
@@ -1808,9 +1814,9 @@ def quiz_answer(request, slug, node_pk, element_pk):
         else:
             revealed_result = None
         if revealed_result is None:
+            limit = effective_attempt_limit(question, node)
             if response.locked or (
-                question.max_attempts is not None
-                and response.attempt_count >= question.max_attempts
+                limit is not None and response.attempt_count >= limit
             ):
                 return _quiz_locked_response(request, slug, node_pk)
 
@@ -1841,7 +1847,9 @@ def quiz_answer(request, slug, node_pk, element_pk):
             response.last_attempt_at = timezone.now()
             # ONE lock rule, shared with the ephemeral previewer path -- see
             # courses.quiz.locked_after and tests/test_quiz_lock_rule_parity.py.
-            response.locked = locked_after(question, result, response.attempt_count)
+            response.locked = locked_after(
+                question, result, response.attempt_count, unit=node
+            )
             response.save()
             Attempt.objects.create(
                 response=response,

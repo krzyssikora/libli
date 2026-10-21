@@ -8,6 +8,7 @@ from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
+from courses import attempts as attempts_rules
 from courses.color_bands import BAND_KEYS
 from courses.models import ContentNode
 from courses.models import Course
@@ -56,6 +57,26 @@ class CourseForm(forms.ModelForm):
         help_text=_("Which content levels this course uses."),
     )
 
+    # Declared fields lose the model default as initial, and a new course's form
+    # gets no instance values -- so restate it, or the page posts limited + "".
+    attempts_mode = forms.ChoiceField(
+        label=_("Attempts per question"),
+        initial="limited",
+        choices=[("limited", _("Limited to…")), ("unlimited", _("Unlimited"))],
+        error_messages={
+            "required": attempts_rules.MSG_CHOOSE,
+            "invalid_choice": attempts_rules.MSG_CHOOSE,
+        },
+    )
+    # Plain CharField: no min/max attrs, no validators -- see _MarkingFieldsMixin.
+    attempts_limit = forms.CharField(
+        required=False,
+        initial=1,
+        label=_("Number of attempts"),
+        help_text=attempts_rules.ZERO_MESSAGES["course_level"],
+        widget=forms.TextInput(attrs={"inputmode": "numeric"}),
+    )
+
     class Meta:
         model = Course
         fields = [
@@ -67,6 +88,8 @@ class CourseForm(forms.ModelForm):
             "visibility",
             "self_enroll_cohorts",
             "external_id",
+            "attempts_mode",
+            "attempts_limit",
             "owner",
             "html_css",
             "html_js",
@@ -195,6 +218,56 @@ class CourseForm(forms.ModelForm):
             )
             current = self.fields["structure"].help_text
             self.fields["structure"].help_text = f"{current} {note}"
+
+        # Absent = keep, as for question forms (spec §5.1): a POST without the
+        # mode key never touches the stored default.
+        if self.is_bound and "attempts_mode" not in self.data:
+            self.fields.pop("attempts_mode")
+            self.fields.pop("attempts_limit")
+        elif self.instance.pk:
+            quizzes, questions = attempts_rules.course_override_counts(self.instance)
+            if quizzes or questions:
+                # A CharField, not a ChoiceField: anything but "reset" means Keep
+                # (P8), which a ChoiceField would turn into an "invalid choice".
+                self.fields["attempts_reset"] = forms.CharField(
+                    required=False,
+                    initial="keep",
+                    label=_("Specific settings"),
+                    widget=forms.RadioSelect(
+                        choices=[
+                            (
+                                "keep",
+                                attempts_rules.course_keep_label(quizzes, questions),
+                            ),
+                            (
+                                "reset",
+                                _(
+                                    "Make every quiz and question use the course setting"  # noqa: E501
+                                ),
+                            ),
+                        ]
+                    ),
+                )
+                keys = list(self.fields)
+                keys.insert(
+                    keys.index("attempts_limit") + 1,
+                    keys.pop(keys.index("attempts_reset")),
+                )
+                self.order_fields(keys)
+
+    def clean_attempts_limit(self):
+        mode = self.cleaned_data.get("attempts_mode")
+        if mode is None:
+            return None
+        return attempts_rules.parse_attempts(
+            mode,
+            self.cleaned_data.get("attempts_limit"),
+            allowed_modes=attempts_rules.COURSE_MODES,
+            zero_message=attempts_rules.ZERO_MESSAGES["course_level"],
+        )[1]
+
+    def clean_attempts_reset(self):
+        return "reset" if self.cleaned_data.get("attempts_reset") == "reset" else "keep"
 
     def clean_slug(self):
         slug = self.cleaned_data.get("slug")

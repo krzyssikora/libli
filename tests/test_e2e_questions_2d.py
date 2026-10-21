@@ -36,6 +36,7 @@ from courses.models import Enrollment
 from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -150,7 +151,7 @@ def _seed_dragfill_quiz(username, slug):
         course=course, kind="unit", unit_type="quiz", title="Q", published=True
     )
     q = DragFillBlankQuestionElement.objects.create(
-        stem="￿0￿ and ￿1￿", distractors="Rome", marking_mode="A", max_attempts=2
+        stem="￿0￿ and ￿1￿", distractors="Rome", marking_mode="A", **attempts(2)
     )
     DragBlank.objects.create(question=q, correct_token="Paris")
     DragBlank.objects.create(question=q, correct_token="Madrid")

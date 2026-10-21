@@ -25,8 +25,10 @@ from courses.models import ImageElement
 from courses.models import TableElement
 from courses.sanitize import CAPTION_MAX_LENGTH
 from courses.switchgate import SENTINEL_TOKEN
+from courses.transfer.schema import ATTEMPTS_MODES
 from courses.transfer.schema import TransferError
 from courses.transfer.schema import _exact_keys
+from courses.transfer.schema import check_attempts_pair
 from courses.transfer.schema import check_bool
 from courses.transfer.schema import check_decimal_str
 from courses.transfer.schema import check_float
@@ -94,13 +96,25 @@ def _check_question_fields(data, elid):
     check_str(data["explanation"], _("explanation"))
     if data["marking_mode"] not in ("A", "N", "R"):
         _err(_("Element '%(el)s': unknown marking mode."), el=elid)
-    check_int_or_null(data["max_attempts"], "max_attempts")
+    check_attempts_pair(
+        data["attempts_mode"],
+        data["attempts_limit"],
+        allowed=ATTEMPTS_MODES,
+        what=elid,
+    )
     d = check_decimal_str(data["max_marks"], "max_marks", 7, 2)
     if d < Decimal("0.01"):
         _err(_("Element '%(el)s': max_marks must be at least 0.01."), el=elid)
 
 
-Q_KEYS = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
+Q_KEYS = [
+    "stem",
+    "explanation",
+    "marking_mode",
+    "attempts_mode",
+    "attempts_limit",
+    "max_marks",
+]
 
 
 def _require_media(data_media, elid, media_kinds, want_kind):
@@ -1043,9 +1057,36 @@ VALIDATORS = {
 CAPTION_HTML_VERSION = 14
 
 
+# FORMAT_VERSION at which a question's max_attempts became the attempts pair.
+ATTEMPTS_PAIR_VERSION = 18
+
+
+def _upgrade_legacy_attempts(data, format_version):
+    """v<=17 question: rename + value-map max_attempts exactly like migration 0071
+    (1 and 0 -> inherit, null -> unlimited, n >= 2 -> limited n). The value is
+    checked first, so a bool/str/negative is a TransferError, never a 500. Keyed on
+    the PRESENCE of max_attempts, not on a hand-written list of question types:
+    no other type ever had the key, and a stray one is still rejected by
+    _exact_keys. None (in-instance paths) means modern: nothing to map."""
+    if format_version is None or not isinstance(format_version, int):
+        return
+    if format_version >= ATTEMPTS_PAIR_VERSION or "max_attempts" not in data:
+        return
+    old = check_int_or_null(data.pop("max_attempts"), "max_attempts")
+    if old is None:
+        data["attempts_mode"], data["attempts_limit"] = "unlimited", None
+    elif old <= 1:
+        data["attempts_mode"], data["attempts_limit"] = "inherit", None
+    else:
+        data["attempts_mode"], data["attempts_limit"] = "limited", old
+
+
 def _upgrade_legacy_data(el, format_version):
     """Version-gated re-interpretation of values whose MEANING changed while
-    their shape did not. Lives here rather than inside a validator because the
+    their shape did not. Runs two upgrades: the v<=17 question attempts pair
+    (_upgrade_legacy_attempts) and the pre-14 image caption below.
+
+    Lives here rather than inside a validator because the
     VALIDATORS dispatch is uniform (data, elid, media_kinds) and threading a
     version through all forty of them to serve one key is the worse trade.
 
@@ -1061,11 +1102,13 @@ def _upgrade_legacy_data(el, format_version):
     TRANSFORM on doubt, and double-escaping a modern caption corrupts it visibly
     and permanently. No import path reaches here without a manifest.
     """
+    data = el.get("data")
+    if isinstance(data, dict):
+        _upgrade_legacy_attempts(data, format_version)
     if el.get("type") != "image" or format_version is None:
         return
     if not isinstance(format_version, int) or format_version >= CAPTION_HTML_VERSION:
         return
-    data = el.get("data")
     if isinstance(data, dict) and isinstance(data.get("figcaption"), str):
         data["figcaption"] = html.escape(data["figcaption"], quote=False)
 

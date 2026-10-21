@@ -55,6 +55,7 @@ from courses.models import Element
 from courses.models import Enrollment
 from courses.models import MediaAsset
 from tests.factories import TEST_PASSWORD
+from tests.factories import attempts
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -174,7 +175,7 @@ def _seed_dragimage_quiz(
         alt="Diagram",
         distractors=distractors,
         marking_mode="A",
-        max_attempts=2,
+        **attempts(2),
     )
     _add_zones(q, labels)
     el = Element.objects.create(unit=unit, content_object=q)
@@ -661,7 +662,8 @@ def test_authoring_no_js_edit_existing_zone(live_server, browser):
             "media": str(q.media_id),
             "alt": "Diagram",
             "marking_mode": q.marking_mode,
-            "max_attempts": str(q.max_attempts) if q.max_attempts is not None else "",
+            "attempts_mode": q.attempts_mode,
+            "attempts_limit": "" if q.attempts_limit is None else str(q.attempts_limit),
             "csrfmiddlewaretoken": csrf_token,
         }
     )

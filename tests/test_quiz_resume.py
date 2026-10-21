@@ -3,6 +3,7 @@ import pytest
 from tests.factories import EnrollmentFactory
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
+from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
@@ -15,7 +16,7 @@ def _enrolled_q(client, max_attempts=3):
         stem="Capital?",
         accepted="Paris",
         explanation="It's Paris.",
-        max_attempts=max_attempts,
+        **attempts(max_attempts),
     )
     el = add_element(unit, q)
     return user, unit, el
