@@ -856,6 +856,9 @@ def rename_node(
     obligatory=_UNSET,
     html_seed_js=_UNSET,
     published=_UNSET,
+    attempts_mode=_UNSET,
+    attempts_limit=_UNSET,
+    reset_question_attempts=_UNSET,
 ):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
@@ -899,6 +902,28 @@ def rename_node(
         if published is not _UNSET:
             node.published = published
             fields.append("published")
+    attempts_given = any(
+        v is not _UNSET
+        for v in (attempts_mode, attempts_limit, reset_question_attempts)
+    )
+    if attempts_given:
+        from courses import attempts as attempts_rules  # function-local, as above
+
+        # P9: only a quiz carries attempts. The view only posts them for a quiz;
+        # this guard is what makes a crafted POST against a lesson harmless.
+        if node.unit_type != ContentNode.UnitType.QUIZ:
+            raise ValidationError(gettext_lazy("Attempts can only be set on a quiz."))
+        node.attempts_mode, node.attempts_limit = attempts_rules.parse_attempts(
+            attempts_mode,
+            attempts_limit,
+            allowed_modes=attempts_rules.UNIT_MODES,
+            zero_message=attempts_rules.ZERO_MESSAGES["course"],
+        )
+        fields += ["attempts_mode", "attempts_limit"]
+        if reset_question_attempts is True:
+            # Inside this transaction, under the row lock _locked_node took; the
+            # save below bumps `updated`, so open editors see a stale token.
+            node.attempts_reset_count = attempts_rules.reset_quiz_overrides(node)
     node.full_clean()
     node.save(update_fields=fields)  # cannot clobber a concurrent order
     return node
