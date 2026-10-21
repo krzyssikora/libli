@@ -5,7 +5,7 @@ import io
 import pytest
 
 from courses.models import ShortTextQuestionElement
-from courses.quiz import effective_max_attempts
+from courses.quiz import effective_attempt_limit
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive
 from courses.transfer.export import write_archive_from
@@ -184,7 +184,7 @@ def test_subtree_import_inherits_from_the_target_course(legacy):
     )
     q = grafted.elements.get().content_object
     assert (q.attempts_mode, q.attempts_limit) == ("inherit", None)
-    assert effective_max_attempts(q, grafted) is None  # target's unlimited
+    assert effective_attempt_limit(q, grafted) is None  # target's unlimited
 
 
 def test_subtree_import_keeps_own_modes():
@@ -208,5 +208,5 @@ def test_subtree_import_keeps_own_modes():
         5,
     )
     assert (
-        effective_max_attempts(by_stem["inh"], grafted) == 2
+        effective_attempt_limit(by_stem["inh"], grafted) == 2
     )  # the copied quiz's own 2

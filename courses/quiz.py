@@ -46,7 +46,7 @@ def effective_unit_attempts(unit):
     return effective_course_attempts(unit.course), "course"
 
 
-def effective_max_attempts(question, unit):
+def effective_attempt_limit(question, unit):
     """THE attempts limit the quiz enforces: int >= 1, or None for unlimited.
     question -> unit -> course; steps 2-3 live in effective_unit_attempts so the
     editor's "Same as …" label and enforcement cannot disagree."""
@@ -118,7 +118,7 @@ def quiz_feedback_context(question, response, *, unit, result=None, validation=F
         # Withhold: no reveal_template, no mark_result payload beyond correct=False.
         ctx["mark_result"] = result
         ctx["reveal_template"] = None
-    limit = effective_max_attempts(question, unit)
+    limit = effective_attempt_limit(question, unit)
     if limit is not None and not response.locked:
         ctx["attempts_left"] = max(0, limit - response.attempt_count)
     return ctx
@@ -166,7 +166,7 @@ def locked_after(question, result, attempt_count, *, unit):
     its own side, so a one-sided change went green.
     tests/test_quiz_lock_rule_parity.py is the behavioural guard.
 
-    The limit is the RESOLVED one (effective_max_attempts: question -> quiz ->
+    The limit is the RESOLVED one (effective_attempt_limit: question -> quiz ->
     course). `limit is not None` is mandatory: None means UNLIMITED, and without
     the guard this raises
     TypeError: '>=' not supported between 'int' and 'NoneType'.
@@ -175,7 +175,7 @@ def locked_after(question, result, attempt_count, *, unit):
     """
     if question.marking_mode != QuestionElement.MarkingMode.AUTO:
         return True  # [N]/[R]: single submission
-    limit = effective_max_attempts(question, unit)
+    limit = effective_attempt_limit(question, unit)
     return bool(result.correct) or (limit is not None and attempt_count >= limit)
 
 

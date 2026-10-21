@@ -77,7 +77,7 @@ from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import can_reveal
-from courses.quiz import effective_max_attempts
+from courses.quiz import effective_attempt_limit
 from courses.quiz import ephemeral_quiz_feedback
 from courses.quiz import key_view
 from courses.quiz import locked_after
@@ -1814,7 +1814,7 @@ def quiz_answer(request, slug, node_pk, element_pk):
         else:
             revealed_result = None
         if revealed_result is None:
-            limit = effective_max_attempts(question, node)
+            limit = effective_attempt_limit(question, node)
             if response.locked or (
                 limit is not None and response.attempt_count >= limit
             ):

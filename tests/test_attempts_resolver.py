@@ -3,8 +3,8 @@
 import pytest
 
 from courses.models import ShortTextQuestionElement
+from courses.quiz import effective_attempt_limit
 from courses.quiz import effective_course_attempts
-from courses.quiz import effective_max_attempts
 from courses.quiz import effective_unit_attempts
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -41,7 +41,7 @@ def test_resolution_matrix(course_kw, unit_kw, q_kw, expected):
     unit = make_quiz_unit(
         course=course, attempts_mode=unit_kw[0], attempts_limit=unit_kw[1]
     )
-    assert effective_max_attempts(_q(*q_kw), unit) == expected
+    assert effective_attempt_limit(_q(*q_kw), unit) == expected
 
 
 def test_nothing_set_anywhere_resolves_to_one():
@@ -49,7 +49,7 @@ def test_nothing_set_anywhere_resolves_to_one():
     q = ShortTextQuestionElement.objects.create(stem="x", accepted="a")
     add_element(unit, q)
     assert (q.attempts_mode, q.attempts_limit) == ("inherit", None)
-    assert effective_max_attempts(q, unit) == 1
+    assert effective_attempt_limit(q, unit) == 1
 
 
 def test_lesson_unit_override_is_skipped():
@@ -62,7 +62,7 @@ def test_lesson_unit_override_is_skipped():
         attempts_limit=2,
     )
     assert effective_unit_attempts(lesson) == (4, "course")
-    assert effective_max_attempts(_q(), lesson) == 4
+    assert effective_attempt_limit(_q(), lesson) == 4
 
 
 def test_unit_source_word():

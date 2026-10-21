@@ -34,8 +34,8 @@ def _data(**over):
     return d
 
 
-def test_version_is_17():
-    assert FORMAT_VERSION == 17
+def test_version_is_18():
+    assert FORMAT_VERSION == 18
 
 
 def test_round_trip_keeps_the_flag():
