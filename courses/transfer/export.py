@@ -73,7 +73,8 @@ def _question_fields(q):
         "stem": q.stem,
         "explanation": q.explanation,
         "marking_mode": q.marking_mode,
-        "max_attempts": q.max_attempts,
+        "attempts_mode": q.attempts_mode,
+        "attempts_limit": q.attempts_limit,
         "max_marks": str(q.max_marks),
     }
 
@@ -602,6 +603,8 @@ def _node_dict(node, nid, parent_internal):
         "unit_type": node.unit_type or None,
         "obligatory": node.obligatory,
         "published": node.published,
+        "attempts_mode": node.attempts_mode,
+        "attempts_limit": node.attempts_limit,
         "html_seed_js": node.html_seed_js,
     }
 
@@ -1000,6 +1003,8 @@ def build_export(
                     "overview": course.overview,
                     "html_css": course.html_css,
                     "html_js": course.html_js,
+                    "attempts_mode": course.attempts_mode,
+                    "attempts_limit": course.attempts_limit,
                     "uses_parts": course.uses_parts,
                     "uses_chapters": course.uses_chapters,
                     "uses_sections": course.uses_sections,

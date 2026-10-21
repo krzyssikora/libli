@@ -15,6 +15,7 @@ from courses.models import TabsElement
 from courses.models import TextElement
 from courses.transfer.schema import TransferError
 from tests.factories import ContentNodeFactory
+from tests.factories import attempts
 from tests.factories import make_course_with_unit
 from tests.factories import make_image_asset
 
@@ -759,7 +760,7 @@ def test_a_question_carries_its_marking_fields_into_a_quiz_unchanged():
     course, x = make_course_with_unit()
     quiz = _other_unit(course, title="Q", unit_type="quiz")
     q = ChoiceQuestionElement.objects.create(
-        stem="Pick.", multiple=False, max_attempts=3, max_marks=4
+        stem="Pick.", multiple=False, max_marks=4, **attempts(3)
     )
     subject = Element.objects.create(unit=x, content_object=q)
     quiz.refresh_from_db()
@@ -769,9 +770,15 @@ def test_a_question_carries_its_marking_fields_into_a_quiz_unchanged():
     )
 
     copied = placed.content_object
-    assert (copied.marking_mode, copied.max_attempts, copied.max_marks) == (
+    assert (
+        copied.marking_mode,
+        copied.attempts_mode,
+        copied.attempts_limit,
+        copied.max_marks,
+    ) == (
         q.marking_mode,
-        q.max_attempts,
+        q.attempts_mode,
+        q.attempts_limit,
         q.max_marks,
     )
 
