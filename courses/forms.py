@@ -57,8 +57,11 @@ class CourseForm(forms.ModelForm):
         help_text=_("Which content levels this course uses."),
     )
 
+    # Declared fields lose the model default as initial, and a new course's form
+    # gets no instance values -- so restate it, or the page posts limited + "".
     attempts_mode = forms.ChoiceField(
         label=_("Attempts per question"),
+        initial="limited",
         choices=[("limited", _("Limited to…")), ("unlimited", _("Unlimited"))],
         error_messages={
             "required": attempts_rules.MSG_CHOOSE,
@@ -68,6 +71,7 @@ class CourseForm(forms.ModelForm):
     # Plain CharField: no min/max attrs, no validators -- see _MarkingFieldsMixin.
     attempts_limit = forms.CharField(
         required=False,
+        initial=1,
         label=_("Number of attempts"),
         help_text=attempts_rules.ZERO_MESSAGES["course_level"],
         widget=forms.TextInput(attrs={"inputmode": "numeric"}),

@@ -269,3 +269,34 @@ def test_course_reset_does_not_unlock_an_exhausted_question(client):
     resp = client.post(answer, {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 409
     assert QuestionResponse.objects.get(element=el).locked is True
+
+
+def test_new_course_form_shows_the_model_default():
+    # An unbound form with no instance gets no initial from the model, so the
+    # declared fields must carry it -- else the page posts limited + "" (CI #408).
+    form = CourseForm()
+    assert form["attempts_mode"].value() == "limited"
+    assert str(form["attempts_limit"].value()) == "1"
+
+
+def test_new_course_created_from_the_rendered_defaults(client):
+    # What the browser submits when the author fills only title and slug.
+    user = make_pa(client)
+    form = CourseForm(initial={"owner": user.pk})
+    data = {}
+    for name in form.fields:
+        value = form[name].value()
+        if value is None:
+            continue
+        data[name] = (
+            [str(v) for v in value] if isinstance(value, (list, tuple)) else value
+        )
+    # A browser always submits a <select> (its first option when none is
+    # selected) and a text input ("" when empty); it never omits them.
+    data.setdefault("attempts_mode", form.fields["attempts_mode"].choices[0][0])
+    data.setdefault("attempts_limit", "")
+    data.update(title="New", slug="new-course")
+    response = client.post(reverse("courses:manage_course_create"), data)
+    assert response.status_code == 302
+    course = CourseFactory._meta.model.objects.get(slug="new-course")
+    assert (course.attempts_mode, course.attempts_limit) == ("limited", 1)
