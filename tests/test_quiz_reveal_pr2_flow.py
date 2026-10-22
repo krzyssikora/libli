@@ -380,11 +380,13 @@ def test_lesson_nojs_restore_and_editor_try_paint(client, kind):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("kind", KINDS_UNDER_TEST)
-def test_lesson_correct_answer_keeps_controls_editable(client, kind):
+def test_lesson_correct_answer_locks_controls(client, kind):
+    # A solved lesson answer is locked (test_question_lock_on_correct.py): its
+    # parts stay painted, the answer fieldset is disabled.
     kit, _unit, _el, url = _lesson(client, kind)
     body = client.post(url, kit.right, HTTP_X_REQUESTED_WITH="fetch").content.decode()
     assert paint(kind, yours(body)) == ["correct", "correct"]
-    assert "disabled" not in yours(body) and "data-lock-on-correct" not in body
+    assert "disabled" in yours(body) and "data-lock-on-correct" not in body
 
 
 # ── Review Focus (plan) ──────────────────────────────────────────────────────
