@@ -415,9 +415,11 @@ def test_numeric_key_copy_tolerance_unfiltered_in_pl(db):
 
 
 @pytest.mark.django_db
-def test_lesson_correct_keeps_input_editable(client):
+def test_lesson_correct_locks_the_input(client):
+    # A solved lesson answer is locked (test_question_lock_on_correct.py): the
+    # verdict colour stays, the input can no longer be changed under it.
     q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
     _s, _u, _el, url = _lesson(client, q)
     body = client.post(url, {"answer": "Paris"}).content.decode()
     (inp,) = _INPUT.findall(body)
-    assert "is-correct" in inp and "disabled" not in inp and "readonly" not in inp
+    assert "is-correct" in inp and "disabled" in inp

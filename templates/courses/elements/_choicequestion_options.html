@@ -16,7 +16,7 @@ stacking, which its per-option feedback indent was tuned against.{% endcomment %
         <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
                name="choice" value="{{ c.pk }}"
                {% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked{% endif %}
-               {% if quiz_submitted or locked %}disabled{% endif %}>
+               {% if quiz_submitted or locked or solved %}disabled{% endif %}>
         <span class="question__choice-text">{{ c.text }}</span>
       </label>
       {% if mk %}

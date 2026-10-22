@@ -13,7 +13,7 @@
     <span data-answer-yours>{% if element.pk == feedback_for_pk %}{% include "courses/elements/_shortnumericquestionelement_controls.html" with values=submitted_values copy="yours" %}{% else %}{% include "courses/elements/_shortnumericquestionelement_controls.html" with values=None verdicts=None copy="yours" %}{% endif %}</span>
     {% if key_copy_html %}<span class="answer-key" data-answer-key>{{ key_copy_html }}</span>{% include "courses/elements/_answer_switch.html" %}{% endif %}
     <button type="submit" class="btn btn--small"
-            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+            {% if quiz_submitted or locked or solved %}disabled{% endif %}>{% trans "Check" %}</button>
     {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
