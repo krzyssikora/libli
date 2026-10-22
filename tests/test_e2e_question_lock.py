@@ -160,3 +160,51 @@ def test_correct_short_text_ignores_enter(browser, live_server):
     assert posts == [], f"Enter re-submitted a solved answer: {posts}"
 
     ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_solved_choice_marks_its_picks_in_dark_mode(browser, live_server):
+    # Chrome draws a disabled checkbox / radio grey whatever accent-color or opacity
+    # says, so on the dark surface a locked tick was barely distinguishable from an
+    # empty box. The locked options are drawn by CSS instead: a pick is filled with
+    # the brand colour, a non-pick stays an empty outline.
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Element
+
+    _make_pa_user("mcdark_js")
+    course, unit = _seed_unit("mcdark_js", "e2e-mc-dark")
+    for multiple in (True, False):
+        q = ChoiceQuestionElement.objects.create(stem="Pick", multiple=multiple)
+        Choice.objects.create(question=q, text="a", is_correct=True, order=0)
+        Choice.objects.create(question=q, text="b", is_correct=False, order=1)
+        Element.objects.create(unit=unit, content_object=q)
+
+    ctx, page = _open(browser, live_server, "mcdark_js", course, unit)
+    page.evaluate("document.documentElement.dataset.theme = 'dark'")
+    for i in range(2):
+        question = page.locator("[data-question]").nth(i)
+        question.locator("input[name='choice']").nth(0).check()
+        question.locator("button[type='submit']").click()
+        question.locator(".question__verdict.is-correct").wait_for(timeout=6000)
+        boxes = question.locator("input[name='choice']")
+        assert boxes.nth(0).is_disabled()
+        picked, empty = (
+            boxes.nth(k).evaluate("el => getComputedStyle(el).backgroundColor")
+            for k in range(2)
+        )
+        primary = page.evaluate(
+            "() => { const p = document.createElement('i');"
+            " p.style.color = 'var(--primary)'; document.body.append(p);"
+            " const c = getComputedStyle(p).color; p.remove(); return c; }"
+        )
+        kind = "checkbox" if i == 0 else "radio"
+        assert empty != primary, f"an unpicked locked {kind} is filled: {empty}"
+        if kind == "checkbox":
+            assert picked == primary, f"a locked tick is not brand-filled: {picked}"
+        else:
+            # The radio is a ring + dot: the brand colour is on the border.
+            ring = boxes.nth(0).evaluate("el => getComputedStyle(el).borderTopColor")
+            assert ring == primary, f"a locked radio pick is not brand-ringed: {ring}"
+
+    ctx.close()
