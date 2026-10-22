@@ -2400,6 +2400,22 @@ class QuestionElement(ElementBase):
         self.explanation = normalize_body(self.explanation)
         super().save(*args, **kwargs)
 
+    @staticmethod
+    def lesson_solved(element, feedback_for_pk, mark_result, mode):
+        """True when this lesson render shows a fully-correct answer: the templates
+        then disable its controls and Check button, so a solved answer cannot be
+        changed under its "correct" verdict. The feedback_for_pk pairing is
+        load-bearing: the no-JS lesson re-render hands ONE page-level mark_result
+        to every question on the unit, so a bare mark_result.correct would lock
+        every sibling too."""
+        return bool(
+            mode == "lesson"
+            and mark_result is not None
+            and element is not None
+            and element.pk == feedback_for_pk
+            and mark_result.correct
+        )
+
     # The answer list of a type with no in-place view (only extended response).
     REVEAL_TEMPLATE = None
 
@@ -2484,6 +2500,9 @@ class QuestionElement(ElementBase):
                 "feedback_partial": feedback_partial,
                 "quiz_submitted": quiz_submitted,
                 "locked": locked,
+                "solved": self.lesson_solved(
+                    element, feedback_for_pk, mark_result, mode
+                ),
                 "attempts_left": attempts_left,
                 "feedback_html": feedback_html,
                 "verdicts": verdicts,
@@ -2748,6 +2767,9 @@ class ChoiceQuestionElement(QuestionElement):
                 "feedback_partial": feedback_partial,
                 "quiz_submitted": quiz_submitted,
                 "locked": locked,
+                "solved": self.lesson_solved(
+                    element, feedback_for_pk, mark_result, mode
+                ),
                 "attempts_left": attempts_left,
                 "feedback_html": feedback_html,
             },

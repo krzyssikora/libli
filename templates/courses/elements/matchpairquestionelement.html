@@ -18,7 +18,7 @@ to swap the form body, in lessons (D13) and quizzes alike.{% endcomment %}
   {% elif element %}
   <form class="question__form" method="post" action="{{ action_url }}" data-question-inline data-answer-scope>
     {% csrf_token %}
-    <fieldset data-answer-yours {% if quiz_submitted or locked %}disabled{% endif %}
+    <fieldset data-answer-yours {% if quiz_submitted or locked or solved %}disabled{% endif %}
               style="border:0;padding:0;margin:0;">
       {% if element.pk == feedback_for_pk %}
         {% include "courses/elements/_matchpairquestionelement_controls.html" with values=submitted_values %}
@@ -28,7 +28,7 @@ to swap the form body, in lessons (D13) and quizzes alike.{% endcomment %}
     </fieldset>
     {% if key_copy_html %}<div class="answer-key" data-answer-key>{{ key_copy_html }}</div>{% include "courses/elements/_answer_switch.html" %}{% endif %}
     <button type="submit" class="btn btn--small"
-            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+            {% if quiz_submitted or locked or solved %}disabled{% endif %}>{% trans "Check" %}</button>
     {% include "courses/elements/_reveal_button.html" %}
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
