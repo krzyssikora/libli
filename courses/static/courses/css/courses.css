@@ -492,6 +492,43 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
   margin-left: calc(var(--space-2) * -1);
   margin-right: calc(var(--space-2) * -1);
 }
+/* A LOCKED option (solved lesson answer, locked quiz, results) is drawn here, not
+   by the browser: Chrome paints a disabled checkbox / radio grey whatever
+   accent-color or opacity say, and on the dark surface a grey tick is barely told
+   from an empty box. A pick is brand-filled (checkbox) or brand ring + dot (radio);
+   a non-pick stays an empty outline. print-color-adjust keeps the fill on paper, or
+   the surface-coloured tick would print white on white. Live inputs stay native. */
+.el--question .question__choice input:disabled {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 3px 3px 3px 4px;
+  vertical-align: -2px;
+  border: 1.5px solid var(--text-secondary);
+  border-radius: 3px;
+  display: inline-grid;
+  place-content: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.el--question .question__choice input[type="radio"]:disabled { border-radius: 50%; }
+.el--question .question__choice input:disabled:checked { border-color: var(--primary); }
+.el--question .question__choice input[type="checkbox"]:disabled:checked { background: var(--primary); }
+.el--question .question__choice input[type="checkbox"]:disabled:checked::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  border: solid var(--surface-raised);
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+.el--question .question__choice input[type="radio"]:disabled:checked::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+}
 .el--question .question__feedback:empty { display: none; }
 
 /* Feedback panel: sets per-question feedback apart from the question content with a
