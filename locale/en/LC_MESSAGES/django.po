@@ -364,7 +364,7 @@ msgstr ""
 
 #: .\core\public_pages.py:333
 #, python-format
-msgid "Ask %(contact)s, and see the five numbers above."
+msgid "Contact: %(contact)s."
 msgstr ""
 
 #: .\core\public_pages.py:342

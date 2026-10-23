@@ -2,7 +2,7 @@
 
 ## What we offer
 
-- a platform for building rich, interactive learning content into courses
+- a platform for building courses out of rich, interactive learning content
 - each course can be split into parts, chapters and sections; lessons or quizzes sit at the
   bottom of that structure
 - around thirty kinds of content element: text, images, video, tables, galleries, tabbed
@@ -12,19 +12,19 @@
 - quizzes with automatic marking: questions with a fixed answer are marked the moment they are
   submitted. Open-ended answers are queued for a teacher to read and mark. When more than one
   attempt is allowed, every attempt is stored, not only the last one
-- teacher analytics: a progress-and-results matrix for a group, drillable down to one student and
-  one question, plus a results export
+- teacher analytics: a progress-and-results matrix for a group, detailed results for each
+  student, the details of every quiz, plus a results export
 - an interface in Polish or English, per user's choice
 
 ## Try a demo
 
-We can set up a private demo for your school: a teacher login and a student login on our full
-maths course, together with an example class whose results give the analytics something to
-show. The student login joins that class with a blank record — its row fills in as you work
-through lessons and quizzes, so you can watch the teacher's view change. The course content is
-in Polish. Access lasts two weeks.
+We can set up a private demo for your school: a teacher login and a student login on our
+high-school maths course, together with an example class whose results show the analytics at
+work. The student login belongs to that class and is a "starter" account — it has no progress
+yet. Its data appears as you work through lessons and quizzes, so you can watch the teacher's
+view change. The course content is in Polish. Access lasts two weeks.
 
-To ask for one, write to {libli:contact_email}.
+Want to try it? Write to {libli:contact_email}.
 
 ## What we need from you
 
@@ -56,7 +56,7 @@ Both apply only to a custom domain — on a your_subdomain.libli.pl subdomain we
 ## What we do not need
 
 No server. No hardware. No procurement process. No software installed on a student's device — a
-browser on whatever the student already has is enough.
+browser is enough. Optionally, you can also install the app.
 
 ## Where the data lives
 
@@ -64,26 +64,29 @@ Your school's data is stored on its own server (not shared with other institutio
 within the European Union, under European law. One server per school, never shared with
 another school's data.
 
-**Backups.** The server is backed up every night to encrypted storage in the European Union. A nightly copy is kept for **30 days**, and one copy per month for a further **12 months**. Files removed from a course stay in the backup for **90 days** so that an accidental deletion can be undone, and are then deleted too.
+### Backups
+
+The server is backed up every night to encrypted storage, also within the European Union. A nightly copy is kept for **30 days**, and one copy per month for a further **12 months**. Files removed from a course stay in the backup for **90 days** so that an accidental deletion can be undone. After that, they are deleted too.
 
 ## What happens if you leave
 
-You can leave at any time and take your data with you. Handover works as a **key rotation**: you generate the new encryption key, on your own machine, and give us only its **public half** — the private half never leaves your hands. We re-encrypt a current backup to that public key and hand over the resulting archive. We never disclose the shared key that protects every other school's backups, and we never hold your private key. From there, the same restore process that recovers a server after an outage stands your data up wherever you choose to run it next.
+You can leave at any time and take your data with you. Handover works as a **key rotation**: you generate the new encryption key, on your own machine, and give us only its **public half** — the private half never leaves your hands. We re-encrypt a current backup to that public key and hand over the resulting archive. We never disclose the shared key that protects every other school's backups, and we never hold your private key.
+
+If you later decide to come back to libli, the same restore process brings the server back to the state in which it was archived.
 
 ## Timeline
 
-Send the DNS request above and your site can be running the same day. Outgoing mail — password
-resets, notifications — goes out over port 587, the default for every school and a port Hetzner
-has never blocked.
+Once the DNS change above is in place, your site can be running the same day.
 
-A school that insists on Microsoft Exchange Direct Send instead can have it, over port 25.
-Hetzner blocks that port by default and unblocks it only for an established, paying account —
-in practice, one that is 30 days old with at least one cleared invoice. There is no fee for the
-unblock; tell us early if you already know you will need it.
+There is one limitation we know of. A school that wants to use Microsoft Exchange Direct Send
+can do so, over a port the server provider blocks by default. The port is unblocked only for an
+established, paying account — in practice, one that has existed for at least 30 days and has at
+least one cleared invoice. There is no fee for the unblock; tell us early if you already know
+you will need it.
 
 ## Plans
 
-At signup we agree five numbers:
+At signup we discuss five numbers:
 
 - the maximum number of students on the platform,
 - the number of courses planned,

@@ -184,6 +184,25 @@ def _block_re(name):
     return re.compile(r"<p>\s*\{libli:" + name + r"\}\s*</p>")
 
 
+# {libli:vendor_only} ... {libli:end_vendor_only}: a span shown on the vendor box
+# only. Neither marker is a BLOCK_TOKEN -- the span between them is the value.
+_VENDOR_START = r"<p>\s*\{libli:vendor_only\}\s*</p>"
+_VENDOR_END = r"<p>\s*\{libli:end_vendor_only\}\s*</p>"
+_VENDOR_SPAN_RE = re.compile(_VENDOR_START + r".*?" + _VENDOR_END + r"\n?", re.DOTALL)
+# Fail closed: off-vendor, an opening marker with no end hides the rest of the
+# page rather than leaking libli.pl-only text onto a school's box.
+_VENDOR_UNCLOSED_RE = re.compile(r"\n?" + _VENDOR_START + r".*\Z", re.DOTALL)
+_VENDOR_MARKER_RE = re.compile(r"<p>\s*\{libli:(?:end_)?vendor_only\}\s*</p>\n?")
+
+
+def _vendor_spans(html):
+    if settings.VENDOR_INSTANCE:
+        return _VENDOR_MARKER_RE.sub("", html)
+    html = _VENDOR_SPAN_RE.sub("", html)
+    html = _VENDOR_UNCLOSED_RE.sub("", html)
+    return _VENDOR_MARKER_RE.sub("", html)
+
+
 def _nl2br(value):
     """Normalise CRLF FIRST, then convert. A <textarea> submits \\r\\n, and
     replacing only \\n would leave a stray \\r inside the rendered address."""
@@ -330,8 +349,7 @@ def _plans_html(cfg):
             format_html(
                 "<p>{} {}</p>",
                 gettext("Prices for your school are quoted on request."),
-                gettext("Ask %(contact)s, and see the five numbers above.")
-                % {"contact": contact},
+                gettext("Contact: %(contact)s.") % {"contact": contact},
             )
             + allowance
         )
@@ -434,7 +452,9 @@ def _block_values(cfg, lang):
 
 
 def substitute_tokens(html, cfg, lang):
-    """Block pass then inline pass. Runs AFTER sanitisation."""
+    """Vendor spans, block pass, then inline pass. Runs AFTER sanitisation."""
+    # Spans first, so a block token inside a dropped span is never built.
+    html = _vendor_spans(html)
     # --- Block pass: replace the token WITH its enclosing <p>. Substituting a
     # <p> block inline would nest paragraphs; substituting "" would leave an
     # empty <p></p> on every page where the block is off.
