@@ -2,7 +2,7 @@
 
 ## Co oferujemy
 
-- platformę do tworzenia urozmaiconych i interaktywnych treści edukacyjnych tworzących kursy
+- platforma do tworzenia kursów z urozmaiconymi i interaktywnymi treściami edukacyjnymi
 - każdy kurs może dzielić się na części, rozdziały, sekcje etc. Na dole takiego podziału są
   lekcje lub testy
 - około trzydziestu rodzajów elementów treści: tekst, obrazy, wideo, tabele, galerie, panele z
@@ -13,19 +13,19 @@
 - testy z automatycznym sprawdzaniem: pytania o ustalonej odpowiedzi są sprawdzane w chwili
   przesłania. Odpowiedzi otwarte trafiają do kolejki, w której czyta je i ocenia edukator. Przy
   większej liczbie dozwolonych prób każda próba jest zapisywana, nie tylko ostatnia
-- analityka dla edukatorów: macierz postępów i wyników dla grupy, z możliwością zejścia do
-  jednego ucznia i jednego pytania, a także eksport wyników
+- analityka dla edukatorów: macierz postępów i wyników dla grupy, szczegółowe wyniki każdego
+  ucznia, szczegóły każdego testu, a także eksport wyników
 - interfejs po polsku lub angielsku, zgodnie z wyborem użytkownika
 
 ## Wypróbuj wersję demonstracyjną
 
 Możemy przygotować dla Twojej szkoły prywatne demo: konto nauczyciela i konto ucznia w naszym
-pełnym kursie matematyki, razem z przykładową klasą, której wyniki pozwalają zobaczyć analitykę
-w działaniu. Konto ucznia należy do tej klasy i zaczyna bez żadnych postępów — jego wiersz
-wypełnia się w miarę przechodzenia przez lekcje i testy, więc od razu widać, jak zmienia się
-widok nauczyciela. Dostęp jest ważny przez dwa tygodnie.
+kursie licealnej matematyki, razem z przykładową klasą, której wyniki pozwalają zobaczyć
+analitykę w działaniu. Konto ucznia z tej klasy jest kontem „startowym” — bez żadnych postępów.
+Dane o jego postępach pojawiają się w miarę przechodzenia przez lekcje i testy, więc od razu
+widać, jak zmienia się widok nauczyciela. Dostęp jest ważny przez dwa tygodnie.
 
-Chcesz je otrzymać? Kontakt: {libli:contact_email}.
+Chcesz spróbować? Kontakt: {libli:contact_email}.
 
 ## Czego od Ciebie potrzebujemy
 
@@ -33,7 +33,7 @@ Jeśli chcesz używać libli pod adresem twoja_subdomena.libli.pl — nie potrze
 nic. Po podpisaniu umowy przystępujemy do działania.
 
 Jeśli chcesz używać libli pod własnym adresem (np. libli.twoja_domena.pl), potrzebujemy od
-Ciebie trzech rekordów DNS: rekordu **A** kierującego Twoją domenę na serwer oraz rekordy
+Ciebie trzech rekordów DNS: rekordu **A** kierującego Twoją domenę na serwer oraz rekordów
 **SPF** i **DKIM**, dzięki którym poczta wysyłana w imieniu szkoły nie trafia do spamu. O
 wszystkie trzy prosimy w jednym mailu, do tej samej osoby, która zarządza domeną. Zwykle da się
 je ustawić tego samego dnia.
@@ -58,7 +58,8 @@ Obie dotyczą wyłącznie własnej domeny — na poddomenie twoja_subdomena.libl
 ## Czego nie potrzebujemy
 
 Żadnego serwera. Żadnego sprzętu. Żadnych procedur zakupowych. Żadnego oprogramowania
-instalowanego na urządzeniu ucznia — wystarczy przeglądarka na tym, co uczeń już ma.
+instalowanego na urządzeniu ucznia — wystarczy przeglądarka. Opcjonalnie można też zainstalować
+aplikację.
 
 ## Gdzie są dane
 
@@ -66,10 +67,12 @@ Dane Twojej szkoły będą przechowywane na jej odrębnym serwerze (nie dzielony
 instytucjami), umiejscowionym na terenie Unii Europejskiej, w zgodzie z europejskim prawem.
 Jeden serwer na szkołę, nigdy współdzielony z danymi innej szkoły.
 
-**Kopie zapasowe.** Serwer jest co noc kopiowany na zaszyfrowany nośnik w Unii Europejskiej.
+### Kopie zapasowe
+
+Serwer jest co noc kopiowany na zaszyfrowany nośnik, także na terenie Unii Europejskiej.
 Kopię nocną przechowujemy **30 dni**, a jedną kopię miesięczną przez kolejne **12 miesięcy**.
 Pliki usunięte z kursu pozostają w kopii **90 dni**, aby można było cofnąć przypadkowe
-usunięcie, i następnie również są usuwane.
+usunięcie. Po tym czasie również są usuwane.
 
 ## Co się dzieje, gdy odchodzisz
 
@@ -78,29 +81,30 @@ jako **rotacja klucza**: to Ty generujesz nowy klucz szyfrujący, na własnym ur
 przekazujesz nam tylko jego **część publiczną** — część prywatna nigdy nie opuszcza Twoich rąk.
 Tym kluczem publicznym ponownie szyfrujemy aktualną kopię zapasową i przekazujemy Ci gotowe
 archiwum. Nigdy nie ujawniamy współdzielonego klucza, który chroni kopie zapasowe innych szkół,
-i nigdy nie mamy dostępu do Twojego klucza prywatnego. Dalej działa ten sam proces przywracania
-serwera, który stawia Twoje dane tam, gdzie zdecydujesz się je uruchomić.
+i nigdy nie mamy dostępu do Twojego klucza prywatnego.
+
+Jeśli zdecydujesz się później wrócić do libli, zadziała ten sam proces przywracania serwera do
+stanu, w jakim został zarchiwizowany.
 
 ## Harmonogram
 
-Wyślij prośbę o zmiany DNS opisaną wyżej, a Twoja strona może działać jeszcze tego samego dnia.
-Poczta wychodząca — resetowanie haseł, powiadomienia — jest wysyłana przez port 587, domyślny
-dla każdej szkoły i port, którego Hetzner nigdy nie zablokował.
+Po zmianie DNS opisanej wyżej Twoja strona może ruszyć jeszcze tego samego dnia.
 
-Szkoła, która koniecznie chce korzystać z Microsoft Exchange Direct Send, może to zrobić przez
-port 25. Hetzner domyślnie blokuje ten port i odblokowuje go tylko dla ustabilizowanego,
-płacącego konta — w praktyce takiego, które ma 30 dni i co najmniej jedną rozliczoną fakturę.
-Odblokowanie jest bezpłatne; daj nam znać wcześniej, jeśli wiesz, że będzie potrzebne.
+Istnieje jedno znane nam ograniczenie. Jeśli szkoła chce korzystać z Microsoft Exchange Direct
+Send, może to zrobić przez port, który jest domyślnie blokowany przez operatora serwera. Port
+jest odblokowywany tylko dla stabilnego, płacącego konta — w praktyce takiego, które istnieje od
+co najmniej 30 dni i ma co najmniej jedną rozliczoną fakturę. Odblokowanie jest bezpłatne; daj
+nam znać wcześniej, jeśli wiesz, że będzie to potrzebne.
 
 ## Plany
 
-Przy podpisaniu umowy ustalamy pięć wartości:
+Przy podpisaniu umowy rozmawiamy o pięciu wartościach:
 
-- maksymalną liczbę uczniów na platformie,
-- liczbę planowanych kursów,
-- szacunkową liczbę filmów na kurs,
-- typową długość filmu,
-- oraz liczbę osób tworzących treści.
+- maksymalnej liczbie uczniów na platformie,
+- liczbie planowanych kursów,
+- szacunkowej liczbie filmów na kurs,
+- typowej długości filmu,
+- oraz o liczbie osób tworzących treści.
 
 {libli:pricing_plans}
 
