@@ -3620,9 +3620,11 @@ form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
      room its containers take around it; in print `100vw` is the printed
      content width, which the lesson spans (no side padding in print, above).
      min() leaves a display that fits at 1em. NOT a container query: style
-     containment would restart the equation numbers. */
+     containment would restart the equation numbers. --print-fit-cap is the A4
+     fit in px: Firefox resolves this `vw` against the whole sheet, not the
+     column, and under-shrinks without it (print.js). */
   .katex-display[data-print-fit] > .katex > .katex-html {
-    font-size: min(1em, calc((100vw - var(--print-fit-inset) - 2px) / var(--print-fit-em)));
+    font-size: min(1em, calc((100vw - var(--print-fit-inset) - 2px) / var(--print-fit-em)), var(--print-fit-cap));
   }
   /* Paper cannot scroll, and a shrunk display still overflows by a pixel or two
      (KaTeX's fixed-width struts do not scale), so the screen scroller's `auto`
