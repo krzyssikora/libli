@@ -119,6 +119,13 @@
      in em, so the width in em is nearly a constant of the formula (see the
      small-size correction in fitWideMaths). min() keeps every display that fits at 1em, exactly as before.
 
+     Firefox resolves `vw` inside a font-size against roughly the whole sheet
+     (~192mm on A4), not the column, so that term alone under-shrinks there --
+     and a display narrower than ~1.1 columns is not shrunk at all. The CSS
+     therefore also caps the size at the A4 fit computed below
+     (--print-fit-cap). On A4 the two terms agree in Chromium; on wider paper
+     the cap over-shrinks a little, never clips.
+
      Deliberately NOT a container query (`100cqi`): `container-type` brings
      style containment, which scopes KaTeX's `katexEqnNo` counter to each
      display, and an align numbered (4)(5)(6) printed as (1)(1)(1).
@@ -240,6 +247,10 @@
       if (!(f.em > 0)) return;
       f.display.style.setProperty("--print-fit-em", f.em.toFixed(4));
       f.display.style.setProperty("--print-fit-inset", Math.max(0, f.inset).toFixed(1) + "px");
+      f.display.style.setProperty(
+        "--print-fit-cap",
+        ((A4_COLUMN_PX - Math.max(0, f.inset) - 2) / f.em).toFixed(2) + "px"
+      );
       f.display.setAttribute("data-print-fit", "");
     });
   }
@@ -250,6 +261,7 @@
       fitted[i].removeAttribute("data-print-fit");
       fitted[i].style.removeProperty("--print-fit-em");
       fitted[i].style.removeProperty("--print-fit-inset");
+      fitted[i].style.removeProperty("--print-fit-cap");
     }
   }
 

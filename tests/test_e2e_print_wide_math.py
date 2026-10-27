@@ -241,7 +241,21 @@ _BEFOREPRINT_ONLY_JS = """(() => {
 })();"""
 
 
-def _print_pdf(page, live_server, slug, width, *, beforeprint_only=False):
+# Firefox resolves `vw` inside a font-size against roughly the whole sheet
+# (~192mm on A4, measured with Firefox 158's real print engine), not the 160mm
+# column -- about 120px too wide -- while a plain `width: 100vw` IS the column.
+# So the `vw` term alone under-shrinks there, and a formula short of ~1.1x the
+# column is not shrunk at all. Playwright's Firefox cannot print, so Chromium
+# stands in: inflating the inset var by the same 120px makes the `vw` term
+# Firefox-sized, leaving only print.js's A4 cap to fit the display.
+_FIREFOX_VW_CSS = (
+    ".katex-display[data-print-fit] { --print-fit-inset: -120px !important; }"
+)
+
+
+def _print_pdf(
+    page, live_server, slug, width, *, beforeprint_only=False, firefox_vw=False
+):
     if beforeprint_only:
         page.add_init_script(_BEFOREPRINT_ONLY_JS)
     _make_pa_user(slug)
@@ -272,6 +286,8 @@ def _print_pdf(page, live_server, slug, width, *, beforeprint_only=False):
     at_print = page.evaluate(_AT_PRINT_SIZE_JS, PRINT_ROOT)
     for s, p in zip(screen, at_print, strict=True):
         s["span"] = p
+    if firefox_vw:
+        page.add_style_tag(content=_FIREFOX_VW_CSS)
     pdf = page.pdf(format="A4")
     out = os.environ.get("PRINT_WIDE_MATH_PDF_DIR")
     if out:
@@ -280,10 +296,17 @@ def _print_pdf(page, live_server, slug, width, *, beforeprint_only=False):
     return screen, _objects(pdf)
 
 
-@pytest.mark.parametrize("width", [1280, 390])
-def test_wide_displays_print_inside_the_column(page, live_server, width):
+@pytest.mark.parametrize(
+    "width,firefox_vw", [(1280, False), (390, False), (1280, True)]
+)
+def test_wide_displays_print_inside_the_column(page, live_server, width, firefox_vw):
     screen, objs = _print_pdf(
-        page, live_server, f"pwm{width}", width, beforeprint_only=True
+        page,
+        live_server,
+        f"pwm{width}{'ff' if firefox_vw else ''}",
+        width,
+        beforeprint_only=True,
+        firefox_vw=firefox_vw,
     )
     ann = _annotations(objs)
     scales = {}
