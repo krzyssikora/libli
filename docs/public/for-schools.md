@@ -31,10 +31,16 @@ Want to try it? Write to {libli:contact_email}.
 If you want to use libli at your_subdomain.libli.pl — we need nothing from you. Once the
 contract is signed, we get to work.
 
-If you want to use libli at your own domain (e.g. libli.your-domain.example), we need three DNS
-records from you: an **A** record pointing your domain at the server, and **SPF** and **DKIM**
-records so mail sent on your school's behalf does not land in spam. We ask for all three in one
-email, to the same person who manages your domain. They can usually be set the same day.
+If you want to use libli at your own domain (e.g. libli.your-domain.example), we need a few DNS
+records from you: an **A** record pointing your domain at the server, plus the records our mail
+provider lists (a **DKIM** record and two **CNAME** records), so mail sent on your school's behalf
+does not land in spam. We ask for all of them in one email, to the same person who manages your
+domain. They can usually be set the same day.
+
+libli sends its emails (invitations, password resets, notifications) on your school's behalf,
+from your site's address (e.g. no-reply@your-domain.example), through our mail provider. You do not
+need to give us any mailbox or password. If your school signs in with Microsoft or Google accounts
+(SSO), pupils and staff do not need those emails to sign in at all.
 
 ### Two DNS traps worth knowing
 
@@ -77,12 +83,6 @@ If you later decide to come back to libli, the same restore process brings the s
 ## Timeline
 
 Once the DNS change above is in place, your site can be running the same day.
-
-There is one limitation we know of. A school that wants to use Microsoft Exchange Direct Send
-can do so, over a port the server provider blocks by default. The port is unblocked only for an
-established, paying account — in practice, one that has existed for at least 30 days and has at
-least one cleared invoice. There is no fee for the unblock; tell us early if you already know
-you will need it.
 
 ## Plans
 

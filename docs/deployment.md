@@ -1009,9 +1009,11 @@ sent. Nothing errors, so the only symptom is "the email never came". Set it up b
 anyone needs a reset or an emailed invitation.
 
 Mail goes out over SMTP on **port 587**; Hetzner blocks outbound 25 and 465 by default, so
-use a provider that accepts 587. libli.pl uses **Resend** (domain `libli.pl` verified, EU
-region; its SPF, DKIM and DMARC records are at nazwa.pl and must not be deleted when tidying
-DNS). Live since 2026-10-19.
+use a provider that accepts 587. Never point a box at a school's Microsoft 365 SMTP
+(`smtp.office365.com`): Django's backend logs in with a password, and Microsoft switches
+basic-auth SMTP off at the end of 2026 (`550 5.7.30`). Use the default below.
+libli.pl uses **Resend** (domain `libli.pl` verified, EU region; its SPF, DKIM and DMARC
+records are at nazwa.pl and must not be deleted when tidying DNS). Live since 2026-10-19.
 
 **1. A key for this box only.** Resend → *API Keys* → *Create API Key*: name it after the
 box (libli.pl's is `libli-app-prod`), permission **Sending access**, domain restricted to

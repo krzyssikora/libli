@@ -33,10 +33,15 @@ Jeśli chcesz używać libli pod adresem twoja_subdomena.libli.pl — nie potrze
 nic. Po podpisaniu umowy przystępujemy do działania.
 
 Jeśli chcesz używać libli pod własnym adresem (np. libli.twoja_domena.pl), potrzebujemy od
-Ciebie trzech rekordów DNS: rekordu **A** kierującego Twoją domenę na serwer oraz rekordów
-**SPF** i **DKIM**, dzięki którym poczta wysyłana w imieniu szkoły nie trafia do spamu. O
-wszystkie trzy prosimy w jednym mailu, do tej samej osoby, która zarządza domeną. Zwykle da się
-je ustawić tego samego dnia.
+Ciebie kilku rekordów DNS: rekordu **A** kierującego Twoją domenę na serwer oraz rekordów, które
+wskazuje nasz dostawca poczty (rekordu **DKIM** i dwóch rekordów **CNAME**), dzięki którym poczta
+wysyłana w imieniu szkoły nie trafia do spamu. O wszystkie prosimy w jednym mailu, do tej samej
+osoby, która zarządza domeną. Zwykle da się je ustawić tego samego dnia.
+
+libli wysyła swoje e-maile (zaproszenia, resetowanie hasła, powiadomienia) w imieniu szkoły, z
+adresu Twojej strony (np. no-reply@twoja_domena.pl), przez naszego dostawcę poczty. Nie musisz
+przekazywać nam żadnej skrzynki ani hasła. Jeśli szkoła loguje się kontami Microsoft lub Google
+(SSO), uczniowie i nauczyciele w ogóle nie potrzebują tych e-maili do logowania.
 
 ### Dwie pułapki w DNS, o których warto wiedzieć
 
@@ -89,12 +94,6 @@ stanu, w jakim został zarchiwizowany.
 ## Harmonogram
 
 Po zmianie DNS opisanej wyżej Twoja strona może ruszyć jeszcze tego samego dnia.
-
-Istnieje jedno znane nam ograniczenie. Jeśli szkoła chce korzystać z Microsoft Exchange Direct
-Send, może to zrobić przez port, który jest domyślnie blokowany przez operatora serwera. Port
-jest odblokowywany tylko dla stabilnego, płacącego konta — w praktyce takiego, które istnieje od
-co najmniej 30 dni i ma co najmniej jedną rozliczoną fakturę. Odblokowanie jest bezpłatne; daj
-nam znać wcześniej, jeśli wiesz, że będzie to potrzebne.
 
 ## Plany
 
