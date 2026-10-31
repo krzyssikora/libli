@@ -128,3 +128,47 @@ def test_a_long_inline_formula_still_wraps_inside_the_prose_column(page, live_se
     assert result["runs"] > 1, result
     assert result["whiteSpace"] == "normal", result
     assert result["maxOverflow"] == 0, result
+
+
+# REPORTED 2026-10-31: the app.css KNOWN LIMIT made real. The stop follows a
+# MULTI-run formula (KaTeX splits `n^2-8n+10=0` at `-`, `+` and `=`), which the
+# CSS guard deliberately leaves at `white-space: normal`, so the stop still sheds.
+MULTI_RUN = (
+    "<p>Aby rozwiązać nierówność \(n^2-8n+10\gt 0\) najpierw musimy znaleźć "
+    "pierwiastki równania \(n^2-8n+10= 0\).</p>"
+)
+
+
+def test_a_multi_run_formula_keeps_the_full_stop_typed_against_it(page, live_server):
+    """The stop is glued to the LAST `.base` run only: at no width does it leave
+    the formula's line, and the formula keeps its internal break points."""
+    _open_lesson(page, live_server, "imp_multi", "imp-multi", MULTI_RUN)
+
+    result = page.evaluate(SWEEP)
+
+    assert result["runs"] > 1, result
+    assert result["whiteSpace"] == "normal", result
+    assert result["split"] is None, result
+
+
+def test_the_glued_stop_keeps_the_prose_font(page, live_server):
+    """Moving the stop next to the formula must not typeset it in KaTeX_Main at
+    KaTeX's 1.21em: it must look exactly like the prose around it."""
+    _open_lesson(page, live_server, "imp_font", "imp-font", MULTI_RUN)
+
+    fonts = page.evaluate(
+        """() => {
+      const p = document.querySelector('.el--text p');
+      const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+      let stop = null;
+      while (walker.nextNode()) {
+        if (walker.currentNode.data.trim() === '.') stop = walker.currentNode;
+      }
+      const s = getComputedStyle(stop.parentElement);
+      const q = getComputedStyle(p);
+      return {stop: [s.fontFamily, s.fontSize, s.fontWeight, s.fontStyle],
+              prose: [q.fontFamily, q.fontSize, q.fontWeight, q.fontStyle]};
+    }"""
+    )
+
+    assert fonts["stop"] == fonts["prose"], fonts

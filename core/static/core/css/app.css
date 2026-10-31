@@ -2839,10 +2839,10 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    `white-space` still governs it. Same probe with " oraz kolejne slowa" after
    the formula broke at 295px with and without this rule.
 
-   KNOWN LIMIT: a MULTI-run inline formula followed directly by punctuation is
-   left alone, and still sheds it. Closing that needs the last `.base` and the
-   punctuation inside one nowrap box, which means moving author text into
-   KaTeX's output; not worth it until a real unit shows the shape.
+   A MULTI-run formula followed directly by punctuation is left alone HERE and
+   closed by math_reflow.js gluePunctuation() instead (REPORTED 2026-10-31,
+   `\(n^2-8n+10=0\).`): it wraps the last `.base` and the punctuation in the
+   nowrap `.katex-punct-glue` span below, inside `.katex-html`.
 
    Specificity is (0,2,0) -- `.katex` plus the `:has()` argument, which `:not()`
    passes through -- against the vendor's (0,1,0) `.katex`, so the invariant at
@@ -2850,6 +2850,10 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    are `.katex .base` and `.katex-display > .katex`, both already `nowrap`, so
    this rule never contradicts one. */
 .katex:not(:has(.base ~ .base)) { white-space: nowrap; }   /* (0,2,0) > (0,1,0) */
+.katex .katex-punct-glue { white-space: nowrap; }
+/* Undo `.katex`'s 1.21em so the moved stop matches the prose; the family is
+   copied inline by the script, which can read the prose element's font. */
+.katex .katex-punct { font-size: calc(1em / 1.21); }
 
 /* Public pages (privacy, getting-started). Prose column matching the 46rem
    content cap used elsewhere; no new design tokens. */
