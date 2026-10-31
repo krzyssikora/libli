@@ -703,8 +703,59 @@
 
   window.renderMathInElement = function (root, options) {
     try { reflow(root, options); } catch (e) { /* never block typesetting */ }
-    return autoRender.apply(this, arguments);
+    var result = autoRender.apply(this, arguments);
+    try { gluePunctuation(root); } catch (e) { /* cosmetic only */ }
+    return result;
   };
+
+  // Closing punctuation typed straight against an inline formula -- `\(x+1=0\).`
+  // -- must not wrap onto a line of its own. KaTeX's `.base` runs are inline-
+  // blocks, so the line breaker may break after the LAST one even with no space
+  // there. app.css closes that for single-run formulas with `nowrap` on `.katex`;
+  // a MULTI-run formula has to keep its internal break points, so the only box
+  // that can hold the stop is a nowrap span around the last `.base` plus the
+  // punctuation itself (Chromium resolves the break against the atomic inline's
+  // PARENT, which is why the span must sit inside `.katex-html`). The punctuation
+  // moves into KaTeX's aria-hidden output -- a screen reader loses a full stop,
+  // which is the accepted cost. Idempotent: a moved run is no longer next to the
+  // formula, and auto-render skips `.katex` subtrees on a re-render.
+  var RTE_SELECTOR = '[contenteditable]:not([contenteditable="false"])';
+  var TRAILING_PUNCT = /^[.,;:!?…)\]}»”’"'%]+/;
+  function gluePunctuation(root) {
+    if (!root || !root.querySelectorAll) return;
+    var formulas = root.querySelectorAll(".katex:not(.katex-display > .katex)");
+    for (var i = 0; i < formulas.length; i++) {
+      var katexEl = formulas[i];
+      if (katexEl.closest(RTE_SELECTOR)) continue;  // DOM there is DATA (see above)
+      var html = katexEl.querySelector(":scope > .katex-html");
+      var bases = html ? html.querySelectorAll(":scope > .base") : [];
+      if (bases.length < 2) continue;  // single run: app.css's nowrap covers it
+      // auto-render nests .katex in a bare <span>; climb out of trailing wrappers.
+      var host = katexEl;
+      while (!host.nextSibling && host.parentNode && host.parentNode.nodeName === "SPAN" &&
+             host.parentNode !== root) {
+        host = host.parentNode;
+      }
+      var next = host.nextSibling;
+      if (!next || next.nodeType !== 3) continue;
+      var m = TRAILING_PUNCT.exec(next.data);
+      if (!m) continue;
+      var prose = getComputedStyle(host.parentNode);
+      var punct = document.createElement("span");
+      punct.className = "katex-punct";
+      punct.style.fontFamily = prose.fontFamily;
+      punct.style.fontWeight = prose.fontWeight;
+      punct.style.fontStyle = prose.fontStyle;
+      punct.textContent = m[0];
+      var glue = document.createElement("span");
+      glue.className = "katex-punct-glue";
+      var last = bases[bases.length - 1];
+      html.insertBefore(glue, last);
+      glue.appendChild(last);
+      glue.appendChild(punct);
+      next.data = next.data.slice(m[0].length);
+    }
+  }
 
   // Reuses the ported findEndOfMath rather than a regex: /^\s*\\\[([\s\S]*)\\\]\s*$/
   // is greedy and would strip `\[a\] + \[b\]` — the one case that must be refused.
