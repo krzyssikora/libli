@@ -51,7 +51,7 @@ Each line has its test in the named task.
 
 **Files:**
 - Modify: `courses/models.py` (`ChoiceQuestionElement.choice_marks`, its docstring)
-- Test: `tests/test_quiz_choice_inline_marking.py`
+- Test: `tests/test_quiz_choice_inline_marking.py`, `courses/tests/test_nested_question_nojs_feedback.py`
 
 **Interfaces:**
 - Produces: `choice_marks` in lesson mode also returns `{"kind": "correct"}` for every pick of a fully correct answer, and `{"kind": "wrong"}` for the pick of a wrong single-answer question.
@@ -181,11 +181,11 @@ Create `tests/e2e_pick.py` as in Interfaces; the new e2e module and every repoin
 - `test_matrix_pick_amber_and_unpick_red`: the two live-lesson matrix cells in spec §3.1.
 - `test_lesson_verdict_survives_reload` (Review Focus 4): Check, reload; after the reload the pick's border and fill equal resolved `--success` and `--success-subtle` (a correct answer) and `box-shadow` contains `inset`, compared with tokens and not with the pre-reload state.
 - `test_hover_outlines_a_live_card`: hovering a live, unpicked card makes its border equal resolved `--primary`.
-- `test_hover_leaves_verdict_and_locked_cards_unchanged`: `locator.hover()` on a verdict card and a locked card; the border colour does not change.
+- `test_hover_leaves_verdict_and_locked_cards_unchanged`: `locator.hover()` on a verdict card with a live input (the red card from the matrix seed) and on a locked card without a verdict class; the border colour does not change.
 - `test_marker_sits_on_first_line_above_feedback`.
 - `test_wide_maths_stays_in_card_at_360`: wide unbreakable inline formula (`{a+b+…}`) and display maths; content and marker inside the card; `documentElement.scrollWidth <= innerWidth`. A normal inline formula has `scrollHeight <= clientHeight` on `.question__choice-text`.
 - `test_forced_colors_picked_differs`: `new_context(forced_colors="active")`; picked and unpicked differ; marker and `.question__choice-text` in a picked verdict card compute to the HighlightText value.
-- `test_dark_and_custom_brand_resolve_from_tokens`: in dark theme the picked border equals resolved `--primary`; in light theme, with a custom brand set by writing the `primary` brand-colour row before the first page load (see `tests/test_institution.py`; the value is served through the cached `get_site_config()`, so clear that cache in the test), the picked card's border equals the literal custom colour.
+- `test_dark_and_custom_brand_resolve_from_tokens`: in dark theme the picked border equals resolved `--primary`; in light theme, with a custom brand set by `Institution.load()` then `brand_colors.update_or_create(key="primary", defaults={"value": …})` before the first page load (see `tests/test_institution.py`; the value is served through the cached `get_site_config()`, so clear that cache in the test), the picked card's border equals the literal custom colour.
 - `test_print_keeps_outlines_and_tints`: `emulate_media(media="print")`; border and tint remain; a picked and a verdict card compute `webkitPrintColorAdjust === "exact"` (the tint assertion alone cannot fail, because emulation does not apply print economy); cards compute `breakInside === "avoid"`; option and feedback with a wide formula compute `overflow-x: visible`.
 
 - [ ] **Step 2: Run them and confirm they fail**
@@ -208,7 +208,7 @@ Expected: all pass. `tests/test_e2e_quiz_reveal_pr2.py` grid cases still drive v
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr)` track, the forced-colors label colour, every `print-color-adjust` declaration (prefixed and unprefixed) and the verdict and disabled exclusion on the hover selector (`test_hover_leaves_verdict_and_locked_cards_unchanged`), one at a time; each must turn a named test RED. Restore by hand. Commit with `feat(courses): choice options as outlined cards`.
+A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr)` track, the forced-colors label colour, every `print-color-adjust` declaration (prefixed and unprefixed) the verdict exclusion on the hover selector (live verdict card part of `test_hover_leaves_verdict_and_locked_cards_unchanged`) and the disabled exclusion (locked card part), one at a time; each must turn a named test RED. Restore by hand. Commit with `feat(courses): choice options as outlined cards`.
 
 ---
 
@@ -296,7 +296,7 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 `tests/test_e2e_grid_cards.py`, with module-level `pytestmark = pytest.mark.e2e`. Seeds: `_seed(..., max_attempts=2)` from `tests/test_e2e_quiz_reveal_pr2.py`, or a lesson, for live painted rows, and `max_attempts=1` for locked rows; direct `GridColumn` and `GridRow` creation as in `tests/test_e2e_choicegrid.py` for custom labels and formula or fraction statements; `TwoColumnElement.objects.create(data=TwoColumnElement.default_data())` plus a child `Element` with `parent` and the column's `tab_id`, as in `courses/tests/test_nested_question_nojs_feedback.py`, for the nested case. Names and assertions from spec §6:
 
 - `test_hover_outlines_a_live_button`: hovering a live, unpicked `.gridbtn` makes its border equal resolved `--primary`.
-- `test_hover_leaves_painted_button_unchanged`: `locator.hover()` on a verdict-painted `.gridbtn`; border colour unchanged.
+- `test_hover_leaves_painted_button_unchanged`: `locator.hover()` on the server-rendered pick in a live `is-incorrect` row (`max_attempts=2` or a lesson); border colour unchanged.
 - `test_gridbtn_picks_and_paints`, `test_keyboard_and_ring_on_gridbtn`, and `test_grid_answers_stays_transparent` (computed background transparent on both `.grid-answers-cell` and `.grid-answers` with a pick).
 - `test_accessibility_tree`: `get_by_role("group", name=statement, exact=True)` on an unpainted row; `name` contains the statement on a painted row; inputs named by column.
 - `test_live_painted_grid_new_pick_is_primary`: change a pick in an `is-incorrect` row; the new button has Picked colours and `--danger` appears nowhere on it.
@@ -319,7 +319,7 @@ Expected: FAIL, except `test_click_on_formula_label_selects` and `test_accessibi
 
 - [ ] **Step 3: Write the CSS**
 
-Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, the grid parts of §3.1, §3.2 and §3.6, and the §3.5 `.multigrid-scroll` margin. Delete everything §3.4 lists, including the statement tint rules about lines 1011–1014 and the print `min-width: 0` rule. Update the comments that describe a header row, the tint and bar, or the zebra stripes. `tests/test_css_citations_are_durable.py` checks line citations, so keep any new comment free of line numbers.
+Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, including §3.3's `margin-block: 0` on `.grid-stmt-text .katex-display`, the grid parts of §3.1, §3.2 and §3.6, and the §3.5 `.multigrid-scroll` margin. Delete everything §3.4 lists, including the statement tint rules about lines 1011–1014 and the print `min-width: 0` rule. Update the comments that describe a header row, the tint and bar, or the zebra stripes. `tests/test_css_citations_are_durable.py` checks line citations, so keep any new comment free of line numbers.
 
 - [ ] **Step 4: Migrate the existing tests**
 
@@ -337,7 +337,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; delete the `tr.is-correct … .gridbtn` rule (`test_dark_locked_grid_pick_stands_out`); remove `flex-wrap: wrap` from `.grid-answers`, and separately restore `min-width: max-content` on the table (each turns `test_grid_in_two_columns_does_not_overflow` RED); add `pointer-events: none` on `.grid-answers label` (`test_click_on_formula_label_selects`); remove every `print-color-adjust` declaration, prefixed and unprefixed (`test_print_grid`); drop the painted-button exclusion from the hover selector (`test_hover_leaves_painted_button_unchanged`); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
+A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; delete the `tr.is-correct … .gridbtn` rule (`test_dark_locked_grid_pick_stands_out`); remove `flex-wrap: wrap` from `.grid-answers`, and separately restore `min-width: max-content` on the table (each turns `test_grid_in_two_columns_does_not_overflow` RED); add `pointer-events: none` on `.grid-answers label` (`test_click_on_formula_label_selects`); remove every `print-color-adjust` declaration, prefixed and unprefixed (`test_print_grid`); drop the painted-button exclusion from the hover selector (`test_hover_leaves_painted_button_unchanged`; if the mutant survives because the painted rule out-ranks hover, remove that exclusion and this mutant and say why in the task report); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
 
 ---
 
