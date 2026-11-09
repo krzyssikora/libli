@@ -36,7 +36,7 @@ LONG_LABELS = (
 )
 # Wider than the phone column on one line.
 SENTENCE_LABEL = "This column label is a whole sentence that has to wrap on a phone"
-FRACTION = r"Half is \(\frac{1}{2}\) of one"
+FRACTION = r"Half is \(\dfrac{1}{2}\) of one"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -189,6 +189,7 @@ def test_hover_leaves_painted_button_unchanged(page, live_server):
     _answer_wrong(page, q)
     painted = _btn(q, 1, 1)
     before = _css(painted, "borderTopColor")
+    assert before == _token(page, "--danger")
     painted.hover()
     assert _css(painted, "borderTopColor") == before
 
@@ -382,13 +383,13 @@ def test_fraction_statement_no_vertical_scroll(page, live_server):
     q.locator(".grid-stmt-text .katex").wait_for()
     excess = "el => el.scrollHeight - el.clientHeight"
     assert _wrapper(q, "choicegrid").evaluate(excess) <= 0
-    # At most 1: at the spec's 4px padding a fraction measures 32 against 31 here.
-    # The KaTeX box ends inside the padding, so no ink is clipped.
-    assert _text(q, 1).evaluate(excess) <= 1
+    # 3px: KaTeX overhang the 4px padding absorbs; a pixel diff found nothing clipped.
+    assert _text(q, 1).evaluate(excess) <= 3
+    assert _css(_text(q, 1), "overflowY") == "hidden"
 
-    # A/B: without that padding the text element overflows by 5px.
+    # A/B: the bound is measuring that padding, which is what keeps the overhang small.
     page.add_style_tag(content=".grid-stmt-text { padding-block: 0 !important; }")
-    assert _text(q, 1).evaluate(excess) > 1
+    assert _text(q, 1).evaluate(excess) > 3
 
 
 def test_click_on_formula_label_selects(page, live_server):

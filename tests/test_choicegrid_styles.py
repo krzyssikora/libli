@@ -92,10 +92,20 @@ def test_grid_inputs_are_hidden_outside_supports():
     assert "clip: rect(0 0 0 0)" in _rule_body(outside, ".grid-answers input")
 
 
-@pytest.mark.parametrize("row", ["tr.is-correct", "tr.is-incorrect"])
-def test_verdict_paint_is_only_the_server_rendered_pick(row):
-    selectors = [s for s, _ in _rules(_css()) if row in s and ".gridbtn" in s]
-    assert any("input[checked]:checked + .gridbtn" in s for s in selectors), selectors
+@pytest.mark.parametrize(
+    "row, token",
+    [("tr.is-correct", "var(--success)"), ("tr.is-incorrect", "var(--danger)")],
+)
+def test_verdict_paint_is_only_the_server_rendered_pick(row, token):
+    # Outside forced-colors, which repeats these selectors with system colours.
+    css = _without_blocks(_css(), "@media (forced-colors")
+    bodies = [
+        body
+        for selector, body in _rules(css)
+        if row in selector and "input[checked]:checked + .gridbtn" in selector
+    ]
+    assert bodies, f"no verdict rule for {row}"
+    assert all(token in body for body in bodies), bodies
 
 
 def test_gridbtn_hover_lives_inside_hover_media():
