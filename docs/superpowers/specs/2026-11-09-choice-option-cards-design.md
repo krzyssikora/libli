@@ -74,7 +74,8 @@ full matrix for an option card (v = `--success` for correct, `--danger` for wron
 
 So a card the student moves away from stays red with its ✗ (as the ✗ stays today) but drops to
 the thin outline, and the new pick reads as Picked. Hover changes the outline only on a card
-with no verdict class and a live input; a verdict card keeps its colours.
+with no verdict class and a live input; a verdict card keeps its colours. The same holds for a
+grid button painted with its row's verdict (§3.4).
 
 Ink on the fills: marks use `--success` and `--danger`, but the ＋ uses `--tc-orange`, because
 `--warning` on `--warning-subtle` is below 3:1 and the mark is what D8 relies on. Author feedback
@@ -100,9 +101,11 @@ margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border
 grid `label`) so focus cannot scroll the page to a stray location. They keep their `name`, `value`, `checked`, `disabled` and
 `aria-invalid` attributes.
 
-The picked state depends on `:has()`. The hiding rule therefore lives inside
+The option card's picked state depends on `:has()`, so its hiding rule lives inside
 `@supports selector(:has(input:checked))`: a browser without `:has()` keeps visible native
-inputs inside the outlined cards rather than losing the selection indicator.
+inputs inside the outlined cards rather than losing the selection indicator. Grid buttons use
+the sibling selector and need no `:has()` for their picked state, so grid inputs are hidden
+unconditionally.
 
 ### 3.3 Choice question
 
@@ -111,10 +114,11 @@ inputs inside the outlined cards rather than losing the selection indicator.
 - `<li class="question__choice">` is the card and gains `question__choice--correct`,
   `--wrong` or `--missed` from `mk.kind` when a mark exists. `choice_marks` remains the only
   source of which options carry a mark; the template just paints it.
-- `.question__choice` is `margin: 0` and the list is `display: grid; gap: 6px`, giving the
-  mockup's gap.
+- `.question__choice` is `margin: 0` and the list is `display: grid; gap: 6px;
+  grid-template-columns: minmax(0, 1fr)`, giving the mockup's gap. The zero track minimum stops a
+  wide formula from growing the card past the page, which would leave the scroller below unused.
 - The label fills the card's first row and is `display: flex; gap: var(--space-2)` with
-  `margin: 0; color: var(--text-primary)` (overriding `app.css`'s `label` margin, which the
+  `margin: 0; color: var(--text-primary)`, with `cursor: pointer` while its input is live (overriding `app.css`'s `label` margin, which the
   removed `--marked` rule used to reset, and its `--text-secondary` colour). With the input hidden it is out of flow and the text is the only flex item; in the
   §3.2 fallback the visible native input sits beside the text.
 - Every card reserves `padding-inline-end: 2.25rem` on the label, marked or not, so text does
@@ -123,7 +127,8 @@ inputs inside the outlined cards rather than losing the selection indicator.
   card, not centred, so feedback below cannot move it), with `pointer-events: none`, so the whole
   row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
-  left indent, inset `0 14px 9px`.
+  left indent, inset `0 14px 9px`. It has `overflow-wrap: anywhere` and the same maths scroller
+  rules as the option text below, since feedback can hold KaTeX.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
   An inline formula can still break between its top-level terms; only an unbreakable run needs
   to scroll. Such wide maths, inline or display, scrolls inside this
@@ -175,7 +180,9 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
   reach the scroll wrapper.
 - `.grid-answers label` is `margin: 0; cursor: pointer`, with `cursor: default` when its input is
   disabled.
-- The statement cell has `padding: 4px 0` above its bottom rule. The `.choicegrid-scroll` and
+- The statement cell has `padding: 4px 0` above its bottom rule, and
+  `overflow-wrap: anywhere; overflow-x: auto; overflow-y: hidden`, so a wide unbreakable formula
+  scrolls inside the statement and cannot paint over the buttons. The `.choicegrid-scroll` and
   `.multigrid-scroll` wrappers get `overflow-y: hidden`, for the same KaTeX reason as §3.3.
 - For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
   print-only `min-width: 0` rule, the `td:has(input:checked)` cell tint, the `td label` hover
@@ -183,7 +190,7 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
   and `td input` sizing and `accent-color` rules, which the rules here replace, and the `thead th`
   blocks. Selectors are written so nothing left over outranks them. The section comments in
   `courses.css` and the `render_choice_grid` and `render_multigrid` docstrings that describe a
-  header row are updated. The `.scroll-x` and `-scroll` wrappers stay as a safety net
+  header row, the statement tint and bar, or the zebra stripes are updated. The `.scroll-x` and `-scroll` wrappers stay as a safety net
   for a pathologically wide column label such as a long formula; ordinary grids never overflow.
 - The picked state hangs off the input: `input:checked + .gridbtn`; focus, hover and locked
   likewise key on the sibling input.
@@ -268,7 +275,8 @@ There are no new failure paths. The two degraded cases are:
 - A very wide grid label scrolls inside the retained wrapper (§3.4).
 
 Long option text wraps and wide maths scrolls inside the card without widening the page, by the
-`.question__choice-text` rules in §3.3.
+`.question__choice-text` rules in §3.3. A wide formula in author feedback or in a grid statement
+scrolls inside that element (§3.3, §3.4).
 
 ## 6. Testing
 
@@ -309,7 +317,8 @@ New or updated coverage:
   where the checked question has a real pick (correct, then wrong single-answer) and its sibling
   renders no marks; a choice grid and a multi-grid whose rows share a pk emit distinct statement
   ids.
-- **CSS source:** the input hiding is inside the `@supports` block; picked thickness is a
+- **CSS source:** the option-card input hiding is inside the `@supports` block and the grid input
+  hiding is not; picked thickness is a
   `box-shadow`, not `border-width`; every `test_*css*.py` runs.
 - **Browser (Playwright, `-m e2e`):**
   - Clicking a card selects it and changes its computed outline and background; a single-answer
@@ -322,6 +331,7 @@ New or updated coverage:
     colours and marks; a locked card does not respond to clicks. The matrix cells for picking an
     amber card and unpicking a red card are asserted.
   - In a painted live grid, changing a pick gives the new button Picked colours, not danger.
+  - A wide unbreakable formula in a grid statement at desktop width stays left of the first button.
   - `.grid-answers` stays transparent with a pick. The marker sits above any feedback, in the
     option's first line.
   - With `forced_colors="active"`, picked and unpicked cards and buttons differ, and the marker
