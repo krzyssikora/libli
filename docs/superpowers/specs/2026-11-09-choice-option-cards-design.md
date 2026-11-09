@@ -83,6 +83,12 @@ uses `--text-secondary` (the current `--text-tertiary` fails on the tints).
 All colours are existing tokens, so the admin brand colour, dark mode and automatic theme need
 no per-theme rules. The old `[data-theme="dark"] … td:has(input:checked)` overrides are removed.
 
+Windows high-contrast mode drops `box-shadow` and repaints borders and fills, which would make
+a Picked card look unpicked now that the native control is hidden. Under
+`@media (forced-colors: active)`, picked option cards and picked `.gridbtn` use
+`forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight`.
+This applies only in that mode, so D1 and D2 are unaffected.
+
 ### 3.2 Hiding the inputs
 
 Inputs are hidden with the clip pattern (`position: absolute; width: 1px; height: 1px;
@@ -108,7 +114,9 @@ inputs inside the outlined cards rather than losing the selection indicator.
   §3.2 fallback the visible native input sits beside the text.
 - Every card reserves `padding-inline-end: 2.25rem` on the label, marked or not, so text does
   not reflow on Check. The marker is positioned over that padding at the row's right edge (D8),
-  with `pointer-events: none`, so the whole row stays the tap target.
+  aligned with the first line of the option text (a fixed `top` of `9px` from the card, not
+  centred, so feedback below cannot move it), with `pointer-events: none`, so the whole row
+  stays the tap target.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
   left indent, inset `0 14px 9px`.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`;
@@ -134,9 +142,11 @@ Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
 - Each row has two cells: the statement, with `id="choicegrid-stmt-{row.pk}"` or
   `id="multigrid-stmt-{row.pk}"` (the two row models have independent pk sequences, so the id
   is namespaced per type), and one answers cell,
-  `<td class="grid-answers" role="group" aria-labelledby="{that id}">`, holding one
+  `<td class="grid-answers-cell"><div class="grid-answers" role="group" aria-labelledby="{that id}">…</div></td>`,
+  whose `<div>` holds one
   `<label><input …><span class="gridbtn">{column label}</span></label>` per column, using
-  `format_html` escaping. The buttons are a single flex item so they move as a block (D12).
+  `format_html` escaping. The group role is on the inner `<div>` because a `<td>` may not take
+  it. The cell is a single flex item, so the buttons move as a block (D12).
 - Each input now has an accessible name of its own (the column label) and each group is named
   by its statement. That replaces the context the header row gave (D6). `keycopy.py` already
   suffixes ids and `aria-labelledby` inside the copy.
@@ -147,16 +157,20 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
 
 - `tbody tr` is `display: flex; flex-wrap: wrap`, the statement cell is
   `flex: 1 1 min(100%, 16rem); min-width: 0` with a 1px `--border-strong` bottom rule, and
-  `.grid-answers` is `flex: 0 1 auto; max-width: 100%; padding: 4px` (so the focus ring is not
-  clipped by the scroll wrapper) and is itself `display: flex; flex-wrap: wrap`. This needs no breakpoint and also works in a narrow container: when a
+  `.grid-answers-cell` is `flex: 0 1 auto; max-width: 100%`. Inside it `.grid-answers` is
+  `display: flex; flex-wrap: wrap; padding: 4px` (so the focus ring is not clipped by the scroll
+  wrapper). Rows are `padding-block: 3px`, giving the mockup's `6px` between rows. This needs no breakpoint and also works in a narrow container: when a
   statement and all its buttons do not fit on one line, the whole button block drops below the
   statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
   the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
   they do fit, as with very short labels, they share the line.
 - `.gridbtn` text wraps (`max-width: 100%`, `overflow-wrap: anywhere`), so a sentence-length
   column label wraps; only unbreakable content can reach the scroll wrapper.
-- `min-width: max-content`, the zebra stripes, the row rule, and the print-only
-  `min-width: 0` rule are removed. The `.scroll-x` and `-scroll` wrappers stay as a safety net
+- For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
+  print-only `min-width: 0` rule, the `td:has(input:checked)` cell tint, the `td label` hover
+  background, and the old `th`/`td` padding, centring, `td.*__stmt` `min-width: 10rem`, `td label`
+  and `td input` sizing and `accent-color` rules, which the rules here replace. Selectors are
+  written so nothing left over outranks them. The `.scroll-x` and `-scroll` wrappers stay as a safety net
   for a pathologically wide column label such as a long formula; ordinary grids never overflow.
 - The picked state hangs off the input: `input:checked + .gridbtn`; focus, hover and locked
   likewise key on the sibling input.
@@ -183,6 +197,10 @@ Style: `--text-secondary`, slightly smaller than body text.
 Outlines print by default. Picked and verdict cards and buttons get
 `print-color-adjust: exact` so their tints survive, and cards and grid rows
 (`.choicegrid tbody tr`, `.multigrid tbody tr`) get `break-inside: avoid`.
+
+Paper cannot scroll, so in print `.question__choice-text` is `overflow: visible`, or the new
+`auto` scroller could print a scrollbar. An over-wide inline formula runs past its card on paper,
+as it already overruns its row today.
 
 ### 3.7 Lesson marks, and consequences of the existing rules
 
@@ -233,7 +251,10 @@ Existing tests that pin the removed markup (`<thead>`, `question__choice--picked
 drawing, `--marked` layout, statement tints) are updated to the new behaviour, not deleted
 wholesale. Each still has to assert something that fails on a broken build.
 
-Two groups of existing browser tests need more than a selector change:
+`tests/test_choicegrid_styles.py` pins the removed `td:has(input:checked)` selector and
+`accent-color`, so it moves to the new rules.
+
+Three groups of existing browser tests need more than a selector change:
 
 - Tests that call `.check()` on these inputs, such as `test_e2e_questions.py`,
   `test_e2e_locked_controls_look.py` and `test_e2e_scroll_affordance.py`, will time out, because
@@ -244,6 +265,11 @@ Two groups of existing browser tests need more than a selector change:
   re-seeded with a long KaTeX formula as a column label (`overflow-wrap: anywhere` would break
   plain text), and wait for KaTeX before measuring, keeping the proof that the §5 fallback
   scroller and its edge shading still work, and repointed to a button.
+- `test_e2e_print_layout.py::test_grid_question_fits_print_width` asserts the grid overflows on
+  screen first, which is no longer true. It becomes: at print width every `.gridbtn` ends inside
+  the scroll box and the statement wraps, with a precondition that fails if the flex or wrap rules
+  are removed. Its print shade check is dropped, because the wide-content tests above keep that
+  proof.
 
 New or updated coverage:
 
@@ -269,6 +295,9 @@ New or updated coverage:
     colours and marks; a locked card does not respond to clicks. The matrix cells for picking an
     amber card and unpicking a red card are asserted.
   - In a painted live grid, changing a pick gives the new button Picked colours, not danger.
+  - `.grid-answers` stays transparent with a pick. The marker sits above any feedback, in the
+    option's first line.
+  - With `forced_colors="active"`, picked and unpicked cards and buttons differ.
   - With fixture labels long enough not to fit beside a statement, at 360px and at a width where
     the statement plus one button fits but the statement plus all buttons does not, every button
     is below the statement and the page has no horizontal overflow. At desktop width statement and
@@ -277,7 +306,8 @@ New or updated coverage:
     content and marker inside the card, with no page overflow. An option holding a normal inline
     formula has `scrollHeight <= clientHeight` on its text element.
   - Dark theme and a custom brand colour resolve from tokens.
-  - Print emulation keeps the outlines and picked tints.
+  - Print emulation keeps the outlines and picked tints, and an option with a wide formula prints
+    no scrollbar.
 
 CSS assertions need an A/B (the property differs with and without the rule). Mutation-check
 the new guards.
