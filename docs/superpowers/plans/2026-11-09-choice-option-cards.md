@@ -86,12 +86,12 @@ def test_lesson_wrong_multi_answer_marks_only_annotated():
     assert {k: v["kind"] for k, v in marks.items()} == {b.pk: "wrong"}
 ```
 
-Also search `tests/` for other assertions that lesson marks are absent (`marker--correct`, `marker--wrong` near `lesson`) and rewrite those that contradict spec §3.7. Add a no-JS lesson re-render test beside the existing sibling test in `tests/test_nested_question_nojs_feedback.py` or `courses/tests/test_nested_question_nojs_feedback.py`, whichever holds it: the checked question has a real pick (once correct, once wrong single-answer) and its sibling renders no `question__choice-marker`.
+Also search `tests/` for other assertions that lesson marks are absent (`marker--correct`, `marker--wrong` near `lesson`) and rewrite those that contradict spec §3.7. Add a no-JS lesson re-render test beside the existing sibling test in `courses/tests/test_nested_question_nojs_feedback.py`: the checked question has a real pick (once correct, once wrong single-answer) and its sibling renders no `question__choice-marker`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
-Run: `uv run pytest tests/test_quiz_choice_inline_marking.py`
-Expected: the new tests FAIL on missing marks.
+Run: `uv run pytest tests/test_quiz_choice_inline_marking.py courses/tests/test_nested_question_nojs_feedback.py`
+Expected: the new mark tests FAIL on missing marks. `test_lesson_wrong_multi_answer_marks_only_annotated` already passes; it guards against over-marking and is falsified in Step 5.
 
 - [ ] **Step 3: Implement the two lesson cases**
 
@@ -99,12 +99,12 @@ After the existing `annotated` loop in the lesson branch: for each choice with `
 
 - [ ] **Step 4: Run the tests**
 
-Run: `uv run pytest tests/test_quiz_choice_inline_marking.py tests/test_choice_inline_feedback.py tests/test_question_lock_on_correct.py` (add the sibling-test file; `test_question_lock_on_correct.py` may live in `courses/tests/`).
+Run: `uv run pytest tests/test_quiz_choice_inline_marking.py tests/test_choice_inline_feedback.py courses/tests/test_question_lock_on_correct.py courses/tests/test_nested_question_nojs_feedback.py`
 Expected: all pass.
 
 - [ ] **Step 5: Mutate and commit**
 
-Remove the `c.pk in selected` guard and confirm the sibling test goes RED, then restore it by hand. Commit `courses/models.py` and the test files with `feat(courses): mark safe lesson picks on choice questions`.
+Remove the `c.pk in selected` guard and confirm the sibling test goes RED; remove the `not self.multiple` condition and confirm the wrong multi-answer test goes RED. Restore each by hand. Commit `courses/models.py` and the test files with `feat(courses): mark safe lesson picks on choice questions`.
 
 ---
 
@@ -155,7 +155,7 @@ Commit the templates, `courses/models.py` and the tests with `feat(courses): ver
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (Question element block, about lines 478–603; feedback rule; `@media print` block)
 - Create: `tests/e2e_pick.py`, `tests/test_e2e_choice_cards.py`, `tests/test_choice_cards_css.py`
-- Modify (repoint input driving): `tests/test_e2e_questions.py`, `tests/test_e2e_question_lock.py`, `tests/test_e2e_quiz_choice_marking.py`, `tests/test_e2e_choice_inline_feedback.py`, `tests/test_e2e_nested_question.py`, `tests/test_e2e_practice_state.py`, `tests/test_e2e_quiz_reveal_pr3.py`, and any choice-question caller in `tests/test_e2e_quiz_reveal_pr2.py`
+- Modify (repoint input driving): `tests/test_e2e_questions.py`, `tests/test_e2e_question_lock.py`, `tests/test_e2e_quiz_choice_marking.py`, `tests/test_e2e_choice_inline_feedback.py`, `tests/test_e2e_nested_question.py`, `tests/test_e2e_quiz_reveal_pr3.py`, and any choice-question caller in `tests/test_e2e_quiz_reveal_pr2.py`
 
 **Interfaces:**
 - Produces: `tests/e2e_pick.py::pick(input_locator) -> None`, which clicks the input's parent `label` (`input_locator.locator("xpath=..").click()`). It never uses `force=True`. Task 5 reuses it.
@@ -164,7 +164,7 @@ Commit the templates, `courses/models.py` and the tests with `feat(courses): ver
 
 `tests/test_choice_cards_css.py` (source guards): the option-card hiding rule is inside `@supports selector(:has(input:checked))`; the Picked rule declares `box-shadow: inset` and no `border-width`; `.question__choice--picked` and `.question__choices--marked` no longer appear.
 
-`tests/test_e2e_choice_cards.py`, seeded with the `_seed` helper from `tests/test_e2e_quiz_reveal_pr2.py` and `_seed_inline_feedback_question` from `tests/test_e2e_choice_inline_feedback.py` (or the same pattern with `unit_type="lesson"`). Each name states its assertion, using `getComputedStyle` and real tokens resolved through a probe element so brand and theme are not hard-coded:
+`tests/test_e2e_choice_cards.py`, with module-level `pytestmark = pytest.mark.e2e`. Quiz-mode tests seed like `tests/test_e2e_quiz_choice_marking.py` (or `tests/reveal_pr3_kit.py::choice`); lesson tests follow `_seed_inline_feedback_question` in `tests/test_e2e_choice_inline_feedback.py`, with parameters for single- or multi-answer and option count. `test_after_check_colours_quiz` needs a multi-answer quiz locked after one attempt; `test_after_check_colours_lesson` needs one fully correct and one single-answer lesson question; the matrix test needs a multi-answer lesson with author feedback on a distractor and on a correct option. Each name states its assertion, using `getComputedStyle` and real tokens resolved through a probe element so brand and theme are not hard-coded:
 
 - `test_no_visible_input_and_thin_outline`: input box is 1×1 and clipped; card border `1px solid` in `--border-strong`.
 - `test_click_selects_and_paints_picked`: `box-shadow` contains `inset`, background equals `--primary-subtle`; a single-answer question holds one pick.
@@ -184,7 +184,7 @@ Commit the templates, `courses/models.py` and the tests with `feat(courses): ver
 - [ ] **Step 2: Run them and confirm they fail**
 
 Run: `uv run pytest tests/test_choice_cards_css.py` and `uv run pytest -m e2e tests/test_e2e_choice_cards.py`
-Expected: FAIL, because the cards are not styled yet.
+Expected: FAIL, because the cards are not styled yet, except `test_submitted_values_unchanged`, which passes now as a preservation test. Prove it can fail by temporarily renaming the field in the template; restore by hand.
 
 - [ ] **Step 3: Write the CSS**
 
@@ -192,7 +192,7 @@ Implement spec §3.1 (option-card rows and matrix, hover inside `@media (hover: 
 
 - [ ] **Step 4: Repoint the existing tests**
 
-In the Files list above, replace `.check()`, `.uncheck()` and `set_checked()` on `input[name='choice']` and equivalents with `pick(...)`. Update `tests/test_e2e_question_lock.py` (about line 167) and `tests/test_e2e_locked_controls_look.py` where they assert the removed disabled drawing, so they assert the locked card's picked outline instead. `tests/test_e2e_start_fresh_activation.py` also calls `.check()`: confirm whether those are question inputs and repoint only if so.
+In the Files list above, replace `.check()`, `.uncheck()` and `set_checked()` on `input[name='choice']` and equivalents with `pick(...)`. Update `tests/test_e2e_question_lock.py` (about line 167) where it asserts the removed disabled drawing, so it asserts the locked card's picked outline instead. Delete `tests/test_e2e_quiz_choice_marking.py:139`, which can no longer fail, and assert the unlocked state some other way if that test needs it. `tests/test_e2e_start_fresh_activation.py` also calls `.check()`: confirm whether those are question inputs and repoint only if so.
 
 - [ ] **Step 5: Run everything in scope**
 
@@ -209,7 +209,7 @@ A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr
 
 **Files:**
 - Modify: `courses/templatetags/courses_extras.py` (`render_choice_grid`, `render_multigrid`, `_grid_row_cells`, `_multigrid_row_cells`, a new helper), `templates/courses/elements/multigridquestionelement.html`
-- Test: `tests/test_render_multigrid.py`, `tests/test_choicegrid_styles.py`, `tests/test_quiz_reveal_pr2_grids.py`
+- Test: `tests/test_render_multigrid.py`, `tests/test_render_choicegrid.py`, `tests/test_choicegrid_styles.py`, `tests/test_quiz_reveal_pr2_grids.py`
 
 **Interfaces:**
 - Produces: row markup per spec §3.4: `td#choicegrid-stmt-<pk>|#multigrid-stmt-<pk>` > `span.grid-stmt-text`, optional `span.grid-verdict`, then `td.grid-answers-cell` > `div.grid-answers[role=group][aria-labelledby]` > `label` > `input` + `span.gridbtn`.
@@ -245,28 +245,29 @@ def test_multigrid_hint_once_with_key_copy(): ...
     assert body.count("question__hint") == 1
 
 def test_empty_grid_renders(): ...   # Review Focus 1
-    # no rows: <tbody></tbody>, no "gridbtn"; no columns: statement renders and "gridbtn" absent
+    # no rows: <tbody></tbody>, no "gridbtn"
+    # no columns: statement renders; "grid-answers" and 'role="group"' both absent
 ```
 
-The same set applies to the choice grid (radio inputs, `choicegrid-stmt-`). Remove the `thead` and `accent-color` guards from `tests/test_choicegrid_styles.py` that this task and Task 5 retire.
+The same set applies to the choice grid in `tests/test_render_choicegrid.py` (radio inputs, `choicegrid-stmt-`). Remove the `thead` guard from `tests/test_choicegrid_styles.py`; Task 5 retires its CSS guards.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
-Run: `uv run pytest tests/test_render_multigrid.py tests/test_choicegrid_styles.py`
-Expected: FAIL on the new markup.
+Run: `uv run pytest tests/test_render_multigrid.py tests/test_render_choicegrid.py tests/test_choicegrid_styles.py`
+Expected: FAIL on the new markup, except `test_inputs_unchanged` and the key-copy `name` assertion, which pass now as preservation tests and are falsified in Step 5.
 
 - [ ] **Step 3: Implement the markup**
 
-Add `_grid_row(row, cols, kind, verdict, cells_html)` or an equivalent so the statement and answers cell are built once for both types, with `kind` being `"choicegrid"` or `"multigrid"`. Keep the two `format_html` branches that make `checked` literal, and keep `{invalid}` last in the input tag. Show ✓ when the verdict is `True` and ✗ when `False`. Rewrite both docstrings. Add the §3.5 hint after the stem in `multigridquestionelement.html`, unconditionally.
+Add `_grid_row(row, cols, kind, verdict, cells_html)` or an equivalent so the statement and answers cell are built once for both types, with `kind` being `"choicegrid"` or `"multigrid"`. Keep the two `format_html` branches that make `checked` literal, and keep `{invalid}` last in the input tag. Show ✓ when the verdict is `True` and ✗ when `False`. When `cols` is empty, omit `td.grid-answers-cell` altogether. Rewrite both docstrings. Add the §3.5 hint after the stem in `multigridquestionelement.html`, unconditionally.
 
 - [ ] **Step 4: Run the tests**
 
-Run: the Step 2 command plus `tests/test_context_multigrid.py`, `tests/test_quiz_reveal_pr2_grids.py`, `tests/test_quiz_reveal_pr2_paint.py`, `tests/test_grid_questions_nesting.py`, `tests/test_marking_choicegrid.py`.
+Run: the Step 2 command plus `tests/test_context_multigrid.py`, `tests/test_context_choicegrid.py`, `tests/test_quiz_reveal_pr2_grids.py`, `tests/test_quiz_reveal_pr2_paint.py`, `tests/test_grid_questions_nesting.py`, `tests/test_marking_choicegrid.py`.
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Falsify the preservation tests and commit**
 
-Commit `courses/templatetags/courses_extras.py`, the template and the tests with `feat(courses): grid rows carry their column labels in buttons`.
+Temporarily drop `checked` from one `format_html` branch and confirm `test_inputs_unchanged` goes RED; restore by hand. Commit `courses/templatetags/courses_extras.py`, the template and the tests with `feat(courses): grid rows carry their column labels in buttons`.
 
 ---
 
@@ -275,16 +276,16 @@ Commit `courses/templatetags/courses_extras.py`, the template and the tests with
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (verdict rules about lines 1000–1014, `.choicegrid` and `.multigrid` blocks about lines 2375–2516, print rule about line 3615)
 - Create: `tests/test_e2e_grid_cards.py`
-- Modify: `tests/test_choicegrid_styles.py`, `tests/test_choice_cards_css.py`, `tests/test_e2e_choicegrid.py`, `tests/test_e2e_multigrid.py`, `tests/test_e2e_locked_controls_look.py`, `tests/test_e2e_quiz_reveal_pr2.py`, `tests/test_e2e_scroll_affordance.py`, `tests/test_e2e_wide_content_scroll.py`, `tests/test_e2e_print_layout.py`, `tests/test_e2e_uniform_block_width.py`
+- Modify: `tests/test_choicegrid_styles.py`, `tests/test_e2e_choicegrid.py`, `tests/test_e2e_multigrid.py`, `tests/test_e2e_locked_controls_look.py`, `tests/test_e2e_quiz_reveal_pr2.py`, `tests/test_e2e_scroll_affordance.py`, `tests/test_e2e_wide_content_scroll.py`, `tests/test_e2e_print_layout.py`, `tests/test_e2e_uniform_block_width.py`
 
 **Interfaces:**
 - Consumes: Task 3's `pick`, Task 4's markup.
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/test_choicegrid_styles.py` gains source guards: grid inputs hidden outside `@supports`; `input[checked]:checked + .gridbtn` present inside `tr.is-correct` and `tr.is-incorrect` rules; `table-layout: fixed`.
+`tests/test_choicegrid_styles.py`: replace the assertions on `accent-color: var(--primary)`, `.choicegrid tbody td:has(input:checked)` and `.choicegrid tbody tr.is-incorrect td.choicegrid__stmt` with source guards: grid inputs hidden outside `@supports`; `input[checked]:checked + .gridbtn` present inside `tr.is-correct` and `tr.is-incorrect` rules; `table-layout: fixed`.
 
-`tests/test_e2e_grid_cards.py`, with these names and assertions from spec §6:
+`tests/test_e2e_grid_cards.py`, with module-level `pytestmark = pytest.mark.e2e`, and these names and assertions from spec §6:
 
 - `test_gridbtn_picks_and_paints`, `test_keyboard_and_ring_on_gridbtn`, `test_grid_answers_stays_transparent`.
 - `test_accessibility_tree`: `get_by_role("group", name=statement, exact=True)` on an unpainted row; `name` contains the statement on a painted row; inputs named by column.
@@ -312,7 +313,7 @@ Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, 
 
 - [ ] **Step 4: Migrate the existing tests**
 
-- Repoint grid `.check()` and `.uncheck()` calls in the Files list to `pick(...)`, using `.grid-answers label` positions in place of per-column `td` positions.
+- Grid `.check()` and `.uncheck()` calls in the Files list: keep the existing input locators and wrap them in `pick(...)`.
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py`: re-seed per spec §6 (column label is a KaTeX formula in a single `{…}` box, wait for `.katex` before measuring), and repoint `thead th` to the last `.gridbtn`.
 - `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out`: new assertion per spec §6, border-to-surface contrast at least `3` for the default brand; delete `_CELL_CONTRAST` if nothing else uses it.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width`: new assertions and the moved shade check per spec §6.
@@ -321,7 +322,7 @@ Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, 
 
 - [ ] **Step 5: Run everything in scope**
 
-Run: all CSS source tests, then `uv run pytest -m e2e` on `tests/test_e2e_grid_cards.py` and each file in this task's Files list.
+Run: all CSS source tests and `uv run pytest tests/test_choicegrid_styles.py`, then `uv run pytest -m e2e` on `tests/test_e2e_grid_cards.py` and each `test_e2e_*` file in this task's Files list.
 Expected: all pass.
 
 - [ ] **Step 6: Mutate and commit**
@@ -342,7 +343,7 @@ Expected: no matches, apart from negative assertions.
 
 - [ ] **Step 2: Run the unit and CSS suites touching these elements**
 
-Run: `uv run pytest tests/test_*css*.py courses/tests/test_*css*.py tests/test_choicegrid_styles.py tests/test_render_multigrid.py tests/test_quiz_choice_inline_marking.py tests/test_quiz_reveal_pr3_choice.py tests/test_quiz_reveal_pr2_grids.py tests/test_quiz_results_choice_reveal.py tests/test_element_try.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py`
+Run: `uv run pytest tests/test_*css*.py courses/tests/test_*css*.py tests/test_choicegrid_styles.py tests/test_render_multigrid.py tests/test_render_choicegrid.py tests/test_quiz_choice_inline_marking.py tests/test_quiz_reveal_pr3_choice.py tests/test_quiz_reveal_pr2_grids.py tests/test_quiz_results_choice_reveal.py tests/test_element_try.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py`
 Expected: all pass.
 
 - [ ] **Step 3: Run the browser suites touching these elements**
