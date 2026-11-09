@@ -477,57 +477,138 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 
 /* Question element (2a) */
 .el--question .question__stem { margin-bottom: var(--space-3); }
-.el--question .question__choices { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
-.el--question .question__choice { margin: var(--space-1) 0; }
-/* The option the student picked, in a LOCKED quiz. Locking disables every input,
-   and a disabled radio is drawn grey-dot-on-grey-ring — at body size that is
-   indistinguishable from an unchecked option, so the selection has to be carried by
-   the row itself. Same chosen-cell tint the grid question types already use
-   (.choicegrid/.multigrid `td:has(input:checked)`), for one visual vocabulary.
-   Padding is on the modifier only, so an unmarked options list keeps its metrics. */
-.el--question .question__choice--picked {
-  background: var(--primary-subtle);
+/* The one-line hint on multi-answer questions: 4px below the stem, whose margin is
+   12px in a question and 8px on the results page. */
+.question__hint { margin: 0 0 var(--space-2); color: var(--text-secondary); font-size: 14px; }
+.question__stem + .question__hint { margin-top: -8px; }
+.quiz-results__item .question__stem + .question__hint { margin-top: -4px; }
+
+/* Choice options as outlined cards (spec 2026-11-09-choice-option-cards). Selected
+   through .question__choices, so they reach a results fragment with no .el--question
+   ancestor and out-rank app.css's `label`. Colours are tokens only, so the brand
+   colour and both themes need no rule of their own. */
+.question__choices {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  display: grid;
+  gap: 6px;
+  /* A zero track minimum: otherwise a wide formula grows the card past the page and
+     the scroller on the option text is never used. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.question__choices .question__choice {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  margin-left: calc(var(--space-2) * -1);
-  margin-right: calc(var(--space-2) * -1);
 }
-/* A LOCKED option (solved lesson answer, locked quiz, results) is drawn here, not
-   by the browser: Chrome paints a disabled checkbox / radio grey whatever
-   accent-color or opacity say, and on the dark surface a grey tick is barely told
-   from an empty box. A pick is brand-filled (checkbox) or brand ring + dot (radio);
-   a non-pick stays an empty outline. print-color-adjust keeps the fill on paper, or
-   the surface-coloured tick would print white on white. Live inputs stay native. */
-.el--question .question__choice input:disabled {
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  margin: 3px 3px 3px 4px;
-  vertical-align: -2px;
-  border: 1.5px solid var(--text-secondary);
-  border-radius: 3px;
-  display: inline-grid;
-  place-content: center;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+/* The label is the whole first row, so all of it is the tap target. 2.25rem is
+   reserved at the end on every card, marked or not, so text does not reflow on Check. */
+.question__choices .question__choice > label {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding-block: 5px;
+  padding-inline: 14px 2.25rem;
+  color: var(--text-primary);
+  font-weight: 400;
+  cursor: pointer;
 }
-.el--question .question__choice input[type="radio"]:disabled { border-radius: 50%; }
-.el--question .question__choice input:disabled:checked { border-color: var(--primary); }
-.el--question .question__choice input[type="checkbox"]:disabled:checked { background: var(--primary); }
-.el--question .question__choice input[type="checkbox"]:disabled:checked::after {
-  content: "";
-  width: 4px;
-  height: 8px;
-  border: solid var(--surface-raised);
-  border-width: 0 2px 2px 0;
-  transform: translateY(-1px) rotate(45deg);
+.question__choices .question__choice > label:has(input:disabled) { cursor: default; }
+/* The 4px travels with overflow-x: alone it makes overflow-y compute to auto, and
+   KaTeX overhang then draws a vertical scrollbar. With the label's 5px it makes 9px. */
+.question__choices .question__choice-text {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 4px;
 }
-.el--question .question__choice input[type="radio"]:disabled:checked::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--primary);
+/* Inside a scroller KaTeX's 1em margins no longer collapse away. */
+.question__choices .question__choice-text .katex-display,
+.question__choices .question__choice-feedback .katex-display { margin-block: 0; }
+
+/* Picked is thicker through an inset shadow, never a wider border, so selecting
+   cannot shift the layout. Verdict classes come from the server; a live input can
+   still be moved, so the shadow follows :checked and the colour follows the class. */
+.question__choices .question__choice:has(input:checked) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  background: var(--primary-subtle);
+}
+.question__choices .question__choice--correct {
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+.question__choices .question__choice--wrong {
+  border-color: var(--danger);
+  background: var(--danger-subtle);
+}
+.question__choices .question__choice--missed {
+  border-style: dashed;
+  border-color: var(--warning);
+  background: var(--warning-subtle);
+}
+.question__choices .question__choice--correct:has(input:checked) {
+  border-color: var(--success);
+  box-shadow: inset 0 0 0 1px var(--success);
+  background: var(--success-subtle);
+}
+.question__choices .question__choice--wrong:has(input:checked) {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+  background: var(--danger-subtle);
+}
+.question__choices .question__choice--missed:has(input:checked) {
+  border-style: solid;
+  border-color: var(--warning);
+  box-shadow: inset 0 0 0 1px var(--warning);
+  background: var(--warning-subtle);
+}
+/* Inside hover: hover, so a tap on a phone cannot leave a sticky outline. Only a card
+   with no verdict and a live input reacts. */
+@media (hover: hover) {
+  .question__choices .question__choice:not(.question__choice--correct, .question__choice--wrong, .question__choice--missed):has(input:not(:disabled)):hover {
+    border-color: var(--primary);
+  }
+}
+.question__choices .question__choice:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* The picked state depends on :has(), so the hiding does too: a browser without it
+   keeps visible native inputs inside the outlined cards. */
+@supports selector(:has(input:checked)) {
+  .question__choices .question__choice input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+/* High-contrast mode drops box-shadow and repaints borders and fills, which would
+   leave a picked card looking unpicked. forced-color-adjust inherits and these
+   elements carry their own colours, so the text inside is repainted as well. */
+@media (forced-colors: active) {
+  .question__choices .question__choice:has(input:checked) {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+  .question__choices .question__choice:has(input:checked) > label,
+  .question__choices .question__choice:has(input:checked) .question__choice-text,
+  .question__choices .question__choice:has(input:checked) .question__choice-marker,
+  .question__choices .question__choice:has(input:checked) .question__choice-feedback {
+    color: HighlightText;
+  }
 }
 .el--question .question__feedback:empty { display: none; }
 
@@ -572,35 +653,33 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 /* "◐ Partly correct", not "◐Partly correct" (D4); ✓ / ✗ get the same gap. */
 .question__verdict .question__glyph { margin-inline-end: .3em; }
 
-/* Per-option feedback inside a choice option's <li>: lessons (mcq-feedback), and
-   quizzes and the results page once the question has ended. */
-.question__choice-feedback {
-  margin: 0.25rem 0 0 1.75rem;
+/* Per-option feedback, inside the card and outside the label, so only the label row
+   toggles the input. --text-secondary: --text-tertiary fails on the verdict tints. */
+.question__choices .question__choice-feedback {
+  margin: 0;
+  padding: 4px 14px 9px;
   font-size: 0.9em;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-style: italic;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
-/* `label { display: block; }` (app.css) puts this marker on its own line below
-   the option rather than inline after it, so its left margin is tuned to align
-   with .question__choice-feedback's indent below it, not the checkbox above. */
-.question__choice-marker {
-  display: inline-block;
-  margin: 0.15rem 0 0 1.75rem;
+/* At the card's end edge, on the first line of the option text and never centred, so
+   feedback below cannot move it. Over the label's reserved padding, and not a tap
+   target, so the whole row still toggles the input. */
+.question__choices .question__choice-marker {
+  position: absolute;
+  top: 9px;
+  inset-inline-end: 14px;
+  pointer-events: none;
   font-weight: 600;
 }
 .question__choice-marker--wrong { color: var(--danger); }
 .question__choice-marker--correct { color: var(--success); }
-/* A quiz or results list with markers (from the first Check on, not only once locked):
-   put the marker INLINE after the option text ("Paris ✓") instead of
-   on its own line. app.css's `label { display: block }` is what pushes it down, so
-   the label has to become inline-block for the row to read as one statement — a
-   lone glyph on the next line reads as unrelated content. Any per-option feedback
-   is still a block, so it drops below and keeps its own indent. */
-.question__choices--marked .question__choice > label { display: inline-block; margin-bottom: 0; }
-.question__choices--marked .question__choice-marker { margin: 0 0 0 var(--space-2); }
-/* A correct option the student did NOT pick: amber "you missed this", never the
-   affirming green of --success (which reads as "you got it right"). */
-.question__choice-marker--missed { color: var(--warning); }
+/* A correct option the student did NOT pick: never the affirming green. --tc-orange,
+   because --warning on --warning-subtle is below 3:1 and the mark is the signal. */
+.question__choice-marker--missed { color: var(--tc-orange); }
 
 /* Question element (2b): auto-markable types */
 .question__text-input,
@@ -3630,6 +3709,19 @@ form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
      (KaTeX's fixed-width struts do not scale), so the screen scroller's `auto`
      printed a scrollbar under it. `hidden` clips at the same box, no bar. */
   .katex-display { overflow-x: hidden; }
+
+  /* Option cards: the outlines print by default; the tints need asking for. Paper
+     cannot scroll, so the screen `auto` scrollers would print a scrollbar. */
+  .question__choices .question__choice { break-inside: avoid; }
+  .question__choices .question__choice:has(input:checked),
+  .question__choices .question__choice--correct,
+  .question__choices .question__choice--wrong,
+  .question__choices .question__choice--missed {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .question__choices .question__choice-text,
+  .question__choices .question__choice-feedback { overflow: visible; }
 
   /* gallery.js stacks every card absolutely at opacity 0 except the active one
      and sets inline min-heights; on paper every card prints, stacked. */

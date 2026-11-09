@@ -6,6 +6,7 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
 
@@ -77,8 +78,8 @@ def test_choice_marks_picks_then_show_answer_adds_missed(browser, live_server):
     _login(page, live_server, "c_stu")
     page.goto(_url(live_server, course, unit))
     q = page.locator("[data-question]").first
-    q.get_by_label("Alphaopt").check()
-    q.get_by_label("Gammaopt").check()
+    pick(q.get_by_label("Alphaopt"))
+    pick(q.get_by_label("Gammaopt"))
     _check(q)
     q.locator(".question__verdict.is-incorrect").wait_for(timeout=6000)
     ok = q.locator(".question__choice-marker--correct")
@@ -165,7 +166,7 @@ def test_results_page_shows_choice_marks_and_keywords(browser, live_server):
     page.goto(_url(live_server, course, unit))
     q1 = page.locator("[data-question]").nth(0)
     q2 = page.locator("[data-question]").nth(1)
-    q1.get_by_label("Gammaopt").check()
+    pick(q1.get_by_label("Gammaopt"))
     _check(q1)
     q1.locator(".question__verdict.is-incorrect").wait_for(timeout=6000)
     q2.locator("textarea[name='answer']").fill("nothing relevant")

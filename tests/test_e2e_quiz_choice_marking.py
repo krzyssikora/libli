@@ -1,14 +1,13 @@
 """e2e: a locked quiz choice question shows WHICH option the student picked.
 
 The defect this pins is purely visual and so cannot be caught by markup assertions:
-the chosen radio was always `checked` in the DOM, but locking the question disables
-every input, and Chromium paints a disabled checked radio grey-dot-on-grey-ring.
-At body size that is indistinguishable from an unchecked option, so a correct answer
-rendered a green "Correct" verdict beside three options that all looked untouched.
+the chosen input is always `checked` in the DOM, but it is hidden and locking the
+question disables it, so only the card can show the pick. A correct answer must not
+render a green "Correct" verdict beside options that all look untouched.
 
-These tests therefore MEASURE rendered pixels (the picked row's background must
-differ from an unpicked row's) rather than trusting `to_be_visible()` — see the
-same trap in tests/test_e2e_*: a non-empty box is not evidence of legibility.
+These tests therefore MEASURE rendered colours (the picked card against an unpicked
+one) rather than trusting `to_be_visible()` — see the same trap in tests/test_e2e_*:
+a non-empty box is not evidence of legibility.
 """
 
 import os
@@ -16,6 +15,7 @@ import os
 import pytest
 from playwright.sync_api import expect
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import attempts
 from tests.factories import make_verified_user
@@ -68,6 +68,10 @@ def _bg(locator):
     return locator.evaluate("el => getComputedStyle(el).backgroundColor")
 
 
+def _border(locator):
+    return locator.evaluate("el => getComputedStyle(el).borderTopColor")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_correct_answer_visibly_marks_the_chosen_option(page, live_server):
     make_verified_user(
@@ -78,17 +82,18 @@ def test_correct_answer_visibly_marks_the_chosen_option(page, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
 
     options = page.locator(".question__choice")
-    options.nth(0).locator("input").check()
+    pick(options.nth(0).locator("input"))
     page.locator("form.question__form button[type=submit]").click()
     expect(page.locator(".question__verdict.is-correct")).to_be_visible()
 
     picked, other = options.nth(0), options.nth(1)
-    # The row the student chose must be distinguishable from one they did not, by
-    # something other than the (now disabled, near-invisible) radio dot.
+    # The card the student chose must be distinguishable from one they did not:
+    # the input is hidden, so its card is all that shows what they picked.
     assert _bg(picked) != _bg(other), (
-        "the chosen option renders identically to an unchosen one — the radio dot "
-        "is disabled and grey, so nothing shows the student what they picked"
+        "the chosen card renders identically to an unchosen one, so nothing shows "
+        "the student what they picked"
     )
+    assert _border(picked) != _border(other)
     expect(picked.locator(".question__choice-marker--correct")).to_have_count(1)
     # The tick IS the reveal; no duplicate answer list underneath.
     expect(page.locator(".question__reveal")).to_have_count(0)
@@ -104,7 +109,7 @@ def test_wrong_answer_separates_the_pick_from_the_answer_key(page, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
 
     options = page.locator(".question__choice")
-    options.nth(1).locator("input").check()  # London — wrong
+    pick(options.nth(1).locator("input"))  # London — wrong
     page.locator("form.question__form button[type=submit]").click()
     expect(page.locator(".question__verdict.is-incorrect")).to_be_visible()
 
@@ -125,7 +130,7 @@ def test_only_the_pick_is_marked_while_attempts_remain(page, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/")
 
     options = page.locator(".question__choice")
-    options.nth(1).locator("input").check()  # wrong, but 2 attempts left
+    pick(options.nth(1).locator("input"))  # wrong, but 2 attempts left
     page.locator("form.question__form button[type=submit]").click()
     expect(page.locator(".question__verdict.is-incorrect")).to_be_visible()
 
@@ -136,5 +141,4 @@ def test_only_the_pick_is_marked_while_attempts_remain(page, live_server):
     expect(options.nth(1).locator(".question__choice-marker--wrong")).to_have_count(1)
     expect(options.nth(0).locator(".question__choice-marker--missed")).to_have_count(0)
     expect(options.nth(2).locator(".question__choice-marker")).to_have_count(0)
-    expect(page.locator(".question__choice--picked")).to_have_count(0)
     expect(options.nth(0).locator("input")).to_be_enabled()
