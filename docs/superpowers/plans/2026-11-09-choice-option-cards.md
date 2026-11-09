@@ -87,7 +87,7 @@ def test_lesson_wrong_multi_answer_marks_only_annotated():
     assert {k: v["kind"] for k, v in marks.items()} == {b.pk: "wrong"}
 ```
 
-Also search `tests/` for other assertions that lesson marks are absent (`marker--correct`, `marker--wrong` near `lesson`) and rewrite those that contradict spec §3.7. Add a no-JS lesson re-render test beside the existing sibling test in `courses/tests/test_nested_question_nojs_feedback.py`: the checked question has a real pick (once correct, once wrong single-answer) and its sibling renders no `question__choice-marker`.
+Also search `tests/` for other assertions that lesson marks are absent (`marker--correct`, `marker--wrong` near `lesson`) and rewrite those that contradict spec §3.7. Add a no-JS lesson re-render test beside the existing sibling test in `courses/tests/test_nested_question_nojs_feedback.py`: the checked question has a real pick (once correct, once wrong single-answer) the checked slice carries `question__choice-marker--correct` or `--wrong` (so the test is RED first, as in the neighbouring `test_a_sibling_choice_question_renders_no_option_markers`), and its sibling renders no `question__choice-marker`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
@@ -158,7 +158,7 @@ Commit the templates, `courses/models.py` and the tests with `feat(courses): ver
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (Question element block, about lines 478–603; feedback rule; `@media print` block)
 - Create: `tests/e2e_pick.py`, `tests/test_e2e_choice_cards.py`, `tests/test_choice_cards_css.py`
-- Modify (repoint input driving): `tests/test_e2e_questions.py`, `tests/test_e2e_question_lock.py`, `tests/test_e2e_quiz_choice_marking.py`, `tests/test_e2e_choice_inline_feedback.py`, `tests/test_e2e_nested_question.py`, `tests/test_e2e_quiz_reveal_pr3.py`, and any choice-question caller in `tests/test_e2e_quiz_reveal_pr2.py`
+- Modify (repoint input driving): `tests/test_e2e_questions.py`, `tests/test_e2e_question_lock.py`, `tests/test_e2e_quiz_choice_marking.py`, `tests/test_e2e_choice_inline_feedback.py`, `tests/test_e2e_nested_question.py`, `tests/test_e2e_quiz_reveal_pr3.py`, `tests/test_e2e_start_fresh_activation.py`, and any choice-question caller in `tests/test_e2e_quiz_reveal_pr2.py`
 
 **Interfaces:**
 - Produces: `tests/e2e_pick.py::pick(input_locator) -> None`, which clicks the input's parent `label` (`input_locator.locator("xpath=..").click()`). It never uses `force=True`. Task 5 reuses it.
@@ -180,6 +180,7 @@ Create `tests/e2e_pick.py` as in Interfaces; the new e2e module and every repoin
 - `test_after_check_colours_lesson`: correct answer green with ✓; wrong single-answer red with ✗.
 - `test_matrix_pick_amber_and_unpick_red`: the two live-lesson matrix cells in spec §3.1.
 - `test_lesson_verdict_survives_reload` (Review Focus 4): Check, reload; after the reload the pick's border and fill equal resolved `--success` and `--success-subtle` (a correct answer) and `box-shadow` contains `inset`, compared with tokens and not with the pre-reload state.
+- `test_hover_outlines_a_live_card`: hovering a live, unpicked card makes its border equal resolved `--primary`.
 - `test_hover_leaves_verdict_and_locked_cards_unchanged`: `locator.hover()` on a verdict card and a locked card; the border colour does not change.
 - `test_marker_sits_on_first_line_above_feedback`.
 - `test_wide_maths_stays_in_card_at_360`: wide unbreakable inline formula (`{a+b+…}`) and display maths; content and marker inside the card; `documentElement.scrollWidth <= innerWidth`. A normal inline formula has `scrollHeight <= clientHeight` on `.question__choice-text`.
@@ -190,7 +191,7 @@ Create `tests/e2e_pick.py` as in Interfaces; the new e2e module and every repoin
 - [ ] **Step 2: Run them and confirm they fail**
 
 Run: `uv run pytest tests/test_choice_cards_css.py` and `uv run pytest -m e2e tests/test_e2e_choice_cards.py`
-Expected: FAIL, because the cards are not styled yet, except `test_submitted_values_unchanged`, which passes now as a preservation test. Prove it can fail by temporarily renaming the field in the template; restore by hand.
+Expected: FAIL, because the cards are not styled yet, except `test_hover_leaves_verdict_and_locked_cards_unchanged`, which passes now and is falsified in Step 6, and `test_submitted_values_unchanged`, which passes now as a preservation test. Prove it can fail by temporarily renaming the field in the template; restore by hand.
 
 - [ ] **Step 3: Write the CSS**
 
@@ -198,7 +199,7 @@ Implement spec §3.1 (option-card rows and matrix, hover inside `@media (hover: 
 
 - [ ] **Step 4: Repoint the existing tests**
 
-In the Files list above, replace `.check()`, `.uncheck()` and `set_checked()` on `input[name='choice']` and equivalents with `pick(...)`. Update `test_solved_choice_marks_its_picks_in_dark_mode` in `tests/test_e2e_question_lock.py` (about line 167): the answer is fully correct, so after Task 1 the assertion moves from the clipped `input` to the `li`, which compares to resolved `--success` with an inset shadow, while a non-pick stays `--border-strong` with no shadow. Rename or re-comment the test, because brand fill no longer describes it. Delete `tests/test_e2e_quiz_choice_marking.py:139`, which can no longer fail, and assert the unlocked state some other way if that test needs it. `tests/test_e2e_start_fresh_activation.py` also calls `.check()`: confirm whether those are question inputs and repoint only if so. `tests/test_e2e_practice_state.py`, listed in spec §6, needs no repoint: its inputs are `.markdone` checkboxes.
+In the Files list above, replace `.check()`, `.uncheck()` and `set_checked()` on `input[name='choice']` and equivalents with `pick(...)`. Update `test_solved_choice_marks_its_picks_in_dark_mode` in `tests/test_e2e_question_lock.py` (about line 167): the answer is fully correct, so after Task 1 the assertion moves from the clipped `input` to the `li`, which compares to resolved `--success` with an inset shadow, while a non-pick stays `--border-strong` with no shadow. Rename or re-comment the test, because brand fill no longer describes it. Delete `tests/test_e2e_quiz_choice_marking.py:139`, which can no longer fail, and assert the unlocked state some other way if that test needs it. In `tests/test_e2e_start_fresh_activation.py`, repoint only line 179 (`page.get_by_label("Alpha").check()`); lines 209–216 are `.markdone__item` checkboxes and stay. `tests/test_e2e_practice_state.py`, listed in spec §6, needs no repoint: its inputs are `.markdone` checkboxes.
 
 - [ ] **Step 5: Run everything in scope**
 
@@ -207,7 +208,7 @@ Expected: all pass. `tests/test_e2e_quiz_reveal_pr2.py` grid cases still drive v
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr)` track, the forced-colors label colour and `print-color-adjust`, one at a time; each must turn a named test RED. Restore by hand. Commit with `feat(courses): choice options as outlined cards`.
+A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr)` track, the forced-colors label colour, every `print-color-adjust` declaration (prefixed and unprefixed) and the verdict and disabled exclusion on the hover selector (`test_hover_leaves_verdict_and_locked_cards_unchanged`), one at a time; each must turn a named test RED. Restore by hand. Commit with `feat(courses): choice options as outlined cards`.
 
 ---
 
@@ -294,6 +295,7 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 
 `tests/test_e2e_grid_cards.py`, with module-level `pytestmark = pytest.mark.e2e`. Seeds: `_seed(..., max_attempts=2)` from `tests/test_e2e_quiz_reveal_pr2.py`, or a lesson, for live painted rows, and `max_attempts=1` for locked rows; direct `GridColumn` and `GridRow` creation as in `tests/test_e2e_choicegrid.py` for custom labels and formula or fraction statements; `TwoColumnElement.objects.create(data=TwoColumnElement.default_data())` plus a child `Element` with `parent` and the column's `tab_id`, as in `courses/tests/test_nested_question_nojs_feedback.py`, for the nested case. Names and assertions from spec §6:
 
+- `test_hover_outlines_a_live_button`: hovering a live, unpicked `.gridbtn` makes its border equal resolved `--primary`.
 - `test_hover_leaves_painted_button_unchanged`: `locator.hover()` on a verdict-painted `.gridbtn`; border colour unchanged.
 - `test_gridbtn_picks_and_paints`, `test_keyboard_and_ring_on_gridbtn`, and `test_grid_answers_stays_transparent` (computed background transparent on both `.grid-answers-cell` and `.grid-answers` with a pick).
 - `test_accessibility_tree`: `get_by_role("group", name=statement, exact=True)` on an unpainted row; `name` contains the statement on a painted row; inputs named by column.
@@ -313,7 +315,7 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 - [ ] **Step 2: Run them and confirm they fail**
 
 Run: `uv run pytest tests/test_choicegrid_styles.py` and `uv run pytest -m e2e tests/test_e2e_grid_cards.py`
-Expected: FAIL, except `test_click_on_formula_label_selects` and `test_accessibility_tree`, which depend only on Task 4's markup, pass now and are falsified in Step 6, and `test_fraction_statement_no_vertical_scroll`, which may pass now and is falsified by its own A/B.
+Expected: FAIL, except `test_click_on_formula_label_selects` and `test_accessibility_tree`, which depend only on Task 4's markup, pass now and are falsified in Step 6, `test_hover_leaves_painted_button_unchanged`, which passes now and is falsified in Step 6, and `test_fraction_statement_no_vertical_scroll`, which may pass now and is falsified by its own A/B.
 
 - [ ] **Step 3: Write the CSS**
 
@@ -322,9 +324,9 @@ Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, 
 - [ ] **Step 4: Migrate the existing tests**
 
 - Grid `.check()` and `.uncheck()` calls in the Files list: keep the existing input locators and wrap them in `pick(...)`.
-- `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py`: re-seed per spec §6: in the shared `_seed_wide_unit`, the last `COLUMN_LABELS` entry becomes a KaTeX formula in a single `{…}` box, and tests wait for `.katex` before measuring. In `test_wide_grid_scrolls_to_reveal_its_last_column`, use the last `.gridbtn` through `.last` or `querySelectorAll` (`.gridbtn:last-child` matches every button), replace the label-text equality with a `.katex` count of 1 in that button, and add a precondition that its right edge is beyond the phone width before scrolling.
+- `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py`: re-seed per spec §6: in the shared `_seed_wide_unit`, the last `COLUMN_LABELS` entry becomes a KaTeX formula in a single `{…}` box, and tests wait for `.katex` before measuring. In `test_wide_grid_scrolls_to_reveal_its_last_column`, use the last `.gridbtn` through `.last` or `querySelectorAll` (`.gridbtn:last-child` matches every button), replace the label-text equality with a `.katex` count of 1 in that button, and add a precondition that its right edge is beyond the phone width before scrolling. In `test_wide_surfaces_scroll_in_their_own_box_not_the_page`, the table no longer grows, so the multi-select surface measures `.gridbtn:has(.katex)` as its inner element and the failure message is updated. The formula must render wider than 390px.
 - `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out`: row 0 is answered correctly, so its locked pick has resolved `--success` border plus inset shadow, the unpicked button has `--border-strong` and no shadow, and the border-to-surface contrast is at least `3`. Delete `_CELL_CONTRAST` if nothing else uses it.
-- `test_e2e_print_layout.py::test_grid_question_fits_print_width`: new assertions and the moved shade check per spec §6.
+- `test_e2e_print_layout.py::test_grid_question_fits_print_width`: new assertions per spec §6. The shade check becomes a separate, non-parametrized test using `_seed_wide_unit` at `PHONE` width: wait for `.katex`, then `.scroll-x.is-scroll-end`, then emulate print and assert `::after` is `display: none`.
 - `test_e2e_quiz_reveal_pr2.py`: the switch-position assertion keeps covering `multigrid` and must stay unchanged. In `test_grid_lock_keeps_the_students_pick_and_paints_rows` (about lines 306–307), replace the comparison of first-`td` backgrounds with each row's `.grid-verdict` glyph (✓ against ✗) and the differing computed border colour of the picked `.gridbtn`.
 - `test_e2e_uniform_block_width.py`: update the empty-grid note and any selector that relied on `thead`.
 
@@ -335,7 +337,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; delete the `tr.is-correct … .gridbtn` rule (`test_dark_locked_grid_pick_stands_out`); remove `flex-wrap: wrap` from `.grid-answers`, and separately restore `min-width: max-content` on the table (each turns `test_grid_in_two_columns_does_not_overflow` RED); add `pointer-events: none` on `.grid-answers label` (`test_click_on_formula_label_selects`); remove `print-color-adjust` (`test_print_grid`); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
+A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; delete the `tr.is-correct … .gridbtn` rule (`test_dark_locked_grid_pick_stands_out`); remove `flex-wrap: wrap` from `.grid-answers`, and separately restore `min-width: max-content` on the table (each turns `test_grid_in_two_columns_does_not_overflow` RED); add `pointer-events: none` on `.grid-answers label` (`test_click_on_formula_label_selects`); remove every `print-color-adjust` declaration, prefixed and unprefixed (`test_print_grid`); drop the painted-button exclusion from the hover selector (`test_hover_leaves_painted_button_unchanged`); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
 
 ---
 
