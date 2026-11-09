@@ -121,13 +121,14 @@ unconditionally.
   `margin: 0; color: var(--text-primary)`, with `cursor: pointer` while its input is live (overriding `app.css`'s `label` margin, which the
   removed `--marked` rule used to reset, and its `--text-secondary` colour). With the input hidden it is out of flow and the text is the only flex item; in the
   §3.2 fallback the visible native input sits beside the text.
-- Every card reserves `padding-inline-end: 2.25rem` on the label, marked or not, so text does
+- The label's padding is `5px 2.25rem 5px 14px` in logical properties and the `<li>` has none, so
+  the label fills the card. The `2.25rem` is reserved on every card, marked or not, so text does
   not reflow on Check. The marker is positioned over that padding at the row's right edge (D8),
   aligned with the first line of the option text (`top: 9px; inset-inline-end: 14px` from the
   card, not centred, so feedback below cannot move it), with `pointer-events: none`, so the whole
   row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
-  left indent, inset `0 14px 9px`. It has `overflow-wrap: anywhere` and the same maths scroller
+  left indent, with `padding: 4px 14px 9px`. It has `overflow-wrap: anywhere` and the same maths scroller
   rules as the option text below, since feedback can hold KaTeX.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
   An inline formula can still break between its top-level terms; only an unbreakable run needs
@@ -161,11 +162,15 @@ Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
 - Each input now has an accessible name of its own (the column label) and each group is named
   by its statement. That replaces the context the header row gave (D6). `keycopy.py` already
   suffixes ids and `aria-labelledby` inside the copy.
-- A painted row's statement gains a visible `aria-hidden` ✓ or ✗ after its text (D8), next to
-  the existing `sr_verdict` text. No glyph on an unpainted row.
+- A painted row's statement gains a visible `<span class="grid-verdict" aria-hidden="true">` ✓ or
+  ✗ after its text (D8), next to the existing `sr_verdict` text, outside the statement's scroller
+  (below) so it cannot scroll out of view. No glyph on an unpainted row.
 
 CSS (shared rule set for `.choicegrid` and `.multigrid`):
 
+- The table is `table-layout: fixed`. Under auto layout, a wide formula in a statement widens the
+  whole table (measured in Chromium and Firefox), so the statement never scrolls and the buttons
+  leave the phone screen.
 - `tbody tr` is `display: flex; flex-wrap: wrap`, the statement cell is
   `flex: 1 1 min(100%, 16rem); min-width: 0` with a 1px `--border-strong` bottom rule, and
   `.grid-answers-cell` is `flex: 0 1 auto; max-width: 100%`. Inside it `.grid-answers` is
@@ -180,9 +185,11 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
   reach the scroll wrapper.
 - `.grid-answers label` is `margin: 0; cursor: pointer`, with `cursor: default` when its input is
   disabled.
-- The statement cell has `padding: 4px 0` above its bottom rule, and
-  `overflow-wrap: anywhere; overflow-x: auto; overflow-y: hidden`, so a wide unbreakable formula
-  scrolls inside the statement and cannot paint over the buttons. The `.choicegrid-scroll` and
+- The statement cell has `display: flex; gap: var(--space-2); padding: 4px 0` above its bottom
+  rule. Its text is wrapped in `<span class="grid-stmt-text">`, which is
+  `flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; overflow-x: auto; overflow-y: hidden`,
+  so a wide unbreakable formula scrolls inside the statement and cannot paint over the buttons.
+  The `.grid-verdict` glyph follows it directly. The `.choicegrid-scroll` and
   `.multigrid-scroll` wrappers get `overflow-y: hidden`, for the same KaTeX reason as §3.3.
 - For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
   print-only `min-width: 0` rule, the `td:has(input:checked)` cell tint, the `td label` hover
@@ -210,7 +217,7 @@ stem in `choicequestion.html` (when `el.multiple`) and always in
 copy does not repeat it. It renders in every mode, matching mockup Y. That msgid already exists
 in the catalogue with exactly the D7 Polish text, so no `.po`/`.mo` change is needed.
 
-Style: `--text-secondary`, slightly smaller than body text.
+Style: `--text-secondary`, `14px`, `margin-bottom: var(--space-2)`.
 
 ### 3.6 Print (D10)
 
@@ -218,8 +225,8 @@ Outlines print by default. Picked and verdict cards and buttons get
 `print-color-adjust: exact` so their tints survive, and cards and grid rows
 (`.choicegrid tbody tr`, `.multigrid tbody tr`) get `break-inside: avoid`.
 
-Paper cannot scroll, so in print `.question__choice-text` is `overflow: visible`, or the new
-`auto` scroller could print a scrollbar. An over-wide inline formula runs past its card on paper,
+Paper cannot scroll, so in print `.question__choice-text`, `.question__choice-feedback` and
+`.grid-stmt-text` are `overflow: visible`, or the new `auto` scrollers could print a scrollbar. An over-wide inline formula runs past its card on paper,
 as it already overruns its row today.
 
 ### 3.7 Lesson marks, and consequences of the existing rules
@@ -289,9 +296,13 @@ wholesale. Each still has to assert something that fails on a broken build.
 
 Three groups of existing browser tests need more than a selector change:
 
-- Tests that call `.check()` on these inputs, such as `test_e2e_questions.py`,
-  `test_e2e_locked_controls_look.py` and `test_e2e_scroll_affordance.py`, will time out, because
-  Playwright refuses clipped inputs. They click the visible card or `.gridbtn` instead, and
+- Tests that call `.check()` on these inputs will time out, because Playwright refuses clipped
+  inputs. The plan derives the full list by searching `.check(` against these selectors; at least
+  `test_e2e_questions.py`, `test_e2e_locked_controls_look.py`, `test_e2e_scroll_affordance.py`,
+  `test_e2e_choicegrid.py`, `test_e2e_multigrid.py`, `test_e2e_nested_question.py`,
+  `test_e2e_question_lock.py`, `test_e2e_practice_state.py`, `test_e2e_quiz_reveal_pr2.py`,
+  `test_e2e_quiz_reveal_pr3.py`, `test_e2e_quiz_choice_marking.py` and
+  `test_e2e_choice_inline_feedback.py` are affected. They click the visible card or `.gridbtn` instead, and
   `force=True` is not allowed in any test that proves clickability.
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py` use a four-column grid as
   their over-wide seed, and the first also reads `thead th`. Ordinary grids no longer overflow, so these are
@@ -332,6 +343,9 @@ New or updated coverage:
     amber card and unpicking a red card are asserted.
   - In a painted live grid, changing a pick gives the new button Picked colours, not danger.
   - A wide unbreakable formula in a grid statement at desktop width stays left of the first button.
+    At 360px such a statement has wrapper `scrollWidth <= clientWidth`, `.grid-stmt-text`
+    `scrollWidth > clientWidth`, every `.gridbtn` right edge inside the wrapper, and a painted row's
+    `.grid-verdict` in view.
   - `.grid-answers` stays transparent with a pick. The marker sits above any feedback, in the
     option's first line.
   - With `forced_colors="active"`, picked and unpicked cards and buttons differ, and the marker
@@ -347,8 +361,8 @@ New or updated coverage:
     content and marker inside the card, with no page overflow. An option holding a normal inline
     formula has `scrollHeight <= clientHeight` on its text element.
   - Dark theme and a custom brand colour resolve from tokens.
-  - Print emulation keeps the outlines and picked tints, and an option with a wide formula prints
-    no scrollbar.
+  - Print emulation keeps the outlines and picked tints, and an option, a feedback and a grid
+    statement each holding a wide formula print no scrollbar.
 
 CSS assertions need an A/B (the property differs with and without the rule). Mutation-check
 the new guards.
