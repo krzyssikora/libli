@@ -133,7 +133,7 @@ unconditionally.
   card, not centred, so feedback below cannot move it), with `pointer-events: none`, so the whole
   row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
-  left indent, with `padding: 4px 14px 9px`. It has `overflow-wrap: anywhere; overflow-x: auto;
+  left indent, with `margin: 0; padding: 4px 14px 9px`. It has `overflow-wrap: anywhere; overflow-x: auto;
   overflow-y: hidden`, since feedback can hold KaTeX; its own padding replaces `padding-block`.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
   An inline formula can still break between its top-level terms; only an unbreakable run needs
@@ -180,20 +180,21 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
 - The table is `table-layout: fixed`. Under auto layout, a wide formula in a statement widens the
   whole table (measured in Chromium and Firefox), so the statement never scrolls and the buttons
   leave the phone screen.
-- `tbody tr` is `display: flex; flex-wrap: wrap`, the statement cell is
+- `tbody tr` is `display: flex; flex-wrap: wrap; align-items: flex-end` (as in the mockup: on a
+  shared line the buttons and the statement's rule sit at the bottom), the statement cell is
   `flex: 1 1 min(100%, 16rem); min-width: 0` with a 1px `--border-strong` bottom rule, and
-  `.grid-answers-cell` is `flex: 0 1 auto; max-width: 100%`. Inside it `.grid-answers` is
+  `.grid-answers-cell` is `flex: 0 1 auto; max-width: 100%; padding: 0`. Inside it `.grid-answers` is
   `display: flex; flex-wrap: wrap; padding: 3px 4px`. Rows have no padding of their own, so the
   distance between buttons in adjacent rows is 3 + 3 = the mockup's `6px`. The focus ring reaches
   4px out, so the two scroll wrappers get `padding-block: 1px` to keep the first and last rows'
   rings unclipped. This needs no breakpoint and also works in a narrow container: when a
   statement and all its buttons do not fit on one line, the whole button block drops below the
   statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
-  the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
-  they do fit, as with very short labels, they share the line.
-- Phone rhythm, for spacing only (the wrap decision stays in the flex rules): at
-  `@media (max-width: 640px)` the 1px rule moves from the statement to the bottom of the row, and
-  rows get `padding-block: 6px`. Statement text to its own buttons is then 4 + 3 = 7px, and the
+  the same flex basis, `min-width` and button widths, so all rows make the same decision. Above
+  phone width, where they do fit, they share the line.
+- Phones: at `@media (max-width: 640px)` the statement is `flex-basis: 100%`, so it is always
+  above its buttons (D12), even with very short labels such as P / F. The 1px rule moves from the
+  statement to the bottom of the row, and rows get `padding-block: 6px`. Statement text to its own buttons is then 4 + 3 = 7px, and the
   previous row's buttons to the next statement's text is 3 + 6 + 1 + 6 + 4 = 20px, so it is clear
   which statement the buttons answer. A narrow column on a wide screen keeps the desktop spacing.
 - `.gridbtn` is `display: block; height: 100%; text-align: center` and its text wraps
@@ -202,12 +203,13 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
   scroll wrapper.
 - `.grid-answers label` is `margin: 0; cursor: pointer`, with `cursor: default` when its input is
   disabled.
-- The statement cell has `display: flex; gap: var(--space-2)` and no vertical padding, above its
+- The statement cell has `display: flex; gap: var(--space-2); padding: 0`, above its
   bottom rule, and keeps `color: var(--text-primary)`. Its text is wrapped in
   `<span class="grid-stmt-text">`, which is `flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere;
   overflow-x: auto; overflow-y: hidden; padding-block: 4px` (the three travel together, §3.3, and
   the padding gives the mockup's 4px), so a wide unbreakable formula scrolls inside the statement and cannot paint over the buttons.
-  The `.grid-verdict` glyph follows it directly. The `.choicegrid-scroll` and
+  The `.grid-verdict` glyph follows it directly, with the same `padding-block: 4px` so it lines
+  up with the first line. The `.choicegrid-scroll` and
   `.multigrid-scroll` wrappers get `overflow-y: hidden`, for the same KaTeX reason as §3.3.
 - For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
   print-only `min-width: 0` rule, the `td:has(input:checked)` cell tint, the `td label` hover
@@ -235,7 +237,9 @@ stem in `choicequestion.html` (when `el.multiple`) and always in
 copy does not repeat it. It renders in every mode, matching mockup Y. That msgid already exists
 in the catalogue with exactly the D7 Polish text, so no `.po`/`.mo` change is needed.
 
-Style: `--text-secondary`, `14px`, `margin-bottom: var(--space-2)`. `.multigrid-scroll` has
+Style: `--text-secondary`, `14px`, `margin-bottom: var(--space-2)`. `.question__stem +
+.question__hint` has `margin-top: -8px`, leaving the mockup's 4px below the stem's 12px margin.
+`.multigrid-scroll` has
 `margin-top: 0`, so the hint sits as close to a grid as to option cards; `.answer-key
 .multigrid-scroll` keeps its `var(--space-4)`.
 
@@ -288,6 +292,9 @@ these visible consequences, and the answer is recorded here. D1–D12 stay as th
 - Grids never show amber, and in a wrong multi-answer grid row a correct pick shows red.
 - A picked option's text is not heavier than an unpicked one, as it was in mockup C, because a
   heavier label would misalign grid buttons.
+- On a wide screen, when long labels force the buttons below a statement, the statement's
+  underline sits between it and its own buttons, as the desktop style places it. Phones have a
+  rule between rows instead.
 
 ## 4. Data flow
 
@@ -319,7 +326,8 @@ wholesale. Each still has to assert something that fails on a broken build.
 Three groups of existing browser tests need more than a selector change:
 
 - Tests that call `.check()` on these inputs will time out, because Playwright refuses clipped
-  inputs. The plan derives the full list by searching `.check(` against these selectors; at least
+  inputs. The plan derives the full list by searching `check(` (which also matches `.uncheck(`),
+  `set_checked(`, and `.click(` or `.tap(` against these selectors; at least
   `test_e2e_questions.py`, `test_e2e_locked_controls_look.py`, `test_e2e_scroll_affordance.py`,
   `test_e2e_choicegrid.py`, `test_e2e_multigrid.py`, `test_e2e_nested_question.py`,
   `test_e2e_question_lock.py`, `test_e2e_practice_state.py`, `test_e2e_quiz_reveal_pr2.py`,
@@ -361,8 +369,9 @@ New or updated coverage:
   - Accessibility tree: each unpainted grid row exposes a group named exactly by its statement,
     and a painted row's group name contains it, with inputs named by column.
   - At desktop width, with statement and buttons side by side, adjacent rows' buttons are `6px`
-    apart. At 360px, stacked, the gap from a row's buttons to the next statement exceeds the gap
-    from a statement to its own buttons.
+    apart, and the statement's rule is within 4px of the button bottom. At 360px, stacked, the gap
+    from a row's buttons to the next statement exceeds the gap from a statement to its own buttons.
+    At 390px a grid with short P / F labels still has every button below its statement.
   - After Check, in quiz mode and in lesson mode, correct, wrong and missed cards have the §3.1
     colours and marks; a locked card does not respond to clicks. The matrix cells for picking an
     amber card and unpicking a red card are asserted.
