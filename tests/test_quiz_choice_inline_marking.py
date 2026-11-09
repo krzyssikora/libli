@@ -192,8 +192,8 @@ def test_multi_select_flags_each_option_by_its_own_outcome(client):
 
 
 @pytest.mark.django_db
-def test_lesson_correct_answer_does_not_gain_a_tick(client):
-    """Lessons keep the author-feedback-driven marking designed in #132."""
+def test_lesson_correct_answer_gains_a_tick(client):
+    """A fully correct lesson pick is ticked: it leaks nothing (spec 3.7)."""
     user = make_login(client, "stu")
     unit = ContentNodeFactory(kind="unit", unit_type="lesson")
     EnrollmentFactory(student=user, course=unit.course)
@@ -207,5 +207,40 @@ def test_lesson_correct_answer_does_not_gain_a_tick(client):
         url, {"choice": str(right.pk)}, HTTP_X_REQUESTED_WITH="fetch"
     ).content.decode()
 
-    assert M_CORRECT not in html
+    assert M_CORRECT in html
     assert PICKED not in html
+
+
+def _q(multiple, *rows):
+    q = ChoiceQuestionElement.objects.create(stem="s", max_marks="1", multiple=multiple)
+    return q, [q.choices.create(text=t, is_correct=c, feedback=f) for t, c, f in rows]
+
+
+def _marks(q, picked):
+    return q.choice_marks(
+        list(q.choices.all()), set(picked), q.mark(set(picked)), "lesson", False
+    )
+
+
+@pytest.mark.django_db
+def test_lesson_fully_correct_marks_every_pick():
+    q, (a, b, c) = _q(True, ("a", True, ""), ("b", True, ""), ("c", False, ""))
+    marks = _marks(q, [a.pk, b.pk])
+    assert {k: v["kind"] for k, v in marks.items()} == {
+        a.pk: "correct",
+        b.pk: "correct",
+    }
+
+
+@pytest.mark.django_db
+def test_lesson_wrong_single_answer_marks_the_pick():
+    q, (a, b) = _q(False, ("a", True, ""), ("b", False, ""))
+    assert _marks(q, [b.pk])[b.pk]["kind"] == "wrong"
+    assert a.pk not in _marks(q, [b.pk])
+
+
+@pytest.mark.django_db
+def test_lesson_wrong_multi_answer_marks_only_annotated():
+    q, (a, b, c) = _q(True, ("a", True, ""), ("b", False, "no"), ("c", True, ""))
+    marks = _marks(q, [a.pk, b.pk])
+    assert {k: v["kind"] for k, v in marks.items()} == {b.pk: "wrong"}

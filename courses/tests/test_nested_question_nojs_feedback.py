@@ -446,6 +446,41 @@ def test_a_sibling_choice_question_renders_no_option_markers(scene, client):
     assert sibling_slice.count("question__choice-feedback") == 0
 
 
+@pytest.mark.parametrize(
+    ("pick_right", "marker"),
+    [
+        (True, "question__choice-marker--correct"),
+        (False, "question__choice-marker--wrong"),
+    ],
+)
+def test_a_real_pick_marks_only_the_checked_question(scene, client, pick_right, marker):
+    """Lesson marks for a pick (spec 3.7) stay inside the checked child's slice."""
+    _student, unit, _top, _build = scene
+    callout_row = add_element(unit, CalloutElement.objects.create(kind="example"))
+    checked_q = _choice()
+    checked_row = Element.objects.create(
+        unit=unit,
+        content_object=checked_q,
+        parent=callout_row,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    Element.objects.create(
+        unit=unit,
+        content_object=_choice(),
+        parent=callout_row,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    pick = checked_q.choices.get(is_correct=pick_right)
+
+    body = client.post(
+        _check_url(unit, checked_row.pk), {"choice": str(pick.pk)}
+    ).content.decode()
+    checked_slice = _child_slice(body, "callout__child", 0)
+    sibling_slice = _child_slice(body, "callout__child", 1)
+    assert marker in checked_slice
+    assert sibling_slice.count("question__choice-marker") == 0
+
+
 def test_a_quiz_page_with_a_nested_choice_child_still_renders(scene, client):
     """The quiz page gains a NEW forwarding path (spec section 4) and must stay inert.
 
