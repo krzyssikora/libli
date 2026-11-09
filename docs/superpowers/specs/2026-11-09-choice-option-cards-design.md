@@ -239,9 +239,11 @@ in the catalogue with exactly the D7 Polish text, so no `.po`/`.mo` change is ne
 
 Style: `--text-secondary`, `14px`, `margin-bottom: var(--space-2)`. `.question__stem +
 .question__hint` has `margin-top: -8px`, leaving the mockup's 4px below the stem's 12px margin.
+On the results page, where the stem's margin is 8px, `.quiz-results__item .question__stem +
+.question__hint` is `margin-top: -4px`, for the same 4px.
 `.multigrid-scroll` has
-`margin-top: 0`, so the hint sits as close to a grid as to option cards; `.answer-key
-.multigrid-scroll` keeps its `var(--space-4)`.
+`margin-top: 0`, so the hint sits as close to a grid as to option cards. This covers the key copy
+too, so the Your answer / Correct answer switch does not move on toggle.
 
 ### 3.6 Print (D10)
 
@@ -322,6 +324,13 @@ wholesale. Each still has to assert something that fails on a broken build.
 
 `tests/test_choicegrid_styles.py` pins the removed `td:has(input:checked)` selector and
 `accent-color`, so it moves to the new rules.
+
+Tests that pin the old lesson mark rule are rewritten, not deleted:
+`tests/test_quiz_choice_inline_marking.py::test_lesson_correct_answer_does_not_gain_a_tick` now
+asserts the new ✓ on a real pick. The plan searches for other tests asserting that lesson marks
+are absent, including the wrong single-answer case. The switch-position assertion in
+`tests/test_e2e_quiz_reveal_pr2.py` keeps covering the multi-grid: the switch must not move on
+toggle.
 
 Three groups of existing browser tests need more than a selector change:
 
