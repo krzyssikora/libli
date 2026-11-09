@@ -296,3 +296,28 @@ def test_someone_elses_note_does_not_bring_the_divider_handle_back(client):
     client.force_login(_enrolled_user(course))
 
     assert _note_handles_by_block(client, course, unit)[divider.pk] is False
+
+
+def test_the_divider_check_costs_no_content_type_query_per_block(client):
+    """The handle guard reads `content_type` on every block of the lesson page."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    me = _enrolled_user(course)
+    client.force_login(me)
+
+    def content_type_queries(blocks):
+        unit = _lesson(course)
+        for n in range(blocks):
+            add_element(unit, TextElement.objects.create(body=f"<p>{n}</p>"))
+        with CaptureQueriesContext(connection) as ctx:
+            client.get(f"/courses/{course.slug}/u/{unit.pk}/")
+        return sum('FROM "django_content_type"' in q["sql"] for q in ctx)
+
+    content_type_queries(1)  # warm the ContentType cache: a cold first run skews
+    few = content_type_queries(2)
+    assert content_type_queries(6) <= few
