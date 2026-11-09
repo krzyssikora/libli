@@ -134,7 +134,8 @@ unconditionally.
   row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
   left indent, with `margin: 0; padding: 4px 14px 9px`. It has `overflow-wrap: anywhere; overflow-x: auto;
-  overflow-y: hidden`, since feedback can hold KaTeX; its own padding replaces `padding-block`.
+  overflow-y: hidden`, since feedback can hold KaTeX; its own padding replaces `padding-block`. It is outside the
+  label, so only the label row toggles the input.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
   An inline formula can still break between its top-level terms; only an unbreakable run needs
   to scroll. Such wide maths, inline or display, scrolls inside this
@@ -173,7 +174,8 @@ Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
   suffixes ids and `aria-labelledby` inside the copy.
 - A painted row's statement gains a visible `<span class="grid-verdict" aria-hidden="true">` ✓ or
   ✗ after its text (D8), next to the existing `sr_verdict` text, outside the statement's scroller
-  (below) so it cannot scroll out of view. No glyph on an unpainted row.
+  (below) so it cannot scroll out of view. It is weight 600, `--success` in `tr.is-correct` and
+  `--danger` in `tr.is-incorrect`, matching the option marker. No glyph on an unpainted row.
 
 CSS (shared rule set for `.choicegrid` and `.multigrid`):
 
@@ -332,7 +334,7 @@ are absent, including the wrong single-answer case. The switch-position assertio
 `tests/test_e2e_quiz_reveal_pr2.py` keeps covering the multi-grid: the switch must not move on
 toggle.
 
-Three groups of existing browser tests need more than a selector change:
+Four groups of existing browser tests need more than a selector change:
 
 - Tests that call `.check()` on these inputs will time out, because Playwright refuses clipped
   inputs. The plan derives the full list by searching `check(` (which also matches `.uncheck(`),
@@ -341,7 +343,8 @@ Three groups of existing browser tests need more than a selector change:
   `test_e2e_choicegrid.py`, `test_e2e_multigrid.py`, `test_e2e_nested_question.py`,
   `test_e2e_question_lock.py`, `test_e2e_practice_state.py`, `test_e2e_quiz_reveal_pr2.py`,
   `test_e2e_quiz_reveal_pr3.py`, `test_e2e_quiz_choice_marking.py` and
-  `test_e2e_choice_inline_feedback.py` are affected. They click the visible card or `.gridbtn` instead, and
+  `test_e2e_choice_inline_feedback.py` are affected. They click the option's `label` or `.question__choice-text`, or the `.gridbtn`, never the `li`
+  (a click at the centre of a tall card can land on feedback, which selects nothing), and
   `force=True` is not allowed in any test that proves clickability.
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py` use a four-column grid as
   their over-wide seed, and the first also reads `thead th`. Ordinary grids no longer overflow, so these are
@@ -349,6 +352,11 @@ Three groups of existing browser tests need more than a selector change:
   such as `{a+b+…}` (`overflow-wrap: anywhere` breaks plain text, and KaTeX can break between
   top-level terms), and wait for KaTeX before measuring, keeping the proof that the §5 fallback
   scroller and its edge shading still work, and repointed to a button.
+- `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out` reads per-column cells
+  and asserts a background ratio that the plain tint cannot reach. It becomes: in dark theme, a
+  locked picked `.gridbtn` differs from an unpicked one by `--primary` border colour plus inset
+  `box-shadow`, with border-to-surface contrast measured. It must still fail if the picked rule is
+  removed. The 1.5 background-ratio bar goes, because the outline now carries the pick.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width` asserts the grid overflows on
   screen first, which is no longer true. It becomes: at print width every `.gridbtn` ends inside
   the scroll box and the statement wraps, with a precondition that fails if the flex or wrap rules
