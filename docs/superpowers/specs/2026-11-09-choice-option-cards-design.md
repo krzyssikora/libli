@@ -87,7 +87,9 @@ Windows high-contrast mode drops `box-shadow` and repaints borders and fills, wh
 a Picked card look unpicked now that the native control is hidden. Under
 `@media (forced-colors: active)`, picked option cards and picked `.gridbtn` use
 `forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight`.
-This applies only in that mode, so D1 and D2 are unaffected.
+"Picked" here includes checked cards with a verdict class. Because `forced-color-adjust`
+inherits, the marker and feedback inside such a card also get `color: HighlightText`. This
+applies only in that mode, so D1 and D2 are unaffected.
 
 ### 3.2 Hiding the inputs
 
@@ -114,9 +116,9 @@ inputs inside the outlined cards rather than losing the selection indicator.
   §3.2 fallback the visible native input sits beside the text.
 - Every card reserves `padding-inline-end: 2.25rem` on the label, marked or not, so text does
   not reflow on Check. The marker is positioned over that padding at the row's right edge (D8),
-  aligned with the first line of the option text (a fixed `top` of `9px` from the card, not
-  centred, so feedback below cannot move it), with `pointer-events: none`, so the whole row
-  stays the tap target.
+  aligned with the first line of the option text (`top: 9px; inset-inline-end: 14px` from the
+  card, not centred, so feedback below cannot move it), with `pointer-events: none`, so the whole
+  row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
   left indent, inset `0 14px 9px`.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`;
@@ -164,8 +166,13 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
   statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
   the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
   they do fit, as with very short labels, they share the line.
-- `.gridbtn` text wraps (`max-width: 100%`, `overflow-wrap: anywhere`), so a sentence-length
-  column label wraps; only unbreakable content can reach the scroll wrapper.
+- `.gridbtn` is `display: block` and its text wraps (`max-width: 100%`, `overflow-wrap: anywhere`),
+  so a sentence-length column label wraps as one outlined button; only unbreakable content can
+  reach the scroll wrapper.
+- `.grid-answers label` is `margin: 0; cursor: pointer`, with `cursor: default` when its input is
+  disabled.
+- The statement cell has `padding: 4px 0` above its bottom rule. The `.choicegrid-scroll` and
+  `.multigrid-scroll` wrappers get `overflow-y: hidden`, for the same KaTeX reason as §3.3.
 - For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
   print-only `min-width: 0` rule, the `td:has(input:checked)` cell tint, the `td label` hover
   background, and the old `th`/`td` padding, centring, `td.*__stmt` `min-width: 10rem`, `td label`
@@ -228,6 +235,18 @@ The rest are consequences of leaving the other rules alone, stated so they are n
    answers reuse these templates, so they get the cards too. Their surrounding controls do not
    change (D11).
 
+### 3.8 To confirm with the owner before implementation
+
+D4 has no lesson or grid exception and D5 applies "this look" to both grid types, but the rules
+above narrow D4 and add one logic change that is not in the table. The owner is asked to confirm
+these visible consequences, and the answer is recorded here. D1–D12 stay as they are.
+
+- In a lesson, a fully correct answer turns green with ✓, and a wrong single-answer pick turns
+  red with ✗. This is new behaviour, reversing the current lesson rule.
+- In a lesson, a wrong multi-answer pick stays teal, and only options with author feedback change
+  colour. A missed correct option goes amber only if the author wrote feedback for it.
+- Grids never show amber, and in a wrong multi-answer grid row a correct pick shows red.
+
 ## 4. Data flow
 
 Unchanged, apart from the lesson branch of `choice_marks` (§3.7). The same fields post,
@@ -261,15 +280,16 @@ Three groups of existing browser tests need more than a selector change:
   Playwright refuses clipped inputs. They click the visible card or `.gridbtn` instead, and
   `force=True` is not allowed in any test that proves clickability.
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py` use a four-column grid as
-  their over-wide seed and read `thead th`. Ordinary grids no longer overflow, so these are
+  their over-wide seed, and the first also reads `thead th`. Ordinary grids no longer overflow, so these are
   re-seeded with a long KaTeX formula as a column label (`overflow-wrap: anywhere` would break
   plain text), and wait for KaTeX before measuring, keeping the proof that the §5 fallback
   scroller and its edge shading still work, and repointed to a button.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width` asserts the grid overflows on
   screen first, which is no longer true. It becomes: at print width every `.gridbtn` ends inside
   the scroll box and the statement wraps, with a precondition that fails if the flex or wrap rules
-  are removed. Its print shade check is dropped, because the wide-content tests above keep that
-  proof.
+  are removed. Its print shade assertion is the only print guard of that rule, so it moves onto
+  the re-seeded over-wide grid: wait for `.scroll-x.is-scroll-end`, emulate print, and assert
+  `::after` is `display: none`.
 
 New or updated coverage:
 
@@ -297,10 +317,14 @@ New or updated coverage:
   - In a painted live grid, changing a pick gives the new button Picked colours, not danger.
   - `.grid-answers` stays transparent with a pick. The marker sits above any feedback, in the
     option's first line.
-  - With `forced_colors="active"`, picked and unpicked cards and buttons differ.
+  - With `forced_colors="active"`, picked and unpicked cards and buttons differ, and the marker
+    in a picked verdict card computes to the HighlightText value.
   - With fixture labels long enough not to fit beside a statement, at 360px and at a width where
     the statement plus one button fits but the statement plus all buttons does not, every button
-    is below the statement and the page has no horizontal overflow. At desktop width statement and
+    is below the statement, the page has no horizontal overflow, `.choicegrid-scroll` and
+    `.multigrid-scroll` have `scrollWidth - clientWidth <= 0`, and every `.gridbtn` right edge is
+    inside that box. A grid whose last-row statement holds a fraction has
+    `scrollHeight <= clientHeight` on the wrapper. At desktop width statement and
     buttons share a line. A sentence-length column label at 360px wraps.
   - At 360px, an option holding a wide inline formula and one holding display maths keep their
     content and marker inside the card, with no page overflow. An option holding a normal inline
