@@ -119,7 +119,7 @@ Remove the `c.pk in selected` guard and confirm the sibling test goes RED; remov
 
 - [ ] **Step 1: Update and add the render tests**
 
-Replace assertions on `question__choice--picked` and `question__choices--marked` with what still proves the behaviour: the pick is rendered `checked` and carries its verdict class. For example `tests/test_quiz_reveal_pr3_choice.py:449` becomes `assert row.count(" checked") == 2`, its test is renamed `test_results_nr_choice_rows_keep_picks_without_verdicts`, and `PICKED` in `tests/test_quiz_choice_inline_marking.py` is replaced by per-kind class constants. Add:
+Replace assertions on `question__choice--picked` and `question__choices--marked` with what still proves the behaviour: the pick is rendered `checked` and carries its verdict class. For example `tests/test_quiz_reveal_pr3_choice.py:449` becomes `assert row.count(" checked") == 2`, its test is renamed `test_results_nr_choice_rows_keep_picks_without_verdicts`, and `PICKED` in `tests/test_quiz_choice_inline_marking.py` is replaced by per-kind class constants. Line 134's `assert PICKED not in html` becomes positive: the pick carries its verdict class and no `--missed` appears on any option. That module's docstring is rewritten, because "the pick is tinted" and "lesson mode is untouched" are no longer true. Add:
 
 ```python
 assert "question__choice--picked" not in body
@@ -181,7 +181,7 @@ Commit the templates, `courses/models.py` and the tests with `feat(courses): ver
 - `test_wide_maths_stays_in_card_at_360`: wide unbreakable inline formula (`{a+b+…}`) and display maths; content and marker inside the card; `documentElement.scrollWidth <= innerWidth`. A normal inline formula has `scrollHeight <= clientHeight` on `.question__choice-text`.
 - `test_forced_colors_picked_differs`: `new_context(forced_colors="active")`; picked and unpicked differ; marker and `.question__choice-text` in a picked verdict card compute to the HighlightText value.
 - `test_dark_and_custom_brand_resolve_from_tokens`: in dark theme the picked border equals resolved `--primary`; with a custom brand set through `Institution.brand_colors` (precedent: `tests/test_e2e_settings_5c.py`), the picked card's border equals the literal custom colour.
-- `test_print_keeps_outlines_and_tints`: `emulate_media(media="print")`; border and tint remain; option and feedback with a wide formula compute `overflow-x: visible`.
+- `test_print_keeps_outlines_and_tints`: `emulate_media(media="print")`; border and tint remain; a picked and a verdict card compute `webkitPrintColorAdjust === "exact"` (the tint assertion alone cannot fail, because emulation does not apply print economy); cards compute `breakInside === "avoid"`; option and feedback with a wide formula compute `overflow-x: visible`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
@@ -203,7 +203,7 @@ Expected: all pass. `tests/test_e2e_quiz_reveal_pr2.py` grid cases still drive v
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr)` track and the forced-colors label colour, one at a time; each must turn a named test RED. Restore by hand. Commit with `feat(courses): choice options as outlined cards`.
+A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr)` track, the forced-colors label colour and `print-color-adjust`, one at a time; each must turn a named test RED. Restore by hand. Commit with `feat(courses): choice options as outlined cards`.
 
 ---
 
@@ -299,10 +299,10 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 - `test_long_label_wraps_at_360`.
 - `test_wide_statement_formula`: desktop, formula left of the first button; 360px, wrapper not scrolling, `.grid-stmt-text` scrolling, buttons inside, `.grid-verdict` in view.
 - `test_fraction_statement_no_vertical_scroll`: wrapper and `.grid-stmt-text` `scrollHeight <= clientHeight`; A/B via an injected `padding-block: 0` that makes the text element fail.
-- `test_click_on_formula_label_selects` (Review Focus 2): click `.gridbtn .katex`.
+- `test_click_on_formula_label_selects` (Review Focus 2): `page.mouse.click` at the centre of `.gridbtn .katex`, then assert the input `is_checked`.
 - `test_grid_in_two_columns_does_not_overflow` (Review Focus 3): grid nested in a `twocolumn` element at 1280px, with labels whose single-line width exceeds the column (such as the five-label set in `tests/test_e2e_uniform_block_width.py`); `.grid-answers` right edge inside its column.
 - `test_forced_colors_painted_button`: a plain picked button differs from an unpicked one, and a verdict-painted button has Highlight background and HighlightText colour.
-- `test_print_grid`: outlines and tints remain; `.grid-stmt-text` computes `overflow-x: visible`.
+- `test_print_grid`: outlines and tints remain; a picked `.gridbtn` computes `webkitPrintColorAdjust === "exact"`; rows compute `breakInside === "avoid"`; `.grid-stmt-text` computes `overflow-x: visible`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
@@ -329,7 +329,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; delete the `tr.is-correct … .gridbtn` rule (`test_dark_locked_grid_pick_stands_out`); remove `flex-wrap: wrap` from `.grid-answers` (`test_grid_in_two_columns_does_not_overflow`); add `pointer-events: none` on `.gridbtn` (`test_click_on_formula_label_selects`); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
+A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; delete the `tr.is-correct … .gridbtn` rule (`test_dark_locked_grid_pick_stands_out`); remove `flex-wrap: wrap` from `.grid-answers` (`test_grid_in_two_columns_does_not_overflow`); add `pointer-events: none` on `.grid-answers label` (`test_click_on_formula_label_selects`); remove `print-color-adjust` (`test_print_grid`); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
 
 ---
 
