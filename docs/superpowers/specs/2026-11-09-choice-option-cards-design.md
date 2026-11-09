@@ -46,7 +46,7 @@ does not depend on those files.
 |---|---|---|---|
 | Unpicked | 1px solid `--border-strong`, radius `--radius-sm` | none | `--text-primary` (choice); `--text-secondary` (grid button) |
 | Hover (live inputs only) | 1px `--primary` | none | unchanged |
-| Keyboard focus | 2px `--primary` outline, 2px offset, from `:has(input:focus-visible)` | unchanged | unchanged |
+| Keyboard focus | 2px `--primary` outline, 2px offset, from `:has(input:focus-visible)` on option cards and `input:focus-visible + .gridbtn` on grid buttons | unchanged | unchanged |
 | Picked | 1px `--primary` plus 1px inset `box-shadow` in `--primary` | `--primary-subtle` | `--text-primary` |
 | Correct pick | as Picked, in `--success` | `--success-subtle` | `--text-primary` |
 | Wrong pick | as Picked, in `--danger` | `--danger-subtle` | `--text-primary` |
@@ -138,8 +138,9 @@ unconditionally.
   label, so only the label row toggles the input.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
   An inline formula can still break between its top-level terms; only an unbreakable run needs
-  to scroll. Such wide maths, inline or display, scrolls inside this
-  element with `overflow-x: auto; overflow-y: hidden; padding-block: 4px`. Those three travel
+  to scroll. Such wide inline maths scrolls inside this element (display maths
+  scrolls in its existing `.katex-display` scroller, whose padding adds about 8px to that card's
+  height) with `overflow-x: auto; overflow-y: hidden; padding-block: 4px`. Those three travel
   together, as the repo's existing maths scrollers record, because `overflow-x` alone makes
   `overflow-y` compute to `auto` and KaTeX overhang then produces a vertical scrollbar. The
   label's vertical padding is `5px`, so the total stays the mockup's `9px`. The marker sits
@@ -245,7 +246,8 @@ On the results page, where the stem's margin is 8px, `.quiz-results__item .quest
 .question__hint` is `margin-top: -4px`, for the same 4px.
 `.multigrid-scroll` has
 `margin-top: 0`, so the hint sits as close to a grid as to option cards. This covers the key copy
-too, so the Your answer / Correct answer switch does not move on toggle.
+too, so the Your answer / Correct answer switch does not move on toggle, apart from a rare
+one-line shift when the key copy's ✓ pushes a statement on an unanswered row onto another line.
 
 ### 3.6 Print (D10)
 
@@ -355,7 +357,8 @@ Four groups of existing browser tests need more than a selector change:
 - `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out` reads per-column cells
   and asserts a background ratio that the plain tint cannot reach. It becomes: in dark theme, a
   locked picked `.gridbtn` differs from an unpicked one by `--primary` border colour plus inset
-  `box-shadow`, with border-to-surface contrast measured. It must still fail if the picked rule is
+  `box-shadow`, with border-to-surface contrast of at least 3:1 for the fixture's default brand
+  colour. It must still fail if the picked rule is
   removed. The 1.5 background-ratio bar goes, because the outline now carries the pick.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width` asserts the grid overflows on
   screen first, which is no longer true. It becomes: at print width every `.gridbtn` ends inside
