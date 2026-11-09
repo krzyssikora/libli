@@ -285,11 +285,12 @@ The rest are consequences of leaving the other rules alone, stated so they are n
    answers reuse these templates, so they get the cards too. Their surrounding controls do not
    change (D11).
 
-### 3.8 To confirm with the owner before implementation
+### 3.8 Confirmed by the owner (2026-11-09)
 
 D4 has no lesson or grid exception and D5 applies "this look" to both grid types, but the rules
-above narrow D4 and add one logic change that is not in the table. The owner is asked to confirm
-these visible consequences, and the answer is recorded here. D1–D12 stay as they are.
+above narrow D4 and add one logic change that is not in the table. The owner confirmed these
+visible consequences ("Yes, they are ok, go ahead with the plan"), and they are protected like
+D1–D12. D1–D12 stay as they are.
 
 - In a lesson, a fully correct answer turns green with ✓, and a wrong single-answer pick turns
   red with ✗. This is new behaviour, reversing the current lesson rule.
