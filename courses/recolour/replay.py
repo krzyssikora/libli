@@ -18,7 +18,9 @@ from courses.recolour.colouriser import colourise
 from courses.recolour.colouriser import strip_spans
 from courses.sanitize import LEGACY_ALLOWED_ATTRIBUTES
 from courses.sanitize import LEGACY_ALLOWED_CLASSES
+from courses.sanitize import LEGACY_ALLOWED_TAGS
 from courses.sanitize import LEGACY_CELL_ALLOWED_CLASSES
+from courses.sanitize import LEGACY_CELL_TAGS
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.switchgrid import sanitize_stem_segments
@@ -43,8 +45,13 @@ _legacy_html = partial(
     sanitize_html,
     allowed_classes=LEGACY_ALLOWED_CLASSES,
     attributes=LEGACY_ALLOWED_ATTRIBUTES,
+    tags=LEGACY_ALLOWED_TAGS,
 )
-_legacy_cell = partial(sanitize_cell, allowed_classes=LEGACY_CELL_ALLOWED_CLASSES)
+_legacy_cell = partial(
+    sanitize_cell,
+    allowed_classes=LEGACY_CELL_ALLOWED_CLASSES,
+    tags=LEGACY_CELL_TAGS,
+)
 
 
 def _legacy_stem(value):
@@ -79,7 +86,7 @@ def current_replay(value, shape):
 def key_for(raw, shape):
     """The exact string the loader stored for this source value."""
     stripped = strip_spans(raw)
-    # The legacy replay uses the LIVE tag sets, which now contain `span`. That is
+    # The legacy tag sets are the post-slice-1 ones, which contain `span`. That is
     # only inert because strip_spans has removed every one. A survivor would add a
     # <span class=""> the DB does not have and zero the key with no diagnostic.
     assert "<span" not in stripped, f"strip_spans left a span tag: {stripped[:120]!r}"

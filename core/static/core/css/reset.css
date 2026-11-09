@@ -37,3 +37,8 @@ a { color: var(--accent); text-underline-offset: 2px; }
    zero-width positioned wrapper, collapsing the arrow to 0px: \vec{AB} rendered
    exactly like AB. KaTeX sizes its own SVGs; never cap them. */
 .katex svg { max-width: none; }
+/* line-height: 0 stops the raised or lowered box from pushing its line away
+   from its neighbours. Deliberately not the usual position: relative recipe:
+   the mat-pp course theme has `sup { top: -1.5em !important }`, which is inert
+   only while sup stays statically positioned. */
+sup, sub { font-size: .75em; line-height: 0; }

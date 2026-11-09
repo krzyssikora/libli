@@ -89,6 +89,8 @@
       case "italic": styleWithCss(false); exec("italic"); break;
       case "underline": styleWithCss(false); exec("underline"); break;
       case "strikethrough": styleWithCss(false); exec("strikeThrough"); break;
+      case "superscript": styleWithCss(false); exec("superscript"); break;
+      case "subscript": styleWithCss(false); exec("subscript"); break;
       case "alignleft": case "aligncenter": case "alignright": {
         var JUSTIFY = { alignleft: "justifyLeft", aligncenter: "justifyCenter", alignright: "justifyRight" };
         styleWithCss(true);   // force inline text-align (not FF's align attr)
@@ -244,12 +246,17 @@
         e.preventDefault();
         applyCmd(btn.getAttribute("data-cmd"), surface);
         sync();
+        // Firefox fires no selectionchange when a format swaps over an unmoved selection.
+        refreshActive();
       });
     }
 
     function refreshActive() {
       if (!toolbar) return;
-      var map = { bold: "bold", italic: "italic", underline: "underline", strikethrough: "strikeThrough" };
+      var map = {
+        bold: "bold", italic: "italic", underline: "underline", strikethrough: "strikeThrough",
+        superscript: "superscript", subscript: "subscript"
+      };
       toolbar.querySelectorAll("[data-cmd]").forEach(function (btn) {
         var cmd = btn.getAttribute("data-cmd");
         if (map[cmd]) {
