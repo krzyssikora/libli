@@ -357,8 +357,8 @@ Four groups of existing browser tests need more than a selector change:
   scroller and its edge shading still work, and repointed to a button.
 - `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out` reads per-column cells
   and asserts a background ratio that the plain tint cannot reach. It becomes: in dark theme, a
-  locked picked `.gridbtn` differs from an unpicked one by `--primary` border colour plus inset
-  `box-shadow`, with border-to-surface contrast of at least 3:1 for the fixture's default brand
+  locked picked `.gridbtn` in a correct row differs from an unpicked one by `--success` border
+  colour plus inset `box-shadow`, with border-to-surface contrast of at least 3:1 for the fixture's default brand
   colour. It must still fail if the picked rule is
   removed. The 1.5 background-ratio bar goes, because the outline now carries the pick.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width` asserts the grid overflows on
