@@ -234,3 +234,90 @@ def test_outline_shows_note_badge_with_count_and_notes_link(client):
         "badge--notes appears inside the unit <a> (nested anchors) — "
         "expected it after the unit link's </a>"
     )
+
+
+def _unit_with_divider(course):
+    """A lesson of paragraph, divider, paragraph; returns (unit, divider join)."""
+    from courses.models import DividerElement
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    unit = _lesson(course)
+    add_element(unit, TextElement.objects.create(body="<p>above</p>"))
+    divider = add_element(unit, DividerElement.objects.create())
+    add_element(unit, TextElement.objects.create(body="<p>below</p>"))
+    return unit, divider
+
+
+def _note_handles_by_block(client, course, unit):
+    """{block's element pk: does the block carry a note handle} for the lesson."""
+    from bs4 import BeautifulSoup
+
+    resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.content, "html.parser")
+    return {
+        int(block["data-element-id"]): block.select_one(".block-notes__handle")
+        is not None
+        for block in soup.select("section.lesson-block")
+    }
+
+
+def test_a_divider_offers_no_note_handle_but_its_neighbours_do(client):
+    """A bare <hr> has nothing to annotate, and its handle sat on the next block's."""
+    course = CourseFactory()
+    unit, divider = _unit_with_divider(course)
+    client.force_login(_enrolled_user(course))
+
+    handles = _note_handles_by_block(client, course, unit)
+
+    assert len(handles) == 3
+    assert handles.pop(divider.pk) is False
+    assert all(handles.values())
+
+
+def test_a_divider_keeps_its_handle_while_it_holds_your_note(client):
+    """Notes written before the handle was withdrawn must stay reachable in place."""
+    course = CourseFactory()
+    unit, divider = _unit_with_divider(course)
+    me = _enrolled_user(course)
+    services.create_note(me, unit, divider.pk, "NOTE ON A DIVIDER")
+    client.force_login(me)
+
+    assert _note_handles_by_block(client, course, unit)[divider.pk] is True
+    resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
+    assert b"NOTE ON A DIVIDER" in resp.content
+
+
+def test_someone_elses_note_does_not_bring_the_divider_handle_back(client):
+    course = CourseFactory()
+    unit, divider = _unit_with_divider(course)
+    services.create_note(_enrolled_user(course), unit, divider.pk, "THEIRS")
+    client.force_login(_enrolled_user(course))
+
+    assert _note_handles_by_block(client, course, unit)[divider.pk] is False
+
+
+def test_the_divider_check_costs_no_content_type_query_per_block(client):
+    """The handle guard reads `content_type` on every block of the lesson page."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    me = _enrolled_user(course)
+    client.force_login(me)
+
+    def content_type_queries(blocks):
+        unit = _lesson(course)
+        for n in range(blocks):
+            add_element(unit, TextElement.objects.create(body=f"<p>{n}</p>"))
+        with CaptureQueriesContext(connection) as ctx:
+            client.get(f"/courses/{course.slug}/u/{unit.pk}/")
+        return sum('FROM "django_content_type"' in q["sql"] for q in ctx)
+
+    content_type_queries(1)  # warm the ContentType cache: a cold first run skews
+    few = content_type_queries(2)
+    assert content_type_queries(6) <= few

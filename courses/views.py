@@ -399,7 +399,7 @@ def build_lesson_context(node, user):
     elements = list(
         node.elements.filter(parent__isnull=True)
         .order_by("order", "pk")
-        .select_related("unit__course")
+        .select_related("unit__course", "content_type")
         .prefetch_related("content_object")
     )
     questions = [
