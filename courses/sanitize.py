@@ -30,6 +30,9 @@ ALLOWED_TAGS = {
     "u",
     # Strikethrough. The toolbar renames execCommand's <strike> to <s> before save.
     "s",
+    # Units and exponents in prose (m2, H2O); no attributes, like the rest.
+    "sup",
+    "sub",
     "h2",
     "h3",
     "h4",
@@ -92,6 +95,33 @@ LEGACY_ALLOWED_CLASSES = {
 # oversight.
 LEGACY_CELL_ALLOWED_CLASSES = {}
 
+# The tag sets as they stood when the LAL source was imported, frozen for the
+# same reason. That source carries real <sup> (`5cm<sup>3</sup>`), which the
+# loader stripped; a key replayed with sup allowed could never match the row.
+LEGACY_ALLOWED_TAGS = {
+    "p",
+    "br",
+    "div",
+    "span",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "u",
+    "s",
+    "h2",
+    "h3",
+    "h4",
+    "ul",
+    "ol",
+    "li",
+    "a",
+    "blockquote",
+    "code",
+    "pre",
+}
+LEGACY_CELL_TAGS = {"strong", "b", "em", "i", "u", "br", "span"}
+
 # Two independent families merged into one mapping. ALIGN_CLASS_TAGS and
 # TC_CLASS_TAGS are currently DISJOINT, so no tag needs a union -- but every entry
 # is a fresh set() regardless, because the previous comprehension bound one shared
@@ -101,18 +131,18 @@ ALLOWED_CLASSES = {tag: set(ALIGN_CLASS_VALUES) for tag in ALIGN_CLASS_TAGS}
 ALLOWED_CLASSES.update({tag: set(TC_CLASS_VALUES) for tag in TC_CLASS_TAGS})
 
 
-def sanitize_html(value, *, allowed_classes=None, attributes=None):
+def sanitize_html(value, *, allowed_classes=None, attributes=None, tags=None):
     """Strip everything outside the safe subset. Idempotent on already-clean input.
 
-    `allowed_classes` and `attributes` are keyword-only and default to the live
-    allowlists. The one caller that passes them is slice 2's backfill, which
+    `allowed_classes`, `attributes` and `tags` are keyword-only and default to the
+    live allowlists. The one caller that passes them is slice 2's backfill, which
     replays this sanitiser AS IT BEHAVED BEFORE the colour classes existed in order
     to reconstruct the keys the loader actually stored (see LEGACY_ALLOWED_CLASSES
     and LEGACY_ALLOWED_ATTRIBUTES above).
     """
     return nh3.clean(
         value or "",
-        tags=ALLOWED_TAGS,
+        tags=ALLOWED_TAGS if tags is None else tags,
         attributes=ALLOWED_ATTRIBUTES if attributes is None else attributes,
         attribute_filter=_attribute_filter,
         allowed_classes=ALLOWED_CLASSES if allowed_classes is None else allowed_classes,
@@ -230,7 +260,7 @@ def tidy_structure(clean):
 
 # Cells allow only inline emphasis + line break + the colour carrier. Includes b/i
 # (not just strong/em) because document.execCommand("bold"/"italic") emits <b>/<i>.
-CELL_TAGS = {"strong", "b", "em", "i", "u", "br", "span"}
+CELL_TAGS = {"strong", "b", "em", "i", "u", "br", "span", "sup", "sub"}
 
 # Only cell tags that may carry colour -- br is in CELL_TAGS but not TC_CLASS_TAGS,
 # and the block-tag alignment family has no business in a cell.

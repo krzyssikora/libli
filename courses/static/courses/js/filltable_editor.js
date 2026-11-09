@@ -19,7 +19,7 @@
   // colour slots whose active state comes from the caret's ancestor class. The
   // data-cmd value and the execCommand name are deliberately the same string
   // here (unlike the align buttons), so one list serves both.
-  var INLINE_CMDS = ["bold", "italic", "underline"];
+  var INLINE_CMDS = ["bold", "italic", "underline", "superscript", "subscript"];
   var COLOUR_SLOTS = ["red", "blue", "green", "orange"];
   var CELL_IMAGE_DEFAULT = "full";
   var CELL_IMAGE_INSERT = "medium";
@@ -869,8 +869,8 @@
             refreshInlineButtons();
             return;
           }
-          if (cmd === "bold" || cmd === "italic" || cmd === "underline") {
-            // styleWithCSS=false forces execCommand to emit <b>/<i>/<u> tags
+          if (INLINE_CMDS.indexOf(cmd) !== -1) {
+            // styleWithCSS=false forces execCommand to emit <b>/<i>/<u>/<sup>/<sub>
             // rather than inline style="" attributes (CELL_TAGS has no
             // attribute allowlist, so a style attribute would be dropped).
             document.execCommand("styleWithCSS", false, false);

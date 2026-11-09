@@ -65,12 +65,12 @@ def _patch_loader_to_legacy(monkeypatch):
 
     from courses import models as courses_models
     from courses import sanitize as courses_sanitize
-    from courses.sanitize import ALLOWED_TAGS
     from courses.sanitize import ALLOWED_URL_SCHEMES
-    from courses.sanitize import CELL_TAGS
     from courses.sanitize import LEGACY_ALLOWED_ATTRIBUTES
     from courses.sanitize import LEGACY_ALLOWED_CLASSES
+    from courses.sanitize import LEGACY_ALLOWED_TAGS
     from courses.sanitize import LEGACY_CELL_ALLOWED_CLASSES
+    from courses.sanitize import LEGACY_CELL_TAGS
     from courses.sanitize import sanitize_cell
 
     # The legacy CLASS allowlists are not sufficient on their own, and this is the
@@ -83,8 +83,8 @@ def _patch_loader_to_legacy(monkeypatch):
     # The production key generator does NOT need this: `key_for` runs `strip_spans`
     # first, so no span ever reaches the sanitiser and the live tag sets are inert
     # there -- which is exactly what its `assert "<span" not in stripped` pins down.
-    legacy_tags = ALLOWED_TAGS - {"span"}
-    legacy_cell_tags = CELL_TAGS - {"span"}
+    legacy_tags = LEGACY_ALLOWED_TAGS - {"span"}
+    legacy_cell_tags = LEGACY_CELL_TAGS - {"span"}
 
     def legacy_html(value, *_a, **_kw):
         return nh3.clean(
