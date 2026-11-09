@@ -133,8 +133,8 @@ unconditionally.
   card, not centred, so feedback below cannot move it), with `pointer-events: none`, so the whole
   row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
-  left indent, with `padding: 4px 14px 9px`. It has `overflow-wrap: anywhere` and the same maths scroller
-  rules as the option text below, since feedback can hold KaTeX.
+  left indent, with `padding: 4px 14px 9px`. It has `overflow-wrap: anywhere; overflow-x: auto;
+  overflow-y: hidden`, since feedback can hold KaTeX; its own padding replaces `padding-block`.
 - `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
   An inline formula can still break between its top-level terms; only an unbreakable run needs
   to scroll. Such wide maths, inline or display, scrolls inside this
@@ -142,7 +142,9 @@ unconditionally.
   together, as the repo's existing maths scrollers record, because `overflow-x` alone makes
   `overflow-y` compute to `auto` and KaTeX overhang then produces a vertical scrollbar. The
   label's vertical padding is `5px`, so the total stays the mockup's `9px`. The marker sits
-  outside the scroller, so it stays visible in the card.
+  outside the scroller, so it stays visible in the card. `.katex-display` inside this element,
+  `.question__choice-feedback` and `.grid-stmt-text` is `margin-block: 0`, because a scroller
+  stops KaTeX's `1em` margins collapsing away.
 - `.question__choices--marked`, `marked_layout`, `question__choice--picked`, `show_picks` and
   the `.question__choice input:disabled` drawing block are removed (D9), with their context
   keys and comments in `ChoiceQuestionElement.render` and the header comment of
@@ -189,6 +191,11 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
   statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
   the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
   they do fit, as with very short labels, they share the line.
+- Phone rhythm, for spacing only (the wrap decision stays in the flex rules): at
+  `@media (max-width: 640px)` the 1px rule moves from the statement to the bottom of the row, and
+  rows get `padding-block: 6px`. Statement text to its own buttons is then 4 + 3 = 7px, and the
+  previous row's buttons to the next statement's text is 3 + 6 + 1 + 6 + 4 = 20px, so it is clear
+  which statement the buttons answer. A narrow column on a wide screen keeps the desktop spacing.
 - `.gridbtn` is `display: block; height: 100%; text-align: center` and its text wraps
   (`max-width: 100%`, `overflow-wrap: anywhere`), so a sentence-length column label wraps as one
   outlined button, and neighbouring outlines stay level; only unbreakable content can reach the
@@ -228,7 +235,9 @@ stem in `choicequestion.html` (when `el.multiple`) and always in
 copy does not repeat it. It renders in every mode, matching mockup Y. That msgid already exists
 in the catalogue with exactly the D7 Polish text, so no `.po`/`.mo` change is needed.
 
-Style: `--text-secondary`, `14px`, `margin-bottom: var(--space-2)`.
+Style: `--text-secondary`, `14px`, `margin-bottom: var(--space-2)`. `.multigrid-scroll` has
+`margin-top: 0`, so the hint sits as close to a grid as to option cards; `.answer-key
+.multigrid-scroll` keeps its `var(--space-4)`.
 
 ### 3.6 Print (D10)
 
@@ -351,7 +360,9 @@ New or updated coverage:
   - Submitted values are unchanged end to end.
   - Accessibility tree: each unpainted grid row exposes a group named exactly by its statement,
     and a painted row's group name contains it, with inputs named by column.
-  - Adjacent grid rows' buttons are `6px` apart.
+  - At desktop width, with statement and buttons side by side, adjacent rows' buttons are `6px`
+    apart. At 360px, stacked, the gap from a row's buttons to the next statement exceeds the gap
+    from a statement to its own buttons.
   - After Check, in quiz mode and in lesson mode, correct, wrong and missed cards have the §3.1
     colours and marks; a locked card does not respond to clicks. The matrix cells for picking an
     amber card and unpicking a red card are asserted.
