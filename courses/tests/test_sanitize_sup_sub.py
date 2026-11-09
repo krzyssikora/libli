@@ -2,6 +2,7 @@
 
 import pytest
 
+from courses import fillblank
 from courses.recolour.replay import SHAPE_CELL
 from courses.recolour.replay import SHAPE_COMPOSED
 from courses.recolour.replay import SHAPE_HTML
@@ -47,3 +48,16 @@ def test_recolour_key_still_replays_the_import_time_sanitiser(shape, tag):
     # The loader stored these sources with the tag stripped. A key built with the
     # widened allowlist keeps it and can never match the stored row.
     assert key_for(f"5cm<{tag}>3</{tag}>", shape) == "5cm3"
+
+
+@pytest.mark.parametrize("tag", TAGS)
+def test_fillblank_answer_is_plain_text_even_when_formatted(tag):
+    # Answers are compared with what the student types. Formatting the 2 inside a
+    # {{m2}} marker must not turn the tags into part of the accepted answer.
+    _stem, blanks = fillblank.parse(f"<p>{{{{m<{tag}>2</{tag}>|m2 kw}}}}</p>")
+    assert blanks == [["m2", "m2 kw"]]
+
+
+def test_fillblank_answer_still_decodes_a_literal_less_than():
+    _stem, blanks = fillblank.parse("<p>{{a &lt; b}}</p>")
+    assert blanks == [["a < b"]]

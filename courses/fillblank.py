@@ -12,6 +12,7 @@ insertions.
 import html
 import re
 
+import nh3
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import pgettext
@@ -38,6 +39,12 @@ def strip_sentinel(s):
     return (s or "").replace(SENTINEL, "")
 
 
+def _marker_text(interior):
+    # A real parser, never a <[^>]*> regex: nh3 leaves `>` unescaped inside
+    # attribute values, so a regex would leak `b">` out of <span title="a>b">.
+    return html.unescape(nh3.clean(interior, tags=set()))
+
+
 def mask_math(s):
     spans = []
 
@@ -61,8 +68,9 @@ def parse(clean_stem):
     def _swap(m):
         # The stem arrives SANITISED, so `{{<}}` reads `{{&lt;}}` here. Answers are
         # compared as plain text with what the student types (blank_matches), so
-        # decode them; to_author_stem re-escapes on the way back to the editor.
-        pieces = [html.unescape(p).strip() for p in m.group(1).split("|")]
+        # drop any formatting and decode them; to_author_stem re-escapes on the way
+        # back to the editor.
+        pieces = [p.strip() for p in _marker_text(m.group(1)).split("|")]
         pieces = [p for p in pieces if p]
         if not pieces:
             raise FillBlankError("empty marker")

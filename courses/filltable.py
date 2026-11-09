@@ -5,12 +5,11 @@ what counts as an alternative and what counts as blank."""
 import html as _html
 import re
 
-import nh3
-
 from courses.fillblank import _MARKER_RE
 from courses.fillblank import _TOKEN_RE
 from courses.fillblank import SENTINEL
 from courses.fillblank import FillBlankError
+from courses.fillblank import _marker_text
 from courses.fillblank import mask_math
 from courses.fillblank import restore_math
 from courses.fillblank import strip_sentinel
@@ -31,12 +30,6 @@ class GapMathError(FillBlankError):
 
 def is_static_cell(cell):
     return isinstance(cell, dict) and cell.get("kind") not in ("answer", "image")
-
-
-def _marker_text(interior):
-    # A real parser, never a <[^>]*> regex: nh3 leaves `>` unescaped inside
-    # attribute values, so a regex would leak `b">` out of <span title="a>b">.
-    return _html.unescape(nh3.clean(interior, tags=set()))
 
 
 def parse_cell_gaps(cell_html):
