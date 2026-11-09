@@ -33,8 +33,8 @@ restating the visible consequence (what the student or author would see differen
 
 Approved mockups (git-ignored, local only, in the main checkout):
 `.superpowers/brainstorm/411-1794186300/content/choice-selected-style.html` (style C) and
-`choice-after-check.html` (variant Y). Their numbers are restated in §3 so the build does not
-depend on those files.
+`choice-after-check.html` (variant Y). Their colours and sizes are restated in §3 so the build
+does not depend on those files.
 
 ## 3. Architecture and components
 
@@ -54,11 +54,29 @@ The thicker outline is the inset shadow, never a wider `border`, so selecting ne
 layout. Font weight does not change on selection, because a heavier label is wider and would
 misalign grid buttons between rows.
 
-Colour and thickness are separate: the result colour comes from a verdict class, the
-thickness and tint-as-picked from `:has(input:checked)`. In a lesson or an unlocked quiz the
-inputs stay live after Check, so a student can move their pick away from a red card; that
-card stays red with its ✗ (exactly as the ✗ stays today) but drops to the thin outline, and the
-new pick reads as picked.
+Sizes from the mockups: option card padding `9px 14px`; gap between option cards `6px`; grid
+button padding `5px 10px` at `14px` type; gap between grid buttons `6px 8px`; hint at `14px`.
+
+Colour and thickness are separate. In a lesson or an unlocked quiz the inputs stay live after
+Check, so a card can hold a verdict and then be picked or unpicked before the next Check. The
+full matrix for an option card (v = `--success` for correct, `--danger` for wrong):
+
+| Verdict class | Checked | Outline | Fill |
+|---|---|---|---|
+| none | no | 1px solid `--border-strong` | none |
+| none | yes | 1px solid `--primary` + 1px inset `--primary` | `--primary-subtle` |
+| correct or wrong | yes | 1px solid v + 1px inset v | v-subtle |
+| correct or wrong | no (student moved away) | 1px solid v, no inset | v-subtle |
+| missed | no | 1px dashed `--warning`, no inset | `--warning-subtle` |
+| missed | yes (live lesson input) | 1px solid `--warning` + 1px inset `--warning` | `--warning-subtle` |
+
+So a card the student moves away from stays red with its ✗ (as the ✗ stays today) but drops to
+the thin outline, and the new pick reads as Picked. Hover changes the outline only on a card
+with no verdict class and a live input; a verdict card keeps its colours.
+
+Ink on the fills: marks use `--success` and `--danger`, but the ＋ uses `--tc-orange`, because
+`--warning` on `--warning-subtle` is below 3:1 and the mark is what D8 relies on. Author feedback
+uses `--text-secondary` (the current `--text-tertiary` fails on the tints).
 
 All colours are existing tokens, so the admin brand colour, dark mode and automatic theme need
 no per-theme rules. The old `[data-theme="dark"] … td:has(input:checked)` overrides are removed.
@@ -67,8 +85,8 @@ no per-theme rules. The old `[data-theme="dark"] … td:has(input:checked)` over
 
 Inputs are hidden with the clip pattern (`position: absolute; width: 1px; height: 1px;
 margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0`), as
-`.settings-wrap .vh` does, with `position: relative` on the card so focus cannot scroll the
-page to a stray location. They keep their `name`, `value`, `checked`, `disabled` and
+`.settings-wrap .vh` does, with `position: relative` on the input's host (the option card; the
+grid `label`) so focus cannot scroll the page to a stray location. They keep their `name`, `value`, `checked`, `disabled` and
 `aria-invalid` attributes.
 
 The picked state depends on `:has()`. The hiding rule therefore lives inside
@@ -82,9 +100,15 @@ inputs inside the outlined cards rather than losing the selection indicator.
 - `<li class="question__choice">` is the card and gains `question__choice--correct`,
   `--wrong` or `--missed` from `mk.kind` when a mark exists. `choice_marks` remains the only
   source of which options carry a mark; the template just paints it.
-- The label fills the card's first row, so the whole row is the tap target, with the padding
-  on the label. The marker sits at the row's right edge (D8). `.question__choice-feedback`
-  spans the full width beneath, inside the card, without its old left indent.
+- The label fills the card's first row, carries the padding and is `display: block` with
+  `margin: 0` (overriding `app.css`'s `label` margin, which the removed `--marked` rule used to
+  reset). The marker is positioned over the label's reserved right padding at the row's right
+  edge (D8), with `pointer-events: none`, so the whole row stays the tap target.
+  `.question__choice-feedback` spans the full width beneath, inside the card, without its old
+  left indent.
+- `.question__choice-text` is `min-width: 0`. Long words wrap. Wide maths, inline or display,
+  scrolls inside this element with `overflow-x: auto`, because `overflow-wrap` cannot break a
+  KaTeX inline-block. The marker sits outside the scroller, so it stays visible in the card.
 - `.question__choices--marked`, `marked_layout`, `question__choice--picked`, `show_picks` and
   the `.question__choice input:disabled` drawing block are removed (D9), with their context
   keys and comments in `ChoiceQuestionElement.render`.
@@ -98,23 +122,38 @@ Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
 - `<thead>` is dropped (D12). The `<table class="choicegrid|multigrid">`, `<tbody>`, row
   `is-correct`/`is-incorrect` classes, statement cell, `sr_verdict` text and input attributes
   all stay, so `courses/keycopy.py` and the row-painting code need no change.
-- Each answer cell becomes `<td><label><input …><span class="gridbtn">{column label}</span></label></td>`,
-  using `format_html` escaping. The radio now has an accessible name of its own.
+- Each row has two cells: the statement, with `id="gridstmt-{row.pk}"`, and one answers cell,
+  `<td class="grid-answers" role="group" aria-labelledby="gridstmt-{row.pk}">`, holding one
+  `<label><input …><span class="gridbtn">{column label}</span></label>` per column, using
+  `format_html` escaping. The buttons are a single flex item so they move as a block (D12).
+- Each input now has an accessible name of its own (the column label) and each group is named
+  by its statement. That replaces the context the header row gave (D6). `keycopy.py` already
+  suffixes ids and `aria-labelledby` inside the copy.
 - A painted row's statement gains a visible `aria-hidden` ✓ or ✗ after its text (D8), next to
   the existing `sr_verdict` text. No glyph on an unpainted row.
 
 CSS (shared rule set for `.choicegrid` and `.multigrid`):
 
 - `tbody tr` is `display: flex; flex-wrap: wrap`, the statement cell is
-  `flex: 1 1 min(100%, 16rem)` with a 1px `--border-strong` bottom rule, and answer cells are
-  `flex: 0 0 auto`. This needs no breakpoint: when a statement and its buttons do not fit on
-  one line, the buttons drop below the statement and wrap as needed (D12). Every row has the
-  same flex basis and the same button widths, so all rows make the same decision.
+  `flex: 1 1 min(100%, 16rem); min-width: 0` with a 1px `--border-strong` bottom rule, and
+  `.grid-answers` is `flex: 0 1 auto; max-width: 100%` and is itself `display: flex;
+  flex-wrap: wrap`. This needs no breakpoint and also works in a narrow container: when a
+  statement and all its buttons do not fit on one line, the whole button block drops below the
+  statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
+  the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
+  they do fit, as with very short labels, they share the line.
+- `.gridbtn` text wraps (`max-width: 100%`, `overflow-wrap: anywhere`), so a sentence-length
+  column label wraps; only unbreakable content can reach the scroll wrapper.
 - `min-width: max-content`, the zebra stripes, the row rule, and the print-only
   `min-width: 0` rule are removed. The `.scroll-x` and `-scroll` wrappers stay as a safety net
   for a pathologically wide column label such as a long formula; ordinary grids never overflow.
-- The picked state and row colour follow §3.1: within a painted row, picked buttons take the
-  row's verdict colour. The statement cell's existing tint and inset bar
+- The picked state hangs off the input: `input:checked + .gridbtn`; focus, hover and locked
+  likewise key on the sibling input.
+- Row colour: a button takes its row's verdict colour only while it is the pick the server
+  rendered, `input[checked]:checked + .gridbtn` inside `tr.is-correct` or `tr.is-incorrect`. Rows
+  stay live after a wrong Check, and the row class persists until the next render, so any other
+  live pick uses Picked: a corrected pick must not turn red or green before it is checked.
+- The statement cell's existing tint and inset bar
   (`tr.is-correct td.*__stmt` and `tr.is-incorrect td.*__stmt`) are replaced by the glyph, per
   mockup Y.
 
@@ -138,9 +177,12 @@ Outlines print by default. Picked and verdict cards and buttons get
 These follow from leaving marking logic alone. They are stated here so they are not read as
 bugs:
 
-1. **Lessons colour only marked options.** In a lesson `choice_marks` marks only options the
-   author wrote feedback for, so a wrong pick without author feedback stays teal and the verdict
-   panel carries the result. Painting more would reveal the answer key in lessons.
+1. **Lessons mark only what leaks nothing.** `choice_marks`' lesson branch gains two cases so D4
+   holds in lessons: a fully correct answer marks every pick ✓ (green), and a wrong answer on a
+   single-answer question marks the pick ✗ (red); the verdict panel already says both. A wrong
+   multi-answer lesson answer still marks only options the author wrote feedback for, because
+   marking the others would show which picks were right. Those picks stay teal and the panel
+   carries the result.
 2. **Grid colour is per row.** Grid verdicts exist per row, and a per-button verdict would leak
    the key. In a wrong multi-grid row, all picked buttons are red, even one that was right.
 3. **Grids have no amber.** They show correct answers through the existing Your answer /
@@ -173,12 +215,25 @@ Existing tests that pin the removed markup (`<thead>`, `question__choice--picked
 drawing, `--marked` layout, statement tints) are updated to the new behaviour, not deleted
 wholesale. Each still has to assert something that fails on a broken build.
 
+Two groups of existing browser tests need more than a selector change:
+
+- Tests that call `.check()` on these inputs, such as `test_e2e_questions.py`,
+  `test_e2e_locked_controls_look.py` and `test_e2e_scroll_affordance.py`, will time out, because
+  Playwright refuses clipped inputs. They click the visible card or `.gridbtn` instead, and
+  `force=True` is not allowed in any test that proves clickability.
+- `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py` use a four-column grid as
+  their over-wide seed and read `thead th`. Ordinary grids no longer overflow, so these are
+  re-seeded with an unbreakable wide label, keeping the proof that the §5 fallback scroller and
+  its edge shading still work, and repointed to a button.
+
 New or updated coverage:
 
 - **Render (no browser):** `<thead>` absent; each answer cell carries its escaped column label;
-  input `name`, `value`, `checked` and `aria-invalid` unchanged; key copy still strips names; verdict
-  classes map one-to-one from mark kinds; statement glyph present only on painted rows; hint present
-  exactly when multi-answer, and once only when a key copy exists.
+  input `name`, `value`, `checked` and `aria-invalid` unchanged; key copy still strips names and
+  suffixes the statement id and `aria-labelledby`; verdict classes map one-to-one from mark kinds;
+  statement glyph present only on painted rows; hint present exactly when multi-answer, and once
+  only when a key copy exists; each new lesson mark case, including a wrong multi-answer lesson
+  answer staying unmarked apart from author-annotated options.
 - **CSS source:** the input hiding is inside the `@supports` block; picked thickness is a
   `box-shadow`, not `border-width`; every `test_*css*.py` runs.
 - **Browser (Playwright, `-m e2e`):**
@@ -186,10 +241,18 @@ New or updated coverage:
     question has one pick at a time.
   - Keyboard: Tab reaches the group, arrows or Space change the pick, and the focus ring is visible.
   - Submitted values are unchanged end to end.
-  - After Check, correct, wrong and missed cards have the §3.1 colours and marks; a locked card
-    does not respond to clicks.
-  - At 360px width a grid has no horizontal page overflow, each statement is above its buttons,
-    and at desktop width statement and buttons share a line.
+  - Accessibility tree: each grid row exposes a group named by its statement, containing inputs
+    named by column.
+  - After Check, in quiz mode and in lesson mode, correct, wrong and missed cards have the §3.1
+    colours and marks; a locked card does not respond to clicks. The matrix cells for picking an
+    amber card and unpicking a red card are asserted.
+  - In a painted live grid, changing a pick gives the new button Picked colours, not danger.
+  - With fixture labels long enough not to fit beside a statement, at 360px and at a width where
+    the statement plus one button fits but the statement plus all buttons does not, every button
+    is below the statement and the page has no horizontal overflow. At desktop width statement and
+    buttons share a line. A sentence-length column label at 360px wraps.
+  - At 360px, an option holding a wide inline formula and one holding display maths keep their
+    content and marker inside the card, with no page overflow.
   - Dark theme and a custom brand colour resolve from tokens.
   - Print emulation keeps the outlines and picked tints.
 
