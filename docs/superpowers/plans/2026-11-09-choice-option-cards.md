@@ -119,7 +119,7 @@ Remove the `c.pk in selected` guard and confirm the sibling test goes RED; remov
 
 - [ ] **Step 1: Update and add the render tests**
 
-Replace assertions on `question__choice--picked` and `question__choices--marked` with what still proves the behaviour: the pick is rendered `checked` and carries its verdict class. For example `tests/test_quiz_reveal_pr3_choice.py:449` becomes `assert row.count(" checked") == 2`, and `PICKED` in `tests/test_quiz_choice_inline_marking.py` is replaced by per-kind class constants. Add:
+Replace assertions on `question__choice--picked` and `question__choices--marked` with what still proves the behaviour: the pick is rendered `checked` and carries its verdict class. For example `tests/test_quiz_reveal_pr3_choice.py:449` becomes `assert row.count(" checked") == 2`, its test is renamed `test_results_nr_choice_rows_keep_picks_without_verdicts`, and `PICKED` in `tests/test_quiz_choice_inline_marking.py` is replaced by per-kind class constants. Add:
 
 ```python
 assert "question__choice--picked" not in body
@@ -168,13 +168,13 @@ Commit the templates, `courses/models.py` and the tests with `feat(courses): ver
 
 - `test_no_visible_input_and_thin_outline`: input box is 1×1 and clipped; card border `1px solid` in `--border-strong`.
 - `test_click_selects_and_paints_picked`: `box-shadow` contains `inset`, background equals `--primary-subtle`; a single-answer question holds one pick.
-- `test_untick_returns_to_unpicked_look` (Review Focus 5): multi-answer card ticked, unticked, mouse moved to `(0, 0)`; border colour, background and shadow equal the Unpicked values.
+- `test_untick_returns_to_unpicked_look` (Review Focus 5): multi-answer card ticked, unticked, mouse moved to `(0, 0)`; border colour equals resolved `--border-strong`, background is transparent and shadow is `none`, compared with tokens and not with an earlier measurement.
 - `test_keyboard_changes_pick_and_shows_ring`: Tab reaches the group, ArrowDown moves the pick, outline is `2px` in `--primary`.
 - `test_submitted_values_unchanged`: the POST body of Check holds the same `choice=<pk>` pairs.
-- `test_after_check_colours_quiz`: correct, wrong and, once locked, missed cards match spec §3.1 and carry `✓ ✗ ＋`; a locked card ignores a click.
+- `test_after_check_colours_quiz`: correct, wrong and, once locked, missed cards match spec §3.1 and carry `✓ ✗ ＋`, the ＋ in resolved `--tc-orange`. A locked card ignores a click: `pick` and a plain label click time out on a disabled input, so this one assertion follows `tests/test_e2e_question_lock.py:112`, `.question__choice-text` `.click(force=True)`, then asserts the checked state is unchanged. The `force=True` ban covers only tests proving clickability.
 - `test_after_check_colours_lesson`: correct answer green with ✓; wrong single-answer red with ✗.
 - `test_matrix_pick_amber_and_unpick_red`: the two live-lesson matrix cells in spec §3.1.
-- `test_lesson_verdict_survives_reload` (Review Focus 4): Check, reload, same picked and verdict states.
+- `test_lesson_verdict_survives_reload` (Review Focus 4): Check, reload; after the reload the pick's border and fill equal resolved `--success` and `--success-subtle` (a correct answer) and `box-shadow` contains `inset`, compared with tokens and not with the pre-reload state.
 - `test_marker_sits_on_first_line_above_feedback`.
 - `test_wide_maths_stays_in_card_at_360`: wide unbreakable inline formula (`{a+b+…}`) and display maths; content and marker inside the card; `documentElement.scrollWidth <= innerWidth`. A normal inline formula has `scrollHeight <= clientHeight` on `.question__choice-text`.
 - `test_forced_colors_picked_differs`: `new_context(forced_colors="active")`; picked and unpicked differ; marker and `.question__choice-text` in a picked verdict card compute to the HighlightText value.
@@ -188,7 +188,7 @@ Expected: FAIL, because the cards are not styled yet, except `test_submitted_val
 
 - [ ] **Step 3: Write the CSS**
 
-Implement spec §3.1 (option-card rows and matrix, hover inside `@media (hover: hover)`, forced colours), §3.2 (option part), §3.3 and §3.6 (option part), plus the hint style and margins of §3.5. Select with `.question__choices .question__choice…` so the rules also apply where a results fragment has no `.el--question` ancestor and out-rank `app.css`'s `label`. Delete the old `.el--question .question__choice…` rules, the disabled drawing block and the `--marked` rules. Do not touch the `prose-cap` sentinels.
+Implement spec §3.1 (option-card rows and matrix, hover inside `@media (hover: hover)`, marker and feedback ink, forced colours), §3.2 (option part), §3.3 and §3.6 (option part), plus the hint style and margins of §3.5. Select with `.question__choices .question__choice…` so the rules also apply where a results fragment has no `.el--question` ancestor and out-rank `app.css`'s `label`. Keep the list reset at `courses.css:480` (`list-style: none; padding: 0; margin: 0 0 var(--space-3)`), or carry it into the new list rule. Delete only the `.el--question .question__choice` rules from line 481 onward, the disabled drawing block and the `--marked` rules. Do not touch the `prose-cap` sentinels.
 
 - [ ] **Step 4: Repoint the existing tests**
 
@@ -254,7 +254,7 @@ The same set applies to the choice grid in `tests/test_render_choicegrid.py` (ra
 - [ ] **Step 2: Run them and confirm they fail**
 
 Run: `uv run pytest tests/test_render_multigrid.py tests/test_render_choicegrid.py tests/test_choicegrid_styles.py`
-Expected: FAIL on the new markup, except `test_inputs_unchanged` and the key-copy `name` assertion, which pass now as preservation tests and are falsified in Step 5.
+Expected: FAIL on the new markup, except `test_inputs_unchanged`, `test_empty_grid_renders` and the key-copy `name` assertion, which pass now and are falsified in Step 5.
 
 - [ ] **Step 3: Implement the markup**
 
@@ -267,7 +267,7 @@ Expected: all pass.
 
 - [ ] **Step 5: Falsify the preservation tests and commit**
 
-Temporarily drop `checked` from one `format_html` branch and confirm `test_inputs_unchanged` goes RED; restore by hand. Commit `courses/templatetags/courses_extras.py`, the template and the tests with `feat(courses): grid rows carry their column labels in buttons`.
+Temporarily drop `checked` from one `format_html` branch and confirm `test_inputs_unchanged` goes RED; remove the empty-`cols` branch and confirm `test_empty_grid_renders` goes RED. Restore each by hand. Commit `courses/templatetags/courses_extras.py`, the template and the tests with `feat(courses): grid rows carry their column labels in buttons`.
 
 ---
 
@@ -283,11 +283,11 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/test_choicegrid_styles.py`: replace the assertions on `accent-color: var(--primary)`, `.choicegrid tbody td:has(input:checked)` and `.choicegrid tbody tr.is-incorrect td.choicegrid__stmt` with source guards: grid inputs hidden outside `@supports`; `input[checked]:checked + .gridbtn` present inside `tr.is-correct` and `tr.is-incorrect` rules; `table-layout: fixed`.
+`tests/test_choicegrid_styles.py`: replace the assertions on `accent-color: var(--primary)`, `.choicegrid tbody td:has(input:checked)` and `.choicegrid tbody tr.is-incorrect td.choicegrid__stmt` with source guards: grid inputs hidden outside `@supports`; `input[checked]:checked + .gridbtn` present inside `tr.is-correct` and `tr.is-incorrect` rules; `table-layout: fixed`; and `td:has(input:checked)` absent from the CSS.
 
 `tests/test_e2e_grid_cards.py`, with module-level `pytestmark = pytest.mark.e2e`, and these names and assertions from spec §6:
 
-- `test_gridbtn_picks_and_paints`, `test_keyboard_and_ring_on_gridbtn`, `test_grid_answers_stays_transparent`.
+- `test_gridbtn_picks_and_paints`, `test_keyboard_and_ring_on_gridbtn`, and `test_grid_answers_stays_transparent` (computed background transparent on both `.grid-answers-cell` and `.grid-answers` with a pick).
 - `test_accessibility_tree`: `get_by_role("group", name=statement, exact=True)` on an unpainted row; `name` contains the statement on a painted row; inputs named by column.
 - `test_live_painted_grid_new_pick_is_primary`: change a pick in an `is-incorrect` row; the new button has Picked colours and `--danger` appears nowhere on it.
 - `test_desktop_rhythm`: adjacent rows' buttons exactly `6px` apart; statement rule within 4px of button bottom; statement and buttons on one line.
@@ -299,13 +299,13 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 - `test_fraction_statement_no_vertical_scroll`: wrapper and `.grid-stmt-text` `scrollHeight <= clientHeight`; A/B via an injected `padding-block: 0` that makes the text element fail.
 - `test_click_on_formula_label_selects` (Review Focus 2): click `.gridbtn .katex`.
 - `test_grid_in_two_columns_does_not_overflow` (Review Focus 3): grid nested in a `twocolumn` element at 1280px; `.grid-answers` right edge inside its column.
-- `test_forced_colors_painted_button`: Highlight background and HighlightText colour on a verdict-painted button.
+- `test_forced_colors_painted_button`: a plain picked button differs from an unpicked one, and a verdict-painted button has Highlight background and HighlightText colour.
 - `test_print_grid`: outlines and tints remain; `.grid-stmt-text` computes `overflow-x: visible`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
 Run: `uv run pytest tests/test_choicegrid_styles.py` and `uv run pytest -m e2e tests/test_e2e_grid_cards.py`
-Expected: FAIL.
+Expected: FAIL, except `test_click_on_formula_label_selects` and `test_accessibility_tree`, which depend only on Task 4's markup, pass now and are falsified in Step 6.
 
 - [ ] **Step 3: Write the CSS**
 
@@ -317,7 +317,7 @@ Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, 
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py`: re-seed per spec §6 (column label is a KaTeX formula in a single `{…}` box, wait for `.katex` before measuring), and repoint `thead th` to the last `.gridbtn`.
 - `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out`: new assertion per spec §6, border-to-surface contrast at least `3` for the default brand; delete `_CELL_CONTRAST` if nothing else uses it.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width`: new assertions and the moved shade check per spec §6.
-- `test_e2e_quiz_reveal_pr2.py`: the switch-position assertion keeps covering `multigrid` and must stay unchanged.
+- `test_e2e_quiz_reveal_pr2.py`: the switch-position assertion keeps covering `multigrid` and must stay unchanged. In `test_grid_lock_keeps_the_students_pick_and_paints_rows` (about lines 306–307), replace the comparison of first-`td` backgrounds with each row's `.grid-verdict` glyph (✓ against ✗) and the differing computed border colour of the picked `.gridbtn`.
 - `test_e2e_uniform_block_width.py`: update the empty-grid note and any selector that relied on `thead`.
 
 - [ ] **Step 5: Run everything in scope**
@@ -327,7 +327,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Mutate and commit**
 
-A/B one at a time: remove `table-layout: fixed`; put `.grid-answers-cell`'s buttons back as separate flex items by setting `display: contents` on it; drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking. Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
+A/B one at a time: remove `table-layout: fixed`; set `display: contents` on both `.grid-answers-cell` and `.grid-answers` (`test_stacked_at_360_and_mid_width` goes RED); drop `[checked]` from the verdict selector; delete the phone `flex-basis: 100%`; drop the forced-colors out-ranking; add `pointer-events: none` on `.gridbtn` (`test_click_on_formula_label_selects`); remove `aria-labelledby` from the markup (`test_accessibility_tree`). Each must turn a named test RED. Restore by hand. Commit with `feat(courses): grid questions as outlined button rows`.
 
 ---
 
