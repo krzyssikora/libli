@@ -57,7 +57,9 @@ layout. Font weight does not change on selection, because a heavier label is wid
 misalign grid buttons between rows.
 
 Sizes from the mockups: option card padding `9px 14px`; gap between option cards `6px`; grid
-button padding `5px 10px` at `14px` type; gap between grid buttons `6px 8px`; hint at `14px`.
+button padding `5px 10px` at `14px` type; gap between grid buttons `6px 8px`; grid statement at
+`15px`; hint at `14px`. Option text, grid buttons and statements are weight 400, overriding
+`app.css`'s `label { font-weight: 500 }` and the old statement weight.
 
 Colour and thickness are separate. In a lesson or an unlocked quiz the inputs stay live after
 Check, so a card can hold a verdict and then be picked or unpicked before the next Check. The
@@ -75,7 +77,8 @@ full matrix for an option card (v = `--success` for correct, `--danger` for wron
 So a card the student moves away from stays red with its ✗ (as the ✗ stays today) but drops to
 the thin outline, and the new pick reads as Picked. Hover changes the outline only on a card
 with no verdict class and a live input; a verdict card keeps its colours. The same holds for a
-grid button painted with its row's verdict (§3.4).
+grid button painted with its row's verdict (§3.4). Hover rules are inside `@media (hover: hover)`,
+so a tap on a phone cannot leave a sticky teal outline on an unpicked card.
 
 Ink on the fills: marks use `--success` and `--danger`, but the ＋ uses `--tc-orange`, because
 `--warning` on `--warning-subtle` is below 3:1 and the mark is what D8 relies on. Author feedback
@@ -88,7 +91,9 @@ Windows high-contrast mode drops `box-shadow` and repaints borders and fills, wh
 a Picked card look unpicked now that the native control is hidden. Under
 `@media (forced-colors: active)`, picked option cards and picked `.gridbtn` use
 `forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight`.
-"Picked" here includes checked cards with a verdict class. Because `forced-color-adjust`
+"Picked" here includes checked cards with a verdict class and grid buttons painted with their
+row's verdict, and the forced-colors selectors must out-rank the
+`tr.is-* input[checked]:checked + .gridbtn` rule. Because `forced-color-adjust`
 inherits and these elements carry their own colours, the label, `.question__choice-text`, marker
 and feedback inside such a card also get `color: HighlightText`. This
 applies only in that mode, so D1 and D2 are unaffected.
@@ -140,7 +145,8 @@ unconditionally.
   outside the scroller, so it stays visible in the card.
 - `.question__choices--marked`, `marked_layout`, `question__choice--picked`, `show_picks` and
   the `.question__choice input:disabled` drawing block are removed (D9), with their context
-  keys and comments in `ChoiceQuestionElement.render`.
+  keys and comments in `ChoiceQuestionElement.render` and the header comment of
+  `_choicequestion_options.html`, which describes the `--marked` layout.
 
 Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
 
@@ -160,7 +166,8 @@ Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
   `format_html` escaping. The group role is on the inner `<div>` because a `<td>` may not take
   it. The cell is a single flex item, so the buttons move as a block (D12).
 - Each input now has an accessible name of its own (the column label) and each group is named
-  by its statement. That replaces the context the header row gave (D6). `keycopy.py` already
+  by its statement. The id is on the cell, so on a painted row the group name also includes the
+  `sr_verdict` word, as intended. That replaces the context the header row gave (D6). `keycopy.py` already
   suffixes ids and `aria-labelledby` inside the copy.
 - A painted row's statement gains a visible `<span class="grid-verdict" aria-hidden="true">` ✓ or
   ✗ after its text (D8), next to the existing `sr_verdict` text, outside the statement's scroller
@@ -174,21 +181,25 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
 - `tbody tr` is `display: flex; flex-wrap: wrap`, the statement cell is
   `flex: 1 1 min(100%, 16rem); min-width: 0` with a 1px `--border-strong` bottom rule, and
   `.grid-answers-cell` is `flex: 0 1 auto; max-width: 100%`. Inside it `.grid-answers` is
-  `display: flex; flex-wrap: wrap; padding: 4px` (so the focus ring is not clipped by the scroll
-  wrapper). Rows are `padding-block: 3px`, giving the mockup's `6px` between rows. This needs no breakpoint and also works in a narrow container: when a
+  `display: flex; flex-wrap: wrap; padding: 3px 4px`. Rows have no padding of their own, so the
+  distance between buttons in adjacent rows is 3 + 3 = the mockup's `6px`. The focus ring reaches
+  4px out, so the two scroll wrappers get `padding-block: 1px` to keep the first and last rows'
+  rings unclipped. This needs no breakpoint and also works in a narrow container: when a
   statement and all its buttons do not fit on one line, the whole button block drops below the
   statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
   the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
   they do fit, as with very short labels, they share the line.
-- `.gridbtn` is `display: block` and its text wraps (`max-width: 100%`, `overflow-wrap: anywhere`),
-  so a sentence-length column label wraps as one outlined button; only unbreakable content can
-  reach the scroll wrapper.
+- `.gridbtn` is `display: block; height: 100%; text-align: center` and its text wraps
+  (`max-width: 100%`, `overflow-wrap: anywhere`), so a sentence-length column label wraps as one
+  outlined button, and neighbouring outlines stay level; only unbreakable content can reach the
+  scroll wrapper.
 - `.grid-answers label` is `margin: 0; cursor: pointer`, with `cursor: default` when its input is
   disabled.
-- The statement cell has `display: flex; gap: var(--space-2); padding: 4px 0` above its bottom
-  rule. Its text is wrapped in `<span class="grid-stmt-text">`, which is
-  `flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; overflow-x: auto; overflow-y: hidden`,
-  so a wide unbreakable formula scrolls inside the statement and cannot paint over the buttons.
+- The statement cell has `display: flex; gap: var(--space-2)` and no vertical padding, above its
+  bottom rule, and keeps `color: var(--text-primary)`. Its text is wrapped in
+  `<span class="grid-stmt-text">`, which is `flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere;
+  overflow-x: auto; overflow-y: hidden; padding-block: 4px` (the three travel together, §3.3, and
+  the padding gives the mockup's 4px), so a wide unbreakable formula scrolls inside the statement and cannot paint over the buttons.
   The `.grid-verdict` glyph follows it directly. The `.choicegrid-scroll` and
   `.multigrid-scroll` wrappers get `overflow-y: hidden`, for the same KaTeX reason as §3.3.
 - For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
@@ -266,6 +277,8 @@ these visible consequences, and the answer is recorded here. D1–D12 stay as th
 - In a lesson, a wrong multi-answer pick stays teal, and only options with author feedback change
   colour. A missed correct option goes amber only if the author wrote feedback for it.
 - Grids never show amber, and in a wrong multi-answer grid row a correct pick shows red.
+- A picked option's text is not heavier than an unpicked one, as it was in mockup C, because a
+  heavier label would misalign grid buttons.
 
 ## 4. Data flow
 
@@ -336,8 +349,9 @@ New or updated coverage:
     question has one pick at a time.
   - Keyboard: Tab reaches the group, arrows or Space change the pick, and the focus ring is visible.
   - Submitted values are unchanged end to end.
-  - Accessibility tree: each grid row exposes a group named by its statement, containing inputs
-    named by column.
+  - Accessibility tree: each unpainted grid row exposes a group named exactly by its statement,
+    and a painted row's group name contains it, with inputs named by column.
+  - Adjacent grid rows' buttons are `6px` apart.
   - After Check, in quiz mode and in lesson mode, correct, wrong and missed cards have the §3.1
     colours and marks; a locked card does not respond to clicks. The matrix cells for picking an
     amber card and unpicking a red card are asserted.
@@ -349,13 +363,15 @@ New or updated coverage:
   - `.grid-answers` stays transparent with a pick. The marker sits above any feedback, in the
     option's first line.
   - With `forced_colors="active"`, picked and unpicked cards and buttons differ, and the marker
-    and `.question__choice-text` in a picked verdict card compute to the HighlightText value.
+    and `.question__choice-text` in a picked verdict card compute to the HighlightText value. A
+    verdict-painted `.gridbtn` computes to the Highlight background and HighlightText colour.
   - With fixture labels long enough not to fit beside a statement, at 360px and at a width where
     the statement plus one button fits but the statement plus all buttons does not, every button
     is below the statement, the page has no horizontal overflow, `.choicegrid-scroll` and
     `.multigrid-scroll` have `scrollWidth - clientWidth <= 0`, and every `.gridbtn` right edge is
     inside that box. A grid whose last-row statement holds a fraction has
-    `scrollHeight <= clientHeight` on the wrapper. At desktop width statement and
+    `scrollHeight <= clientHeight` on the wrapper and on `.grid-stmt-text`, the latter with an A/B
+    against removing its padding. At desktop width statement and
     buttons share a line. A sentence-length column label at 360px wraps.
   - At 360px, an option holding a wide unbreakable inline formula and one holding display maths keep their
     content and marker inside the card, with no page overflow. An option holding a normal inline
