@@ -29,6 +29,7 @@
 - First time only: `cp ../../libli/.env .env` (git-ignored; the worktree has none).
 - Before any test run: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. Without it a run looks hung for about 4 minutes.
 - Run these commands in the Bash tool, because PowerShell does not expand the `*css*` globs. Tools run through `uv run`. Browser tests need `-m e2e`. Never pass `-q` (it is already in `addopts`, and a second one hides the summary). Read the summary line; the exit code alone can mislead.
+- A RED step counts only when the failure is an assertion failure, not a setup, import or ORM error. New e2e modules define the same session-scoped autouse `_allow_async_unsafe` fixture as `tests/test_e2e_quiz_choice_marking.py`, or ORM seeding raises `SynchronousOnlyOperation`.
 - Only one test run at a time. Do not run the whole suite (it gets OOM-killed); run the files each task names.
 - After any edit to a `.css` file, run every CSS source test:
   `uv run pytest tests/test_*css*.py courses/tests/test_*css*.py`.
@@ -179,10 +180,11 @@ Create `tests/e2e_pick.py` as in Interfaces; the new e2e module and every repoin
 - `test_after_check_colours_lesson`: correct answer green with ✓; wrong single-answer red with ✗.
 - `test_matrix_pick_amber_and_unpick_red`: the two live-lesson matrix cells in spec §3.1.
 - `test_lesson_verdict_survives_reload` (Review Focus 4): Check, reload; after the reload the pick's border and fill equal resolved `--success` and `--success-subtle` (a correct answer) and `box-shadow` contains `inset`, compared with tokens and not with the pre-reload state.
+- `test_hover_leaves_verdict_and_locked_cards_unchanged`: `locator.hover()` on a verdict card and a locked card; the border colour does not change.
 - `test_marker_sits_on_first_line_above_feedback`.
 - `test_wide_maths_stays_in_card_at_360`: wide unbreakable inline formula (`{a+b+…}`) and display maths; content and marker inside the card; `documentElement.scrollWidth <= innerWidth`. A normal inline formula has `scrollHeight <= clientHeight` on `.question__choice-text`.
 - `test_forced_colors_picked_differs`: `new_context(forced_colors="active")`; picked and unpicked differ; marker and `.question__choice-text` in a picked verdict card compute to the HighlightText value.
-- `test_dark_and_custom_brand_resolve_from_tokens`: in dark theme the picked border equals resolved `--primary`; with a custom brand set by writing the `primary` brand-colour row before the first page load (see `tests/test_institution.py`; the value is served through the cached `get_site_config()`, so clear that cache in the test), the picked card's border equals the literal custom colour.
+- `test_dark_and_custom_brand_resolve_from_tokens`: in dark theme the picked border equals resolved `--primary`; in light theme, with a custom brand set by writing the `primary` brand-colour row before the first page load (see `tests/test_institution.py`; the value is served through the cached `get_site_config()`, so clear that cache in the test), the picked card's border equals the literal custom colour.
 - `test_print_keeps_outlines_and_tints`: `emulate_media(media="print")`; border and tint remain; a picked and a verdict card compute `webkitPrintColorAdjust === "exact"` (the tint assertion alone cannot fail, because emulation does not apply print economy); cards compute `breakInside === "avoid"`; option and feedback with a wide formula compute `overflow-x: visible`.
 
 - [ ] **Step 2: Run them and confirm they fail**
@@ -196,7 +198,7 @@ Implement spec §3.1 (option-card rows and matrix, hover inside `@media (hover: 
 
 - [ ] **Step 4: Repoint the existing tests**
 
-In the Files list above, replace `.check()`, `.uncheck()` and `set_checked()` on `input[name='choice']` and equivalents with `pick(...)`. Update `test_solved_choice_marks_its_picks_in_dark_mode` in `tests/test_e2e_question_lock.py` (about line 167): the answer is fully correct, so after Task 1 the assertion moves from the clipped `input` to the `li`, which compares to resolved `--success` with an inset shadow, while a non-pick stays `--border-strong` with no shadow. Rename or re-comment the test, because brand fill no longer describes it. Delete `tests/test_e2e_quiz_choice_marking.py:139`, which can no longer fail, and assert the unlocked state some other way if that test needs it. `tests/test_e2e_start_fresh_activation.py` also calls `.check()`: confirm whether those are question inputs and repoint only if so.
+In the Files list above, replace `.check()`, `.uncheck()` and `set_checked()` on `input[name='choice']` and equivalents with `pick(...)`. Update `test_solved_choice_marks_its_picks_in_dark_mode` in `tests/test_e2e_question_lock.py` (about line 167): the answer is fully correct, so after Task 1 the assertion moves from the clipped `input` to the `li`, which compares to resolved `--success` with an inset shadow, while a non-pick stays `--border-strong` with no shadow. Rename or re-comment the test, because brand fill no longer describes it. Delete `tests/test_e2e_quiz_choice_marking.py:139`, which can no longer fail, and assert the unlocked state some other way if that test needs it. `tests/test_e2e_start_fresh_activation.py` also calls `.check()`: confirm whether those are question inputs and repoint only if so. `tests/test_e2e_practice_state.py`, listed in spec §6, needs no repoint: its inputs are `.markdone` checkboxes.
 
 - [ ] **Step 5: Run everything in scope**
 
@@ -213,7 +215,7 @@ A/B: remove the Picked `box-shadow`, the `@supports` wrapper, the `minmax(0, 1fr
 
 **Files:**
 - Modify: `courses/templatetags/courses_extras.py` (`render_choice_grid`, `render_multigrid`, `_grid_row_cells`, `_multigrid_row_cells`, a new helper), `templates/courses/elements/multigridquestionelement.html`
-- Test: `tests/test_render_multigrid.py`, `tests/test_render_choicegrid.py`, `tests/test_choicegrid_styles.py`, `tests/test_quiz_reveal_pr2_grids.py`
+- Test: `tests/test_render_multigrid.py`, `tests/test_render_choicegrid.py`, `tests/test_choicegrid_styles.py`
 
 **Interfaces:**
 - Produces: row markup per spec §3.4: `td.choicegrid__stmt#choicegrid-stmt-<pk>|td.multigrid__stmt#multigrid-stmt-<pk>` > `span.grid-stmt-text`, then the `sr_verdict` text and optional `span.grid-verdict` outside the scroller, then `td.grid-answers-cell` > `div.grid-answers[role=group][aria-labelledby]` > `label` > `input` + `span.gridbtn`.
@@ -241,6 +243,7 @@ def test_verdict_glyph_only_on_painted_rows(): ...
     assert "✗" in html
 
 def test_key_copy_suffixes_ids(): ...
+    key = neutralise_key_copy(rendered_with_copy_key)   # courses.keycopy; copy="key" alone only paints
     assert f'id="multigrid-stmt-{r1.pk}-key"' in key
     assert f'aria-labelledby="multigrid-stmt-{r1.pk}-key"' in key
     assert 'name="row_' not in key
@@ -258,7 +261,7 @@ The same set, except the hint test, applies to the choice grid in `tests/test_re
 - [ ] **Step 2: Run them and confirm they fail**
 
 Run: `uv run pytest tests/test_render_multigrid.py tests/test_render_choicegrid.py tests/test_choicegrid_styles.py`
-Expected: FAIL on the new markup, except `test_inputs_unchanged`, `test_empty_grid_renders` and the key-copy `name` assertion, which pass now and are falsified in Step 5.
+Expected: FAIL on the new markup, except `test_inputs_unchanged`, `test_empty_grid_renders`, the choice-grid hint negative and the key-copy `name` assertion, which pass now and are falsified in Step 5.
 
 - [ ] **Step 3: Implement the markup**
 
@@ -271,7 +274,7 @@ Expected: all pass.
 
 - [ ] **Step 5: Falsify the preservation tests and commit**
 
-Temporarily drop `checked` from one `format_html` branch and confirm `test_inputs_unchanged` goes RED; remove the empty-`cols` branch and confirm `test_empty_grid_renders` goes RED. Restore each by hand. Commit `courses/templatetags/courses_extras.py`, the template and the tests with `feat(courses): grid rows carry their column labels in buttons`.
+Temporarily drop `checked` from one `format_html` branch and confirm `test_inputs_unchanged` goes RED; remove the empty-`cols` branch and confirm `test_empty_grid_renders` goes RED; add the hint to `choicegridquestionelement.html` and confirm the negative goes RED. Restore each by hand. Commit `courses/templatetags/courses_extras.py`, the template and the tests with `feat(courses): grid rows carry their column labels in buttons`.
 
 ---
 
@@ -291,6 +294,7 @@ Temporarily drop `checked` from one `format_html` branch and confirm `test_input
 
 `tests/test_e2e_grid_cards.py`, with module-level `pytestmark = pytest.mark.e2e`. Seeds: `_seed(..., max_attempts=2)` from `tests/test_e2e_quiz_reveal_pr2.py`, or a lesson, for live painted rows, and `max_attempts=1` for locked rows; direct `GridColumn` and `GridRow` creation as in `tests/test_e2e_choicegrid.py` for custom labels and formula or fraction statements; `TwoColumnElement.objects.create(data=TwoColumnElement.default_data())` plus a child `Element` with `parent` and the column's `tab_id`, as in `courses/tests/test_nested_question_nojs_feedback.py`, for the nested case. Names and assertions from spec §6:
 
+- `test_hover_leaves_painted_button_unchanged`: `locator.hover()` on a verdict-painted `.gridbtn`; border colour unchanged.
 - `test_gridbtn_picks_and_paints`, `test_keyboard_and_ring_on_gridbtn`, and `test_grid_answers_stays_transparent` (computed background transparent on both `.grid-answers-cell` and `.grid-answers` with a pick).
 - `test_accessibility_tree`: `get_by_role("group", name=statement, exact=True)` on an unpainted row; `name` contains the statement on a painted row; inputs named by column.
 - `test_live_painted_grid_new_pick_is_primary`: change a pick in an `is-incorrect` row; the new button has Picked colours and `--danger` appears nowhere on it.
@@ -318,7 +322,7 @@ Implement spec §3.4 in one shared rule set for `.choicegrid` and `.multigrid`, 
 - [ ] **Step 4: Migrate the existing tests**
 
 - Grid `.check()` and `.uncheck()` calls in the Files list: keep the existing input locators and wrap them in `pick(...)`.
-- `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py`: re-seed per spec §6 (column label is a KaTeX formula in a single `{…}` box, wait for `.katex` before measuring), and repoint `thead th` to the last `.gridbtn`.
+- `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py`: re-seed per spec §6: in the shared `_seed_wide_unit`, the last `COLUMN_LABELS` entry becomes a KaTeX formula in a single `{…}` box, and tests wait for `.katex` before measuring. In `test_wide_grid_scrolls_to_reveal_its_last_column`, use the last `.gridbtn` through `.last` or `querySelectorAll` (`.gridbtn:last-child` matches every button), replace the label-text equality with a `.katex` count of 1 in that button, and add a precondition that its right edge is beyond the phone width before scrolling.
 - `test_e2e_locked_controls_look.py::test_dark_locked_grid_pick_stands_out`: row 0 is answered correctly, so its locked pick has resolved `--success` border plus inset shadow, the unpicked button has `--border-strong` and no shadow, and the border-to-surface contrast is at least `3`. Delete `_CELL_CONTRAST` if nothing else uses it.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width`: new assertions and the moved shade check per spec §6.
 - `test_e2e_quiz_reveal_pr2.py`: the switch-position assertion keeps covering `multigrid` and must stay unchanged. In `test_grid_lock_keeps_the_students_pick_and_paints_rows` (about lines 306–307), replace the comparison of first-`td` backgrounds with each row's `.grid-verdict` glyph (✓ against ✗) and the differing computed border colour of the picked `.gridbtn`.
