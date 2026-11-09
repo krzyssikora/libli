@@ -88,7 +88,8 @@ a Picked card look unpicked now that the native control is hidden. Under
 `@media (forced-colors: active)`, picked option cards and picked `.gridbtn` use
 `forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight`.
 "Picked" here includes checked cards with a verdict class. Because `forced-color-adjust`
-inherits, the marker and feedback inside such a card also get `color: HighlightText`. This
+inherits and these elements carry their own colours, the label, `.question__choice-text`, marker
+and feedback inside such a card also get `color: HighlightText`. This
 applies only in that mode, so D1 and D2 are unaffected.
 
 ### 3.2 Hiding the inputs
@@ -110,9 +111,11 @@ inputs inside the outlined cards rather than losing the selection indicator.
 - `<li class="question__choice">` is the card and gains `question__choice--correct`,
   `--wrong` or `--missed` from `mk.kind` when a mark exists. `choice_marks` remains the only
   source of which options carry a mark; the template just paints it.
+- `.question__choice` is `margin: 0` and the list is `display: grid; gap: 6px`, giving the
+  mockup's gap.
 - The label fills the card's first row and is `display: flex; gap: var(--space-2)` with
-  `margin: 0` (overriding `app.css`'s `label` margin, which the removed `--marked` rule used to
-  reset). With the input hidden it is out of flow and the text is the only flex item; in the
+  `margin: 0; color: var(--text-primary)` (overriding `app.css`'s `label` margin, which the
+  removed `--marked` rule used to reset, and its `--text-secondary` colour). With the input hidden it is out of flow and the text is the only flex item; in the
   §3.2 fallback the visible native input sits beside the text.
 - Every card reserves `padding-inline-end: 2.25rem` on the label, marked or not, so text does
   not reflow on Check. The marker is positioned over that padding at the row's right edge (D8),
@@ -121,8 +124,9 @@ inputs inside the outlined cards rather than losing the selection indicator.
   row stays the tap target. These replace the marker's old `display` and `margin` rules.
 - `.question__choice-feedback` spans the full width beneath, inside the card, without its old
   left indent, inset `0 14px 9px`.
-- `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`;
-  KaTeX's own `nowrap` keeps formulas whole. Wide maths, inline or display, scrolls inside this
+- `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`.
+  An inline formula can still break between its top-level terms; only an unbreakable run needs
+  to scroll. Such wide maths, inline or display, scrolls inside this
   element with `overflow-x: auto; overflow-y: hidden; padding-block: 4px`. Those three travel
   together, as the repo's existing maths scrollers record, because `overflow-x` alone makes
   `overflow-y` compute to `auto` and KaTeX overhang then produces a vertical scrollbar. The
@@ -176,8 +180,10 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
 - For both grid types these go: `min-width: max-content`, the zebra stripes, the row rule, the
   print-only `min-width: 0` rule, the `td:has(input:checked)` cell tint, the `td label` hover
   background, and the old `th`/`td` padding, centring, `td.*__stmt` `min-width: 10rem`, `td label`
-  and `td input` sizing and `accent-color` rules, which the rules here replace. Selectors are
-  written so nothing left over outranks them. The `.scroll-x` and `-scroll` wrappers stay as a safety net
+  and `td input` sizing and `accent-color` rules, which the rules here replace, and the `thead th`
+  blocks. Selectors are written so nothing left over outranks them. The section comments in
+  `courses.css` and the `render_choice_grid` and `render_multigrid` docstrings that describe a
+  header row are updated. The `.scroll-x` and `-scroll` wrappers stay as a safety net
   for a pathologically wide column label such as a long formula; ordinary grids never overflow.
 - The picked state hangs off the input: `input:checked + .gridbtn`; focus, hover and locked
   likewise key on the sibling input.
@@ -281,8 +287,9 @@ Three groups of existing browser tests need more than a selector change:
   `force=True` is not allowed in any test that proves clickability.
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py` use a four-column grid as
   their over-wide seed, and the first also reads `thead th`. Ordinary grids no longer overflow, so these are
-  re-seeded with a long KaTeX formula as a column label (`overflow-wrap: anywhere` would break
-  plain text), and wait for KaTeX before measuring, keeping the proof that the §5 fallback
+  re-seeded with a long KaTeX formula as a column label, written as a single unbreakable box
+  such as `{a+b+…}` (`overflow-wrap: anywhere` breaks plain text, and KaTeX can break between
+  top-level terms), and wait for KaTeX before measuring, keeping the proof that the §5 fallback
   scroller and its edge shading still work, and repointed to a button.
 - `test_e2e_print_layout.py::test_grid_question_fits_print_width` asserts the grid overflows on
   screen first, which is no longer true. It becomes: at print width every `.gridbtn` ends inside
@@ -318,7 +325,7 @@ New or updated coverage:
   - `.grid-answers` stays transparent with a pick. The marker sits above any feedback, in the
     option's first line.
   - With `forced_colors="active"`, picked and unpicked cards and buttons differ, and the marker
-    in a picked verdict card computes to the HighlightText value.
+    and `.question__choice-text` in a picked verdict card compute to the HighlightText value.
   - With fixture labels long enough not to fit beside a statement, at 360px and at a width where
     the statement plus one button fits but the statement plus all buttons does not, every button
     is below the statement, the page has no horizontal overflow, `.choicegrid-scroll` and
@@ -326,7 +333,7 @@ New or updated coverage:
     inside that box. A grid whose last-row statement holds a fraction has
     `scrollHeight <= clientHeight` on the wrapper. At desktop width statement and
     buttons share a line. A sentence-length column label at 360px wraps.
-  - At 360px, an option holding a wide inline formula and one holding display maths keep their
+  - At 360px, an option holding a wide unbreakable inline formula and one holding display maths keep their
     content and marker inside the card, with no page overflow. An option holding a normal inline
     formula has `scrollHeight <= clientHeight` on its text element.
   - Dark theme and a custom brand colour resolve from tokens.
