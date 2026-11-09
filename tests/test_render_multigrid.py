@@ -125,12 +125,12 @@ def test_key_copy_suffixes_ids():
 def test_multigrid_hint_once_with_key_copy(extra):
     from django.template.loader import render_to_string
 
-    q, _cols, _r1 = _grid()
+    q, (a, _b), _r1 = _grid()
     body = render_to_string(
         "courses/elements/multigridquestionelement.html",
         {
             "el": q,
-            "key_copy_html": "<p>key</p>",
+            "key_copy_html": q.render_key_copy([[a.pk]]),
             "submitted_values": None,
             **extra,
         },
