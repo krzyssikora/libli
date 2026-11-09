@@ -411,8 +411,9 @@ New or updated coverage:
     is below the statement, the page has no horizontal overflow, `.choicegrid-scroll` and
     `.multigrid-scroll` have `scrollWidth - clientWidth <= 0`, and every `.gridbtn` right edge is
     inside that box. A grid whose last-row statement holds a fraction has
-    `scrollHeight <= clientHeight` on the wrapper and on `.grid-stmt-text`, the latter with an A/B
-    against removing its padding. At desktop width statement and
+    `scrollHeight <= clientHeight` on the wrapper; `.grid-stmt-text` has at most 3px of excess
+    `scrollHeight` (KaTeX overhang), computed `overflow-y: hidden`, and an A/B against removing
+    its padding. At desktop width statement and
     buttons share a line. A sentence-length column label at 360px wraps.
   - At 360px, an option holding a wide unbreakable inline formula and one holding display maths keep their
     content and marker inside the card, with no page overflow. An option holding a normal inline
