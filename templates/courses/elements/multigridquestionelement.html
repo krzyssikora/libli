@@ -5,6 +5,7 @@ checkboxes lose their row_<pk> names in the keycopy pass, so they never join the
 student's checkbox group. data-question-inline is unconditional (lesson D13 + quiz).{% endcomment %}
 <div class="el el--question el--multigrid" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
+  <p class="question__hint">{% trans "Tick every correct answer." %}</p>
   {% if mode == "results" %}
   <div class="question__form" data-answer-scope>
     <fieldset data-answer-yours disabled style="border:0;padding:0;margin:0;">

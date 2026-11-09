@@ -263,39 +263,73 @@ def render_match_pairs(el, submitted_values=None, verdicts=None, copy=""):
 
 @register.simple_tag
 def render_choice_grid(el, submitted_values=None, verdicts=None, copy=""):
-    """Render a matrix single-choice widget: a <table> whose header row lists the
-    column labels and whose body has one row per statement carrying a radio group
-    (name="row_<rowpk>", value="<colpk>"), checked per the positional
-    submitted_values list. `verdicts` / copy="key" paint each row (spec 2026-09-25
-    §2.1). See courses.models.ChoiceGridQuestionElement."""
+    """Render a matrix single-choice widget: a <table> with no header row and one
+    <tr> per statement. Each row is the statement cell, then one answers cell
+    holding a radio group (name="row_<rowpk>", value="<colpk>") as a run of
+    <label><input><span class="gridbtn">{column label}</span></label> buttons,
+    checked per the positional submitted_values list. `verdicts` / copy="key"
+    paint each row (spec 2026-09-25 §2.1; markup: choice-option-cards §3.4).
+    See courses.models.ChoiceGridQuestionElement."""
     cols = list(el.columns.all())
     rows = list(el.rows.all())
     sv = submitted_values or []
     key = copy == "key"
-    head = format_html_join("", "<th>{}</th>", ((c.label,) for c in cols))
     body = format_html_join(
         "",
-        '<tr{}><td class="choicegrid__stmt">{}{}</td>{}</tr>',
+        "{}",
         (
             (
-                _row_class(part_verdict(verdicts, i, key)),
-                row.statement,
-                sr_verdict(part_verdict(verdicts, i, key)),
-                _grid_row_cells(
+                _grid_row(
                     row,
                     cols,
-                    sv[i] if i < len(sv) else "",
-                    invalid_attr(part_verdict(verdicts, i, key)),
+                    "choicegrid",
+                    part_verdict(verdicts, i, key),
+                    _grid_row_cells(
+                        row,
+                        cols,
+                        sv[i] if i < len(sv) else "",
+                        invalid_attr(part_verdict(verdicts, i, key)),
+                    ),
                 ),
             )
             for i, row in enumerate(rows)
         ),
     )
+    return format_html('<table class="choicegrid"><tbody>{}</tbody></table>', body)
+
+
+def _grid_row(row, cols, kind, verdict, cells_html):
+    # One <tr> for either grid type (kind is "choicegrid" or "multigrid"): the
+    # statement cell, then -- only when there are columns -- the answers cell. The
+    # statement id is namespaced per type because GridRow and MultiGridRow have
+    # independent pk sequences. The sr_verdict text and the visible glyph sit
+    # OUTSIDE span.grid-stmt-text, so the text's scroller cannot hide them.
+    glyph = ""
+    if verdict is not None:
+        glyph = format_html(
+            '<span class="grid-verdict" aria-hidden="true">{}</span>',
+            "✓" if verdict else "✗",
+        )
+    stmt_id = f"{kind}-stmt-{row.pk}"
+    answers = ""
+    if cols:
+        answers = format_html(
+            '<td class="grid-answers-cell">'
+            '<div class="grid-answers" role="group" aria-labelledby="{}">{}</div>'
+            "</td>",
+            stmt_id,
+            cells_html,
+        )
     return format_html(
-        '<table class="choicegrid"><thead><tr><th></th>{}</tr></thead>'
-        "<tbody>{}</tbody></table>",
-        head,
-        body,
+        '<tr{}><td class="{}__stmt" id="{}">'
+        '<span class="grid-stmt-text">{}</span>{}{}</td>{}</tr>',
+        _row_class(verdict),
+        kind,
+        stmt_id,
+        row.statement,
+        sr_verdict(verdict),
+        glyph,
+        answers,
     )
 
 
@@ -317,21 +351,23 @@ def _grid_row_cells(row, cols, chosen, invalid=""):
         if chosen != "" and chosen == c.pk:
             cells.append(
                 format_html(
-                    '<td><label><input type="radio" name="row_{}" value="{}" checked{}>'
-                    "</label></td>",
+                    '<label><input type="radio" name="row_{}" value="{}" checked{}>'
+                    '<span class="gridbtn">{}</span></label>',
                     row.pk,
                     c.pk,
                     invalid,
+                    c.label,
                 )
             )
         else:
             cells.append(
                 format_html(
-                    '<td><label><input type="radio" name="row_{}" value="{}"{}>'
-                    "</label></td>",
+                    '<label><input type="radio" name="row_{}" value="{}"{}>'
+                    '<span class="gridbtn">{}</span></label>',
                     row.pk,
                     c.pk,
                     invalid,
+                    c.label,
                 )
             )
     return format_html_join("", "{}", ((cell,) for cell in cells))
@@ -339,40 +375,39 @@ def _grid_row_cells(row, cols, chosen, invalid=""):
 
 @register.simple_tag
 def render_multigrid(el, submitted_values=None, verdicts=None, copy=""):
-    """Render a multi-select grid: a <table> whose header lists the column labels
-    and whose body has one row per statement carrying a checkbox group
-    (name="row_<rowpk>", value="<colpk>"), each checked when its col pk is in that
-    row's positional chosen-pk list. `verdicts` / copy="key" paint each row (spec
-    2026-09-25 §2.1). See courses.models.MultiGridQuestionElement."""
+    """Render a multi-select grid: a <table> with no header row and one <tr> per
+    statement. Each row is the statement cell, then one answers cell holding a
+    checkbox group (name="row_<rowpk>", value="<colpk>") as a run of
+    <label><input><span class="gridbtn">{column label}</span></label> buttons, each
+    checked when its col pk is in that row's positional chosen-pk list. `verdicts` /
+    copy="key" paint each row (spec 2026-09-25 §2.1; markup: choice-option-cards
+    §3.4). See courses.models.MultiGridQuestionElement."""
     cols = list(el.columns.all())
     rows = list(el.rows.all())
     sv = submitted_values or []
     key = copy == "key"
-    head = format_html_join("", "<th>{}</th>", ((c.label,) for c in cols))
     body = format_html_join(
         "",
-        '<tr{}><td class="multigrid__stmt">{}{}</td>{}</tr>',
+        "{}",
         (
             (
-                _row_class(part_verdict(verdicts, i, key)),
-                row.statement,
-                sr_verdict(part_verdict(verdicts, i, key)),
-                _multigrid_row_cells(
+                _grid_row(
                     row,
                     cols,
-                    sv[i] if i < len(sv) else [],
-                    invalid_attr(part_verdict(verdicts, i, key)),
+                    "multigrid",
+                    part_verdict(verdicts, i, key),
+                    _multigrid_row_cells(
+                        row,
+                        cols,
+                        sv[i] if i < len(sv) else [],
+                        invalid_attr(part_verdict(verdicts, i, key)),
+                    ),
                 ),
             )
             for i, row in enumerate(rows)
         ),
     )
-    return format_html(
-        '<table class="multigrid"><thead><tr><th></th>{}</tr></thead>'
-        "<tbody>{}</tbody></table>",
-        head,
-        body,
-    )
+    return format_html('<table class="multigrid"><tbody>{}</tbody></table>', body)
 
 
 def _multigrid_row_cells(row, cols, chosen, invalid=""):
@@ -385,22 +420,24 @@ def _multigrid_row_cells(row, cols, chosen, invalid=""):
         if c.pk in chosen_set:
             cells.append(
                 format_html(
-                    "<td><label>"
+                    "<label>"
                     '<input type="checkbox" name="row_{}" value="{}" checked{}>'
-                    "</label></td>",
+                    '<span class="gridbtn">{}</span></label>',
                     row.pk,
                     c.pk,
                     invalid,
+                    c.label,
                 )
             )
         else:
             cells.append(
                 format_html(
-                    '<td><label><input type="checkbox" name="row_{}" value="{}"{}>'
-                    "</label></td>",
+                    '<label><input type="checkbox" name="row_{}" value="{}"{}>'
+                    '<span class="gridbtn">{}</span></label>',
                     row.pk,
                     c.pk,
                     invalid,
+                    c.label,
                 )
             )
     return format_html_join("", "{}", ((cell,) for cell in cells))

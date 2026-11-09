@@ -29,7 +29,6 @@ def test_courses_css_defines_choicegrid_student_surface():
         ".choicegrid-scroll",
         ".choicegrid",
         ".choicegrid__stmt",
-        ".choicegrid thead th",
     ]:
         assert cls in css, f"missing choicegrid student rule: {cls}"
     # Selected/live cell states must use the brand token + feedback vocabulary,
