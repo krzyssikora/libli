@@ -3,6 +3,8 @@
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 RAW_CSS = (ROOT / "courses/static/courses/css/courses.css").read_text(encoding="utf-8")
 CSS = re.sub(r"/\*.*?\*/", "", RAW_CSS, flags=re.S)
@@ -76,6 +78,29 @@ def test_picked_thickness_is_an_inset_shadow_not_a_border_width():
     body = _rule_body(CSS, PICKED)
     assert re.search(r"box-shadow:\s*inset", body)
     assert "border-width" not in body
+
+
+def _print_tint_selector_lists():
+    rules = re.findall(r"([^{}]+)\{([^{}]*)\}", _inside(CSS, "@media print"))
+    return [
+        selectors.strip()
+        for selectors, body in rules
+        if ".question__choice" in selectors and "print-color-adjust" in body
+    ]
+
+
+@pytest.mark.parametrize("verdict", ["--correct", "--wrong", "--missed"])
+def test_print_verdict_tint_survives_a_browser_without_has(verdict):
+    """One unsupported selector voids its whole list, so :has() stays out of it."""
+    lists = [
+        s for s in _print_tint_selector_lists() if f".question__choice{verdict}" in s
+    ]
+    assert lists, f"no print tint for {verdict}"
+    assert not [s for s in lists if ":has(" in s], lists
+
+
+def test_print_picked_tint_has_its_own_rule():
+    assert PICKED in _print_tint_selector_lists()
 
 
 def test_removed_row_and_list_modifiers_are_gone():

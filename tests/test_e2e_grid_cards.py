@@ -387,7 +387,7 @@ def test_fraction_statement_no_vertical_scroll(page, live_server):
     assert _text(q, 1).evaluate(excess) <= 3
     assert _css(_text(q, 1), "overflowY") == "hidden"
 
-    # A/B: the bound is measuring that padding, which is what keeps the overhang small.
+    # A/B: without that padding the same measure exceeds the 3px bound.
     page.add_style_tag(content=".grid-stmt-text { padding-block: 0 !important; }")
     assert _text(q, 1).evaluate(excess) > 3
 

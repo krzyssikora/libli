@@ -48,6 +48,7 @@ import pytest
 from django.conf import settings
 from django.urls import reverse
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import add_element
 from tests.factories import make_verified_user
@@ -434,7 +435,7 @@ def _answer_wrong(scope):
         .filter(has=scope.page.locator(".question__choice-text", has_text="C"))
         .first
     )
-    li.locator("input[type='radio']").check()
+    pick(li.locator("input[type='radio']"))
     scope.locator("button[type='submit']").first.click()
     scope.locator(".question__verdict").first.wait_for(state="visible")
 

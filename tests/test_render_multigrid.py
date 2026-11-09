@@ -1,4 +1,6 @@
 # tests/test_render_multigrid.py
+from types import SimpleNamespace
+
 import pytest
 from django.template import Context
 from django.template import Template
@@ -115,7 +117,12 @@ def test_key_copy_suffixes_ids():
 
 
 @pytest.mark.django_db
-def test_multigrid_hint_once_with_key_copy():
+@pytest.mark.parametrize(
+    "extra",
+    [{"mode": "results"}, {"mode": "lesson", "element": SimpleNamespace(pk=1)}],
+    ids=["results", "lesson"],
+)
+def test_multigrid_hint_once_with_key_copy(extra):
     from django.template.loader import render_to_string
 
     q, _cols, _r1 = _grid()
@@ -123,11 +130,12 @@ def test_multigrid_hint_once_with_key_copy():
         "courses/elements/multigridquestionelement.html",
         {
             "el": q,
-            "mode": "results",
             "key_copy_html": "<p>key</p>",
             "submitted_values": None,
+            **extra,
         },
     )
+    assert "data-answer-key" in body
     assert body.count("question__hint") == 1
 
 

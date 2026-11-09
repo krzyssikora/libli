@@ -71,7 +71,7 @@ def _rule_body(css, selector):
 
 
 def test_courses_css_defines_choicegrid_student_surface():
-    css = COURSES_CSS.read_text(encoding="utf-8")
+    css = _css()
     for cls in [
         ".choicegrid-scroll",
         ".choicegrid",
