@@ -16,6 +16,7 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import attempts
 from tests.factories import make_verified_user
@@ -104,8 +105,8 @@ def test_multigrid_lesson_immediate_feedback(page, live_server):
 
     # Row 1 → only x^2 (PARTIAL: correct set is {x^2, B}) → all-or-nothing wrong.
     # Row 2 → exactly B (correct). REAL checkbox clicks, never page.evaluate.
-    q.locator(f"input[name='row_{row1.pk}'][value='{col_x.pk}']").check()
-    q.locator(f"input[name='row_{row2.pk}'][value='{col_b.pk}']").check()
+    pick(q.locator(f"input[name='row_{row1.pk}'][value='{col_x.pk}']"))
+    pick(q.locator(f"input[name='row_{row2.pk}'][value='{col_b.pk}']"))
     assert q.locator(f"input[name='row_{row1.pk}'][value='{col_x.pk}']").is_checked()
 
     q.locator(".question__form button[type='submit']").click()

@@ -486,8 +486,8 @@ def test_grid_and_fieldset_stems_cap_without_squeezing_their_widgets(page, live_
 
     The choicegrid fixture MUST have a non-empty stem AND real columns/rows:
     choicegridquestionelement renders .question__stem under `{% if el.stem %}`, and
-    render_choice_grid iterates el.columns/el.rows -- with neither seeded the table
-    is an empty <thead><th></th></thead><tbody></tbody>.
+    render_choice_grid iterates el.rows -- with none seeded the table is an empty
+    <tbody></tbody>, and a row with no columns has no answers cell.
     """
     from courses.models import Blank
     from courses.models import ChoiceGridQuestionElement

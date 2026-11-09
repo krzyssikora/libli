@@ -5,6 +5,7 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
 
@@ -292,8 +293,8 @@ def test_grid_lock_keeps_the_students_pick_and_paints_rows(browser, live_server,
     page.goto(_quiz_url(live_server, course, unit))
     q = page.locator("[data-question]").first
     rows = q.locator("[data-answer-yours] tbody tr")
-    rows.nth(0).locator("input").nth(0).check()
-    rows.nth(1).locator("input").nth(0).check()  # wrong for row 2 in both kits
+    pick(rows.nth(0).locator("input").nth(0))
+    pick(rows.nth(1).locator("input").nth(0))  # wrong for row 2 in both kits
     _check(q)
     q.locator("[data-answer-switch]").wait_for(timeout=6000)  # 1 attempt: locked
     rows = q.locator("[data-answer-yours] tbody tr")
@@ -303,8 +304,12 @@ def test_grid_lock_keeps_the_students_pick_and_paints_rows(browser, live_server,
     # The swapped-in scroll wrapper is wired again (scroll_affordance.js marks it).
     wrap = q.locator("[data-answer-yours] [data-scroll-x]")
     assert wrap.get_attribute("data-scroll-x-ready") == "1"
-    stmt = "tr => getComputedStyle(tr.querySelector('td')).backgroundColor"
-    assert rows.nth(0).evaluate(stmt) != rows.nth(1).evaluate(stmt)
+    glyph = ".grid-verdict"
+    assert rows.nth(0).locator(glyph).inner_text() == "✓"
+    assert rows.nth(1).locator(glyph).inner_text() == "✗"
+    border = "el => getComputedStyle(el).borderTopColor"
+    picked = [rows.nth(r).locator(".gridbtn").nth(0).evaluate(border) for r in (0, 1)]
+    assert picked[0] != picked[1], picked
     q.locator("label:has([data-answer-view='key'])").click()
     key_row2 = q.locator("[data-answer-key] tbody tr").nth(1)
     assert key_row2.locator("input").nth(1).is_checked()
@@ -327,8 +332,8 @@ def test_lesson_check_repaints_and_rebuilds(browser, live_server, kind):
         _size_stages(page)
     q = page.locator("[data-question]").first
     if kind in ("choicegrid", "multigrid"):
-        q.locator("tbody tr").nth(0).locator("input").nth(0).check()
-        q.locator("tbody tr").nth(1).locator("input").nth(0).check()
+        pick(q.locator("tbody tr").nth(0).locator("input").nth(0))
+        pick(q.locator("tbody tr").nth(1).locator("input").nth(0))
     else:
         _drag(q, "alphakey", 0)
         _drag(q, "gammadis", 1)
@@ -423,8 +428,8 @@ def test_editor_try_it_rebuilds_the_controls(browser, live_server, kind, unit_ty
         _size_stages(page)
     q = page.locator("[data-scope='preview'] [data-question]").first
     if kind in ("choicegrid", "multigrid"):
-        q.locator("tbody tr").nth(0).locator("input").nth(0).check()
-        q.locator("tbody tr").nth(1).locator("input").nth(0).check()
+        pick(q.locator("tbody tr").nth(0).locator("input").nth(0))
+        pick(q.locator("tbody tr").nth(1).locator("input").nth(0))
     else:
         _drag(q, "alphakey", 0)
         _drag(q, "gammadis", 1)
@@ -487,7 +492,7 @@ def test_switch_stays_put_on_toggle(browser, live_server, kind):
         _size_stages(page)
     q = page.locator("[data-question]").first
     if kind in ("choicegrid", "multigrid"):
-        q.locator("tbody tr").nth(0).locator("input").nth(0).check()
+        pick(q.locator("tbody tr").nth(0).locator("input").nth(0))
     elif kind == "fillblank":
         # Only the first blank is filled (correctly); the rest are left empty, so
         # the single attempt locks the question wrong overall.

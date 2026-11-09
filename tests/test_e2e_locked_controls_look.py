@@ -6,6 +6,9 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
+from tests.test_e2e_choice_cards import _css
+from tests.test_e2e_choice_cards import _token
 from tests.test_e2e_quiz_reveal_pr2 import _check
 from tests.test_e2e_quiz_reveal_pr2 import _login
 from tests.test_e2e_quiz_reveal_pr2 import _quiz_url
@@ -22,19 +25,17 @@ def _allow_async_unsafe():
     yield
 
 
-# WCAG relative-luminance contrast of two cells' EFFECTIVE backgrounds (a transparent
-# cell shows its nearest painted ancestor). color-mix() computes to `color(srgb …)`
-# with 0-1 channels, a plain colour to `rgb(…)` with 0-255 ones.
-_CELL_CONTRAST = """(tr) => {
-  const eff = (el) => {
-    for (; el; el = el.parentElement) {
-      const c = getComputedStyle(el).backgroundColor;
-      const alpha = c.match(/\\/\\s*([\\d.]+)\\)|rgba\\([^)]*,\\s*([\\d.]+)\\)/);
-      const clear = alpha && Number(alpha[1] || alpha[2]) === 0;
-      if (c !== "transparent" && !clear) return c;
-    }
-    return "rgb(255, 255, 255)";
-  };
+# WCAG contrast of a colour against the surface behind the button (the nearest
+# painted ancestor). color-mix() computes to `color(srgb ...)` with 0-1 channels, a
+# plain colour to `rgb(...)` with 0-255 ones.
+_BORDER_CONTRAST = """([btn, colour]) => {
+  let surface = "rgb(255, 255, 255)";
+  for (let el = btn.parentElement; el; el = el.parentElement) {
+    const c = getComputedStyle(el).backgroundColor;
+    const alpha = c.match(/\\/\\s*([\\d.]+)\\)|rgba\\([^)]*,\\s*([\\d.]+)\\)/);
+    const clear = alpha && Number(alpha[1] || alpha[2]) === 0;
+    if (c !== "transparent" && !clear) { surface = c; break; }
+  }
   const lum = (c) => {
     const n = c.match(/[\\d.]+/g).map(Number).slice(0, 3);
     const unit = c.startsWith("color(") ? n : n.map((v) => v / 255);
@@ -42,9 +43,8 @@ _CELL_CONTRAST = """(tr) => {
       v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  const tds = tr.querySelectorAll("td");  // [statement, picked, not picked]
-  const a = lum(eff(tds[1]));
-  const b = lum(eff(tds[2]));
+  const a = lum(colour);
+  const b = lum(surface);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }"""
 
@@ -62,8 +62,8 @@ def _lock_grid(page, live_server, username, kind, theme="light"):
     assert page.evaluate("document.documentElement.dataset.theme") == theme
     q = page.locator("[data-question]").first
     rows = q.locator("[data-answer-yours] tbody tr")
-    rows.nth(0).locator("input").nth(0).check()
-    rows.nth(1).locator("input").nth(0).check()
+    pick(rows.nth(0).locator("input").nth(0))
+    pick(rows.nth(1).locator("input").nth(0))
     return q
 
 
@@ -83,17 +83,26 @@ def test_a_locked_check_button_looks_disabled(browser, live_server):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("kind", ["choicegrid", "multigrid"])
 def test_dark_locked_grid_pick_stands_out(browser, live_server, kind):
-    # Row 1: the first column is picked, the second is not. A disabled control's dot
-    # barely shows in dark mode, so the two cells' tints must differ clearly.
+    # Row 0 is answered correctly through its first column; the outline carries
+    # the pick now that the native dot is gone (the fill alone is too faint).
     page = browser.new_context().new_page()
     q = _lock_grid(page, live_server, f"look_{kind}", kind, theme="dark")
     _check(q)
     q.locator("[data-answer-switch]").wait_for(timeout=6000)
     row = q.locator("[data-answer-yours] tbody tr").nth(0)
-    # Measured on this fixture: the plain --primary-subtle tint gives 1.25:1 (RED),
-    # a 40% mix 1.49:1, the 50% mix that ships clears this bar.
-    ratio = row.evaluate(_CELL_CONTRAST)
-    assert ratio >= 1.5, ratio
+    picked = row.locator(".gridbtn").nth(0)
+    unpicked = row.locator(".gridbtn").nth(1)
+    assert row.locator("input").nth(0).is_disabled()
+    success = _token(page, "--success")
+    assert _css(picked, "borderTopColor") == success
+    shadow = _css(picked, "boxShadow")
+    assert "inset" in shadow and success in shadow, shadow
+    assert _css(unpicked, "borderTopColor") == _token(page, "--border-strong")
+    assert _css(unpicked, "boxShadow") == "none"
+    ratio = picked.evaluate(
+        "(el, args) => (" + _BORDER_CONTRAST + ")([el, args])", success
+    )
+    assert ratio >= 3, ratio
 
 
 @pytest.mark.django_db(transaction=True)

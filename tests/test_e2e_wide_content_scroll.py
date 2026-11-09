@@ -28,8 +28,11 @@ pytestmark = pytest.mark.e2e
 # Phone-width viewport: the reported "part of it is not visible at all" case.
 PHONE = {"width": 390, "height": 780}
 
-# Long, unbreakable-ish labels straight from the reported unit (PL interval terms).
-COLUMN_LABELS = ["otwarty", "domknięty", "ograniczony", "lewostronnie otwarty"]
+# Long labels from the reported unit (PL interval terms). Ordinary labels now wrap
+# inside their buttons and never overflow, so the last one is a KaTeX formula in a
+# single {...} box: unbreakable, and wider than a phone.
+WIDE_FORMULA = "+".join(f"a_{{{i}}}" for i in range(50))
+COLUMN_LABELS = ["otwarty", "domknięty", "ograniczony", rf"\({{{WIDE_FORMULA}}}\)"]
 STATEMENTS = ["(2,3)", "⟨4, 7⟩", "(4, +∞)", "⟨-∞, 7)"]
 
 
@@ -92,7 +95,7 @@ def _seed_wide_unit(username, slug):
 
 # Each entry: (human name, wrapper selector, inner table selector).
 SURFACES = [
-    ("multi-select grid", ".multigrid-scroll", "table.multigrid"),
+    ("multi-select grid", ".multigrid-scroll", ".gridbtn:has(.katex)"),
     ("table element", ".el--table__scroll", "table"),
 ]
 
@@ -119,7 +122,7 @@ def test_wide_surfaces_scroll_in_their_own_box_not_the_page(page, live_server):
     _login(page, live_server, "wide_scroll")
     page.set_viewport_size(PHONE)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.wait_for_selector("[data-question]")
+    page.wait_for_selector(".gridbtn .katex")
 
     failures = []
     for name, wrapper_sel, inner_sel in SURFACES:
@@ -131,7 +134,7 @@ def test_wide_surfaces_scroll_in_their_own_box_not_the_page(page, live_server):
         # green result means "it scrolls", never "it happened to fit".
         assert box["inner"] > PHONE["width"], (
             f"{name}: seed is not wide enough to exercise the scroll "
-            f"(table {box['inner']}px at {PHONE['width']}px viewport)"
+            f"(inner element {box['inner']}px at {PHONE['width']}px viewport)"
         )
 
         # The wrapper must stay inside the viewport...
@@ -166,15 +169,21 @@ def test_wide_surfaces_scroll_in_their_own_box_not_the_page(page, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_wide_grid_scrolls_to_reveal_its_last_column(page, live_server):
     """The scroll must actually reach the far edge: after scrolling the grid box
-    fully right, the last column's header is inside the viewport."""
+    fully right, the last button is inside the viewport."""
     course, unit = _seed_wide_unit("wide_reach", "wide-reach")
     _login(page, live_server, "wide_reach")
     page.set_viewport_size(PHONE)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.wait_for_selector(".multigrid-scroll")
+    page.wait_for_selector(".multigrid-scroll .gridbtn .katex")
 
-    last_header = page.locator("table.multigrid thead th").last
-    assert last_header.inner_text().strip() == COLUMN_LABELS[-1]
+    # `.last`, not `:last-child`: every button is its label's last child.
+    last = page.locator(".multigrid-scroll .gridbtn").last
+    assert last.locator(".katex").count() == 1
+    box = last.bounding_box()
+    assert box["x"] + box["width"] > PHONE["width"], (
+        f"seed is not wide enough: the last button ends at "
+        f"{box['x'] + box['width']} at {PHONE['width']}px"
+    )
 
     page.evaluate(
         "() => { const b = document.querySelector('.multigrid-scroll');"
@@ -183,10 +192,10 @@ def test_wide_grid_scrolls_to_reveal_its_last_column(page, live_server):
     page.wait_for_timeout(100)
 
     right = page.evaluate(
-        "() => Math.round(document.querySelector('table.multigrid thead th:last-child')"
-        ".getBoundingClientRect().right)"
+        "() => { const all = document.querySelectorAll('.multigrid-scroll .gridbtn');"
+        " return Math.round(all[all.length - 1].getBoundingClientRect().right); }"
     )
     assert right <= PHONE["width"], (
-        f"last column still off-screen after scrolling right (right={right} > "
+        f"last button still off-screen after scrolling right (right={right} > "
         f"{PHONE['width']}) — the grid cannot be read on a phone"
     )
