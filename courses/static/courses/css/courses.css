@@ -477,57 +477,138 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 
 /* Question element (2a) */
 .el--question .question__stem { margin-bottom: var(--space-3); }
-.el--question .question__choices { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
-.el--question .question__choice { margin: var(--space-1) 0; }
-/* The option the student picked, in a LOCKED quiz. Locking disables every input,
-   and a disabled radio is drawn grey-dot-on-grey-ring — at body size that is
-   indistinguishable from an unchecked option, so the selection has to be carried by
-   the row itself. Same chosen-cell tint the grid question types already use
-   (.choicegrid/.multigrid `td:has(input:checked)`), for one visual vocabulary.
-   Padding is on the modifier only, so an unmarked options list keeps its metrics. */
-.el--question .question__choice--picked {
-  background: var(--primary-subtle);
+/* The one-line hint on multi-answer questions: 4px below the stem, whose margin is
+   12px in a question and 8px on the results page. */
+.question__hint { margin: 0 0 var(--space-2); color: var(--text-secondary); font-size: 14px; }
+.question__stem + .question__hint { margin-top: -8px; }
+.quiz-results__item .question__stem + .question__hint { margin-top: -4px; }
+
+/* Choice options as outlined cards (spec 2026-11-09-choice-option-cards). Selected
+   through .question__choices, so they reach a results fragment with no .el--question
+   ancestor and out-rank app.css's `label`. Colours are tokens only, so the brand
+   colour and both themes need no rule of their own. */
+.question__choices {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  display: grid;
+  gap: 6px;
+  /* A zero track minimum: otherwise a wide formula grows the card past the page and
+     the scroller on the option text is never used. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.question__choices .question__choice {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  margin-left: calc(var(--space-2) * -1);
-  margin-right: calc(var(--space-2) * -1);
 }
-/* A LOCKED option (solved lesson answer, locked quiz, results) is drawn here, not
-   by the browser: Chrome paints a disabled checkbox / radio grey whatever
-   accent-color or opacity say, and on the dark surface a grey tick is barely told
-   from an empty box. A pick is brand-filled (checkbox) or brand ring + dot (radio);
-   a non-pick stays an empty outline. print-color-adjust keeps the fill on paper, or
-   the surface-coloured tick would print white on white. Live inputs stay native. */
-.el--question .question__choice input:disabled {
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  margin: 3px 3px 3px 4px;
-  vertical-align: -2px;
-  border: 1.5px solid var(--text-secondary);
-  border-radius: 3px;
-  display: inline-grid;
-  place-content: center;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+/* The label is the whole first row, so all of it is the tap target. 2.25rem is
+   reserved at the end on every card, marked or not, so text does not reflow on Check. */
+.question__choices .question__choice > label {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding-block: 5px;
+  padding-inline: 14px 2.25rem;
+  color: var(--text-primary);
+  font-weight: 400;
+  cursor: pointer;
 }
-.el--question .question__choice input[type="radio"]:disabled { border-radius: 50%; }
-.el--question .question__choice input:disabled:checked { border-color: var(--primary); }
-.el--question .question__choice input[type="checkbox"]:disabled:checked { background: var(--primary); }
-.el--question .question__choice input[type="checkbox"]:disabled:checked::after {
-  content: "";
-  width: 4px;
-  height: 8px;
-  border: solid var(--surface-raised);
-  border-width: 0 2px 2px 0;
-  transform: translateY(-1px) rotate(45deg);
+.question__choices .question__choice > label:has(input:disabled) { cursor: default; }
+/* The 4px travels with overflow-x: alone it makes overflow-y compute to auto, and
+   KaTeX overhang then draws a vertical scrollbar. With the label's 5px it makes 9px. */
+.question__choices .question__choice-text {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 4px;
 }
-.el--question .question__choice input[type="radio"]:disabled:checked::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--primary);
+/* Inside a scroller KaTeX's 1em margins no longer collapse away. */
+.question__choices .question__choice-text .katex-display,
+.question__choices .question__choice-feedback .katex-display { margin-block: 0; }
+
+/* Picked is thicker through an inset shadow, never a wider border, so selecting
+   cannot shift the layout. Verdict classes come from the server; a live input can
+   still be moved, so the shadow follows :checked and the colour follows the class. */
+.question__choices .question__choice:has(input:checked) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  background: var(--primary-subtle);
+}
+.question__choices .question__choice--correct {
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+.question__choices .question__choice--wrong {
+  border-color: var(--danger);
+  background: var(--danger-subtle);
+}
+.question__choices .question__choice--missed {
+  border-style: dashed;
+  border-color: var(--warning);
+  background: var(--warning-subtle);
+}
+.question__choices .question__choice--correct:has(input:checked) {
+  border-color: var(--success);
+  box-shadow: inset 0 0 0 1px var(--success);
+  background: var(--success-subtle);
+}
+.question__choices .question__choice--wrong:has(input:checked) {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+  background: var(--danger-subtle);
+}
+.question__choices .question__choice--missed:has(input:checked) {
+  border-style: solid;
+  border-color: var(--warning);
+  box-shadow: inset 0 0 0 1px var(--warning);
+  background: var(--warning-subtle);
+}
+/* Inside hover: hover, so a tap on a phone cannot leave a sticky outline. Only a card
+   with no verdict and a live input reacts. */
+@media (hover: hover) {
+  .question__choices .question__choice:not(.question__choice--correct, .question__choice--wrong, .question__choice--missed):has(input:not(:disabled)):hover {
+    border-color: var(--primary);
+  }
+}
+.question__choices .question__choice:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* The picked state depends on :has(), so the hiding does too: a browser without it
+   keeps visible native inputs inside the outlined cards. */
+@supports selector(:has(input:checked)) {
+  .question__choices .question__choice input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+/* High-contrast mode drops box-shadow and repaints borders and fills, which would
+   leave a picked card looking unpicked. forced-color-adjust inherits and these
+   elements carry their own colours, so the text inside is repainted as well. */
+@media (forced-colors: active) {
+  .question__choices .question__choice:has(input:checked) {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+  .question__choices .question__choice:has(input:checked) > label,
+  .question__choices .question__choice:has(input:checked) .question__choice-text,
+  .question__choices .question__choice:has(input:checked) .question__choice-marker,
+  .question__choices .question__choice:has(input:checked) .question__choice-feedback {
+    color: HighlightText;
+  }
 }
 .el--question .question__feedback:empty { display: none; }
 
@@ -572,35 +653,33 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
 /* "◐ Partly correct", not "◐Partly correct" (D4); ✓ / ✗ get the same gap. */
 .question__verdict .question__glyph { margin-inline-end: .3em; }
 
-/* Per-option feedback inside a choice option's <li>: lessons (mcq-feedback), and
-   quizzes and the results page once the question has ended. */
-.question__choice-feedback {
-  margin: 0.25rem 0 0 1.75rem;
+/* Per-option feedback, inside the card and outside the label, so only the label row
+   toggles the input. --text-secondary: --text-tertiary fails on the verdict tints. */
+.question__choices .question__choice-feedback {
+  margin: 0;
+  padding: 4px 14px 9px;
   font-size: 0.9em;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-style: italic;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
-/* `label { display: block; }` (app.css) puts this marker on its own line below
-   the option rather than inline after it, so its left margin is tuned to align
-   with .question__choice-feedback's indent below it, not the checkbox above. */
-.question__choice-marker {
-  display: inline-block;
-  margin: 0.15rem 0 0 1.75rem;
+/* At the card's end edge, on the first line of the option text and never centred, so
+   feedback below cannot move it. Over the label's reserved padding, and not a tap
+   target, so the whole row still toggles the input. */
+.question__choices .question__choice-marker {
+  position: absolute;
+  top: 9px;
+  inset-inline-end: 14px;
+  pointer-events: none;
   font-weight: 600;
 }
 .question__choice-marker--wrong { color: var(--danger); }
 .question__choice-marker--correct { color: var(--success); }
-/* A quiz or results list with markers (from the first Check on, not only once locked):
-   put the marker INLINE after the option text ("Paris ✓") instead of
-   on its own line. app.css's `label { display: block }` is what pushes it down, so
-   the label has to become inline-block for the row to read as one statement — a
-   lone glyph on the next line reads as unrelated content. Any per-option feedback
-   is still a block, so it drops below and keeps its own indent. */
-.question__choices--marked .question__choice > label { display: inline-block; margin-bottom: 0; }
-.question__choices--marked .question__choice-marker { margin: 0 0 0 var(--space-2); }
-/* A correct option the student did NOT pick: amber "you missed this", never the
-   affirming green of --success (which reads as "you got it right"). */
-.question__choice-marker--missed { color: var(--warning); }
+/* A correct option the student did NOT pick: never the affirming green. --tc-orange,
+   because --warning on --warning-subtle is below 3:1 and the mark is the signal. */
+.question__choice-marker--missed { color: var(--tc-orange); }
 
 /* Question element (2b): auto-markable types */
 .question__text-input,
@@ -995,23 +1074,17 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   border-style: solid; border-color: var(--primary);
   background: var(--surface-raised);
 }
-/* Drag + grid verdicts (spec 2026-09-25 §2.1, D6; plan P1/P2): the fill-table
-   colours on the part itself. Drag: the no-JS select and the dnd.js slot / image
-   target (which copies its select's class). Grid: the row's statement cell, with
-   an inset bar so a row with nothing picked still reads. Placed after the drag
-   blocks: the target's hover / focus border rule has the same specificity and
-   loses only by source order; the other bases (select.dnd__select,
-   .dragimage__target--filled, the grids' even-row stripe) are out-ranked. */
+/* Drag verdicts (spec 2026-09-25 §2.1, D6; plan P1/P2): the fill-table colours on
+   the part itself: the no-JS select and the dnd.js slot / image target (which
+   copies its select's class). Placed after the drag blocks: the target's hover /
+   focus border rule has the same specificity and loses only by source order; the
+   other bases (select.dnd__select, .dragimage__target--filled) are out-ranked. */
 select.dnd__select.is-correct,
 .dnd__slot.is-correct,
 .dragimage__target.is-correct { border-color: var(--success); background: var(--success-subtle); }
 select.dnd__select.is-incorrect,
 .dnd__slot.is-incorrect,
 .dragimage__target.is-incorrect { border-color: var(--danger); background: var(--danger-subtle); }
-.choicegrid tbody tr.is-correct td.choicegrid__stmt,
-.multigrid tbody tr.is-correct td.multigrid__stmt { background: var(--success-subtle); box-shadow: inset 3px 0 0 var(--success); }
-.choicegrid tbody tr.is-incorrect td.choicegrid__stmt,
-.multigrid tbody tr.is-incorrect td.multigrid__stmt { background: var(--danger-subtle); box-shadow: inset 3px 0 0 var(--danger); }
 /* An inert chip / slot / target (locked copy, key copy, results) must not look
    grabbable or tappable; dnd.js adds dnd--inert to the root when inert. */
 .dnd__chip:disabled { cursor: default; opacity: .7; }
@@ -2372,148 +2445,168 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 
 .el-editor__answer-error { margin-top: 0; }
 
-/* ── Matrix / choice-grid question (student) ─────────────────────────────────
-   render_choice_grid emits a bare <table class="choicegrid">: a header row of
-   column labels + one body row per statement, each body cell holding a radio.
-   The student template wraps it in .choicegrid-scroll so a wide grid (many
-   columns) scrolls inside its own box instead of the page body. Radios take the
-   brand accent-color so a picked option reads teal; :has() tints the whole
-   chosen cell for an at-a-glance selection before the Check. Zebra rows keep a
-   long run of radios readable straight across. Twin of the .el--table header
-   treatment (sunken tint + strong underline) so the two read as one family. --- */
-.choicegrid-scroll { overflow-x: auto; margin: var(--space-4) 0; }
-.choicegrid {
-  border-collapse: collapse;
-  width: 100%;
-  /* stay at least as wide as the content so columns never crush — the wrapper
-     scrolls instead. */
-  min-width: max-content;
+/* ── Grid questions (student): choicegrid (radios) and multigrid (checkboxes) ──
+   The tags emit a <table> with no header row: one <tr> per statement, holding the
+   statement cell and one answers cell, whose buttons each carry their column label.
+   Each row is a wrapping flex line, so the buttons share the statement's line when
+   they fit, and drop below it as one block when they do not. Colours are tokens only.
+   The -scroll wrappers stay as a safety net for a pathologically wide column label. */
+.choicegrid-scroll,
+.multigrid-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Keeps the first and last rows' focus rings unclipped by the scroller. */
+  padding-block: 1px;
+  margin: var(--space-4) 0;
 }
-.choicegrid th,
-.choicegrid td {
-  padding: var(--space-2) var(--space-3);
-  text-align: center;
-  vertical-align: middle;
-}
-.choicegrid thead th {
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-weight: 600;
-  border-bottom: 2px solid var(--border-strong);
-  white-space: nowrap;
-}
-/* The empty top-left corner stays blank (no header tint / underline). */
-.choicegrid thead th:first-child {
-  background: transparent;
-  border-bottom-color: transparent;
-}
-/* td.choicegrid__stmt (not bare .choicegrid__stmt): the header rule
-   `.choicegrid th, .choicegrid td` is specificity (0,1,1) and would otherwise
-   win over a lone class and centre the statements. */
-.choicegrid td.choicegrid__stmt {
-  text-align: left;
-  font-weight: 500;
-  color: var(--text-primary);
-  min-width: 10rem;
-}
-.choicegrid tbody tr { border-top: 1px solid var(--border-default); }
-.choicegrid tbody tr:nth-child(even) { background: var(--surface-sunken); }
-/* The tag wraps each radio in <label><input></label>, so the whole cell is the
-   tap target. */
-.choicegrid td label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.75rem;
-  margin: 0;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-.choicegrid td input[type="radio"] {
-  accent-color: var(--primary);
-  width: 1.1rem;
-  height: 1.1rem;
-  cursor: pointer;
-}
-/* Chosen cell tint (progressive enhancement; the radio dot is the fallback). */
-.choicegrid tbody td:has(input:checked) { background: var(--primary-subtle); }
-/* Dark: a disabled (locked) radio / checkbox dot barely shows on a dark cell, so the
-   picked cell's tint alone carries the pick -- make it stronger there. */
-[data-theme="dark"] .choicegrid tbody td:has(input:checked) {
-  background: color-mix(in srgb, var(--brand-primary) 50%, var(--surface-raised));
-}
-/* Hover affordance only on a live (not disabled) grid. */
-.choicegrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
-.choicegrid td input[type="radio"]:disabled { cursor: default; }
-
-/* ── Multi-select grid question (student) ────────────────────────────────────
-   Twin of .choicegrid above, but render_multigrid emits a checkbox per column so
-   a statement may be true of several columns at once. Same scroll wrapper, header
-   treatment, zebra rows, and chosen-cell tint so the two grids read as one family. */
-.multigrid-scroll { overflow-x: auto; margin: var(--space-4) 0; }
+/* A multi-answer grid has the hint above it, as close as it is to option cards. */
+.multigrid-scroll { margin-top: 0; }
+.choicegrid,
 .multigrid {
   border-collapse: collapse;
   width: 100%;
-  /* stay at least as wide as the content so columns never crush — the wrapper
-     scrolls instead. */
-  min-width: max-content;
+  /* Under auto layout a wide statement formula widens the whole table, so it never
+     scrolls and the buttons leave a phone screen. */
+  table-layout: fixed;
 }
-.multigrid th,
-.multigrid td {
-  padding: var(--space-2) var(--space-3);
-  text-align: center;
-  vertical-align: middle;
-}
-.multigrid thead th {
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-weight: 600;
-  border-bottom: 2px solid var(--border-strong);
-  white-space: nowrap;
-}
-/* The empty top-left corner stays blank (no header tint / underline). */
-.multigrid thead th:first-child {
-  background: transparent;
-  border-bottom-color: transparent;
-}
-/* td.multigrid__stmt (not bare .multigrid__stmt): the header rule
-   `.multigrid th, .multigrid td` is specificity (0,1,1) and would otherwise
-   win over a lone class and centre the statements. */
-.multigrid td.multigrid__stmt {
-  text-align: left;
-  font-weight: 500;
-  color: var(--text-primary);
-  min-width: 10rem;
-}
-.multigrid tbody tr { border-top: 1px solid var(--border-default); }
-.multigrid tbody tr:nth-child(even) { background: var(--surface-sunken); }
-/* The tag wraps each checkbox in <label><input></label>, so the whole cell is the
-   tap target. */
-.multigrid td label {
+.choicegrid tbody tr,
+.multigrid tbody tr {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.choicegrid td.choicegrid__stmt,
+.multigrid td.multigrid__stmt {
+  display: flex;
+  gap: var(--space-2);
+  flex: 1 1 min(100%, 16rem);
+  min-width: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 400;
+}
+/* overflow-x alone makes overflow-y compute to auto, and KaTeX overhang then draws a
+   vertical scrollbar; the padding is what keeps that overhang inside the box. */
+.grid-stmt-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 4px;
+}
+/* Inside a scroller KaTeX's 1em margins no longer collapse away. */
+.grid-stmt-text .katex-display { margin-block: 0; }
+.grid-verdict {
+  flex: none;
+  padding-block: 4px;
+  font-weight: 600;
+}
+tr.is-correct .grid-verdict { color: var(--success); }
+tr.is-incorrect .grid-verdict { color: var(--danger); }
+.grid-answers-cell {
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 0;
+}
+/* Rows have no padding of their own, so 3 + 3 is the 6px between adjacent rows. */
+.grid-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 3px 4px;
+}
+.grid-answers label {
+  position: relative;
   margin: 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+/* Grid buttons need no :has() for their picked state, so this is unconditional. */
+.grid-answers input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.gridbtn {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
-.multigrid td input[type="checkbox"] {
-  accent-color: var(--primary);
-  width: 1.1rem;
-  height: 1.1rem;
-  cursor: pointer;
+.grid-answers input:disabled + .gridbtn { cursor: default; }
+/* Thicker through an inset shadow, never a wider border, so a pick cannot shift
+   the layout. */
+.grid-answers input:checked + .gridbtn {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  background: var(--primary-subtle);
+  color: var(--text-primary);
 }
-/* Chosen cell tint (progressive enhancement; the checkbox is the fallback). */
-.multigrid tbody td:has(input:checked) { background: var(--primary-subtle); }
-/* Dark: a disabled (locked) radio / checkbox dot barely shows on a dark cell, so the
-   picked cell's tint alone carries the pick -- make it stronger there. */
-[data-theme="dark"] .multigrid tbody td:has(input:checked) {
-  background: color-mix(in srgb, var(--brand-primary) 50%, var(--surface-raised));
+/* A button takes its row's verdict only while it is the pick the server rendered:
+   rows stay live after a wrong Check, and a corrected pick has not been marked yet. */
+tr.is-correct .grid-answers input[checked]:checked + .gridbtn {
+  border-color: var(--success);
+  box-shadow: inset 0 0 0 1px var(--success);
+  background: var(--success-subtle);
 }
-/* Hover affordance only on a live (not disabled) grid. */
-.multigrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
-.multigrid td input[type="checkbox"]:disabled { cursor: default; }
+tr.is-incorrect .grid-answers input[checked]:checked + .gridbtn {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+  background: var(--danger-subtle);
+}
+/* Inside hover: hover, so a tap on a phone cannot leave a sticky outline. Only the
+   outline changes, and a verdict-painted pick out-ranks this and keeps its colours. */
+@media (hover: hover) {
+  .grid-answers input:not(:disabled) + .gridbtn:hover {
+    border-color: var(--primary);
+  }
+}
+.grid-answers input:focus-visible + .gridbtn {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* Phones: the statement is always above its buttons, even with labels as short as
+   P / F, and the rule moves from under the statement to under the whole row. */
+@media (max-width: 640px) {
+  .choicegrid td.choicegrid__stmt,
+  .multigrid td.multigrid__stmt {
+    flex-basis: 100%;
+    border-bottom: 0;
+  }
+  .choicegrid tbody tr,
+  .multigrid tbody tr {
+    padding-block: 6px;
+    border-bottom: 1px solid var(--border-strong);
+  }
+}
+/* High-contrast mode drops box-shadow and repaints borders and fills, which would
+   leave a picked button looking unpicked. The verdict selectors are listed so this
+   out-ranks the row colours above. */
+@media (forced-colors: active) {
+  .grid-answers input:checked + .gridbtn,
+  tr.is-correct .grid-answers input[checked]:checked + .gridbtn,
+  tr.is-incorrect .grid-answers input[checked]:checked + .gridbtn {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+}
 
 /* ── Gallery / carousel (student) ──────────────────────────────────────────
    gallery.js enhances .el--gallery[data-gallery] into a cross-fading carousel
@@ -3609,11 +3702,6 @@ form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
   .dragimage__img { max-height: 170mm; }
   .el--gallery .gallery__frame { max-height: 170mm; }
 
-  /* Grid questions: the screen `min-width: max-content` keeps every statement
-     on one line and lets the wrapper scroll; paper cannot scroll, so the answer
-     columns past the page edge were clipped. Let the statements wrap instead. */
-  .choicegrid, .multigrid { min-width: 0; }
-
   /* Display maths wider than the column: KaTeX cannot line-break a display and
      paper cannot scroll, so it was clipped, equation numbers first. print.js
      flags each display on beforeprint with its natural width in em and the
@@ -3630,6 +3718,28 @@ form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
      (KaTeX's fixed-width struts do not scale), so the screen scroller's `auto`
      printed a scrollbar under it. `hidden` clips at the same box, no bar. */
   .katex-display { overflow-x: hidden; }
+
+  /* Option cards: the outlines print by default; the tints need asking for. Paper
+     cannot scroll, so the screen `auto` scrollers would print a scrollbar. */
+  .question__choices .question__choice { break-inside: avoid; }
+  .question__choices .question__choice:has(input:checked),
+  .question__choices .question__choice--correct,
+  .question__choices .question__choice--wrong,
+  .question__choices .question__choice--missed {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .question__choices .question__choice-text,
+  .question__choices .question__choice-feedback { overflow: visible; }
+
+  /* Grid buttons: as for the option cards, the tints need asking for. */
+  .choicegrid tbody tr,
+  .multigrid tbody tr { break-inside: avoid; }
+  .grid-answers input:checked + .gridbtn {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .grid-stmt-text { overflow: visible; }
 
   /* gallery.js stacks every card absolutely at opacity 0 except the active one
      and sets inline min-heights; on paper every card prints, stacked. */

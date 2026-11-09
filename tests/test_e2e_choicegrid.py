@@ -17,6 +17,7 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import attempts
 from tests.factories import make_verified_user
@@ -94,8 +95,8 @@ def test_matrix_lesson_immediate_feedback(page, live_server):
 
     q = page.locator("[data-question]").first
     # Row 1 → True (correct); Row 2 → True (wrong; correct is False). REAL radio clicks.
-    q.locator(f"input[name='row_{row1.pk}'][value='{col_true.pk}']").check()
-    q.locator(f"input[name='row_{row2.pk}'][value='{col_true.pk}']").check()
+    pick(q.locator(f"input[name='row_{row1.pk}'][value='{col_true.pk}']"))
+    pick(q.locator(f"input[name='row_{row2.pk}'][value='{col_true.pk}']"))
     assert q.locator(f"input[name='row_{row1.pk}'][value='{col_true.pk}']").is_checked()
 
     q.locator(".question__form button[type='submit']").click()
@@ -139,8 +140,8 @@ def test_matrix_quiz_withhold_then_results(browser, live_server):
 
     q = page.locator("[data-question]").first
     # Both rows wrong: row1 → False (correct True), row2 → True (correct False).
-    q.locator(f"input[name='row_{row1.pk}'][value='{col_false.pk}']").check()
-    q.locator(f"input[name='row_{row2.pk}'][value='{col_true.pk}']").check()
+    pick(q.locator(f"input[name='row_{row1.pk}'][value='{col_false.pk}']"))
+    pick(q.locator(f"input[name='row_{row2.pk}'][value='{col_true.pk}']"))
     q.locator(".question__form button[type='submit']").click()
 
     # Wrong on a quiz with attempts remaining → incorrect verdict, correct columns

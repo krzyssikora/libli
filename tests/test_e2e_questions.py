@@ -16,6 +16,7 @@ import urllib.parse
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import attempts
 from tests.factories import make_verified_user
@@ -211,7 +212,7 @@ def test_author_and_answer_single_choice_js(browser, live_server):
     choices_radios = question_el.locator("input[name='choice'][type='radio']")
 
     # Select the WRONG choice ("One") → Check.
-    choices_radios.nth(0).check()
+    pick(choices_radios.nth(0))
     # Click Check — scoped to the question to avoid any other submit buttons.
     question_el.locator("button[type='submit']").click()
 
@@ -234,7 +235,7 @@ def test_author_and_answer_single_choice_js(browser, live_server):
     )
 
     # Select the CORRECT choice ("Two") → Check again.
-    choices_radios.nth(1).check()
+    pick(choices_radios.nth(1))
     question_el.locator("button[type='submit']").click()
 
     feedback_slot.locator(".is-correct").wait_for(timeout=6000)
@@ -418,13 +419,13 @@ def test_preview_try_it_grades_without_persisting(browser, live_server):
     feedback = preview_q.locator("[data-question-feedback]")
 
     # Wrong choice ("One") → incorrect verdict.
-    radios.nth(0).check()
+    pick(radios.nth(0))
     preview_q.locator("button[type='submit']").click()
     feedback.locator(".is-incorrect").wait_for(timeout=6000)
     assert feedback.locator(".is-incorrect").count() >= 1
 
     # Correct choice ("Two") → correct verdict.
-    radios.nth(1).check()
+    pick(radios.nth(1))
     preview_q.locator("button[type='submit']").click()
     feedback.locator(".is-correct").wait_for(timeout=6000)
     assert feedback.locator(".is-correct").count() >= 1
@@ -474,7 +475,7 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
     # Attempt 1 (wrong) → incorrect. PR 3 (spec 2026-09-25 §2.1): the picked option
     # is marked (✗) from this first Check; only the correct, unpicked option stays
     # WITHHELD until the lock.
-    radios.nth(0).check()
+    pick(radios.nth(0))
     pq.locator("button[type='submit']:not([name='reveal'])").click()
     fb.locator(".is-incorrect").wait_for(timeout=6000)
     # PR 3 (spec 2026-09-25 §2.1): replaces
@@ -497,7 +498,7 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
     # counter and the terminal-state freeze (it used to early-return on the swap).
     # Reaching attempt 2 at all proves the counter survived; is_disabled proves the
     # freeze did.
-    radios.nth(0).check()
+    pick(radios.nth(0))
     pq.locator("button[type='submit']:not([name='reveal'])").click()
     # PR 3: wait for something NEW -- `--missed` -- never a condition already true
     # (`--wrong` was already painted after attempt 1); see memory

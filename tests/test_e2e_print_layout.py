@@ -20,6 +20,9 @@ from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_verified_user
+from tests.test_e2e_wide_content_scroll import PHONE
+from tests.test_e2e_wide_content_scroll import _login as _wide_login
+from tests.test_e2e_wide_content_scroll import _seed_wide_unit
 
 pytestmark = pytest.mark.e2e
 
@@ -670,10 +673,8 @@ PRINT_CONTENT_PX = round(160 / 25.4 * 96)
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("kind", ["choicegrid", "multigrid"])
 def test_grid_question_fits_print_width(page, live_server, kind):
-    """A grid question's statements wrap on paper instead of pushing the answer
-    columns past the page edge. On screen the grid keeps min-width: max-content
-    and scrolls; a printed scroll box just clips whatever overflows it. The
-    .scroll-x edge shade, lit from the screen layout, must not print either."""
+    """On paper a long statement wraps and every button ends inside the scroll
+    box, so nothing is clipped at the page edge."""
     from courses.models import ChoiceGridQuestionElement
     from courses.models import GridColumn
     from courses.models import GridRow
@@ -700,30 +701,53 @@ def test_grid_question_fits_print_width(page, live_server, kind):
     _login(page, live_server, user)
     page.goto(_url(live_server, "courses:lesson_unit", unit))
     page.wait_for_selector(f".{kind}")
-    # Precondition: on screen at this width the grid overflows and scrolls, so
-    # the print assertion below cannot pass vacuously.
     box = f".{kind}-scroll"
+    # Precondition: the flex and wrap rules are in force, so the assertions below
+    # are measuring this layout and not a table that happens to fit.
+    layout = (
+        "(s) => { const b = document.querySelector(s + ' .grid-answers');"
+        " const r = getComputedStyle(b.closest('tr'));"
+        " return [r.display, r.flexWrap, getComputedStyle(b).flexWrap]; }"
+    )
+    assert page.evaluate(layout, box) == ["flex", "wrap", "wrap"]
+    page.emulate_media(media="print")
     over = (
         "(s) => { const e = document.querySelector(s);"
         " return e.scrollWidth - e.clientWidth; }"
     )
-    assert page.evaluate(over, box) > 0
-    # ...and scroll_affordance.js has lit the right-edge shade, which print
-    # never re-evaluates: it would paint over the last column on paper.
-    page.wait_for_selector(".scroll-x.is-scroll-end")
-    page.emulate_media(media="print")
     assert page.evaluate(over, box) <= 0
-    shade = (
-        "() => getComputedStyle(document.querySelector('.scroll-x'), '::after').display"
+    # The statement really wraps, onto at least two lines.
+    lines = (
+        "(s) => { const t = document.querySelector(s + ' .grid-stmt-text');"
+        " return t.getBoundingClientRect().height"
+        " / parseFloat(getComputedStyle(t).lineHeight); }"
     )
-    assert page.evaluate(shade) == "none"
-    # Every answer column ends inside the scroll box, i.e. on the paper.
+    assert page.evaluate(lines, box) >= 2
+    # Every button ends inside the scroll box, i.e. on the paper.
     clipped = page.evaluate(
         """(s) => {
           const r = document.querySelector(s).getBoundingClientRect().right;
-          return [...document.querySelectorAll(s + ' th, ' + s + ' td')]
-            .filter((c) => c.getBoundingClientRect().right > r + 0.5).length;
+          const all = document.querySelectorAll(s + ' .gridbtn');
+          if (!all.length) return -1;
+          return [...all].filter(b => b.getBoundingClientRect().right > r + 0.5).length;
         }""",
         box,
     )
     assert clipped == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_scroll_shade_does_not_print(page, live_server):
+    """The .scroll-x edge shade, lit from the screen layout, must not print: print
+    never re-evaluates it, and it would paint over the last column on paper."""
+    course, unit = _seed_wide_unit("print_shade", "print-shade")
+    _wide_login(page, live_server, "print_shade")
+    page.set_viewport_size(PHONE)
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector(".gridbtn .katex")
+    page.wait_for_selector(".scroll-x.is-scroll-end")
+    page.emulate_media(media="print")
+    shade = (
+        "() => getComputedStyle(document.querySelector('.scroll-x'), '::after').display"
+    )
+    assert page.evaluate(shade) == "none"

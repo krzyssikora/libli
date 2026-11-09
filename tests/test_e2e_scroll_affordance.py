@@ -14,6 +14,7 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.test_e2e_wide_content_scroll import _login
 from tests.test_e2e_wide_content_scroll import _seed_wide_unit
 
@@ -99,7 +100,8 @@ def test_edge_shading_tracks_scroll_position(page, live_server):
     _login(page, live_server, "aff_state")
     page.set_viewport_size(PHONE)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.wait_for_selector(".scroll-x")
+    page.wait_for_selector(".el--multigrid .gridbtn .katex")
+    page.wait_for_selector(".el--multigrid .scroll-x.is-scroll-end")
     page.wait_for_timeout(SETTLE_MS)
 
     sel = ".el--multigrid .scroll-x"
@@ -150,6 +152,7 @@ def test_shading_never_intercepts_clicks(page, live_server):
     _login(page, live_server, "aff_click")
     page.set_viewport_size(PHONE)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector(".el--multigrid .gridbtn .katex")
     page.wait_for_selector(".scroll-x")
     page.wait_for_timeout(SETTLE_MS)
 
@@ -163,7 +166,7 @@ def test_shading_never_intercepts_clicks(page, live_server):
 
     # Drive a real checkbox under the lit trailing edge.
     box = page.locator(".multigrid tbody input[type='checkbox']").first
-    box.check()
+    pick(box)
     assert box.is_checked()
 
 

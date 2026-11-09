@@ -2627,10 +2627,13 @@ class ChoiceQuestionElement(QuestionElement):
         call without verdicts (analytics' views._results_row) marks the picks from
         mark_result.reveal, as before.
 
-        LESSON — unchanged from the per-option-feedback design (#132): only
-        options the author wrote feedback for, and only where the selection state
-        is wrong (mark_result.annotated). A lesson leaves its inputs live, so the
-        radio dot still reads.
+        LESSON — marks only what leaks nothing about the key (spec 2026-11-09
+        §3.7): options the author wrote feedback for where the selection state is
+        wrong (mark_result.annotated, #132); every pick of a fully correct answer
+        (✓); and the pick of a wrong single-answer question (✗ -- one pick, so the
+        key is not narrowed beyond what the verdict already says). A wrong
+        multi-answer pick is NOT marked unless annotated: a ✓/✗ there would sort
+        the options into right and wrong.
         """
         marks = {}
         if mode == "lesson":
@@ -2639,6 +2642,12 @@ class ChoiceQuestionElement(QuestionElement):
             for c in choices:
                 if c.pk in mark_result.annotated:
                     marks[c.pk] = "wrong" if c.pk in selected else "missed"
+            for c in choices:
+                if c.pk in selected:
+                    if mark_result.correct:
+                        marks[c.pk] = "correct"
+                    elif not self.multiple:
+                        marks[c.pk] = "wrong"
         else:
             if verdicts is not None:
                 # `choices` and `verdicts` come from separate self.choices.all()
@@ -2726,7 +2735,6 @@ class ChoiceQuestionElement(QuestionElement):
         marks = self.choice_marks(
             choices, selected, mark_result, mode, locked, verdicts=verdicts
         )
-        show_picks = bool(mode != "lesson" and locked)
         unit = element.unit if element is not None else None
         if action_url is None and unit is not None:
             action_url = reverse(
@@ -2749,14 +2757,6 @@ class ChoiceQuestionElement(QuestionElement):
                 "selected_ids": selected,
                 "mark_result": mark_result,
                 "marks": marks,
-                # Tint the option the student picked. Quiz-locked only: that is the
-                # state where the input is disabled and its dot stops being legible.
-                # A lesson (and a quiz with attempts left) keeps its inputs live, so
-                # the native dot already answers "what did I pick?".
-                "show_picks": show_picks,
-                # Inline "option ✓" rows whenever a quiz / results list carries a
-                # marker -- from the first Check on (P3), not only once locked.
-                "marked_layout": bool(show_picks or (mode != "lesson" and marks)),
                 "can_reveal": can_reveal,
                 "reveal_earned": reveal_earned,
                 "revealed": revealed,

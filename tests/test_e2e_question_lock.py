@@ -17,6 +17,7 @@ import os
 
 import pytest
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
 
@@ -95,14 +96,14 @@ def test_correct_multiple_choice_locks_the_options(browser, live_server):
     boxes = question.locator("input[name='choice']")
 
     # Wrong first: the lock is verdict-keyed, so a retry must stay possible.
-    boxes.nth(0).check()
-    boxes.nth(2).check()
+    pick(boxes.nth(0))
+    pick(boxes.nth(2))
     question.locator("button[type='submit']").click()
     question.locator(".question__verdict.is-incorrect").wait_for(timeout=6000)
     assert boxes.nth(2).is_enabled(), "a wrong answer must stay retryable"
 
-    boxes.nth(2).uncheck()
-    boxes.nth(1).check()
+    pick(boxes.nth(2))
+    pick(boxes.nth(1))
     question.locator("button[type='submit']").click()
     question.locator(".question__verdict.is-correct").wait_for(timeout=6000)
 
@@ -163,11 +164,10 @@ def test_correct_short_text_ignores_enter(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_solved_choice_marks_its_picks_in_dark_mode(browser, live_server):
-    # Chrome draws a disabled checkbox / radio grey whatever accent-color or opacity
-    # says, so on the dark surface a locked tick was barely distinguishable from an
-    # empty box. The locked options are drawn by CSS instead: a pick is filled with
-    # the brand colour, a non-pick stays an empty outline.
+def test_solved_choice_paints_its_pick_green_in_dark_mode(browser, live_server):
+    # The inputs are hidden, so the card carries the pick. A fully correct lesson
+    # answer locks and turns its pick --success with an inset shadow; an unpicked
+    # option keeps the thin --border-strong outline with no shadow.
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
     from courses.models import Element
@@ -184,27 +184,33 @@ def test_solved_choice_marks_its_picks_in_dark_mode(browser, live_server):
     page.evaluate("document.documentElement.dataset.theme = 'dark'")
     for i in range(2):
         question = page.locator("[data-question]").nth(i)
-        question.locator("input[name='choice']").nth(0).check()
+        pick(question.locator("input[name='choice']").nth(0))
         question.locator("button[type='submit']").click()
         question.locator(".question__verdict.is-correct").wait_for(timeout=6000)
         boxes = question.locator("input[name='choice']")
         assert boxes.nth(0).is_disabled()
-        picked, empty = (
-            boxes.nth(k).evaluate("el => getComputedStyle(el).backgroundColor")
-            for k in range(2)
-        )
-        primary = page.evaluate(
-            "() => { const p = document.createElement('i');"
-            " p.style.color = 'var(--primary)'; document.body.append(p);"
-            " const c = getComputedStyle(p).color; p.remove(); return c; }"
-        )
         kind = "checkbox" if i == 0 else "radio"
-        assert empty != primary, f"an unpicked locked {kind} is filled: {empty}"
-        if kind == "checkbox":
-            assert picked == primary, f"a locked tick is not brand-filled: {picked}"
-        else:
-            # The radio is a ring + dot: the brand colour is on the border.
-            ring = boxes.nth(0).evaluate("el => getComputedStyle(el).borderTopColor")
-            assert ring == primary, f"a locked radio pick is not brand-ringed: {ring}"
+        cards = question.locator(".question__choice")
+        success, strong = (
+            page.evaluate(
+                "(name) => { const p = document.createElement('i');"
+                " p.style.color = `var(${name})`; document.body.append(p);"
+                " const c = getComputedStyle(p).color; p.remove(); return c; }",
+                token,
+            )
+            for token in ("--success", "--border-strong")
+        )
+        border, shadow = (
+            cards.nth(0).evaluate(f"el => getComputedStyle(el).{prop}")
+            for prop in ("borderTopColor", "boxShadow")
+        )
+        assert border == success, f"a solved {kind} pick is not green: {border}"
+        assert "inset" in shadow and success in shadow, shadow
+        border, shadow = (
+            cards.nth(1).evaluate(f"el => getComputedStyle(el).{prop}")
+            for prop in ("borderTopColor", "boxShadow")
+        )
+        assert border == strong, f"an unpicked locked {kind} changed: {border}"
+        assert shadow == "none", shadow
 
     ctx.close()

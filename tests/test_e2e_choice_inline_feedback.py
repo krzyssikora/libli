@@ -16,6 +16,7 @@ import re
 import pytest
 from playwright.sync_api import expect
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
 
@@ -103,7 +104,7 @@ def test_lesson_inline_feedback_under_wrong_option(page, live_server):
     question_el = page.locator("[data-question]").first
     # Tick only the distractor "C" (misses the correct "A").
     c_li = _choice_li(question_el, "C")
-    c_li.locator("input[type='checkbox']").check()
+    pick(c_li.locator("input[type='checkbox']"))
     question_el.locator("button[type='submit']").click()
 
     # Corrective feedback lands INLINE, inside the same .question__choice <li>.
@@ -127,7 +128,7 @@ def test_lesson_correct_answer_hides_check_no_feedback(page, live_server):
     question_el = page.locator("[data-question]").first
     # Tick ONLY the sole correct option "A" (no "B" in this seed).
     a_li = _choice_li(question_el, "A")
-    a_li.locator("input[type='checkbox']").check()
+    pick(a_li.locator("input[type='checkbox']"))
     question_el.locator("button[type='submit']").click()
 
     expect(question_el.locator(".question__verdict.is-correct")).to_be_visible()

@@ -1,17 +1,16 @@
 {% load courses_extras %}
 {% comment %}The choice options list, shared by the question form and the results
-branch. --marked switches the rows to an inline layout (option text then marker)
-whenever a quiz or results list carries a marker (marked_layout, set in
-ChoiceQuestionElement.render). A lesson list keeps app.css's `label { display: block }`
-stacking, which its per-option feedback indent was tuned against.{% endcomment %}
-<ul class="question__choices{% if marked_layout %} question__choices--marked{% endif %}">
+branch. Each option is an outlined card; a mark from ChoiceQuestionElement.choice_marks
+adds a verdict class (--correct, --wrong, --missed) to its <li>.{% endcomment %}
+<ul class="question__choices">
   {% for c in choices %}
     {% comment %}`marks` (ChoiceQuestionElement.choice_marks) owns WHICH options
     carry a marker and why -- a quiz marks the picks from the first Check and adds ＋
-    once locked, a lesson marks only the author-annotated ones. Keep that rule in
-    Python; the template just paints what it is handed.{% endcomment %}
+    once locked; a lesson marks the author-annotated options plus any pick that
+    leaks nothing (a fully correct answer, or a wrong single-answer pick). Keep
+    that rule in Python; the template just paints what it is handed.{% endcomment %}
     {% with mk=marks|dictkey:c.pk %}
-    <li class="question__choice{% if show_picks and c.pk in selected_ids %} question__choice--picked{% endif %}">
+    <li class="question__choice{% if mk %} question__choice--{{ mk.kind }}{% endif %}">
       <label>
         <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
                name="choice" value="{{ c.pk }}"

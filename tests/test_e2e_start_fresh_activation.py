@@ -9,6 +9,7 @@ import pytest
 from django.urls import reverse
 from playwright.sync_api import expect
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import add_element
 from tests.factories import make_verified_user
@@ -176,7 +177,7 @@ def test_inline_choice_nonempty_answer_activates(page, live_server):
     _login(page, live_server, "sf_choice")
     page.goto(_url(live_server, unit))
     _assert_inactive(page)
-    page.get_by_label("Alpha").check()
+    pick(page.get_by_label("Alpha"))
     page.get_by_role("button", name="Check").click()
     _wait_active(page)
 

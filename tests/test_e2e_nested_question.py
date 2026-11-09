@@ -40,6 +40,7 @@ import re
 import pytest
 from playwright.sync_api import expect
 
+from tests.e2e_pick import pick
 from tests.factories import TEST_PASSWORD
 from tests.factories import add_element
 from tests.factories import make_verified_user
@@ -223,7 +224,7 @@ def test_nested_question_in_a_closed_spoiler_checks_inline(page, live_server):
     page.evaluate("() => { window.__nqNoReload = true; }")
 
     c_li = _option_li(q, "C")
-    c_li.locator("input[type='radio']").check()
+    pick(c_li.locator("input[type='radio']"))
     q.locator("button[type='submit']").click()
 
     # Inline verdict, inside the spoiler's own child wrapper.
@@ -278,7 +279,7 @@ def test_nested_question_in_an_inactive_tab_panel_checks_inline(page, live_serve
     assert _rendered(q) is True
 
     a_li = _option_li(q, "A")
-    a_li.locator("input[type='radio']").check()
+    pick(a_li.locator("input[type='radio']"))
     q.locator("button[type='submit']").click()
 
     verdict = page.locator(".tabs__child .question__verdict.is-correct")

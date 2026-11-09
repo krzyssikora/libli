@@ -136,8 +136,10 @@ def test_unlocked_wrong_check_marks_picks_and_leaks_nothing(client):
     body = _fetch(client, unit, el, kit.half).content.decode()
     assert markers(body) == HALF
     assert option(body, "Betaopt") == before  # byte-identical to the pre-Check markup
-    assert "question__choice--picked" not in body  # tint stays locked-only (P3)
-    assert "question__choices--marked" in body  # markers sit inline (P3)
+    assert "question__choice--picked" not in body
+    assert "question__choices--marked" not in body
+    assert 'class="question__choice question__choice--wrong"' in body  # wrong pick
+    assert "question__choice--missed" not in body  # the key stays withheld
     assert "correct answer, not chosen" not in body and "Betafb" not in body
     assert "data-answer-key" not in body and "data-answer-switch" not in body
 
@@ -241,7 +243,8 @@ def test_locked_wrong_marks_all_three_with_no_switch(client):
     el = add_element(unit, kit.question)
     body = _fetch(client, unit, el, kit.half).content.decode()
     assert markers(body) == LOCKED_HALF
-    assert "question__choice--picked" in body
+    assert "question__choice--picked" not in body
+    assert 'class="question__choice question__choice--missed"' in body  # after the lock
     assert "data-answer-switch" not in body and "data-answer-key" not in body
     assert markers(_page(client, unit)) == LOCKED_HALF
 
@@ -439,14 +442,14 @@ def test_results_stored_correct_key_edited_choice_shows_picks_correct(client):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("mode", ["N", "R"])
-def test_results_nr_choice_rows_show_picks_without_verdicts(client, mode):
+def test_results_nr_choice_rows_keep_picks_without_verdicts(client, mode):
     unit = _quiz(client)
     kit = choice(marking_mode=mode)
     el = add_element(unit, kit.question)
     _fetch(client, unit, el, kit.half)
     row = _rows(_results(client, unit))[0]
     assert markers(row) == UNMARKED
-    assert row.count("question__choice--picked") == 2  # the picks are still legible
+    assert row.count(" checked") == 2  # the picks are still legible
 
 
 @pytest.mark.django_db

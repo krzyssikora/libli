@@ -7,6 +7,7 @@ together. Pin the contract in both the student and editor stylesheets, and prove
 the rendered student table + template wrapper carry the expected class hooks.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -23,23 +24,96 @@ COURSES_CSS = ROOT / "courses/static/courses/css/courses.css"
 EDITOR_CSS = ROOT / "courses/static/courses/css/editor.css"
 
 
+def _css():
+    source = COURSES_CSS.read_text(encoding="utf-8")
+    return re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+
+
+def _block_spans(css, at_rule):
+    """(start of at_rule, index after its closing brace) for each occurrence."""
+    spans, start = [], css.find(at_rule)
+    while start != -1:
+        i, depth = css.index("{", start) + 1, 1
+        while depth:
+            depth += {"{": 1, "}": -1}.get(css[i], 0)
+            i += 1
+        spans.append((start, i))
+        start = css.find(at_rule, i)
+    return spans
+
+
+def _blocks(css, at_rule):
+    return [css[start:end] for start, end in _block_spans(css, at_rule)]
+
+
+def _without_blocks(css, at_rule):
+    for start, end in reversed(_block_spans(css, at_rule)):
+        css = css[:start] + css[end:]
+    return css
+
+
+def _rules(css):
+    """(selector list, body) of every innermost rule."""
+    return [
+        (selector.strip(), body)
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+    ]
+
+
+def _rule_body(css, selector):
+    bodies = [
+        body
+        for selectors, body in _rules(css)
+        if selector in [s.strip() for s in selectors.split(",")]
+    ]
+    assert bodies, f"no rule for {selector}"
+    return "".join(bodies)
+
+
 def test_courses_css_defines_choicegrid_student_surface():
     css = COURSES_CSS.read_text(encoding="utf-8")
     for cls in [
         ".choicegrid-scroll",
         ".choicegrid",
         ".choicegrid__stmt",
-        ".choicegrid thead th",
     ]:
         assert cls in css, f"missing choicegrid student rule: {cls}"
-    # Selected/live cell states must use the brand token + feedback vocabulary,
-    # not a hardcoded colour.
-    assert "accent-color: var(--primary)" in css
-    assert ".choicegrid tbody td:has(input:checked)" in css
+    # Picked buttons use the brand token, not a hardcoded colour.
     assert "var(--primary-subtle)" in css
-    # Verdicts paint the row's statement cell (quiz answer reveal PR 2, P1).
-    # Replaces `.question__reveal--grid`: that results list was deleted in PR 3.
-    assert ".choicegrid tbody tr.is-incorrect td.choicegrid__stmt" in css
+    assert "table-layout: fixed" in css
+    # The whole-cell tint is gone: the button alone carries the pick.
+    assert "td:has(input:checked)" not in css
+
+
+def test_grid_inputs_are_hidden_outside_supports():
+    """Grid buttons need no :has() for their picked state, so unlike the option
+    cards their inputs are hidden unconditionally."""
+    outside = _without_blocks(_css(), "@supports")
+    assert "clip: rect(0 0 0 0)" in _rule_body(outside, ".grid-answers input")
+
+
+@pytest.mark.parametrize(
+    "row, token",
+    [("tr.is-correct", "var(--success)"), ("tr.is-incorrect", "var(--danger)")],
+)
+def test_verdict_paint_is_only_the_server_rendered_pick(row, token):
+    # Outside forced-colors, which repeats these selectors with system colours.
+    css = _without_blocks(_css(), "@media (forced-colors")
+    bodies = [
+        body
+        for selector, body in _rules(css)
+        if row in selector and "input[checked]:checked + .gridbtn" in selector
+    ]
+    assert bodies, f"no verdict rule for {row}"
+    assert all(token in body for body in bodies), bodies
+
+
+def test_gridbtn_hover_lives_inside_hover_media():
+    css = _css()
+    outside = [s for s, _ in _rules(_without_blocks(css, "@media (hover: hover)"))]
+    assert not [s for s in outside if "gridbtn" in s and ":hover" in s]
+    inside = "".join(_blocks(css, "@media (hover: hover)"))
+    assert [s for s, _ in _rules(inside) if "gridbtn" in s and ":hover" in s]
 
 
 def test_editor_css_defines_choicegrid_editor_surface():

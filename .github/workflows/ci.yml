@@ -61,7 +61,7 @@ jobs:
       - run: uv run python manage.py setup_roles     # asserts seed_roles works post-migrate
       - run: uv run python -m pytest -n auto
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
