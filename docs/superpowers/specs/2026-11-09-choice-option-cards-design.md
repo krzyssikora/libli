@@ -8,8 +8,10 @@ every option, and a clear picked state. This restyles single/multiple choice que
 both grid question types to that look, in libli's own (admin-definable) brand colours, across
 every state they render in.
 
-This is a presentation change. Nothing about marking, stored answers, submitted field names,
-what is revealed to a student and when, or the question-type editors changes.
+This is a presentation change. Scoring, stored answers, submitted field names and the
+question-type editors do not change. The one change to what a student sees per option is the
+lesson mark rule in §3.7, which adds marks only where the verdict panel already gives the same
+result.
 
 ## 2. Owner decisions (PROTECTED)
 
@@ -100,15 +102,22 @@ inputs inside the outlined cards rather than losing the selection indicator.
 - `<li class="question__choice">` is the card and gains `question__choice--correct`,
   `--wrong` or `--missed` from `mk.kind` when a mark exists. `choice_marks` remains the only
   source of which options carry a mark; the template just paints it.
-- The label fills the card's first row, carries the padding and is `display: block` with
+- The label fills the card's first row and is `display: flex; gap: var(--space-2)` with
   `margin: 0` (overriding `app.css`'s `label` margin, which the removed `--marked` rule used to
-  reset). The marker is positioned over the label's reserved right padding at the row's right
-  edge (D8), with `pointer-events: none`, so the whole row stays the tap target.
-  `.question__choice-feedback` spans the full width beneath, inside the card, without its old
-  left indent.
-- `.question__choice-text` is `min-width: 0`. Long words wrap. Wide maths, inline or display,
-  scrolls inside this element with `overflow-x: auto`, because `overflow-wrap` cannot break a
-  KaTeX inline-block. The marker sits outside the scroller, so it stays visible in the card.
+  reset). With the input hidden it is out of flow and the text is the only flex item; in the
+  §3.2 fallback the visible native input sits beside the text.
+- Every card reserves `padding-inline-end: 2.25rem` on the label, marked or not, so text does
+  not reflow on Check. The marker is positioned over that padding at the row's right edge (D8),
+  with `pointer-events: none`, so the whole row stays the tap target.
+- `.question__choice-feedback` spans the full width beneath, inside the card, without its old
+  left indent, inset `0 14px 9px`.
+- `.question__choice-text` is `display: block; flex: 1; min-width: 0; overflow-wrap: anywhere`;
+  KaTeX's own `nowrap` keeps formulas whole. Wide maths, inline or display, scrolls inside this
+  element with `overflow-x: auto; overflow-y: hidden; padding-block: 4px`. Those three travel
+  together, as the repo's existing maths scrollers record, because `overflow-x` alone makes
+  `overflow-y` compute to `auto` and KaTeX overhang then produces a vertical scrollbar. The
+  label's vertical padding is `5px`, so the total stays the mockup's `9px`. The marker sits
+  outside the scroller, so it stays visible in the card.
 - `.question__choices--marked`, `marked_layout`, `question__choice--picked`, `show_picks` and
   the `.question__choice input:disabled` drawing block are removed (D9), with their context
   keys and comments in `ChoiceQuestionElement.render`.
@@ -122,8 +131,10 @@ Locked options get `cursor: default` and no hover, keyed on `input:disabled`.
 - `<thead>` is dropped (D12). The `<table class="choicegrid|multigrid">`, `<tbody>`, row
   `is-correct`/`is-incorrect` classes, statement cell, `sr_verdict` text and input attributes
   all stay, so `courses/keycopy.py` and the row-painting code need no change.
-- Each row has two cells: the statement, with `id="gridstmt-{row.pk}"`, and one answers cell,
-  `<td class="grid-answers" role="group" aria-labelledby="gridstmt-{row.pk}">`, holding one
+- Each row has two cells: the statement, with `id="choicegrid-stmt-{row.pk}"` or
+  `id="multigrid-stmt-{row.pk}"` (the two row models have independent pk sequences, so the id
+  is namespaced per type), and one answers cell,
+  `<td class="grid-answers" role="group" aria-labelledby="{that id}">`, holding one
   `<label><input …><span class="gridbtn">{column label}</span></label>` per column, using
   `format_html` escaping. The buttons are a single flex item so they move as a block (D12).
 - Each input now has an accessible name of its own (the column label) and each group is named
@@ -136,8 +147,8 @@ CSS (shared rule set for `.choicegrid` and `.multigrid`):
 
 - `tbody tr` is `display: flex; flex-wrap: wrap`, the statement cell is
   `flex: 1 1 min(100%, 16rem); min-width: 0` with a 1px `--border-strong` bottom rule, and
-  `.grid-answers` is `flex: 0 1 auto; max-width: 100%` and is itself `display: flex;
-  flex-wrap: wrap`. This needs no breakpoint and also works in a narrow container: when a
+  `.grid-answers` is `flex: 0 1 auto; max-width: 100%; padding: 4px` (so the focus ring is not
+  clipped by the scroll wrapper) and is itself `display: flex; flex-wrap: wrap`. This needs no breakpoint and also works in a narrow container: when a
   statement and all its buttons do not fit on one line, the whole button block drops below the
   statement, and the buttons wrap inside it if the block is still too wide (D12). Every row has
   the same flex basis, `min-width` and button widths, so all rows make the same decision. Where
@@ -170,19 +181,27 @@ Style: `--text-secondary`, slightly smaller than body text.
 ### 3.6 Print (D10)
 
 Outlines print by default. Picked and verdict cards and buttons get
-`print-color-adjust: exact` so their tints survive, and cards get `break-inside: avoid`.
+`print-color-adjust: exact` so their tints survive, and cards and grid rows
+(`.choicegrid tbody tr`, `.multigrid tbody tr`) get `break-inside: avoid`.
 
-### 3.7 Consequences of the existing rules
+### 3.7 Lesson marks, and consequences of the existing rules
 
-These follow from leaving marking logic alone. They are stated here so they are not read as
-bugs:
+**The one logic change.** `choice_marks`' lesson branch gains two cases so D4 holds in lessons,
+both only for `c.pk in selected` (a no-JS lesson re-render hands one page-level `mark_result` to
+every question, so the pick condition keeps sibling questions unmarked):
 
-1. **Lessons mark only what leaks nothing.** `choice_marks`' lesson branch gains two cases so D4
-   holds in lessons: a fully correct answer marks every pick ✓ (green), and a wrong answer on a
-   single-answer question marks the pick ✗ (red); the verdict panel already says both. A wrong
-   multi-answer lesson answer still marks only options the author wrote feedback for, because
-   marking the others would show which picks were right. Those picks stay teal and the panel
-   carries the result.
+- A fully correct answer marks every pick ✓ (green).
+- A wrong answer on a single-answer question marks the pick ✗ (red).
+
+The verdict panel already says both. The method's "LESSON — unchanged" docstring and the
+`_choicequestion_options.html` comment ("a lesson marks only the author-annotated ones") are
+updated to match.
+
+The rest are consequences of leaving the other rules alone, stated so they are not read as bugs:
+
+1. **Wrong multi-answer lesson answers.** These still mark only options the author wrote feedback
+   for, because marking the others would show which picks were right. Those picks stay teal and
+   the panel carries the result.
 2. **Grid colour is per row.** Grid verdicts exist per row, and a per-button verdict would leak
    the key. In a wrong multi-grid row, all picked buttons are red, even one that was right.
 3. **Grids have no amber.** They show correct answers through the existing Your answer /
@@ -193,8 +212,8 @@ bugs:
 
 ## 4. Data flow
 
-Unchanged. The same fields post, `build_answer` and `mark` are untouched, and `part_verdicts`
-and `choice_marks` produce the same values. The server renders cards where it rendered rows,
+Unchanged, apart from the lesson branch of `choice_marks` (§3.7). The same fields post,
+`build_answer` and `mark` are untouched, and `part_verdicts` produces the same values. The server renders cards where it rendered rows,
 including in the HTML fragments returned after Check. `quiz.js` and `editor.js` still disable
 inputs on lock, and `:disabled` styling follows.
 
@@ -205,9 +224,8 @@ There are no new failure paths. The two degraded cases are:
 - A browser without `:has()` shows native inputs (§3.2).
 - A very wide grid label scrolls inside the retained wrapper (§3.4).
 
-Long option text and display maths must wrap or scroll inside the card without widening the
-page: the label is `min-width: 0` and text uses `overflow-wrap: anywhere` where it does not
-disturb KaTeX.
+Long option text wraps and wide maths scrolls inside the card without widening the page, by the
+`.question__choice-text` rules in §3.3.
 
 ## 6. Testing
 
@@ -223,8 +241,9 @@ Two groups of existing browser tests need more than a selector change:
   `force=True` is not allowed in any test that proves clickability.
 - `test_e2e_wide_content_scroll.py` and `test_e2e_scroll_affordance.py` use a four-column grid as
   their over-wide seed and read `thead th`. Ordinary grids no longer overflow, so these are
-  re-seeded with an unbreakable wide label, keeping the proof that the §5 fallback scroller and
-  its edge shading still work, and repointed to a button.
+  re-seeded with a long KaTeX formula as a column label (`overflow-wrap: anywhere` would break
+  plain text), and wait for KaTeX before measuring, keeping the proof that the §5 fallback
+  scroller and its edge shading still work, and repointed to a button.
 
 New or updated coverage:
 
@@ -233,7 +252,10 @@ New or updated coverage:
   suffixes the statement id and `aria-labelledby`; verdict classes map one-to-one from mark kinds;
   statement glyph present only on painted rows; hint present exactly when multi-answer, and once
   only when a key copy exists; each new lesson mark case, including a wrong multi-answer lesson
-  answer staying unmarked apart from author-annotated options.
+  answer staying unmarked apart from author-annotated options, and a no-JS lesson re-render
+  where the checked question has a real pick (correct, then wrong single-answer) and its sibling
+  renders no marks; a choice grid and a multi-grid whose rows share a pk emit distinct statement
+  ids.
 - **CSS source:** the input hiding is inside the `@supports` block; picked thickness is a
   `box-shadow`, not `border-width`; every `test_*css*.py` runs.
 - **Browser (Playwright, `-m e2e`):**
@@ -252,7 +274,8 @@ New or updated coverage:
     is below the statement and the page has no horizontal overflow. At desktop width statement and
     buttons share a line. A sentence-length column label at 360px wraps.
   - At 360px, an option holding a wide inline formula and one holding display maths keep their
-    content and marker inside the card, with no page overflow.
+    content and marker inside the card, with no page overflow. An option holding a normal inline
+    formula has `scrollHeight <= clientHeight` on its text element.
   - Dark theme and a custom brand colour resolve from tokens.
   - Print emulation keeps the outlines and picked tints.
 
