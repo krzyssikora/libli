@@ -569,9 +569,9 @@ section.prev-el:not(:has(> :is(.el--text, .el--math))),
   background: var(--warning-subtle);
 }
 /* Inside hover: hover, so a tap on a phone cannot leave a sticky outline. Only a card
-   with no verdict and a live input reacts. */
+   with no verdict and a live, unpicked input reacts: this out-ranks forced-colors. */
 @media (hover: hover) {
-  .question__choices .question__choice:not(.question__choice--correct, .question__choice--wrong, .question__choice--missed):has(input:not(:disabled)):hover {
+  .question__choices .question__choice:not(.question__choice--correct, .question__choice--wrong, .question__choice--missed):has(input:not(:disabled, :checked)):hover {
     border-color: var(--primary);
   }
 }
@@ -3720,15 +3720,21 @@ form:has(select[name="attempts_mode"] option[value="limited"]:not(:checked))
   .katex-display { overflow-x: hidden; }
 
   /* Option cards: the outlines print by default; the tints need asking for. Paper
-     cannot scroll, so the screen `auto` scrollers would print a scrollbar. */
+     cannot scroll, so the screen `auto` scrollers would print a scrollbar. :has()
+     has its own rule: one unsupported selector would void a whole list. The ring is
+     on the card, which the :focus reset at the end of this block does not match. */
   .question__choices .question__choice { break-inside: avoid; }
-  .question__choices .question__choice:has(input:checked),
   .question__choices .question__choice--correct,
   .question__choices .question__choice--wrong,
   .question__choices .question__choice--missed {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  .question__choices .question__choice:has(input:checked) {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .question__choices .question__choice:has(input:focus-visible) { outline: none; }
   .question__choices .question__choice-text,
   .question__choices .question__choice-feedback { overflow: visible; }
 

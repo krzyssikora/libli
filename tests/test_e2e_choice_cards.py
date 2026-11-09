@@ -215,16 +215,18 @@ def test_untick_returns_to_unpicked_look(page, live_server):
     assert _css(card, "boxShadow") == "none"
 
 
+def _tab_to(page, target):
+    for _ in range(60):
+        page.keyboard.press("Tab")
+        if target.evaluate("el => el === document.activeElement"):
+            return
+    pytest.fail("Tab never reached the option group")
+
+
 def test_keyboard_changes_pick_and_shows_ring(page, live_server):
     _lesson(page, live_server, "cc_keys", (False, _options(3)))
     q = _question(page)
-    on_first = "el => el === document.activeElement"
-    for _ in range(60):
-        page.keyboard.press("Tab")
-        if _input(q, 0).evaluate(on_first):
-            break
-    else:
-        pytest.fail("Tab never reached the option group")
+    _tab_to(page, _input(q, 0))
 
     page.keyboard.press("ArrowDown")
     assert _input(q, 1).is_checked()
@@ -485,3 +487,48 @@ def test_print_keeps_outlines_and_tints(page, live_server):
     assert _css(_card(q, D).locator(".question__choice-text"), "overflowX") == "visible"
     note = _card(q, C).locator(".question__choice-feedback")
     assert _css(note, "overflowX") == "visible"
+
+
+def test_print_drops_the_focus_ring_from_a_card(page, live_server):
+    _lesson(page, live_server, "cc_printring", (False, _options(3)))
+    q = _question(page)
+    _tab_to(page, _input(q, 0))
+    card = _card(q, 0)
+    assert _css(card, "outlineStyle") == "solid"
+
+    page.emulate_media(media="print")
+    assert _css(card, "outlineStyle") == "none"
+
+
+def test_forced_colors_hovered_pick_keeps_highlight_border(browser, live_server):
+    ctx = browser.new_context(forced_colors="active")
+    page = ctx.new_page()
+    _lesson(page, live_server, "cc_forcedhover", (False, _options(3)))
+    q = _question(page)
+    pick(_input(q, 1))
+    card = _card(q, 1)
+    card.hover()
+    assert card.evaluate("el => el.matches(':hover')")
+    assert _css(card, "borderTopColor") == _resolve(page, "Highlight")
+    ctx.close()
+
+
+def _assert_hint(page, question):
+    hint = question.locator(".question__hint")
+    assert _css(hint, "fontSize") == "14px"
+    assert _css(hint, "color") == _token(page, "--text-secondary")
+    gap = hint.evaluate(
+        "el => el.getBoundingClientRect().top"
+        " - el.previousElementSibling.getBoundingClientRect().bottom"
+    )
+    assert gap == pytest.approx(4, abs=0.5)
+
+
+def test_hint_style_in_a_question_and_on_results(page, live_server):
+    _quiz(page, live_server, "cc_hint", True, _options(3))
+    _assert_hint(page, _question(page))
+
+    page.once("dialog", lambda d: d.accept())
+    page.locator("[data-finish-btn]").click()
+    page.wait_for_url("**/quiz/results/", timeout=8000)
+    _assert_hint(page, page.locator(".quiz-results__item").first)

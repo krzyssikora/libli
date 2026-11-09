@@ -246,6 +246,12 @@ def test_lesson_wrong_single_answer_marks_the_pick():
 
 
 @pytest.mark.django_db
+def test_lesson_single_answer_with_no_pick_marks_nothing():
+    q, (a, b) = _q(False, ("a", True, ""), ("b", False, ""))
+    assert _marks(q, []) == {}
+
+
+@pytest.mark.django_db
 def test_lesson_wrong_multi_answer_marks_only_annotated():
     q, (a, b, c) = _q(True, ("a", True, ""), ("b", False, "no"), ("c", True, ""))
     marks = _marks(q, [a.pk, b.pk])
@@ -273,8 +279,11 @@ def test_single_answer_has_no_hint(client):
 
 
 @pytest.mark.django_db
-def test_multi_answer_hint_is_translated(client):
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"mode": "results"}], ids=["question", "results"]
+)
+def test_multi_answer_hint_is_translated(client, kwargs):
     unit, el, right, wrong = _quiz(client, multiple=True)
     with translation.override("pl"):
-        body = el.content_object.render(element=el)
+        body = el.content_object.render(element=el, **kwargs)
     assert "Zaznacz wszystkie poprawne odpowiedzi." in body
