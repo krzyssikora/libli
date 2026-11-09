@@ -2735,7 +2735,6 @@ class ChoiceQuestionElement(QuestionElement):
         marks = self.choice_marks(
             choices, selected, mark_result, mode, locked, verdicts=verdicts
         )
-        show_picks = bool(mode != "lesson" and locked)
         unit = element.unit if element is not None else None
         if action_url is None and unit is not None:
             action_url = reverse(
@@ -2758,14 +2757,6 @@ class ChoiceQuestionElement(QuestionElement):
                 "selected_ids": selected,
                 "mark_result": mark_result,
                 "marks": marks,
-                # Tint the option the student picked. Quiz-locked only: that is the
-                # state where the input is disabled and its dot stops being legible.
-                # A lesson (and a quiz with attempts left) keeps its inputs live, so
-                # the native dot already answers "what did I pick?".
-                "show_picks": show_picks,
-                # Inline "option ✓" rows whenever a quiz / results list carries a
-                # marker -- from the first Check on (P3), not only once locked.
-                "marked_layout": bool(show_picks or (mode != "lesson" and marks)),
                 "can_reveal": can_reveal,
                 "reveal_earned": reveal_earned,
                 "revealed": revealed,

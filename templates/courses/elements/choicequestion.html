@@ -1,6 +1,7 @@
 {% load i18n %}
 <div class="el el--question" data-question>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
+  {% if el.multiple %}<p class="question__hint">{% trans "Tick every correct answer." %}</p>{% endif %}
   {% if mode == "results" %}
   {% comment %}Results (spec §4): read-only, no form, no buttons. The inputs are
   disabled through `locked` (views._results_question_html passes locked=True);

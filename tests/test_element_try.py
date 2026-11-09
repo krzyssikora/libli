@@ -186,7 +186,8 @@ def test_try_quiz_correct_marks_the_chosen_option(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert b"is-correct" in resp.content
-    assert b"question__choice--picked" in resp.content
+    assert b"question__choice--picked" not in resp.content
+    assert b'class="question__choice question__choice--correct"' in resp.content
     assert b"question__choice-marker--correct" in resp.content
     assert b"question__reveal" not in resp.content
     assert b"data-quiz-locked" in resp.content

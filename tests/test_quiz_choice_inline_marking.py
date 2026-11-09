@@ -7,14 +7,16 @@ option at body size. A correct answer therefore produced a green "Correct" panel
 next to three options that all looked untouched.
 
 The rule pinned here: once a quiz question LOCKS, the options list itself carries
-the marking — the pick is tinted, correct options get a tick, a wrong pick a
-cross, a missed correct option a plus — and the duplicate bottom reveal list goes
+the marking — each option card gets a verdict class and marker (correct ✓, wrong
+pick ✗, missed correct option ＋) — and the duplicate bottom reveal list goes
 away. While attempts remain only the picks are marked (✓/✗, spec 2026-09-25 §2.1)
-— never ＋, never the pick tint (the withhold rule is unchanged there), and lesson
-mode is untouched.
+— never ＋ / --missed (the withhold rule is unchanged there). A lesson marks a pick
+only where that leaks nothing (choice-option-cards spec §3.7); its other rules are
+untouched. The old `--picked` tint and `--marked` layout classes no longer exist.
 """
 
 import pytest
+from django.utils import translation
 
 from courses.models import Choice
 from tests.factories import ChoiceQuestionElement
@@ -25,7 +27,9 @@ from tests.factories import attempts
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
 
-PICKED = "question__choice--picked"
+C_CORRECT = 'class="question__choice question__choice--correct"'
+C_WRONG = 'class="question__choice question__choice--wrong"'
+C_MISSED = 'class="question__choice question__choice--missed"'
 M_CORRECT = "question__choice-marker--correct"
 M_WRONG = "question__choice-marker--wrong"
 M_MISSED = "question__choice-marker--missed"
@@ -74,7 +78,7 @@ def test_correct_answer_marks_the_chosen_option_on_reload(client):
 
     html = _reload(client, unit)
 
-    assert PICKED in html, "the student's pick carries no visible marker"
+    assert C_CORRECT in html, "the student's pick carries no verdict class"
     assert M_CORRECT in html, "the correct option is not ticked"
 
 
@@ -85,7 +89,7 @@ def test_correct_answer_marks_the_chosen_option_in_the_live_fragment(client):
 
     html = _answer(client, unit, el, right.pk)
 
-    assert PICKED in html
+    assert C_CORRECT in html
     assert M_CORRECT in html
 
 
@@ -102,6 +106,7 @@ def test_wrong_locked_answer_crosses_the_pick_and_flags_the_missed_option(client
 
     assert M_WRONG in html, "the wrong pick is not crossed"
     assert M_MISSED in html, "the missed correct option is not flagged"
+    assert C_WRONG in html and C_MISSED in html
 
 
 @pytest.mark.django_db
@@ -131,7 +136,8 @@ def test_only_the_pick_is_marked_while_attempts_remain(client):
     assert html.count(M_WRONG) == 1
     assert M_CORRECT not in html
     assert M_MISSED not in html
-    assert PICKED not in html
+    assert C_WRONG in html  # the pick carries its verdict class
+    assert "question__choice--missed" not in html  # on no option
 
 
 @pytest.mark.django_db
@@ -187,7 +193,7 @@ def test_multi_select_flags_each_option_by_its_own_outcome(client):
 
 
 # ---------------------------------------------------------------------------
-# Lesson mode is untouched.
+# Lesson mode: only the spec 3.7 marks.
 # ---------------------------------------------------------------------------
 
 
@@ -208,7 +214,7 @@ def test_lesson_correct_answer_gains_a_tick(client):
     ).content.decode()
 
     assert M_CORRECT in html
-    assert PICKED not in html
+    assert C_CORRECT in html
 
 
 def _q(multiple, *rows):
@@ -244,3 +250,31 @@ def test_lesson_wrong_multi_answer_marks_only_annotated():
     q, (a, b, c) = _q(True, ("a", True, ""), ("b", False, "no"), ("c", True, ""))
     marks = _marks(q, [a.pk, b.pk])
     assert {k: v["kind"] for k, v in marks.items()} == {b.pk: "wrong"}
+
+
+# ---------------------------------------------------------------------------
+# The multi-answer hint (spec 3.5) and the retired classes.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_multi_answer_gets_the_hint_once_and_single_does_not(client):
+    unit, el, right, wrong = _quiz(client, multiple=True)
+    body = _answer(client, unit, el, right.pk)
+    assert body.count("question__hint") == 1
+    assert "question__choice--picked" not in body
+    assert "question__choices--marked" not in body
+
+
+@pytest.mark.django_db
+def test_single_answer_has_no_hint(client):
+    unit, el, right, wrong = _quiz(client, multiple=False)
+    assert "question__hint" not in _answer(client, unit, el, right.pk)
+
+
+@pytest.mark.django_db
+def test_multi_answer_hint_is_translated(client):
+    unit, el, right, wrong = _quiz(client, multiple=True)
+    with translation.override("pl"):
+        body = el.content_object.render(element=el)
+    assert "Zaznacz wszystkie poprawne odpowiedzi." in body
