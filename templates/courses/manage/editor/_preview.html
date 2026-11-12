@@ -4,6 +4,9 @@
   <div class="pane-body prev">
     <div class="prev-inner">
       <h2 class="prev-unit-title" data-math-title>{{ unit.title }}</h2>
+      {% if slide_marks.lead %}
+      <div class="prev-slidebreak prev-slidebreak--lead" role="separator" aria-label="{% blocktrans with n=1 total=slide_marks.total %}Slide {{ n }} of {{ total }}{% endblocktrans %}"><span class="prev-slidebreak__rule" aria-hidden="true"></span><span class="prev-slidebreak__label" aria-hidden="true">{% blocktrans with n=1 total=slide_marks.total %}Slide {{ n }} of {{ total }}{% endblocktrans %}</span><span class="prev-slidebreak__rule" aria-hidden="true"></span></div>
+      {% endif %}
       {% for el in preview_elements %}
         {% comment %}
           "Try it" preview: questions render via the student template (a POST form) but
@@ -24,8 +27,16 @@
           child's answer would post to the parent's endpoint. The flag crosses the
           barrier; render_element reverses the child's OWN try URL on the far side.
         {% endcomment %}
+        {% if el.content_type.model == "slidebreakelement" %}
+        {# A break's student template is empty (partition_into_slides consumes it), so the preview draws its own author-only marker, numbered by slideshow.preview_slide_marks; a break that opens no slide stays a plain "Slide break". #}
+        {% with n=slide_marks.breaks|dictkey:el.pk total=slide_marks.total %}
+        {% if n %}{% blocktrans asvar slide_label %}Slide {{ n }} of {{ total }}{% endblocktrans %}{% else %}{% trans "Slide break" as slide_label %}{% endif %}
+        <section class="prev-el prev-slidebreak" data-element-id="{{ el.pk }}" role="separator" aria-label="{{ slide_label }}"><span class="prev-slidebreak__rule" aria-hidden="true"></span><span class="prev-slidebreak__label" aria-hidden="true">{{ slide_label }}</span><span class="prev-slidebreak__rule" aria-hidden="true"></span></section>
+        {% endwith %}
+        {% else %}
         {% url 'courses:manage_element_try' slug=unit.course.slug pk=el.pk as try_url %}
         <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el action_url=try_url editor_preview=True %}</section>
+        {% endif %}
       {% empty %}
         <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
       {% endfor %}
