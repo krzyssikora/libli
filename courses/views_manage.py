@@ -48,6 +48,7 @@ from courses.models import Subject
 from courses.models import UnitProgress
 from courses.numbering import callout_numbers
 from courses.richtext import count_inbound_links
+from courses.slideshow import preview_slide_marks
 from courses.templatetags.courses_manage_extras import element_summary
 from courses.transfer.schema import TransferError
 
@@ -2162,6 +2163,8 @@ def _render_editor_fragments(
             # _render_editor_fragments every later swap. A key on only one of them
             # makes the other silently drop every number.
             "callout_numbers": callout_numbers(unit),
+            # Same both-builders rule as callout_numbers: the preview's slide numbers.
+            "slide_marks": preview_slide_marks(join_rows),
             # gates the add-menu's "Interactive" (revealgate) group — quiz units
             # don't offer it. _add_menu.html is included without `only`, so this
             # flows straight through the same context to the nested add-menu too.
@@ -2294,6 +2297,8 @@ def _editor_page(
             # _render_editor_fragments every later swap. A key on only one of them
             # makes the other silently drop every number.
             "callout_numbers": callout_numbers(unit),
+            # Same both-builders rule as callout_numbers: the preview's slide numbers.
+            "slide_marks": preview_slide_marks(join_rows),
             "changed": changed,
             "error": error,
             "open_slots": open_slots or set(),
