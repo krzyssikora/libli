@@ -134,14 +134,21 @@ def test_list_marks_archived_group_on_pending_row_only(client):
         group=g,
         accepted_at=timezone.now(),
     )
+    expired = Invitation.objects.create(
+        email="expired@school.edu", role=STUDENT, invited_by=pa, group=g
+    )
+    Invitation.objects.filter(pk=expired.pk).update(
+        expires_at=timezone.now() - timedelta(days=1)
+    )
     html = client.get(reverse("accounts:people_invitations")).content.decode()
     assert "(archived)" in _row(html, "pending@school.edu")
     assert "(archived)" not in _row(html, "done@school.edu")
+    assert "(archived)" not in _row(html, "expired@school.edu")
 
 
 @pytest.mark.django_db
 def test_list_query_count_flat(client):
-    pa = make_pa(client)
+    make_pa(client)
     courses = [CourseFactory() for _ in range(5)]
     groups = [GroupFactory(course=c) for c in courses]
     inviters = [UserFactory() for _ in range(5)]
@@ -167,4 +174,3 @@ def test_list_query_count_flat(client):
     with CaptureQueriesContext(connection) as after:
         client.get(url)
     assert len(before.captured_queries) == len(after.captured_queries)
-    assert pa
