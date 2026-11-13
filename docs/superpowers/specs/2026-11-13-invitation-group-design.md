@@ -60,9 +60,16 @@ which cascades to the group) silently drops the link; the invitation stays valid
 `Invitation.clean()` raises `ValidationError({"group": ...})` when `group` is set and
 `role != STUDENT` (same message as the form). This is what the Django admin's
 ModelAdmin runs, so the admin cannot create a staff invitation with a group. The
-form's own check (below) stays, since `SendInvitationForm` is a plain `Form`.
+form's own check (below) stays, since the invite forms are plain `Form`s.
 
-### Form — `accounts.forms.SendInvitationForm`
+### Form — new `accounts.forms.SendStudentInvitationForm`
+
+`SendInvitationForm` has two consumers today: the People → Invitations view and the
+first-run setup wizard (`institution/views_setup.py::_team_step`, rendered field by
+field in `templates/institution/setup/team.html`). The wizard must not change, so
+`SendInvitationForm` itself is **left untouched** and the group field lives on a
+subclass, `SendStudentInvitationForm(SendInvitationForm)` (name is the builder's call),
+used only by the People view (`people_invitations` and `invitation_send`).
 
 - New `group = forms.ModelChoiceField(required=False, label=_("Group"), ...)`, placed
   after `role`; its
@@ -82,22 +89,26 @@ form's own check (below) stays, since `SendInvitationForm` is a plain `Form`.
 
 ### Service — `accounts.services.create_or_refresh_invitation`
 
-Signature gains `group=None` (keyword-only, defaulting to `None` so the first-run wizard
-call site is unchanged).
+Signature gains a keyword-only `group` parameter whose default is a module-level
+sentinel (`_UNSET`), not `None`, so callers that don't know about groups (the wizard)
+leave an existing pending invite's group alone. `group=None` passed explicitly means
+"no group" and clears it.
 
 - Create path: `Invitation.objects.create(..., group=group)`.
 - Refresh path (a pending invite for the same email): updates `role`, `invited_by`,
-  `expires_at` **and `group`** (so leaving the group empty on a re-invite clears it), then
-  re-sends, as today. `update_fields` gains `"group"`.
+  `expires_at`, and `group` **only when `group` was passed** (the People view always
+  passes it, so leaving the group empty there clears it), then re-sends, as today.
+  `update_fields` gains `"group"` only in that case. On the create path `_UNSET` means
+  no group.
 - The existing-account rejection is unchanged and still runs first.
 - A `group` with `role != STUDENT` raises `InvitationError` ("A group can only be given
   to a Student invitation."), before anything is created or refreshed, so every future
   caller (bulk invites, the shell) gets the Student-only rule too. From the People view
   this branch is unreachable (the form's `clean()` rejects the combination first), so
   the view's existing `form.add_error("email", ...)` handler is left as is.
-
-Builder's call: the wizard path passes no group, so a wizard re-invite of a pending
-email clears any group on it. The wizard invites staff at first run, so this is accepted.
+- An archived group raises `InvitationError` ("This group is archived.") as well, so no
+  caller can store a group that would be silently dropped at accept. (Unreachable from
+  the People view, whose queryset excludes archived groups.)
 
 ### View / template — People → Invitations
 
@@ -106,8 +117,9 @@ email clears any group on it. The wizard invites staff at first run, so this is 
   Role (same `manage__field` label pattern), with `{{ form.group.errors }}`.
 - The list gets a **Group** column after Role (header `{% translate "Group" %}`), showing `"<group> — <course>"` or an
   empty cell. A group archived after the invitation was sent is shown with a
-  translatable "(archived)" marker, so the admin can see that accepting will not add
-  the student anywhere. `_render_invitations` adds `select_related("group__course")` to avoid N+1.
+  translatable "(archived)" marker on **pending** rows only, so the admin can see that
+  accepting will not add the student anywhere. Accepted and expired rows show the group
+  plainly (for an accepted row the student was added before the archive). `_render_invitations` adds `select_related("group__course")` to avoid N+1.
 
 ### Accept — one shared helper, two call sites
 
@@ -182,7 +194,11 @@ line, or `|safe` on the title). Otherwise a title with `&` or an apostrophe arri
 Add `role` and `group` to `list_display` and `fields`, editable on the change form only
 (not in `list_editable`), so whoever sets a
 group can see the role it depends on (today `role` is not shown in the admin at all).
-`list_select_related = ("group__course",)` avoids one query per row. `autocomplete_fields`
+`list_select_related = ("invited_by", "group__course")` avoids one query per row
+(the explicit tuple replaces Django's automatic join of `list_display` FKs, so
+`invited_by` must be listed too). The changelist's group column is an
+`@admin.display(description="Group")` method showing `"<group> — <course>"`, not the
+bare `group` field, so two "3A" groups are distinguishable. `autocomplete_fields`
 is not needed.
 
 The admin's `group` choices are restricted like the People form's: non-archived groups,
@@ -254,7 +270,11 @@ signal to send the email.
   format.
 - **Service**: a group with a non-Student role raises `InvitationError` and creates
   nothing; create stores the group; refresh replaces it and clears it when `None`;
-  the wizard call (no group kwarg) still works.
+  the wizard call (no group kwarg) still works, and a wizard-style refresh (no `group`
+  kwarg) of a pending invite **keeps** its group, while an explicit `group=None` clears
+  it; an archived group raises `InvitationError`.
+- **Wizard unchanged**: the setup wizard's team step renders without a group field and
+  a Student invite through it still succeeds.
 - **Password accept**: with a group → membership + enrolment on the group's course +
   `notify_enrolled` fired; without a group → no membership; group archived → account
   created, no membership; group deleted → account created, no membership.
@@ -278,14 +298,17 @@ signal to send the email.
   behaviour case alone stays green without the lock.) A true concurrency test is not
   required.
 - **View**: POST to `invitation_send` with a group saves it; the list shows the Group
-  column, with the "(archived)" marker for an archived group; the page does not N+1 (query count with several invitations).
+  column, with the "(archived)" marker for an archived group on a pending row and no
+  marker on an accepted row; the page does not N+1 (query count with several invitations).
 - **Email**: with a group the body contains the course title; without one it doesn't.
   Also on the refresh path: re-invite with a different group → the resent body names
   the new course; re-invite with no group → the line is gone. The body always reflects
   the group as just saved. One case uses a course title containing `&` and an
   apostrophe and asserts they arrive unescaped. Resend (`resend_invitation`) of an
   invitation whose group has since been archived → no course line.
-- **Admin**: the changelist and change form render with role and group; saving a
+- **Admin**: the changelist and change form render with role and group (the changelist
+  group cell includes the course title, and its query count does not grow with the
+  number of rows); saving a
   non-Student invitation with a group through the admin form is rejected; the admin's
   group choices exclude archived groups except the row's current one, and each option's
   text includes the course title.
