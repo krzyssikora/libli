@@ -50,4 +50,4 @@ def test_backfill_canonicalizes_existing_geogebra_rows():
     # Restore to the migration graph HEAD, not a pinned name: once later
     # migrations land, migrating back to AFTER's exact node would be a backwards
     # plan that drops every column added since — see test_shortnumeric_migration.py.
-    call_command("migrate", "courses", verbosity=0)
+    call_command("migrate", verbosity=0)
