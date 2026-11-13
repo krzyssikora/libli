@@ -64,7 +64,8 @@ form's own check (below) stays, since `SendInvitationForm` is a plain `Form`.
 
 ### Form — `accounts.forms.SendInvitationForm`
 
-- New `group = forms.ModelChoiceField(required=False, ...)`, placed after `role`; its
+- New `group = forms.ModelChoiceField(required=False, label=_("Group"), ...)`, placed
+  after `role`; its
   queryset is assigned in `__init__` (not at class definition), using the `CourseGroup`
   alias.
 - Queryset: non-archived groups (`Group.objects.filter(archived=False)`), ordered by
@@ -88,6 +89,9 @@ call site is unchanged).
   `expires_at` **and `group`** (so leaving the group empty on a re-invite clears it), then
   re-sends, as today. `update_fields` gains `"group"`.
 - The existing-account rejection is unchanged and still runs first.
+- A `group` with `role != STUDENT` raises `InvitationError` ("A group can only be given
+  to a Student invitation."), before anything is created or refreshed, so every future
+  caller (bulk invites, the shell) gets the Student-only rule too.
 
 Builder's call: the wizard path passes no group, so a wizard re-invite of a pending
 email clears any group on it. The wizard invites staff at first run, so this is accepted.
@@ -97,7 +101,7 @@ email clears any group on it. The wizard invites staff at first run, so this is 
 - `accounts/views_manage.py::invitation_send` passes `group=form.cleaned_data["group"]`.
 - `templates/accounts/manage/invitations.html`: the form renders a **Group** field after
   Role (same `manage__field` label pattern), with `{{ form.group.errors }}`.
-- The list gets a **Group** column after Role, showing `"<group> — <course>"` or an
+- The list gets a **Group** column after Role (header `{% translate "Group" %}`), showing `"<group> — <course>"` or an
   empty cell. A group archived after the invitation was sent is shown with a
   translatable "(archived)" marker, so the admin can see that accepting will not add
   the student anywhere. `_render_invitations` adds `select_related("group__course")` to avoid N+1.
@@ -140,7 +144,10 @@ Call sites:
    the group's own `archived` state is read under the helper's own row lock (above).
 2. **SSO accept** — `accounts/adapters.py::SocialAccountAdapter._consume_invitation`,
    inside its existing `atomic()` and `if locked.is_valid():` branch, after
-   `set_user_role`. Not on the "no invitation → Student" branch.
+   `set_user_role`, and it passes **`locked`** (the `select_for_update` re-read), never
+   the `invitation` stashed in `pre_social_login` (read in an earlier request, before
+   the OAuth round-trip, so its `group_id` and `invited_by` may be stale). Not on the
+   "no invitation → Student" branch.
 
    In addition, the whole body of `SocialAccountAdapter.save_user` (the `super()` call
    that creates the User and SocialAccount, `ensure_verified_primary_email`, and
@@ -156,7 +163,7 @@ Both call it only after the role is set, and only for a still-valid invitation.
 
 ### Email — `templates/accounts/invite_email.txt`
 
-When `invitation.group` is set, add a line naming the course, e.g.
+When `invitation.group` is set **and not archived**, add a line naming the course, e.g.
 "You have been invited to the course: <course title>." Otherwise the email is unchanged.
 The subject is unchanged.
 
@@ -235,11 +242,18 @@ signal to send the email.
 - **Form**: group optional; group + Teacher (and each non-Student role) → error on
   `group`; group + Student → valid; archived groups are not offered; option label
   format.
-- **Service**: create stores the group; refresh replaces it and clears it when `None`;
+- **Service**: a group with a non-Student role raises `InvitationError` and creates
+  nothing; create stores the group; refresh replaces it and clears it when `None`;
   the wizard call (no group kwarg) still works.
 - **Password accept**: with a group → membership + enrolment on the group's course +
   `notify_enrolled` fired; without a group → no membership; group archived → account
   created, no membership; group deleted → account created, no membership.
+- **Password accept, rollback**: the helper forced to raise a non-`IntegrityError`
+  (which `accept_invite` does not catch) → the exception propagates, no User exists,
+  `accepted_at` is still `None`.
+- **SSO accept, stale stash**: stash an invitation in `pre_social_login`, then change
+  its group in the DB (and, separately, clear it) before `save_user` runs → the student
+  lands in the new group (or in none).
 - **SSO accept**: same four cases through `SocialAccountAdapter` (following the
   existing SSO adapter tests' setup), plus: the helper forced to raise → no User, no
   SocialAccount, invitation still pending.
@@ -257,11 +271,13 @@ signal to send the email.
   Also on the refresh path: re-invite with a different group → the resent body names
   the new course; re-invite with no group → the line is gone. The body always reflects
   the group as just saved. One case uses a course title containing `&` and an
-  apostrophe and asserts they arrive unescaped.
+  apostrophe and asserts they arrive unescaped. Resend (`resend_invitation`) of an
+  invitation whose group has since been archived → no course line.
 - **Admin**: the changelist and change form render with role and group; saving a
   non-Student invitation with a group through the admin form is rejected; the admin's
   group choices exclude archived groups except the row's current one.
-- **i18n**: new strings have Polish translations in `locale/pl/LC_MESSAGES/django.po`,
+- **i18n**: new strings (field label and column header "Group", "— no group —", the
+  Student-only error, "(archived)") have Polish translations in `locale/pl/LC_MESSAGES/django.po`,
   compiled `.mo` regenerated.
 - **Help docs**: `docs/help/platform-admin/invitations.md` and `.pl.md` gain a short
   paragraph on the Group field.
