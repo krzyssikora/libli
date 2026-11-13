@@ -8,7 +8,7 @@ invitations, is a separate follow-up).
 An invited student should see their course the first time they log in. Today an
 `accounts.Invitation` carries only `email`, `role` and expiry. Accepting it creates the
 account and sets the role, and nothing else, so a new student lands enrolled on nothing
-until a Course Admin opens a group and ticks them. That is a dead gap in the student's
+until someone opens a group and ticks them. That is a dead gap in the student's
 first experience, and it needs a second visit from the admin for every invitee.
 
 The immediate need is the E8 maths pilot (two students invited to one course). The
@@ -57,11 +57,20 @@ group = models.ForeignKey(
 Plus one migration in `accounts`. `SET_NULL` means deleting the group (or its course,
 which cascades to the group) silently drops the link; the invitation stays valid.
 
+`Invitation.clean()` raises `ValidationError({"group": ...})` when `group` is set and
+`role != STUDENT` (same message as the form). This is what the Django admin's
+ModelAdmin runs, so the admin cannot create a staff invitation with a group. The
+form's own check (below) stays, since `SendInvitationForm` is a plain `Form`.
+
 ### Form — `accounts.forms.SendInvitationForm`
 
 - New `group = forms.ModelChoiceField(required=False, ...)`, placed after `role`.
 - Queryset: non-archived groups (`Group.objects.filter(archived=False)`), ordered by
-  course title then group name, `select_related("course")`.
+  course title then group name, `select_related("course")`. Deliberately
+  platform-wide: sending invitations needs `accounts.add_user`, which only the Platform
+  Admin role holds, so no per-course scoping applies. Equally deliberately, there is no
+  filter on the course's visibility or published state: the student is enrolled
+  whatever the course's state, exactly as a manual group add would do.
 - Option label: `"<group name> — <course title>"`.
 - Empty choice label: "— no group —" (translatable).
 - `clean()`: a group together with any role other than Student raises a field error on
@@ -95,7 +104,13 @@ New helper in `accounts/services.py` (name is the builder's call, e.g.
 `apply_invitation_group(invitation, user)`):
 
 - If `invitation.group_id` is `None` → do nothing.
-- If the group is archived → do nothing.
+- If `invitation.role != STUDENT` → do nothing (defence in depth: `clean()` already
+  forbids it, but rows can exist that never went through `clean()`, e.g. a shell edit).
+- Re-read the group as `Group.objects.select_for_update().filter(pk=invitation.group_id,
+  archived=False).first()`, inside the caller's transaction. If that returns `None`
+  (deleted or archived) → do nothing. The row lock serialises with
+  `set_group_archived`/`delete_group`, which update or delete that row, so a group
+  archived concurrently cannot slip through.
 - Otherwise call `grouping.services.add_students_to_group(group, [user],
   added_by=invitation.invited_by)`. That service already creates the membership,
   recomputes enrolment and fires `notify_enrolled`. It is idempotent.
@@ -107,11 +122,21 @@ Call sites:
 
 1. **Password accept** — `accounts/views.py::_consume_and_create`, inside the existing
    `transaction.atomic()`, after `set_user_role(user, locked.role)`. It uses `locked`
-   (the `select_for_update` row), so a group change racing the accept is read
-   consistently.
+   (the `select_for_update` row), so the invitation's `group_id` is read consistently;
+   the group's own `archived` state is read under the helper's own row lock (above).
 2. **SSO accept** — `accounts/adapters.py::SocialAccountAdapter._consume_invitation`,
    inside its existing `atomic()` and `if locked.is_valid():` branch, after
    `set_user_role`. Not on the "no invitation → Student" branch.
+
+   In addition, the whole body of `SocialAccountAdapter.save_user` (the `super()` call
+   that creates the User and SocialAccount, `ensure_verified_primary_email`, and
+   `_consume_invitation`) is wrapped in one `transaction.atomic()`. allauth does not
+   wrap `save_user` in a transaction and `ATOMIC_REQUESTS` is off, so without this an
+   exception in the helper would roll back only the invitation's `accepted_at` and the
+   role, leaving a role-less user + SocialAccount that the next SSO login would sign
+   straight in (`sociallogin.is_existing`), with the invitation never consumed. With
+   the wrap, the SSO path matches the password path: nothing is created, the
+   invitation stays pending, and a retry works.
 
 Both call it only after the role is set, and only for a still-valid invitation.
 
@@ -123,8 +148,10 @@ The subject is unchanged.
 
 ### Django admin — `accounts/admin.py::InvitationAdmin`
 
-Add `group` to `list_display` and `fields` (editable; `autocomplete_fields` is not
-needed). Creating an invite through the admin still relies on the existing post_save
+Add `role` and `group` to `list_display` and `fields`, editable, so whoever sets a
+group can see the role it depends on (today `role` is not shown in the admin at all).
+`list_select_related = ("group__course",)` avoids one query per row. `autocomplete_fields`
+is not needed. Creating an invite through the admin still relies on the existing post_save
 signal to send the email.
 
 ## Data flow
@@ -151,10 +178,16 @@ signal to send the email.
   `add_students_to_group` already uses a per-student savepoint and `get_or_create`.
 - Any unexpected exception inside the helper must **not** be swallowed silently; it
   propagates and rolls back the atomic block, so the user sees the normal error, and
-  the invitation remains unconsumed and can be retried. (Swallowing would leave an
+  the invitation remains unconsumed and can be retried. On SSO this relies on the
+  `save_user` wrap described under "SSO accept"; the account and SocialAccount are
+  rolled back too. (Swallowing would leave an
   account with no group and no trace; the anti-goal covers *expected* degradations
   only: missing or archived group.)
 - Form: group + non-Student role → field error, nothing created or sent.
+- Several pending invitations for one email (possible only via the Django admin): a
+  refresh updates only the newest (`find_pending`), and an older token, if accepted,
+  applies its own group. Accepted as is: the People form never creates duplicates, and
+  each token carries the group it was sent with.
 
 ## Testing
 
@@ -169,11 +202,21 @@ signal to send the email.
   `notify_enrolled` fired; without a group → no membership; group archived → account
   created, no membership; group deleted → account created, no membership.
 - **SSO accept**: same four cases through `SocialAccountAdapter` (following the
-  existing SSO adapter tests' setup).
+  existing SSO adapter tests' setup), plus: the helper forced to raise → no User, no
+  SocialAccount, invitation still pending.
+- **Role guard**: an invitation row with a group and role Teacher (written bypassing
+  `clean()`) → accept creates the account, no membership; `Invitation.full_clean()` on
+  such a row raises on `group`.
+- **Archived race**: the helper's group read uses `select_for_update` (assert via the
+  archived-group case; a true concurrency test is not required).
 - **View**: POST to `invitation_send` with a group saves it; the list shows the Group
   column; the page does not N+1 (query count with several invitations).
 - **Email**: with a group the body contains the course title; without one it doesn't.
-- **Admin**: the changelist and change form render with the group.
+  Also on the refresh path: re-invite with a different group → the resent body names
+  the new course; re-invite with no group → the line is gone. The body always reflects
+  the group as just saved.
+- **Admin**: the changelist and change form render with role and group; saving a
+  non-Student invitation with a group through the admin form is rejected.
 - **i18n**: new strings have Polish translations in `locale/pl/LC_MESSAGES/django.po`,
   compiled `.mo` regenerated.
 - **Help docs**: `docs/help/platform-admin/invitations.md` and `.pl.md` gain a short
