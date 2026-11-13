@@ -64,7 +64,9 @@ form's own check (below) stays, since `SendInvitationForm` is a plain `Form`.
 
 ### Form — `accounts.forms.SendInvitationForm`
 
-- New `group = forms.ModelChoiceField(required=False, ...)`, placed after `role`.
+- New `group = forms.ModelChoiceField(required=False, ...)`, placed after `role`; its
+  queryset is assigned in `__init__` (not at class definition), using the `CourseGroup`
+  alias.
 - Queryset: non-archived groups (`Group.objects.filter(archived=False)`), ordered by
   course title then group name, `select_related("course")`. Deliberately
   platform-wide: sending invitations needs `accounts.add_user`, which only the Platform
@@ -96,7 +98,9 @@ email clears any group on it. The wizard invites staff at first run, so this is 
 - `templates/accounts/manage/invitations.html`: the form renders a **Group** field after
   Role (same `manage__field` label pattern), with `{{ form.group.errors }}`.
 - The list gets a **Group** column after Role, showing `"<group> — <course>"` or an
-  empty cell. `_render_invitations` adds `select_related("group__course")` to avoid N+1.
+  empty cell. A group archived after the invitation was sent is shown with a
+  translatable "(archived)" marker, so the admin can see that accepting will not add
+  the student anywhere. `_render_invitations` adds `select_related("group__course")` to avoid N+1.
 
 ### Accept — one shared helper, two call sites
 
@@ -106,7 +110,7 @@ New helper in `accounts/services.py` (name is the builder's call, e.g.
 - If `invitation.group_id` is `None` → do nothing.
 - If `invitation.role != STUDENT` → do nothing (defence in depth: `clean()` already
   forbids it, but rows can exist that never went through `clean()`, e.g. a shell edit).
-- Re-read the group as `Group.objects.select_for_update().filter(pk=invitation.group_id,
+- Re-read the group as `CourseGroup.objects.select_for_update().filter(pk=invitation.group_id,
   archived=False).first()`, inside the caller's transaction. If that returns `None`
   (deleted or archived) → do nothing. The row lock serialises with
   `set_group_archived`, whose `save()` takes the row lock before it reads the
@@ -117,9 +121,16 @@ New helper in `accounts/services.py` (name is the builder's call, e.g.
 - Otherwise call `grouping.services.add_students_to_group(group, [user],
   added_by=invitation.invited_by)`. That service already creates the membership,
   recomputes enrolment and fires `notify_enrolled`. It is idempotent.
-- Import `grouping.services` lazily inside the function (as `adapters.py` already does
-  for `set_user_role`) to keep `accounts` free of an import-time dependency on
-  `grouping`.
+- Imports, lazily inside the function: `from grouping.models import Group as
+  CourseGroup` and `from grouping.services import add_students_to_group`. Two reasons.
+  (1) Name clash: `accounts/services.py` already imports
+  `django.contrib.auth.models.Group` at module level for roles (`set_user_role`); that
+  name must keep meaning the auth role group, so the grouping model is always imported
+  under the alias `CourseGroup`, here and in the form and admin too. (2) Cycle risk:
+  `grouping.services` imports `accounts.models`, so a top-level import from
+  `accounts/services.py` risks an import cycle. Only `services.py` needs the lazy
+  import; the model FK (string reference) and the form/admin (which build their
+  querysets in `__init__` / `get_form`, see below) do not create an import-time cycle.
 
 Call sites:
 
@@ -156,7 +167,8 @@ line, or `|safe` on the title). Otherwise a title with `&` or an apostrophe arri
 
 ### Django admin — `accounts/admin.py::InvitationAdmin`
 
-Add `role` and `group` to `list_display` and `fields`, editable, so whoever sets a
+Add `role` and `group` to `list_display` and `fields`, editable on the change form only
+(not in `list_editable`), so whoever sets a
 group can see the role it depends on (today `role` is not shown in the admin at all).
 `list_select_related = ("group__course",)` avoids one query per row. `autocomplete_fields`
 is not needed.
@@ -207,6 +219,10 @@ signal to send the email.
   existing handler and shown as "username taken". Accepted: `add_students_to_group`
   already absorbs the one expected integrity race (concurrent membership/enrolment)
   with `get_or_create` in savepoints, so no other `IntegrityError` is expected there.
+- Django admin form, a posted group outside the restricted choices together with a
+  role change: the ModelForm reports "select a valid choice" on `group`, and
+  `Invitation.clean()` may add a second error about the row's old group. Accepted: the
+  save is refused either way, and this is an admin-only screen.
 - Several pending invitations for one email (possible only via the Django admin): a
   refresh updates only the newest (`find_pending`), and an older token, if accepted,
   applies its own group. Accepted as is: the People form never creates duplicates, and
@@ -236,7 +252,7 @@ signal to send the email.
   behaviour case alone stays green without the lock.) A true concurrency test is not
   required.
 - **View**: POST to `invitation_send` with a group saves it; the list shows the Group
-  column; the page does not N+1 (query count with several invitations).
+  column, with the "(archived)" marker for an archived group; the page does not N+1 (query count with several invitations).
 - **Email**: with a group the body contains the course title; without one it doesn't.
   Also on the refresh path: re-invite with a different group → the resent body names
   the new course; re-invite with no group → the line is gone. The body always reflects
