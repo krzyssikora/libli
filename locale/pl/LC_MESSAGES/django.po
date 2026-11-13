@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 14:34+0100\n"
+"POT-Creation-Date: 2026-11-13 22:29+0100\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,72 +17,86 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\accounts\forms.py:46
+#: .\accounts\admin.py:51 .\accounts\admin.py:56 .\accounts\forms.py:88
+#: .\templates\accounts\manage\invitations.html:18
+#: .\templates\accounts\manage\invitations.html:26
+msgid "Group"
+msgstr "Grupa"
+
+#: .\accounts\admin.py:52 .\accounts\forms.py:89
+msgid "— no group —"
+msgstr "— bez grupy —"
+
+#: .\accounts\forms.py:47
 #, python-format
 msgid "Sign-up is limited to these email domains: %(domains)s."
 msgstr "Rejestracja jest ograniczona do tych domen e-mail: %(domains)s."
 
-#: .\accounts\forms.py:68 .\accounts\forms.py:214
+#: .\accounts\forms.py:104 .\accounts\models.py:126 .\accounts\services.py:81
+msgid "A group can only be given to a Student invitation."
+msgstr "Grupę można przypisać tylko zaproszeniu z rolą ucznia."
+
+#: .\accounts\forms.py:117 .\accounts\forms.py:263
 #: .\templates\accounts\manage\user_form.html:11
 #: .\templates\core\user_settings.html:22
 msgid "Display name"
 msgstr "Nazwa wyświetlana"
 
-#: .\accounts\forms.py:120
+#: .\accounts\forms.py:169
 msgid "Register student id"
 msgstr "Numer w rejestrze zewnętrznym"
 
-#: .\accounts\forms.py:121
+#: .\accounts\forms.py:170
 msgid "Student number in your external register."
 msgstr "Numer ucznia w Twoim rejestrze zewnętrznym."
 
-#: .\accounts\forms.py:123 .\templates\accounts\manage\user_form.html:12
+#: .\accounts\forms.py:172 .\templates\accounts\manage\user_form.html:12
 msgid "First name"
 msgstr "Imię"
 
-#: .\accounts\forms.py:124 .\templates\accounts\manage\user_form.html:13
+#: .\accounts\forms.py:173 .\templates\accounts\manage\user_form.html:13
 msgid "Last name"
 msgstr "Nazwisko"
 
-#: .\accounts\forms.py:127
+#: .\accounts\forms.py:176
 msgid "Keep name in sync with SSO"
 msgstr "Synchronizuj nazwę z SSO"
 
-#: .\accounts\forms.py:129
+#: .\accounts\forms.py:178
 msgid "Uncheck to pin a manually entered name so SSO won't overwrite it."
 msgstr ""
 "Odznacz, aby zachować ręcznie wpisaną nazwę i nie pozwolić SSO jej nadpisać."
 
-#: .\accounts\forms.py:137
+#: .\accounts\forms.py:186
 msgid "— No role —"
 msgstr "— Brak roli —"
 
-#: .\accounts\forms.py:163
+#: .\accounts\forms.py:212
 msgid "Another user already uses this email."
 msgstr "Ten adres e-mail jest już używany przez innego użytkownika."
 
-#: .\accounts\forms.py:166
+#: .\accounts\forms.py:215
 msgid "A verified account elsewhere already owns this email."
 msgstr ""
 "Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu e-mail."
 
-#: .\accounts\forms.py:186
+#: .\accounts\forms.py:235
 msgid "Cannot demote the last active Platform Admin."
 msgstr "Nie można zdegradować ostatniego aktywnego Administratora platformy."
 
-#: .\accounts\forms.py:210
+#: .\accounts\forms.py:259
 msgid "Enable SSO"
 msgstr "Włącz logowanie SSO"
 
-#: .\accounts\forms.py:215
+#: .\accounts\forms.py:264
 msgid "Shown on the sign-in button, e.g. 'Continue with Acme'."
 msgstr "Wyświetlana na przycisku logowania, np. „Kontynuuj z Acme”."
 
-#: .\accounts\forms.py:220
+#: .\accounts\forms.py:269
 msgid "Issuer / discovery URL"
 msgstr "Adres wydawcy / discovery"
 
-#: .\accounts\forms.py:222
+#: .\accounts\forms.py:271
 msgid ""
 "Your IdP's issuer base URL, e.g. https://idp.example.com. The /.well-known/"
 "openid-configuration discovery path is added automatically (you may also "
@@ -92,31 +106,35 @@ msgstr ""
 "com. Ścieżka /.well-known/openid-configuration jest dodawana automatycznie "
 "(możesz też wkleić pełny adres discovery)."
 
-#: .\accounts\forms.py:227
+#: .\accounts\forms.py:276
 msgid "Client ID"
 msgstr "Identyfikator klienta"
 
-#: .\accounts\forms.py:232
+#: .\accounts\forms.py:281
 msgid "Client secret"
 msgstr "Sekret klienta"
 
-#: .\accounts\forms.py:248
+#: .\accounts\forms.py:297
 msgid "The issuer URL must use https."
 msgstr "Adres wydawcy musi używać https."
 
-#: .\accounts\forms.py:259
+#: .\accounts\forms.py:308
 msgid "Required to enable SSO."
 msgstr "Wymagane do włączenia SSO."
 
-#: .\accounts\forms.py:265
+#: .\accounts\forms.py:314
 msgid "Enter the client secret to enable SSO."
 msgstr "Podaj sekret klienta, aby włączyć SSO."
 
-#: .\accounts\services.py:107
+#: .\accounts\services.py:84
+msgid "This group is archived."
+msgstr "Ta grupa jest zarchiwizowana."
+
+#: .\accounts\services.py:151
 msgid "Invitation sent."
 msgstr "Zaproszenie wysłane."
 
-#: .\accounts\services.py:114
+#: .\accounts\services.py:158
 #, python-format
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr "Uwaga: %(domain)s nie należy do dozwolonych domen e-mail."
@@ -133,31 +151,31 @@ msgstr "Zaakceptowane"
 msgid "Expired"
 msgstr "Wygasłe"
 
-#: .\accounts\views_manage.py:137
+#: .\accounts\views_manage.py:138
 msgid "Invitation revoked."
 msgstr "Zaproszenie cofnięte."
 
-#: .\accounts\views_manage.py:148
+#: .\accounts\views_manage.py:149
 msgid "Invitation re-sent."
 msgstr "Zaproszenie wysłane ponownie."
 
-#: .\accounts\views_manage.py:171
+#: .\accounts\views_manage.py:172
 msgid "User updated."
 msgstr "Użytkownik zaktualizowany."
 
-#: .\accounts\views_manage.py:193
+#: .\accounts\views_manage.py:194
 msgid "You cannot deactivate your own account."
 msgstr "Nie możesz dezaktywować własnego konta."
 
-#: .\accounts\views_manage.py:198
+#: .\accounts\views_manage.py:199
 msgid "Cannot deactivate the last active Platform Admin."
 msgstr "Nie można dezaktywować ostatniego aktywnego Administratora platformy."
 
-#: .\accounts\views_manage.py:203
+#: .\accounts\views_manage.py:204
 msgid "User deactivated."
 msgstr "Użytkownik dezaktywowany."
 
-#: .\accounts\views_manage.py:214
+#: .\accounts\views_manage.py:215
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
@@ -1947,7 +1965,7 @@ msgstr ""
 "Import nie powiódł się z nieoczekiwanego powodu. Sprawdź archiwum i spróbuj "
 "ponownie."
 
-#: .\courses\transfer\importer.py:1288
+#: .\courses\transfer\importer.py:1297
 msgid "An element copy must produce exactly one root element."
 msgstr "Skopiowanie elementu musi utworzyć dokładnie jeden element główny."
 
@@ -4369,14 +4387,14 @@ msgstr "Oznacz jako przeczytane"
 
 #: .\notifications\templates\notifications\list.html:40
 #: .\support\templates\support\manage\report_list.html:55
-#: .\templates\accounts\manage\invitations.html:49
+#: .\templates\accounts\manage\invitations.html:51
 #: .\templates\accounts\manage\people.html:62
 msgid "Pagination"
 msgstr "Stronicowanie"
 
 #: .\notifications\templates\notifications\list.html:41
 #: .\support\templates\support\manage\report_list.html:57
-#: .\templates\accounts\manage\invitations.html:50
+#: .\templates\accounts\manage\invitations.html:52
 #: .\templates\accounts\manage\people.html:63
 #: .\templates\courses\_unit_footer.html:13
 #: .\templates\courses\_unit_footer.html:20
@@ -4390,7 +4408,7 @@ msgstr "Strona %(num)s z %(total)s"
 
 #: .\notifications\templates\notifications\list.html:43
 #: .\support\templates\support\manage\report_list.html:61
-#: .\templates\accounts\manage\invitations.html:52
+#: .\templates\accounts\manage\invitations.html:54
 #: .\templates\accounts\manage\people.html:65
 #: .\templates\courses\_unit_footer.html:49
 #: .\templates\courses\_unit_footer.html:56
@@ -4647,7 +4665,7 @@ msgstr "Zgłaszający"
 
 #: .\support\templates\support\manage\report_list.html:21
 #: .\templates\accounts\manage\invitations.html:17
-#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\invitations.html:26
 #: .\templates\accounts\manage\people.html:18
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\accounts\manage\user_form.html:15
@@ -4656,7 +4674,7 @@ msgid "Role"
 msgstr "Rola"
 
 #: .\support\templates\support\manage\report_list.html:22
-#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\invitations.html:26
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
 #: .\templates\institution\manage\_demo_tab.html:106
@@ -4673,7 +4691,7 @@ msgid "No reports."
 msgstr "Brak zgłoszeń."
 
 #: .\support\templates\support\manage\report_list.html:59
-#: .\templates\accounts\manage\invitations.html:51
+#: .\templates\accounts\manage\invitations.html:53
 #: .\templates\accounts\manage\people.html:64
 #, python-format
 msgid "Page %(n)s of %(total)s"
@@ -5090,7 +5108,7 @@ msgid "People"
 msgstr "Osoby"
 
 #: .\templates\accounts\manage\invitations.html:16
-#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\invitations.html:26
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\accounts\manage\user_form.html:14
 #: .\templates\core\user_settings.html:43
@@ -5099,30 +5117,34 @@ msgstr "Osoby"
 msgid "Email"
 msgstr "E-mail"
 
-#: .\templates\accounts\manage\invitations.html:18
+#: .\templates\accounts\manage\invitations.html:19
 msgid "Send invitation"
 msgstr "Wyślij zaproszenie"
 
-#: .\templates\accounts\manage\invitations.html:26
+#: .\templates\accounts\manage\invitations.html:27
 #: .\templates\institution\manage\_demo_tab.html:44
 #: .\templates\institution\manage\_demo_tab.html:105
 msgid "Expires"
 msgstr "Wygasa"
 
-#: .\templates\accounts\manage\invitations.html:26
+#: .\templates\accounts\manage\invitations.html:27
 msgid "Sent"
 msgstr "Wysłano"
 
-#: .\templates\accounts\manage\invitations.html:39
+#: .\templates\accounts\manage\invitations.html:35
+msgid "(archived)"
+msgstr "(zarchiwizowana)"
+
+#: .\templates\accounts\manage\invitations.html:41
 msgid "Resend"
 msgstr "Wyślij ponownie"
 
-#: .\templates\accounts\manage\invitations.html:40
+#: .\templates\accounts\manage\invitations.html:42
 #: .\templates\institution\manage\_demo_tab.html:136
 msgid "Revoke"
 msgstr "Cofnij"
 
-#: .\templates\accounts\manage\invitations.html:56
+#: .\templates\accounts\manage\invitations.html:58
 msgid "No invitations yet."
 msgstr "Brak zaproszeń."
 
@@ -8318,7 +8340,9 @@ msgstr "Importuj zawartość do kursu %(title)s"
 msgid ""
 "Choose a .zip archive previously exported from this or another libli "
 "instance. You'll see a summary before anything is created."
-msgstr "Wybierz archiwum .zip wyeksportowane wcześniej z tej lub innej instancji libli. Przed utworzeniem czegokolwiek zobaczysz podsumowanie."
+msgstr ""
+"Wybierz archiwum .zip wyeksportowane wcześniej z tej lub innej instancji "
+"libli. Przed utworzeniem czegokolwiek zobaczysz podsumowanie."
 
 #: .\templates\courses\manage\import_course.html:18
 msgid "Checking the archive… This can take a while for a large course."

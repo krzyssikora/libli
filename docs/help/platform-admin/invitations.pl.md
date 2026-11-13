@@ -17,6 +17,12 @@ ustawienia platformy](branding-settings)), a podany adres jest spoza tej
 listy, zaproszenie i tak zostanie wysłane, ale zobaczysz ostrzeżenie, aby
 móc upewnić się, że to celowe.
 
+Zaproszenie z rolą ucznia może też wskazywać **grupę**. Po przyjęciu
+zaproszenia uczeń dołącza do tej grupy i od pierwszego logowania widzi jej
+kurs. Zarchiwizowane grupy nie są oferowane na liście. Jeśli grupa zostanie
+zarchiwizowana przed przyjęciem zaproszenia, konto i tak zostanie utworzone,
+ale uczeń nie zostanie do niej dodany.
+
 ## Ważność, ponowne wysyłanie i odwoływanie
 
 Link z zaproszeniem jest ważny przez 14 dni. Z zakładki Zaproszenia możesz:

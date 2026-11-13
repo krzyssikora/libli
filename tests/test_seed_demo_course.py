@@ -244,6 +244,8 @@ def test_seed_is_idempotent_second_run():
     assert Cohort.objects.filter(name="Autumn 2026").count() == 1
     assert WebhookDelivery.objects.filter(dedupe_key="demo-1").count() == 1
     assert Invitation.objects.filter(email="invitee@demo.example").count() == 1
+    invitee = Invitation.objects.get(email="invitee@demo.example")
+    assert invitee.group.name == "Demo Group"
     assert get_user_model().objects.filter(username="demo_admin").count() == 1
 
 

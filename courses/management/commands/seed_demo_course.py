@@ -498,10 +498,14 @@ class Command(BaseCommand):
         inst.save()  # post_save signal invalidates the get_site_config cache
 
     def _invitation(self, teacher):
-        Invitation.objects.get_or_create(
+        group = Group.objects.filter(name="Demo Group", course=self.course).first()
+        invitation, _ = Invitation.objects.get_or_create(
             email="invitee@demo.example",
-            defaults={"role": STUDENT, "invited_by": teacher},
+            defaults={"role": STUDENT, "invited_by": teacher, "group": group},
         )
+        if group is not None and invitation.group_id != group.pk:
+            invitation.group = group
+            invitation.save(update_fields=["group"])
 
     def _upsert(self, unit, model, **fields):
         """Idempotently ensure `unit` has exactly one element of `model`.
