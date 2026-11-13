@@ -20,7 +20,10 @@ from tests.factories import UserFactory
 @pytest.mark.django_db
 def test_group_with_non_student_role_raises():
     g = GroupFactory()
-    with pytest.raises(InvitationError):
+    with pytest.raises(
+        InvitationError,
+        match=re.escape("A group can only be given to a Student invitation."),
+    ):
         create_or_refresh_invitation(
             email="t@example.com", role=TEACHER, invited_by=None, group=g
         )
@@ -30,7 +33,7 @@ def test_group_with_non_student_role_raises():
 @pytest.mark.django_db
 def test_archived_group_raises():
     g = GroupFactory(archived=True)
-    with pytest.raises(InvitationError):
+    with pytest.raises(InvitationError, match=re.escape("This group is archived.")):
         create_or_refresh_invitation(
             email="s@example.com", role=STUDENT, invited_by=None, group=g
         )
@@ -122,6 +125,19 @@ def test_refresh_without_group_kwarg_to_teacher_clears_group(
     assert inv.group is None
 
 
+@pytest.mark.django_db
+def test_refresh_validation_runs_before_update():
+    g1 = GroupFactory()
+    pending = Invitation.objects.create(email="s@example.com", role=STUDENT, group=g1)
+    archived = GroupFactory(archived=True)
+    with pytest.raises(InvitationError):
+        create_or_refresh_invitation(
+            email="s@example.com", role=STUDENT, invited_by=None, group=archived
+        )
+    pending.refresh_from_db()
+    assert pending.group == g1
+
+
 def _pending(group, role=STUDENT):
     return Invitation.objects.create(email="p@example.com", role=role, group=group)
 
@@ -177,7 +193,6 @@ def test_apply_noop_after_group_deleted():
     g = GroupFactory()
     inv = _pending(g)
     g.delete()
-    inv.refresh_from_db()
     user = UserFactory()
     apply_invitation_group(inv, user)
     assert not GroupMembership.objects.filter(student=user).exists()
