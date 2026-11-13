@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from accounts.emails import reconcile_primary_email
@@ -55,6 +56,54 @@ class SendInvitationForm(forms.Form):
 
     email = forms.EmailField()
     role = forms.ChoiceField(choices=ROLE_CHOICES, initial=STUDENT)
+
+
+class CourseGroupChoiceField(forms.ModelChoiceField):
+    """Group select whose options carry the course title (group names repeat
+    across courses)."""
+
+    def label_from_instance(self, obj):
+        return f"{obj.name} — {obj.course.title}"
+
+
+def course_group_queryset(include_pk=None):
+    """Non-archived groups (plus `include_pk`, so an edit form keeps its current
+    one), ordered by course title then name. `Q(pk=None)` matches nothing."""
+    from grouping.models import Group as CourseGroup
+
+    return (
+        CourseGroup.objects.filter(Q(archived=False) | Q(pk=include_pk))
+        .select_related("course")
+        .order_by("course__title", "name")
+    )
+
+
+class SendStudentInvitationForm(SendInvitationForm):
+    """People -> Invitations form: the wizard's email + role, plus an optional
+    course group (Student invitations only)."""
+
+    group = CourseGroupChoiceField(
+        queryset=None,
+        required=False,
+        label=_("Group"),
+        empty_label=_("— no group —"),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["group"].queryset = course_group_queryset()
+
+    def clean(self):
+        cleaned = super().clean()
+        if (
+            "role" in cleaned
+            and cleaned.get("group") is not None
+            and cleaned["role"] != STUDENT
+        ):
+            self.add_error(
+                "group", _("A group can only be given to a Student invitation.")
+            )
+        return cleaned
 
 
 class AcceptInviteForm(forms.Form):

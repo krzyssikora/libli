@@ -15,6 +15,7 @@
     {{ form.non_field_errors }}
     <label class="manage__field"><span>{% trans "Email" %}</span>{{ form.email }}{{ form.email.errors }}</label>
     <label class="manage__field"><span>{% trans "Role" %}</span>{{ form.role }}</label>
+    <label class="manage__field"><span>{% trans "Group" %}</span>{{ form.group }}{{ form.group.errors }}</label>
     <button class="btn btn--primary" type="submit">{% trans "Send invitation" %}</button>
   </form>
 
@@ -22,7 +23,7 @@
     <div class="scroll-x" data-scroll-x><table class="people-table">
       <thead>
         <tr>
-          <th>{% trans "Email" %}</th><th>{% trans "Role" %}</th><th>{% trans "Status" %}</th>
+          <th>{% trans "Email" %}</th><th>{% trans "Role" %}</th><th>{% trans "Group" %}</th><th>{% trans "Status" %}</th>
           <th>{% trans "Expires" %}</th><th>{% trans "Sent" %}</th><th></th>
         </tr>
       </thead>
@@ -31,6 +32,7 @@
           <tr>
             <td>{{ row.inv.email }}</td>
             <td>{{ row.inv.get_role_display }}</td>
+            <td>{% if row.inv.group %}{{ row.inv.group.name }} — {{ row.inv.group.course.title }}{% if row.inv.group.archived and row.inv.status == "pending" %} {% trans "(archived)" %}{% endif %}{% endif %}</td>
             <td>{{ row.status_label }}</td>
             <td>{{ row.inv.expires_at|date:"Y-m-d" }}</td>
             <td>{{ row.inv.created_at|date:"Y-m-d" }}</td>
