@@ -10,11 +10,13 @@
     <h1>{% trans "Import course" %}</h1>
   {% endif %}
   {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
-  <p class="helptext">{% trans "Choose a .zip archive previously exported from this or another libli instance. You'll see a preview before anything is created." %}</p>
+  <p class="helptext">{% trans "Choose a .zip archive previously exported from this or another libli instance. You'll see a summary before anything is created." %}</p>
   {% comment %}Explicit action is load-bearing: this template is also re-rendered
   from the confirm/cancel URLs on error; a relative post would hit @require_POST
   confirm again and loop on "expired".{% endcomment %}
+  {% trans "Checking the archive… This can take a while for a large course." as busy_msg %}
   <form method="post" class="form" enctype="multipart/form-data"
+        data-busy-submit data-busy-message="{{ busy_msg }}"
         action="{% if target_course %}{% url 'courses:manage_import_content' target_course.slug %}{% else %}{% url 'courses:manage_course_import' %}{% endif %}">
     {% csrf_token %}
     <div class="form-row">
@@ -26,14 +28,16 @@
       </div>
     </div>
     <div class="form__actions">
-      <button type="submit" class="btn btn--primary">{% trans "Upload and preview" %}</button>
+      <button type="submit" class="btn btn--primary">{% trans "Upload and check" %}</button>
       {% if target_course %}
         <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=target_course.slug %}">{% trans "Cancel" %}</a>
       {% else %}
         <a class="btn btn--ghost" href="{% url 'courses:manage_course_list' %}">{% trans "Cancel" %}</a>
       {% endif %}
     </div>
+    <p class="busy-note" data-busy-note role="status"></p>
   </form>
 </section>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'courses/js/import_dropzone.js' %}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'courses/js/import_dropzone.js' %}" defer></script>
+<script src="{% static 'core/js/busy_submit.js' %}" defer></script>{% endblock %}

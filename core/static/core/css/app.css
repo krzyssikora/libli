@@ -61,6 +61,18 @@
    live. The gallery / tabs arrows' look. pointer-events: none also keeps every
    variant's :hover / :active repaint off it. */
 .btn:disabled { opacity: .45; pointer-events: none; cursor: default; }
+/* In-flight submit (core/js/busy_submit.js): disabled so it cannot resubmit, but
+   it is WORKING, not unavailable -- less faded, with a spinner before its label. */
+.btn[data-busy]:disabled { opacity: .8; }
+.btn[data-busy]::before {
+  content: ""; width: 1em; height: 1em; flex: none; box-sizing: border-box;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: btn-busy-spin .7s linear infinite;
+}
+@keyframes btn-busy-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn[data-busy]::before { animation: none; } }
+.busy-note { margin-top: var(--space-2); color: var(--text-secondary); }
+.busy-note:empty { display: none; }
 
 /* Action-button row for forms/confirm pages. Global (was previously defined only in
    accounts/people.css, leaving course_form + the transfer templates unstyled). */

@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block head_title %}{% trans "Import preview" %} · libli{% endblock %}
+{% load static %}
+{% block head_title %}{% trans "Import summary" %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
-  <h1>{% blocktrans with title=preview.title %}Import preview: {{ title }}{% endblocktrans %}</h1>
+  <h1>{% blocktrans with title=preview.title %}Import summary: {{ title }}{% endblocktrans %}</h1>
 
   <p>
     {% blocktrans count n=preview.node_count %}{{ n }} content node{% plural %}{{ n }} content nodes{% endblocktrans %}
@@ -33,7 +34,8 @@
   {% comment %}form-row on the <form> itself (not just its children) buys
   breathing room before the separate Cancel form below — they can't share one
   .form__actions row since Confirm/Cancel post to different URLs.{% endcomment %}
-  <form method="post" class="form form-row"
+  {% trans "Importing… This can take a few minutes. Don't close this page." as busy_msg %}
+  <form method="post" class="form form-row" data-busy-submit data-busy-message="{{ busy_msg }}"
         action="{% if target_course %}{% url 'courses:manage_import_content_confirm' target_course.slug %}{% else %}{% url 'courses:manage_course_import_confirm' %}{% endif %}">
     {% csrf_token %}
     <input type="hidden" name="token" value="{{ token }}">
@@ -50,6 +52,7 @@
     <div class="form__actions">
       <button type="submit" class="btn btn--primary">{% trans "Confirm import" %}</button>
     </div>
+    <p class="busy-note" data-busy-note role="status"></p>
   </form>
   <form method="post" class="form"
         action="{% if target_course %}{% url 'courses:manage_import_content_cancel' target_course.slug %}{% else %}{% url 'courses:manage_course_import_cancel' %}{% endif %}">
@@ -59,3 +62,4 @@
   </form>
 </section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'core/js/busy_submit.js' %}" defer></script>{% endblock %}

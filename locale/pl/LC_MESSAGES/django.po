@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-12 21:57+0100\n"
+"POT-Creation-Date: 2026-11-13 14:34+0100\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1837,7 +1837,7 @@ msgstr ""
 "Ten eksport zawiera %(found)d bajtów multimediów; ta instancja akceptuje "
 "maksymalnie %(limit)d bajtów."
 
-#: .\courses\transfer\importer.py:262 .\courses\views_transfer.py:135
+#: .\courses\transfer\importer.py:262 .\courses\views_transfer.py:136
 #, python-format
 msgid ""
 "The archive is %(found)d bytes; this instance accepts at most %(limit)d "
@@ -3158,32 +3158,23 @@ msgstr[2] "Wysłano wymuszone %(n)s quizów."
 msgid "All quizzes already submitted."
 msgstr "Wszystkie quizy zostały już wysłane."
 
-#: .\courses\views_transfer.py:105
+#: .\courses\views_transfer.py:106
 msgid ""
 "The staged upload has expired or was not found — please upload the archive "
 "again."
 msgstr ""
 "Przesłane archiwum wygasło lub nie zostało znalezione — prześlij je ponownie."
 
-#: .\courses\views_transfer.py:124
+#: .\courses\views_transfer.py:125
 msgid "Choose a .zip archive to import."
 msgstr "Wybierz archiwum .zip do zaimportowania."
 
-#: .\courses\views_transfer.py:185
+#: .\courses\views_transfer.py:186
 msgid "This subtree cannot be placed anywhere in this course's structure."
 msgstr ""
 "Tego poddrzewa nie można umieścić w żadnym miejscu struktury tego kursu."
 
-#: .\courses\views_transfer.py:205
-#, python-format
-msgid ""
-"Run `backfill_media_derivatives --course %(slug)s` to generate image "
-"derivatives for the imported media."
-msgstr ""
-"Uruchom `backfill_media_derivatives --course %(slug)s`, aby wygenerować "
-"miniatury obrazów dla zaimportowanych materiałów."
-
-#: .\courses\views_transfer.py:224
+#: .\courses\views_transfer.py:208
 #, python-format
 msgid ""
 "%(n)s internal link had no target in this archive and was turned into plain "
@@ -3201,25 +3192,25 @@ msgstr[2] ""
 "%(n)s linków wewnętrznych nie miało celu w tym archiwum i zostało "
 "zamienionych na zwykły tekst."
 
-#: .\courses\views_transfer.py:270
+#: .\courses\views_transfer.py:254
 #, python-format
 msgid "Course “%(title)s” imported."
 msgstr "Zaimportowano kurs „%(title)s”."
 
-#: .\courses\views_transfer.py:281
+#: .\courses\views_transfer.py:265
 msgid "Invalid insertion point."
 msgstr "Nieprawidłowy punkt wstawienia."
 
-#: .\courses\views_transfer.py:292
+#: .\courses\views_transfer.py:276
 #, python-format
 msgid "A '%(kind)s' cannot be placed there."
 msgstr "Nie można tam umieścić węzła typu „%(kind)s”."
 
-#: .\courses\views_transfer.py:305
+#: .\courses\views_transfer.py:289
 msgid "Content imported."
 msgstr "Zaimportowano zawartość."
 
-#: .\courses\views_transfer.py:346 .\courses\views_transfer.py:389
+#: .\courses\views_transfer.py:330 .\courses\views_transfer.py:373
 msgid "Import cancelled."
 msgstr "Import anulowany."
 
@@ -4062,7 +4053,7 @@ msgstr "Zapisz"
 #: .\templates\accounts\manage\user_form.html:28
 #: .\templates\core\user_settings.html:172
 #: .\templates\courses\manage\_move_picker.html:13
-#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\course_confirm_delete.html:18
 #: .\templates\courses\manage\editor\_element_row.html:53
 #: .\templates\courses\manage\editor\_element_row.html:74
 #: .\templates\courses\manage\editor\_element_row.html:145
@@ -4074,9 +4065,9 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\editor\_link_dialog.html:88
 #: .\templates\courses\manage\editor\editor.html:29
 #: .\templates\courses\manage\export_preview.html:56
-#: .\templates\courses\manage\import_course.html:32
 #: .\templates\courses\manage\import_course.html:34
-#: .\templates\courses\manage\import_preview.html:59
+#: .\templates\courses\manage\import_course.html:36
+#: .\templates\courses\manage\import_preview.html:62
 #: .\templates\courses\manage\media\manager.html:14
 #: .\templates\courses\manage\node_confirm_delete.html:19
 #: .\templates\courses\manage\node_confirm_flag.html:31
@@ -6908,18 +6899,18 @@ msgstr "Zwiń wszystko"
 msgid "Add a slide break to split this unit into a slideshow."
 msgstr "Dodaj podział slajdów, aby podzielić tę jednostkę na pokaz slajdów."
 
-#: .\templates\courses\manage\course_confirm_delete.html:3
+#: .\templates\courses\manage\course_confirm_delete.html:4
 #: .\templates\courses\manage\course_form.html:29
 msgid "Delete course"
 msgstr "Usuń kurs"
 
-#: .\templates\courses\manage\course_confirm_delete.html:6
+#: .\templates\courses\manage\course_confirm_delete.html:7
 #: .\templates\courses\manage\node_confirm_delete.html:5
 #, python-format
 msgid "Delete \"%(title)s\"?"
 msgstr "Usunąć \"%(title)s\"?"
 
-#: .\templates\courses\manage\course_confirm_delete.html:7
+#: .\templates\courses\manage\course_confirm_delete.html:8
 #, python-format
 msgid "This will permanently delete %(n)s content node."
 msgid_plural "This will permanently delete %(n)s content nodes."
@@ -6927,7 +6918,7 @@ msgstr[0] "Spowoduje to trwałe usunięcie %(n)s węzła treści."
 msgstr[1] "Spowoduje to trwałe usunięcie %(n)s węzłów treści."
 msgstr[2] "Spowoduje to trwałe usunięcie %(n)s węzłów treści."
 
-#: .\templates\courses\manage\course_confirm_delete.html:10
+#: .\templates\courses\manage\course_confirm_delete.html:11
 #, python-format
 msgid ""
 "Warning: %(e)s enrollment(s) and %(p)s progress record(s) will also be "
@@ -6935,7 +6926,11 @@ msgid ""
 msgstr ""
 "Uwaga: %(e)s zapis(ów) i %(p)s rekord(ów) postępu zostanie również usunięty."
 
-#: .\templates\courses\manage\course_confirm_delete.html:15
+#: .\templates\courses\manage\course_confirm_delete.html:14
+msgid "Deleting the course… Don't close this page."
+msgstr "Usuwanie kursu… Nie zamykaj tej strony."
+
+#: .\templates\courses\manage\course_confirm_delete.html:17
 msgid "Delete permanently"
 msgstr "Usuń trwale"
 
@@ -7928,7 +7923,7 @@ msgid "Editor"
 msgstr "Edytor"
 
 #: .\templates\courses\manage\editor\_editor_scope.html:17
-#: .\templates\courses\manage\import_preview.html:10
+#: .\templates\courses\manage\import_preview.html:11
 #: .\tests\test_editor_count_i18n.py:45
 #, python-format
 msgid "%(n)s element"
@@ -8322,33 +8317,35 @@ msgstr "Importuj zawartość do kursu %(title)s"
 #: .\templates\courses\manage\import_course.html:13
 msgid ""
 "Choose a .zip archive previously exported from this or another libli "
-"instance. You'll see a preview before anything is created."
-msgstr ""
-"Wybierz archiwum .zip wyeksportowane wcześniej z tej lub innej instancji "
-"libli. Przed utworzeniem czegokolwiek zobaczysz podgląd."
+"instance. You'll see a summary before anything is created."
+msgstr "Wybierz archiwum .zip wyeksportowane wcześniej z tej lub innej instancji libli. Przed utworzeniem czegokolwiek zobaczysz podsumowanie."
 
-#: .\templates\courses\manage\import_course.html:22
+#: .\templates\courses\manage\import_course.html:18
+msgid "Checking the archive… This can take a while for a large course."
+msgstr "Sprawdzanie archiwum… Przy dużym kursie może to chwilę potrwać."
+
+#: .\templates\courses\manage\import_course.html:24
 msgid "Archive file"
 msgstr "Plik archiwum"
 
-#: .\templates\courses\manage\import_course.html:25
+#: .\templates\courses\manage\import_course.html:27
 msgid "or drag a .zip archive here"
 msgstr "lub przeciągnij tutaj archiwum .zip"
 
-#: .\templates\courses\manage\import_course.html:30
-msgid "Upload and preview"
-msgstr "Prześlij i zobacz podgląd"
+#: .\templates\courses\manage\import_course.html:32
+msgid "Upload and check"
+msgstr "Prześlij i sprawdź"
 
-#: .\templates\courses\manage\import_preview.html:3
-msgid "Import preview"
-msgstr "Podgląd importu"
+#: .\templates\courses\manage\import_preview.html:4
+msgid "Import summary"
+msgstr "Podsumowanie importu"
 
-#: .\templates\courses\manage\import_preview.html:6
+#: .\templates\courses\manage\import_preview.html:7
 #, python-format
-msgid "Import preview: %(title)s"
-msgstr "Podgląd importu: %(title)s"
+msgid "Import summary: %(title)s"
+msgstr "Podsumowanie importu: %(title)s"
 
-#: .\templates\courses\manage\import_preview.html:9
+#: .\templates\courses\manage\import_preview.html:10
 #, python-format
 msgid "%(n)s content node"
 msgid_plural "%(n)s content nodes"
@@ -8356,7 +8353,7 @@ msgstr[0] "%(n)s węzeł treści"
 msgstr[1] "%(n)s węzły treści"
 msgstr[2] "%(n)s węzłów treści"
 
-#: .\templates\courses\manage\import_preview.html:11
+#: .\templates\courses\manage\import_preview.html:12
 #, python-format
 msgid "%(n)s media file"
 msgid_plural "%(n)s media files"
@@ -8364,20 +8361,20 @@ msgstr[0] "%(n)s plik multimedialny"
 msgstr[1] "%(n)s pliki multimedialne"
 msgstr[2] "%(n)s plików multimedialnych"
 
-#: .\templates\courses\manage\import_preview.html:15
+#: .\templates\courses\manage\import_preview.html:16
 #, python-format
 msgid "Exported from %(instance)s"
 msgstr "Wyeksportowano z %(instance)s"
 
-#: .\templates\courses\manage\import_preview.html:20
+#: .\templates\courses\manage\import_preview.html:21
 msgid "Subjects (matched on this instance):"
 msgstr "Przedmioty (dopasowane w tej instancji):"
 
-#: .\templates\courses\manage\import_preview.html:24
+#: .\templates\courses\manage\import_preview.html:25
 msgid "Not found on this instance and will be skipped:"
 msgstr "Nie znaleziono w tej instancji — zostaną pominięte:"
 
-#: .\templates\courses\manage\import_preview.html:29
+#: .\templates\courses\manage\import_preview.html:30
 msgid ""
 "This content includes HTML blocks that relied on custom CSS/JS in the source "
 "course. That styling is NOT copied here — add it to this course separately "
@@ -8387,11 +8384,15 @@ msgstr ""
 "źródłowym. Ten styl NIE jest tu kopiowany — dodaj go osobno do tego kursu, "
 "jeśli zaimportowana zawartość go wymaga."
 
-#: .\templates\courses\manage\import_preview.html:43
+#: .\templates\courses\manage\import_preview.html:38
+msgid "Importing… This can take a few minutes. Don't close this page."
+msgstr "Importowanie… To może potrwać kilka minut. Nie zamykaj tej strony."
+
+#: .\templates\courses\manage\import_preview.html:45
 msgid "Insert at"
 msgstr "Miejsce wstawienia"
 
-#: .\templates\courses\manage\import_preview.html:52
+#: .\templates\courses\manage\import_preview.html:54
 msgid "Confirm import"
 msgstr "Potwierdź import"
 
