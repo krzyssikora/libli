@@ -14,7 +14,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
-from accounts.forms import SendInvitationForm
+from accounts.forms import SendStudentInvitationForm
 from accounts.forms import UserEditForm
 from accounts.models import Invitation
 from accounts.models import User
@@ -91,7 +91,7 @@ STATUS_LABELS = {
 
 
 def _render_invitations(request, form):
-    qs = Invitation.objects.order_by("-created_at")
+    qs = Invitation.objects.select_related("group__course").order_by("-created_at")
     page_obj = Paginator(qs, PAGE_SIZE).get_page(request.GET.get("page"))
     rows = [{"inv": inv, "status_label": STATUS_LABELS[inv.status]} for inv in page_obj]
     return render(
@@ -104,20 +104,21 @@ def _render_invitations(request, form):
 @login_required
 @permission_required("accounts.view_user", raise_exception=True)
 def people_invitations(request):
-    return _render_invitations(request, SendInvitationForm())
+    return _render_invitations(request, SendStudentInvitationForm())
 
 
 @require_POST
 @login_required
 @permission_required("accounts.add_user", raise_exception=True)
 def invitation_send(request):
-    form = SendInvitationForm(request.POST)
+    form = SendStudentInvitationForm(request.POST)
     if form.is_valid():
         try:
             create_or_refresh_invitation(
                 email=form.cleaned_data["email"],
                 role=form.cleaned_data["role"],
                 invited_by=request.user,
+                group=form.cleaned_data["group"],
             )
             for level, text in invitation_feedback(form.cleaned_data["email"]):
                 getattr(messages, level)(request, text)

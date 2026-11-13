@@ -67,10 +67,11 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         return True
 
     def save_user(self, request, sociallogin, form=None):
-        user = super().save_user(request, sociallogin, form)
-        if user.email:
-            ensure_verified_primary_email(user, user.email)
-        self._consume_invitation(sociallogin, user)
+        with transaction.atomic():
+            user = super().save_user(request, sociallogin, form)
+            if user.email:
+                ensure_verified_primary_email(user, user.email)
+            self._consume_invitation(sociallogin, user)
         return user
 
     # --- helpers ---
@@ -85,6 +86,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         )
 
     def _consume_invitation(self, sociallogin, user):
+        from accounts.services import apply_invitation_group
         from accounts.services import set_user_role
         from institution.roles import STUDENT
 
@@ -102,6 +104,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
                 locked.accepted_at = timezone.now()
                 locked.save(update_fields=["accepted_at"])
                 set_user_role(user, locked.role)
+                apply_invitation_group(locked, user)
 
     def _not_provisioned(self):
         return redirect(reverse("accounts:sso_not_provisioned"))

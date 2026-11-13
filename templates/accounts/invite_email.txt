@@ -1,4 +1,6 @@
-You have been invited to join libli.
+You have been invited to join libli.{% if invitation.group and not invitation.group.archived and invitation.role == "Student" %}
+
+{% autoescape off %}You have been invited to the course: {{ invitation.group.course.title }}.{% endautoescape %}{% endif %}
 
 To create your account, open this link:
 

@@ -15,6 +15,11 @@ domains** list configured (see [Branding & settings](branding-settings)) and
 the address falls outside it, the invite still sends but you get a warning
 so you can double-check it was intentional.
 
+A Student invitation can also name a **group**. When the student accepts, they
+join that group and see its course on their first login. Archived groups are
+not offered in the list. If the group is archived before the invitation is
+accepted, the account is still created, but the student is not added to it.
+
 ## Expiry, resending and revoking
 
 An invitation link is valid for 14 days. From the Invitations tab you can:

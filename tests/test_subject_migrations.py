@@ -26,8 +26,9 @@ def test_title_is_copied_into_title_en():
     NewSubject = new_apps.get_model(APP, "Subject")
     assert NewSubject.objects.get(pk=s.pk).title_en == "Mathematics"
 
-    # leave the DB migrated forward for the rest of the suite
-    _migrate(AFTER)
+    # leave the DB migrated to the graph HEAD for the rest of the suite (a
+    # pinned courses target would leave accounts.0007 unapplied)
+    call_command("migrate", verbosity=0)
 
 
 def test_fk_subject_lands_in_m2m():
@@ -45,4 +46,4 @@ def test_fk_subject_lands_in_m2m():
     # Restore to the migration graph HEAD, not a pinned name: once later
     # migrations land, migrating back to this exact node would be a backwards
     # plan that drops every column added since — see test_shortnumeric_migration.py.
-    call_command("migrate", "courses", verbosity=0)
+    call_command("migrate", verbosity=0)

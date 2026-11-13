@@ -3,8 +3,10 @@ import secrets
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from institution.roles import ROLE_CHOICES
 from institution.roles import STUDENT
@@ -95,6 +97,14 @@ class Invitation(models.Model):
         default=STUDENT,
         help_text="Role the invitee lands in on accept.",
     )
+    group = models.ForeignKey(
+        "grouping.Group",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invitations",
+        help_text="Student is added to this group on accept (optional).",
+    )
     token = models.CharField(
         max_length=64, unique=True, default=_generate_invite_token, editable=False
     )
@@ -108,6 +118,13 @@ class Invitation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(blank=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+        if self.group_id and self.role != STUDENT:
+            raise ValidationError(
+                {"group": _("A group can only be given to a Student invitation.")}
+            )
 
     def save(self, *args, **kwargs):
         # Compute from now() (NOT created_at, which auto_now_add only fills during

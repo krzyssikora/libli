@@ -12,6 +12,7 @@ from accounts.forms import AcceptInviteForm
 from accounts.models import Invitation
 from accounts.models import User
 from accounts.provisioning import resolve_user_for_email
+from accounts.services import apply_invitation_group
 from accounts.services import set_user_role
 
 
@@ -87,6 +88,7 @@ def _consume_and_create(invitation, form):
         )
         ensure_verified_primary_email(user, locked.email)
         set_user_role(user, locked.role)
+        apply_invitation_group(locked, user)
         locked.accepted_at = timezone.now()
         locked.save(update_fields=["accepted_at"])
     return user

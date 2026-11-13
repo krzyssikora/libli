@@ -11,6 +11,7 @@ from accounts.models import Invitation
 from accounts.models import User
 from accounts.provisioning import resolve_user_for_email
 from institution.roles import PLATFORM_ADMIN
+from institution.roles import STUDENT
 from institution.roles import role_is_staff
 
 
@@ -57,7 +58,10 @@ class InvitationError(Exception):
     """An invite cannot be sent (e.g. the email already has an account)."""
 
 
-def create_or_refresh_invitation(*, email, role, invited_by):
+_UNSET = object()
+
+
+def create_or_refresh_invitation(*, email, role, invited_by, group=_UNSET):
     """Send (or refresh + resend) an invite for `email` carrying `role`.
 
     The existing-account rejection (active OR inactive) is evaluated FIRST, before
@@ -71,24 +75,64 @@ def create_or_refresh_invitation(*, email, role, invited_by):
         raise InvitationError(
             "This email belongs to a deactivated user — reactivate them instead."
         )
+    if group is not _UNSET and group is not None:
+        if role != STUDENT:
+            raise InvitationError(
+                gettext("A group can only be given to a Student invitation.")
+            )
+        if group.archived:
+            raise InvitationError(gettext("This group is archived."))
     pending = Invitation.find_pending(email)
     if pending is not None:
         pending.role = role
         pending.invited_by = invited_by
         pending.expires_at = timezone.now() + INVITE_TTL
-        pending.save(update_fields=["role", "invited_by", "expires_at"])
+        fields = ["role", "invited_by", "expires_at"]
+        if group is not _UNSET:
+            pending.group = group
+            fields.append("group")
+        elif role != STUDENT and pending.group_id:
+            pending.group = None
+            fields.append("group")
+        pending.save(update_fields=fields)
         # Refresh is NOT a create, so the post_save `send_invitation_on_create`
         # signal does not fire — send explicitly here.
         send_invitation_email(pending)
         return pending, False
     invitation = Invitation.objects.create(
-        email=email, role=role, invited_by=invited_by
+        email=email,
+        role=role,
+        invited_by=invited_by,
+        group=None if group is _UNSET else group,
     )
     # Create: the EXISTING post_save `send_invitation_on_create` signal
     # (accounts/signals.py) emails the link via transaction.on_commit. Do NOT call
     # send_invitation_email here, or a new invite is emailed twice (the Django-admin
     # invite path also relies on that signal).
     return invitation, True
+
+
+def apply_invitation_group(invitation, user):
+    """Put `user` in the invitation's course group, if it still applies.
+
+    Call inside the accept transaction. Does nothing without a group, for a
+    non-Student row, or when the group is gone or archived. The group row is
+    locked (no select_related, so never the course row) to serialise with
+    set_group_archived.
+    """
+    from grouping.models import Group as CourseGroup
+    from grouping.services import add_students_to_group
+
+    if invitation.group_id is None or invitation.role != STUDENT:
+        return
+    group = (
+        CourseGroup.objects.select_for_update(no_key=True)
+        .filter(pk=invitation.group_id, archived=False)
+        .first()
+    )
+    if group is None:
+        return
+    add_students_to_group(group, [user], added_by=invitation.invited_by)
 
 
 def invitation_feedback(email):
