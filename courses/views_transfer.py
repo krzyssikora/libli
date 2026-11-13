@@ -20,7 +20,7 @@ from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 
 from courses.access import can_manage_course
-from courses.derivatives_background import schedule_for_course
+from courses.derivatives_background import schedule_for_import
 from courses.models import ContentNode
 from courses.models import Course
 from courses.ordering import legal_child_kinds
@@ -254,7 +254,7 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
                     _("Course “%(title)s” imported.") % {"title": new_course.title},
                 )
                 _warn_flattened(request, report)
-                schedule_for_course(new_course, document)
+                schedule_for_import(report)
                 return redirect("courses:manage_builder", slug=new_course.slug)
             insertion = None
             raw = request.POST.get("insertion", "")
@@ -288,7 +288,7 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
             )
             messages.success(request, _("Content imported."))
             _warn_flattened(request, report)
-            schedule_for_course(target_course, document)
+            schedule_for_import(report)
             return redirect("courses:manage_builder", slug=target_course.slug)
     except TransferError as exc:
         return _render_upload(

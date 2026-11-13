@@ -26,9 +26,11 @@
   });
 
   // A Back navigation restored from bfcache must not leave a dead, spinning button.
+  // Every submit button, not just [data-busy]: Firefox restores a button's
+  // `disabled` on reload / Back WITHOUT the attributes set alongside it.
   window.addEventListener("pageshow", function () {
     document.querySelectorAll("form[data-busy-submit]").forEach(function (form) {
-      form.querySelectorAll("[data-busy]").forEach(function (button) {
+      form.querySelectorAll('button[type="submit"]').forEach(function (button) {
         button.disabled = false;
         button.removeAttribute("aria-busy");
         button.removeAttribute("data-busy");

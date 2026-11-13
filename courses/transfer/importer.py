@@ -1092,6 +1092,13 @@ def _run_import(work, created_files):
         ) from exc
 
 
+def _report_media(report, assets):
+    # The web views hand these to courses/derivatives_background.py, so only
+    # THIS import's images are processed -- not every blank one in the course.
+    if report is not None:
+        report["media_pks"] = [a.pk for a in assets.values()]
+
+
 def import_course(
     zf, manifest, document, media_entries, user, *, on_missing="unwrap", report=None
 ):
@@ -1119,6 +1126,7 @@ def import_course(
         matched, _dropped = match_subjects(c["subjects"])
         course.subjects.set(matched)
         assets = _create_media(zf, document, media_entries, course, user, created_files)
+        _report_media(report, assets)
         node_map = _create_nodes(document, course)
         created = _create_elements(document, node_map, assets)
         _rewrite_links(
@@ -1155,6 +1163,7 @@ def import_subtree(
         assets = _create_media(
             zf, document, media_entries, target_course, user, created_files
         )
+        _report_media(report, assets)
         node_map = _create_nodes(document, target_course, root_parent=insertion_node)
         created = _create_elements(document, node_map, assets)
 
