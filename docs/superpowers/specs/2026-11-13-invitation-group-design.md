@@ -109,8 +109,11 @@ New helper in `accounts/services.py` (name is the builder's call, e.g.
 - Re-read the group as `Group.objects.select_for_update().filter(pk=invitation.group_id,
   archived=False).first()`, inside the caller's transaction. If that returns `None`
   (deleted or archived) → do nothing. The row lock serialises with
-  `set_group_archived`/`delete_group`, which update or delete that row, so a group
-  archived concurrently cannot slip through.
+  `set_group_archived`, whose `save()` takes the row lock before it reads the
+  membership list, so a group archived concurrently cannot slip through. A concurrent
+  `delete_group` is NOT covered: it reads its member list before `group.delete()` waits
+  on the lock. That is a pre-existing race shared with every manual add
+  (`add_students_to_group` locks nothing either) and is accepted here.
 - Otherwise call `grouping.services.add_students_to_group(group, [user],
   added_by=invitation.invited_by)`. That service already creates the membership,
   recomputes enrolment and fires `notify_enrolled`. It is idempotent.
@@ -146,12 +149,22 @@ When `invitation.group` is set, add a line naming the course, e.g.
 "You have been invited to the course: <course title>." Otherwise the email is unchanged.
 The subject is unchanged.
 
+The template is plaintext but rendered by Django's engine, which autoescapes `.txt`
+too, so the course title must be rendered unescaped (`{% autoescape off %}` around the
+line, or `|safe` on the title). Otherwise a title with `&` or an apostrophe arrives as
+`&amp;` / `&#x27;`.
+
 ### Django admin — `accounts/admin.py::InvitationAdmin`
 
 Add `role` and `group` to `list_display` and `fields`, editable, so whoever sets a
 group can see the role it depends on (today `role` is not shown in the admin at all).
 `list_select_related = ("group__course",)` avoids one query per row. `autocomplete_fields`
-is not needed. Creating an invite through the admin still relies on the existing post_save
+is not needed.
+
+The admin's `group` choices are restricted like the People form's: non-archived groups,
+**plus** the invitation's current group when editing an existing row (so re-saving an
+old invitation whose group was archived later does not fail validation). Done in the
+ModelAdmin's form (`get_form` / a custom `ModelForm`), not in `Invitation.clean()`. Creating an invite through the admin still relies on the existing post_save
 signal to send the email.
 
 ## Data flow
@@ -184,6 +197,16 @@ signal to send the email.
   account with no group and no trace; the anti-goal covers *expected* degradations
   only: missing or archived group.)
 - Form: group + non-Student role → field error, nothing created or sent.
+- Re-inviting a pending email whose group has since been archived: the form no longer
+  offers that group, so the refresh drops it (or replaces it with whatever was picked).
+  This is intended.
+- Editing a pending invitation's group in the Django admin does not resend the email
+  (post_save sends only on create), so the student's email may name the old course.
+  Accepted: the People form's re-invite is the path that resends.
+- An `IntegrityError` raised inside the helper would be caught by `accept_invite`'s
+  existing handler and shown as "username taken". Accepted: `add_students_to_group`
+  already absorbs the one expected integrity race (concurrent membership/enrolment)
+  with `get_or_create` in savepoints, so no other `IntegrityError` is expected there.
 - Several pending invitations for one email (possible only via the Django admin): a
   refresh updates only the newest (`find_pending`), and an older token, if accepted,
   applies its own group. Accepted as is: the People form never creates duplicates, and
@@ -207,16 +230,21 @@ signal to send the email.
 - **Role guard**: an invitation row with a group and role Teacher (written bypassing
   `clean()`) → accept creates the account, no membership; `Invitation.full_clean()` on
   such a row raises on `group`.
-- **Archived race**: the helper's group read uses `select_for_update` (assert via the
-  archived-group case; a true concurrency test is not required).
+- **Archived race**: the helper's group read takes a row lock. Assert it in a way that
+  fails if the lock is removed: run the helper inside `CaptureQueriesContext` and
+  assert the `grouping_group` SELECT contains `FOR UPDATE`. (The archived-group
+  behaviour case alone stays green without the lock.) A true concurrency test is not
+  required.
 - **View**: POST to `invitation_send` with a group saves it; the list shows the Group
   column; the page does not N+1 (query count with several invitations).
 - **Email**: with a group the body contains the course title; without one it doesn't.
   Also on the refresh path: re-invite with a different group → the resent body names
   the new course; re-invite with no group → the line is gone. The body always reflects
-  the group as just saved.
+  the group as just saved. One case uses a course title containing `&` and an
+  apostrophe and asserts they arrive unescaped.
 - **Admin**: the changelist and change form render with role and group; saving a
-  non-Student invitation with a group through the admin form is rejected.
+  non-Student invitation with a group through the admin form is rejected; the admin's
+  group choices exclude archived groups except the row's current one.
 - **i18n**: new strings have Polish translations in `locale/pl/LC_MESSAGES/django.po`,
   compiled `.mo` regenerated.
 - **Help docs**: `docs/help/platform-admin/invitations.md` and `.pl.md` gain a short
