@@ -126,7 +126,7 @@ def apply_invitation_group(invitation, user):
     if invitation.group_id is None or invitation.role != STUDENT:
         return
     group = (
-        CourseGroup.objects.select_for_update()
+        CourseGroup.objects.select_for_update(no_key=True)
         .filter(pk=invitation.group_id, archived=False)
         .first()
     )

@@ -212,5 +212,5 @@ def test_apply_locks_group_row():
         if 'FROM "grouping_group"' in q["sql"] and pat.search(q["sql"])
     ]
     assert hits
-    assert all("FOR UPDATE" in s for s in hits)
+    assert all("FOR NO KEY UPDATE" in s for s in hits)
     assert not any('"courses_course"' in s for s in hits)

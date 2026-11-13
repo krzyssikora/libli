@@ -503,7 +503,12 @@ class Command(BaseCommand):
             email="invitee@demo.example",
             defaults={"role": STUDENT, "invited_by": teacher, "group": group},
         )
-        if group is not None and invitation.group_id != group.pk:
+        if (
+            group is not None
+            and invitation.role == STUDENT
+            and invitation.accepted_at is None
+            and invitation.group_id != group.pk
+        ):
             invitation.group = group
             invitation.save(update_fields=["group"])
 

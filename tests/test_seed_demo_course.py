@@ -250,6 +250,20 @@ def test_seed_is_idempotent_second_run():
 
 
 @pytest.mark.django_db
+def test_seed_leaves_accepted_invitation_group_alone():
+    from django.utils import timezone
+
+    from accounts.models import Invitation
+
+    call_command("seed_demo_course")
+    Invitation.objects.filter(email="invitee@demo.example").update(
+        accepted_at=timezone.now(), group=None
+    )
+    call_command("seed_demo_course")
+    assert Invitation.objects.get(email="invitee@demo.example").group_id is None
+
+
+@pytest.mark.django_db
 def test_seed_submitted_quizzes_have_completed_progress():
     """The invariant "a SUBMITTED submission always has a completed UnitProgress".
 
