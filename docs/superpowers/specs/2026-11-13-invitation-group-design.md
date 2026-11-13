@@ -110,7 +110,9 @@ leave an existing pending invite's group alone. `group=None` passed explicitly m
   this branch is unreachable (the form's `clean()` rejects the combination first), so
   the view's existing `form.add_error("email", ...)` handler is left as is.
 - An archived group raises `InvitationError` ("This group is archived.") as well, so no
-  caller can store a group that would be silently dropped at accept. (Unreachable from
+  caller can *newly assign* an archived group. (A wizard-style `_UNSET` refresh keeps a
+  stored group that was archived after sending; it is then dropped at accept and the
+  resent email has no course line, consistent with the "(archived)" marker.) (Unreachable from
   the People view, whose queryset excludes archived groups.)
 
 ### View / template — People → Invitations
@@ -213,7 +215,8 @@ The admin's choices use the **same option label** (`"<group name> — <course ti
 ordering and `select_related("course")` as the People form, since
 `grouping.Group.__str__` is the bare name and several courses can each have a "3A".
 Share one `ModelChoiceField` subclass (its `label_from_instance`) between the two
-forms. Creating an invite through the admin still relies on the existing post_save
+forms, defined in `accounts/forms.py` next to `SendStudentInvitationForm` and imported
+by `accounts/admin.py`. Creating an invite through the admin still relies on the existing post_save
 signal to send the email.
 
 ## Data flow
@@ -282,7 +285,9 @@ signal to send the email.
 - **Wizard unchanged**: the setup wizard's team step renders without a group field and
   a Student invite through it still succeeds.
 - **Password accept**: with a group → membership + enrolment on the group's course +
-  `notify_enrolled` fired; without a group → no membership; group archived → account
+  an ENROLLED `Notification` row for the student and course (with no actor, since
+  `recompute_enrollment` calls `notify_enrolled` without one; asserting the email needs
+  `django_capture_on_commit_callbacks(execute=True)`); without a group → no membership; group archived → account
   created, no membership; group deleted → account created, no membership.
 - **Password accept, rollback**: the helper forced to raise a non-`IntegrityError`
   (which `accept_invite` does not catch) → the exception propagates, no User exists,
@@ -322,4 +327,11 @@ signal to send the email.
   Student-only error, "(archived)") have Polish translations in `locale/pl/LC_MESSAGES/django.po`,
   compiled `.mo` regenerated.
 - **Help docs**: `docs/help/platform-admin/invitations.md` and `.pl.md` gain a short
-  paragraph on the Group field.
+  paragraph on the Group field. Regenerate the two invitations screenshots
+  (`invitations.en.png` / `.pl.png`, entry `"invitations"` in
+  `tests/capture_help_screenshots.py`) with a seeded group so the field and column are
+  visible; the capture script overwrites other tracked PNGs too, so commit only those
+  two.
+- **Phone width**: the Group `<select>` must not push `.invite-form` wider than the
+  viewport with a long course title (e.g. `max-width: 100%` on the invite form's
+  select); check at 360px with a long title (e2e or a manual check).
