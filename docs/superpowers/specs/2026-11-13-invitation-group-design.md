@@ -99,7 +99,10 @@ leave an existing pending invite's group alone. `group=None` passed explicitly m
   `expires_at`, and `group` **only when `group` was passed** (the People view always
   passes it, so leaving the group empty there clears it), then re-sends, as today.
   `update_fields` gains `"group"` only in that case. On the create path `_UNSET` means
-  no group.
+  no group. Exception: when `group` is `_UNSET` and the new role is **not** Student, a
+  stored group is cleared (and `update_fields` gains `"group"`), so a wizard re-invite
+  that changes a grouped Student invite to Teacher never leaves a group on a
+  non-Student row.
 - The existing-account rejection is unchanged and still runs first.
 - A `group` with `role != STUDENT` raises `InvitationError` ("A group can only be given
   to a Student invitation."), before anything is created or refreshed, so every future
@@ -180,7 +183,8 @@ Both call it only after the role is set, and only for a still-valid invitation.
 
 ### Email — `templates/accounts/invite_email.txt`
 
-When `invitation.group` is set **and not archived**, add a line naming the course, e.g.
+When `invitation.group` is set, **not archived, and `invitation.role` is Student**, add a
+line naming the course, e.g.
 "You have been invited to the course: <course title>." Otherwise the email is unchanged.
 The subject is unchanged.
 
@@ -272,7 +276,9 @@ signal to send the email.
   nothing; create stores the group; refresh replaces it and clears it when `None`;
   the wizard call (no group kwarg) still works, and a wizard-style refresh (no `group`
   kwarg) of a pending invite **keeps** its group, while an explicit `group=None` clears
-  it; an archived group raises `InvitationError`.
+  it; an archived group raises `InvitationError`. A pending Student+group invite
+  refreshed wizard-style (no `group` kwarg) to Teacher → the group is cleared and the
+  resent email has no course line.
 - **Wizard unchanged**: the setup wizard's team step renders without a group field and
   a Student invite through it still succeeds.
 - **Password accept**: with a group → membership + enrolment on the group's course +
