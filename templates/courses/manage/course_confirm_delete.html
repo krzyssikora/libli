@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 {% block head_title %}{% trans "Delete course" %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
@@ -10,10 +11,13 @@
       {% blocktrans with e=counts.enrollments p=counts.progress %}Warning: {{ e }} enrollment(s) and {{ p }} progress record(s) will also be destroyed.{% endblocktrans %}
     </p>
   {% endif %}
-  <form method="post" class="form">
+  {% trans "Deleting the course… Don't close this page." as busy_msg %}
+  <form method="post" class="form" data-busy-submit data-busy-message="{{ busy_msg }}">
     {% csrf_token %}
     <button class="btn btn--danger" type="submit">{% trans "Delete permanently" %}</button>
     <a class="btn btn--ghost" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Cancel" %}</a>
+    <p class="busy-note" data-busy-note role="status"></p>
   </form>
 </section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'core/js/busy_submit.js' %}" defer></script>{% endblock %}

@@ -903,9 +903,9 @@ def _create_media(zf, document, media_entries, course, user, created_files):
             # TRANSFER_MAX_MEDIA_ENTRIES (1000) entries inside _run_import's
             # transaction.atomic(). At tens of ms per image that is 20-60s of
             # CPU added to one request holding an open write transaction.
-            # Imported assets serve originals until the operator runs
-            # `backfill_media_derivatives --course <slug>`, which blank-is-safe
-            # makes correct rather than broken.
+            # Imported assets serve originals until the web views' post-commit
+            # job (courses/derivatives_background.py) or `backfill_media_
+            # derivatives` fills them in; blank-is-safe makes that correct.
             asset = create_asset(
                 course, m["kind"], wrapped, user, name=m["name"], generate=False
             )

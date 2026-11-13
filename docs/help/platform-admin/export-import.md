@@ -29,15 +29,18 @@ new course from it, or **Import content** inside a course's builder to
 insert a subtree into that course at a chosen point. Either way the flow
 is:
 
-1. **Upload and preview** the archive. It is validated and staged, not yet
+1. **Upload and check** the archive. It is validated and staged, not yet
    applied.
-2. Review the **Import preview** page — what will be created, including
+2. Review the **Import summary** page — what will be created, including
    where a subtree will be inserted (only structurally valid insertion
    points are offered).
 3. **Confirm import** to apply it, or **Cancel** to discard the staged
-   upload.
+   upload. A large course can take a few minutes to import; keep the page
+   open until you land in the new course's builder. Image thumbnails are
+   generated in the background afterwards, so for a short while images may
+   load at full size.
 
-A staged upload expires after a while; if you return to a stale preview,
+A staged upload expires after a while; if you return to a stale summary,
 re-upload the archive. Very large archives are rejected up front against
 this instance's configured size ceiling rather than partway through the
 upload.

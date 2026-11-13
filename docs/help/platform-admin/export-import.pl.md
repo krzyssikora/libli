@@ -31,16 +31,19 @@ utworzyć z niego nowy kurs, albo użyj **Importuj zawartość** wewnątrz
 kreatora danego kursu, aby wstawić fragment do tego kursu w wybranym
 miejscu. W obu przypadkach przebieg jest taki sam:
 
-1. **Prześlij i zobacz podgląd** archiwum. Zostaje ono zwalidowane i
+1. **Prześlij i sprawdź** archiwum. Zostaje ono zwalidowane i
    tymczasowo zapamiętane, ale jeszcze nie zastosowane.
-2. Przejrzyj stronę **Podgląd importu** — co zostanie utworzone, w tym
+2. Przejrzyj stronę **Podsumowanie importu** — co zostanie utworzone, w tym
    gdzie zostanie wstawiony fragment (proponowane są wyłącznie
    strukturalnie poprawne miejsca wstawienia).
 3. **Potwierdź import**, aby go zastosować, lub **Anuluj**, aby odrzucić
-   tymczasowo zapamiętane archiwum.
+   tymczasowo zapamiętane archiwum. Import dużego kursu może potrwać kilka
+   minut — nie zamykaj strony, dopóki nie zobaczysz kreatora nowego kursu.
+   Miniatury obrazów generują się potem w tle, więc przez krótki czas
+   obrazy mogą wczytywać się w pełnym rozmiarze.
 
 Tymczasowo zapamiętane archiwum wygasa po pewnym czasie; jeśli wrócisz do
-nieaktualnego podglądu, wczytaj archiwum ponownie. Bardzo duże archiwa są
+nieaktualnego podsumowania, wczytaj archiwum ponownie. Bardzo duże archiwa są
 odrzucane od razu, na podstawie skonfigurowanego dla tej instancji limitu
 rozmiaru, a nie dopiero w trakcie przesyłania.
 
