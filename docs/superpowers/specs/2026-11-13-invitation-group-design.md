@@ -77,7 +77,8 @@ form's own check (below) stays, since `SendInvitationForm` is a plain `Form`.
 - Option label: `"<group name> — <course title>"`.
 - Empty choice label: "— no group —" (translatable).
 - `clean()`: a group together with any role other than Student raises a field error on
-  `group`: "A group can only be given to a Student invitation." (translatable).
+  `group`. The check runs only when `role` is present in `cleaned_data` (an invalid,
+  tampered role already has its own error; no `KeyError`, no second error): "A group can only be given to a Student invitation." (translatable).
 
 ### Service — `accounts.services.create_or_refresh_invitation`
 
@@ -91,7 +92,9 @@ call site is unchanged).
 - The existing-account rejection is unchanged and still runs first.
 - A `group` with `role != STUDENT` raises `InvitationError` ("A group can only be given
   to a Student invitation."), before anything is created or refreshed, so every future
-  caller (bulk invites, the shell) gets the Student-only rule too.
+  caller (bulk invites, the shell) gets the Student-only rule too. From the People view
+  this branch is unreachable (the form's `clean()` rejects the combination first), so
+  the view's existing `form.add_error("email", ...)` handler is left as is.
 
 Builder's call: the wizard path passes no group, so a wizard re-invite of a pending
 email clears any group on it. The wizard invites staff at first run, so this is accepted.
@@ -115,7 +118,9 @@ New helper in `accounts/services.py` (name is the builder's call, e.g.
 - If `invitation.role != STUDENT` → do nothing (defence in depth: `clean()` already
   forbids it, but rows can exist that never went through `clean()`, e.g. a shell edit).
 - Re-read the group as `CourseGroup.objects.select_for_update().filter(pk=invitation.group_id,
-  archived=False).first()`, inside the caller's transaction. If that returns `None`
+  archived=False).first()`, inside the caller's transaction. No `select_related` on
+  this read (or, if one is added, `select_for_update(of=("self",))`), so only the
+  group row is locked, never the course row. If that returns `None`
   (deleted or archived) → do nothing. The row lock serialises with
   `set_group_archived`, whose `save()` takes the row lock before it reads the
   membership list, so a group archived concurrently cannot slip through. A concurrent
@@ -183,7 +188,12 @@ is not needed.
 The admin's `group` choices are restricted like the People form's: non-archived groups,
 **plus** the invitation's current group when editing an existing row (so re-saving an
 old invitation whose group was archived later does not fail validation). Done in the
-ModelAdmin's form (`get_form` / a custom `ModelForm`), not in `Invitation.clean()`. Creating an invite through the admin still relies on the existing post_save
+ModelAdmin's form (`get_form` / a custom `ModelForm`), not in `Invitation.clean()`.
+The admin's choices use the **same option label** (`"<group name> — <course title>"`),
+ordering and `select_related("course")` as the People form, since
+`grouping.Group.__str__` is the bare name and several courses can each have a "3A".
+Share one `ModelChoiceField` subclass (its `label_from_instance`) between the two
+forms. Creating an invite through the admin still relies on the existing post_save
 signal to send the email.
 
 ## Data flow
@@ -239,7 +249,7 @@ signal to send the email.
 
 - **Model/migration**: the field exists, is nullable, and deleting the group nulls it
   (the invitation survives).
-- **Form**: group optional; group + Teacher (and each non-Student role) → error on
+- **Form**: group optional; an invalid role plus a group → only the role error; group + Teacher (and each non-Student role) → error on
   `group`; group + Student → valid; archived groups are not offered; option label
   format.
 - **Service**: a group with a non-Student role raises `InvitationError` and creates
@@ -262,7 +272,9 @@ signal to send the email.
   such a row raises on `group`.
 - **Archived race**: the helper's group read takes a row lock. Assert it in a way that
   fails if the lock is removed: run the helper inside `CaptureQueriesContext` and
-  assert the `grouping_group` SELECT contains `FOR UPDATE`. (The archived-group
+  assert that the query whose `FROM` is `"grouping_group"` and which filters on the
+  group's pk contains `FOR UPDATE` (other queries in the call tree join
+  `grouping_group` too, so a loose substring match is not enough). (The archived-group
   behaviour case alone stays green without the lock.) A true concurrency test is not
   required.
 - **View**: POST to `invitation_send` with a group saves it; the list shows the Group
@@ -275,7 +287,8 @@ signal to send the email.
   invitation whose group has since been archived → no course line.
 - **Admin**: the changelist and change form render with role and group; saving a
   non-Student invitation with a group through the admin form is rejected; the admin's
-  group choices exclude archived groups except the row's current one.
+  group choices exclude archived groups except the row's current one, and each option's
+  text includes the course title.
 - **i18n**: new strings (field label and column header "Group", "— no group —", the
   Student-only error, "(archived)") have Polish translations in `locale/pl/LC_MESSAGES/django.po`,
   compiled `.mo` regenerated.
